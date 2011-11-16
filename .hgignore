@@ -4,3 +4,4 @@ silast/*
 *.log
 *.synctex.gz
 *.aux
+~$*.*
