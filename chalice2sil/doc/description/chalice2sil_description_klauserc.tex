@@ -113,7 +113,7 @@ The resulting program should
 \begin{itemize}
 \item use the existing Chalice front end with as few changes as possible. This ensures that the language does not get fragmented.
 \item be able to translate basic language constructs like assignments, conditions and loops so that they can be verified.
-\item be able to translate method calls, thread forks and joins, making sure that permissions are passed around correctly and that 
+\item be able to translate method calls, thread forks and joins, making sure that permissions are passed around correctly.
 \item be able to translate monitor-based locks, including transfer of permissions into and out of the lock. Chalice's deadlock-avoidance mechanism can be considered as an extension.
 \item track locations in the original source code in order to generate meaningful error messages in case an input program fails verification. The use of an intermediate representation should be as transparent as possible.
 \end{itemize}
