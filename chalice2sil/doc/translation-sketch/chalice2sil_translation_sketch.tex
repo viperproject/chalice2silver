@@ -87,6 +87,21 @@
 \renewcommand{\implies}{\ensuremath{\ \rightarrow\ }}
 
 %=========================================
+%		Document-specific commands
+
+\newcommand{\ldbrack}{⟦}
+\newcommand{\rdbrack}{⟧}
+\newcommand{\ch}[1]{\left\ldbrack{}#1\right\rdbrack_\text{Ch}}
+\newcommand{\sil}[1]{\left\ldbrack{}#1\right\rdbrack_\text{SIL}}
+
+\newcommand{\Chalice}{Chalice}
+\newcommand{\SIL}{SIL}
+\newcommand{\ct}[1]{\ensuremath{\text{\texttt{#1}}\ }}
+\newcommand{\ctw}[1]{\ensuremath{\ \ \text{\texttt{#1}}\ \ }}
+\newcommand{\ctn}[1]{\ensuremath{\text{\texttt{#1}}}}
+\newcommand{\bt}{\lstinline!::!}
+
+%=========================================
 
 \usepackage[parfill]{parskip} 
 \usepackage{titlesec}
@@ -108,6 +123,40 @@
 \begin{document}
 {\LARGE \bf\sffamily \metaTitle}
 
+\section{Expressions}
+$E$ translates a \Chalice{} expression into an equivalent \SIL{} expression. Given an scoped identifier $i$, $ρ(i)$ denotes a globally unique identifier. E.g., $ρ(\ctn{someField}) = \ct{SomeClass\bt{}someField}$
 
+\begin{align}
+	E\ch{e_1 \ct{?} e_2 \ct{:} e_3} &= \sil{E\left(e_1\right) \ctw{?} E\left(e_2\right) \ctw{:} E\left(e_3\right)} \\
+	E\ch{e_1 \ct{==} e_2} &= \sil{\ctn{==}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ct{!=} e_2} &= \sil{\ctn{!=}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ct{<} e_2} &= \sil{\ctn{<}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ct{<=} e_2} &= \sil{\ctn{<=}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ct{>=} e_2} &= \sil{\ctn{>=}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ct{>} e_2} &= \sil{\ctn{>}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ct{<<} e_2} &= \ct{/* lock below ??? */} \\
+	E\ch{e_1 \ctw{in} e_2} &= \sil{\ctn{in}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ctw{!in} e_2} &= E\ch{\ctn{!}\left(e_1 \ctw{in} e_2\right)} \\
+	E\ch{e_1 \ct{+} e_2} &= \sil{\ctn{+}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ct{-} e_2} &= \sil{\ctn{-}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ct{*} e_2} &= \sil{\ctn{*}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ct{/} e_2} &= \sil{\ctn{/}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ct{\%} e_2} &= \sil{\ctn{\%}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{\ct{!} e} &= \sil{\ctn{!}\left(E\left(e\right)\right)} \\
+	E\ch{\ct{-} e} &= \sil{\ctn{-}\left(E\left(e\right)\right)} \\
+	E\ch{e_1\ct{[}e_2\ct{]}} &= \sil{\ctn{at}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1\ct{[}e_2\ct{..]}} &= \sil{\ctn{drop}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1\ct{[..}e_2\ct{]}} &= \sil{\ctn{take}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1\ctn{.}id} &= \sil{E\left(e_1\right)\ctn{.}id} \\
+	E\ch{e_1\ctn{.}id\ctn{(}e\ldots\ctn{)}} &= \sil{ρ\!\left(id\right)\!\left(E\left(e_1\right), E\left(e\ldots\right)\right)}  \\
+	%E\ch{e_1\ctn{.acquire} e_2} &= \ct{/* Eval(AcquireState(e_1), e_2) */} \\
+	%E\ch{e_1\ctn{.release} e_2} &= \ct{/* Eval(ReleaseState(e_1), e_2) */} \\
+	%E\ch{e_1\ct{.fork}\ \ {id}_1\ctn{.}{id}_2\ldots\ctn{.}{id}_n(e\ldots)\ \ e_2} &= \ct{/* Parser.scala 466 */}
+	E\ch{\ctn{true}} &= \sil{\ctn{true}} \\
+	E\ch{\ctn{false}} &= \sil{\ctn{false}} \\
+	E\ch{\ctn{null}} &= \sil{\ctn{null}} \\
+	E\ch{\ctn{this}} &= \ctn{/* ??? */} \\
+	E\ch{x} &= \sil{x}\qquad\text{where $x$ is a numeric literal}
+\end{align}
 
 \end{document}
