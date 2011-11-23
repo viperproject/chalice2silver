@@ -159,4 +159,34 @@ $E$ translates a \Chalice{} expression into an equivalent \SIL{} expression. Giv
 	E\ch{x} &= \sil{x}\qquad\text{where $x$ is a numeric literal}
 \end{align}
 
+\newpage
+\section{Statements}
+$S$ translates \Chalice{} statements into equivalent \SIL{} statements/expressions. $\tau_1, \tau_2, \ldots$ are temporary variables unique to each rule instantiation.
+
+\begin{align}
+	S\ch{\ctn{assert}\ \ e_1} &= \sil{\ctn{assert}\ \ E\left(e_1\right)} \\
+	S\ch{\ctn{assume}\ \ e_1} &= \sil{\ctn{assume}\ \ E\left(e_1\right)} \\
+	S\ch{\ctn{\{}s\ldots\ctn{\}}} &= \sil{S\left(s\ldots\right)}
+\end{align}
+Need to flatten nested stmt blocks, since SIL doesn't have local variable scoping.
+\begin{align}
+	S\ch{\ctw{spec} id\left[e\ldots\right]} &= \text{What does \ct{spec} do?} \\
+	S\ch{\ctw{var} id \ctw{:=} e_1} &= \sil{id \ctw{:=} E\left(e_1\right)} \\
+	S\ch{\ctw{const} id \ctw{:=} e_1} &= \sil{id \ctw{:=} E\left(e_1\right)} \\
+	S\ch{\ctw{ghost var} id \ctw{:=} e_1} &= \sil{id \ctw{:=} E\left(e_1\right)}\quad\text{Keep track of \ctn{ghost}?} \\
+	S\ch{\ctw{ghost const} id \ctw{:=} e_1} &= \sil{id \ctw{:=} E\left(e_1\right)} \\
+	S\ch{\ctw{call} v\ldots \ctw{:=} r\ctn{.}m_1\!\left(e\ldots\right) } &= \ldbrack{}
+ 		\ct{call}\ v\ldots \ctw{:=} E\left(r\right)\ctn{.}m_1\left(E\left(e\ldots\right)\right) \rdbrack{} \notag
+\end{align}
+If SIL doesn't support multiple return values, the method will have to return a tuple containing the actual return values.
+\begin{align}
+	S\ch{\ctw{call} v_1, v_2, \ldots, v_n \ctw{:=} r\ctn{.}m_1\!\left(e\ldots\right) } &= \ldbrack{}
+ 		\ct{call}\ \tau_1 \ctw{:=} E\left(r\right)\ctn{.}m_1\!\left(E\left(e\ldots\right)\right) \ctw{;} \\&\quad\quad\!
+		S\left(v_1 \ctw{:=} \tau_1\ctn{.}elem_1\right) \ctw{;} 	\\&\quad\quad\!
+		S\left(v_1 \ctw{:=} \tau_1\ctn{.}elem_1\right) \ctw{;} 	\\&\quad\quad\!
+ 		\quad\quad\vdots 								\\&\quad\quad\!
+		S\left(v_n \ctw{:=} \tau_1\ctn{.}elem_n\right) 			\\&\quad\quad\!
+ 	\rdbrack{}_{\text{SIL}}\notag
+\end{align}
+
 \end{document}
