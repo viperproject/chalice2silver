@@ -122,7 +122,7 @@ The resulting program should
 Depending on the progress of the main task, several extensions to the project are possible. 
 \begin{itemize}
 \item Chalice comes with support for \emph{predicates} and \emph{functions}, features that allow for information hiding and code reuse in invariants, pre- and postconditions. \emph{Functions} in particular offset Chalice's lack of \emph{pure} methods. \emph{Predicates} and \emph{functions} need to be translated into the target language in order to verify Chalice programs using these features.
-\item Deadlock-avoidance is a very important feature for a language that is designed to enable the verification of concurrent programs. Chalice already provides a mechanism for preventing deadlocks on \emph{monitors}, it would just have to be translated into the target language.
+\item Deadlock-avoidance is a very important feature for a language that is designed to enable the verification of concurrent programs. Chalice already provides a mechanism for preventing deadlocks on \emph{monitors}; it would just have to be translated into the target language.
 \item Many of the more interesting Chalice programs make use of \emph{channels} to simplify communication between threads (Actor model). Like with \emph{monitors}, there is a mechanism for avoiding deadlocks on \texttt{receive} operations. Again, these would have to be translated into the target language.
 \end{itemize}
 
