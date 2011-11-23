@@ -1,4 +1,4 @@
-% !TEX TS-program = xelatex
+﻿% !TEX TS-program = xelatex
 % !TEX encoding = UTF-8
 
 \documentclass[11pt]{article} % use larger type; default would be 10pt
@@ -215,10 +215,10 @@ Make sure that precondition is \ct{assert}ed before every usage. (How does this 
 \subsection{Predicates}
 Are $\ctw{assert} E\left(e_1\right)\neq\ctn{null}$ necessary for folding/unfolding?
 
-$\sigma\left(o\!\ctn{.}p\right)$  looks up the (permission) expression associated with a predicate $p$ on object t$o$.
+$σ\left(o\!\ctn{.}p\right)$  looks up the (permission) expression associated with a predicate $p$ on object t$o$.
 \begin{align}
-	S\ch{\ct{fold}\ e_1\!\ctn{.}p_1} &= \sil{\ctw{exhale} \sigma\left(E\left(e_1\right)\!\ctn{.}p_1\right)} \quad \text{missing something here}\\
-	S\ch{\ct{unfold}\ e_1\!\ctn{.}p_1} &= \sil{\ctw{inhale} \sigma\left(E\left(e_1\right)\!\ctn{.}p_1\right)}
+	S\ch{\ct{fold}\ e_1\!\ctn{.}p_1} &= \sil{\ctw{exhale} σ\left(E\left(e_1\right)\!\ctn{.}p_1\right)} \quad \text{missing something here}\\
+	S\ch{\ct{unfold}\ e_1\!\ctn{.}p_1} &= \sil{\ctw{inhale} σ\left(E\left(e_1\right)\!\ctn{.}p_1\right)}
 \end{align}
 
 \end{document}
