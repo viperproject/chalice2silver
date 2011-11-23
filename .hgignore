@@ -5,3 +5,4 @@ silast/*
 *.synctex.gz
 *.aux
 ~$*.*
+*.orig

@@ -107,11 +107,11 @@
 \usepackage{titlesec}
 %\titleformat{\section}[display]{\normalfont\Large\bfseries}{Problem \thesection:}{1em}{}
 \titleformat{\section}{\normalfont\Large\bfseries\sffamily}{\metaSectionPrefix \thesection\ }{0.5em}{}
-\titleformat{\subsection}{\normalfont\large\bfseries\sffamily}{\thesubsection}{0.5em}{}
-\titleformat{\subsubsection}{\normalfont\bfseries\sffamily}{\thesubsubsection}{0.4em}{}
-\renewcommand{\thesection}{\arabic{section}}
-\renewcommand{\thesubsection}{(\alph{subsection})}
-\renewcommand{\thesubsubsection}{(\roman{subsubsection})}
+\titleformat{\subsection}{\normalfont\large\bfseries\sffamily}{\thesection{}.\thesubsection}{0.5em}{}
+\titleformat{\subsubsection}{\normalfont\bfseries\sffamily}{\thesection{}.\thesubsection{}.\thesubsubsection}{0.4em}{}
+\renewcommand{\thesection}{\arabic{section}} %arabic
+\renewcommand{\thesubsection}{\arabic{subsection}} %alph
+\renewcommand{\thesubsubsection}{\arabic{subsubsection}} %roman
 
 %=========================================
 
@@ -127,7 +127,7 @@
 $E$ translates a \Chalice{} expression into an equivalent \SIL{} expression. Given an scoped identifier $i$, $ρ(i)$ denotes a globally unique identifier. E.g., $ρ(\ctn{someField}) = \ct{SomeClass\bt{}someField}$
 
 \begin{align}
-	E\ch{e_1 \ct{?} e_2 \ct{:} e_3} &= \sil{E\left(e_1\right) \ctw{?} E\left(e_2\right) \ctw{:} E\left(e_3\right)} \\
+	E\ch{e_1 \ct{?} e_2 \ct{:} e_3} &= \sil{\ct{if}\ E\left(e_1\right) \ctw{then} E\left(e_2\right) \ctw{else} E\left(e_3\right)} \\
 	E\ch{e_1 \ct{==} e_2} &= \sil{\ctn{==}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
 	E\ch{e_1 \ct{!=} e_2} &= \sil{\ctn{!=}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
 	E\ch{e_1 \ct{<} e_2} &= \sil{\ctn{<}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
@@ -147,8 +147,9 @@ $E$ translates a \Chalice{} expression into an equivalent \SIL{} expression. Giv
 	E\ch{e_1\ct{[}e_2\ct{]}} &= \sil{\ctn{at}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
 	E\ch{e_1\ct{[}e_2\ct{..]}} &= \sil{\ctn{drop}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
 	E\ch{e_1\ct{[..}e_2\ct{]}} &= \sil{\ctn{take}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
-	E\ch{e_1\ctn{.}id} &= \sil{E\left(e_1\right)\ctn{.}id} \\
-	E\ch{e_1\ctn{.}id\ctn{(}e\ldots\ctn{)}} &= \sil{ρ\!\left(id\right)\!\left(E\left(e_1\right), E\left(e\ldots\right)\right)}  \\
+	E\ch{e_1\ctn{.}id} &= \sil{E\left(e_1\right)\ctn{.}id} \quad\text{Also assert that $e_1$ is not null}\\
+	E\ch{e_1\ctn{.}id\ctn{(}e\ldots\ctn{)}} &= \sil{ρ\!\left(id\right)\!\left(E\left(e_1\right), E\left(e\ldots\right)\right)}  
+ 		 \quad\text{Also assert that $e_1$ is not null} \\
 	%E\ch{e_1\ctn{.acquire} e_2} &= \ct{/* Eval(AcquireState(e_1), e_2) */} \\
 	%E\ch{e_1\ctn{.release} e_2} &= \ct{/* Eval(ReleaseState(e_1), e_2) */} \\
 	%E\ch{e_1\ct{.fork}\ \ {id}_1\ctn{.}{id}_2\ldots\ctn{.}{id}_n(e\ldots)\ \ e_2} &= \ct{/* Parser.scala 466 */}
@@ -161,7 +162,7 @@ $E$ translates a \Chalice{} expression into an equivalent \SIL{} expression. Giv
 
 \newpage
 \section{Statements}
-$S$ translates \Chalice{} statements into equivalent \SIL{} statements/expressions. $\tau_1, \tau_2, \ldots$ are temporary variables unique to each rule instantiation. Similarly, $η_1, η_2, \ldots$ are labels unique to each rule instantiation.
+$S$ translates \Chalice{} statements into equivalent \SIL{} statements/expressions. $τ_1, τ_2, \ldots$ are temporary variables unique to each rule instantiation. Similarly, $η_1, η_2, \ldots$ are labels unique to each rule instantiation.
 
 \begin{align}
 	S\ch{\ctn{assert}\ \ e_1} &= \sil{\ctn{assert}\ \ E\left(e_1\right)} \\
@@ -175,17 +176,19 @@ Need to flatten nested stmt blocks, since SIL doesn't have local variable scopin
 	S\ch{\ctw{const} id \ctw{:=} e_1} &= \sil{id \ctw{:=} E\left(e_1\right)} \\
 	S\ch{\ctw{ghost var} id \ctw{:=} e_1} &= \sil{id \ctw{:=} E\left(e_1\right)}\quad\text{Keep track of \ctn{ghost}?} \\
 	S\ch{\ctw{ghost const} id \ctw{:=} e_1} &= \sil{id \ctw{:=} E\left(e_1\right)} \\
-	S\ch{\ctw{call} v\ldots \ctw{:=} r\ctn{.}m_1\!\left(e\ldots\right) } &= \ldbrack{}
- 		\ct{call}\ v\ldots \ctw{:=} E\left(r\right)\ctn{.}m_1\left(E\left(e\ldots\right)\right) \rdbrack{}_\text{SIL} \notag
+	S\ch{\ctw{call} v\ldots \ctw{:=} r\ctn{.}m_1\!\left(e\ldots\right) } &= \ldbrack{} \ctw{assert} E\left(r\right)\!\ctw{\neq\ null;}
+ 		\\&\quad\quad\ \notag
+ 		\ct{call}\ v\ldots \ctw{:=} E\left(r\right)\ctn{.}m_1\left(E\left(e\ldots\right)\right) \rdbrack{}_\text{SIL}
 \end{align}
 If SIL doesn't support multiple return values, the method will have to return a tuple containing the actual return values.
 \begin{align}
 	S\ch{\ctw{call} v_1, v_2, \ldots, v_n \ctw{:=} r\ctn{.}m_1\!\left(e\ldots\right) } &= \ldbrack{}
- 		\ct{call}\ \tau_1 \ctw{:=} E\left(r\right)\ctn{.}m_1\!\left(E\left(e\ldots\right)\right) \ctw{;} \\&\quad\quad\!
-		S\left(v_1 \ctw{:=} \tau_1\ctn{.}elem_1\right) \ctw{;} 	\notag\\&\quad\quad\!
-		S\left(v_1 \ctw{:=} \tau_1\ctn{.}elem_1\right) \ctw{;} 	\notag\\&\quad\quad\!
- 		\quad\quad\vdots 								\notag\\&\quad\quad\!
-		S\left(v_n \ctw{:=} \tau_1\ctn{.}elem_n\right) 			\ 
+ 		 \ctw{assert} E\left(r\right)\!\ctw{\neq\ null;} \\&\quad\quad
+		\ct{call}\ τ_1 \ctw{:=} E\left(r\right)\ctn{.}m_1\!\left(E\left(e\ldots\right)\right) \ctw{;} \\&\quad\quad
+		S\left(v_1 \ctw{:=} τ_1\ctn{.}elem_1\right) \ctw{;} 	\notag\\&\quad\quad
+		S\left(v_1 \ctw{:=} τ_1\ctn{.}elem_1\right) \ctw{;} 	\notag\\&\quad\quad
+ 		\quad\quad\vdots 								\notag\\&\quad\quad
+		S\left(v_n \ctw{:=} τ_1\ctn{.}elem_n\right) 			\ 
  	\rdbrack{}_{\text{SIL}}\notag \\
 	S\ch{\ctn{if}\left(e_1\right) s_1 \ctw{else} s_2} &= \ldbrack{} 
  		\ctn{if}\ E\left(e_1\right) \ctw{then goto} η_1 \ctw{else} η_2 \ctw{;} \\&\quad\quad\!
@@ -195,13 +198,27 @@ If SIL doesn't support multiple return values, the method will have to return a 
 \end{align}
 \ct{lockchange} for \ct{while} loops ignored for now.
 \begin{align}
-	S\ch{\ctn{while}\left(c\right) \ctw{invariant} i\ldots \ctw{;} s} &= \ldbrack{} \quad\quad\! \ctw{assert} E\left(i\ldots\right) \ctw{;} \\&\quad\quad\ 
+	S\ch{\ctn{while}\left(c\right) \ctw{invariant} i\ldots \ctw{;} s} &= \ldbrack{} \quad\quad\! \ctw{exhale} E\left(i\ldots\right) \ctw{;} \\&\quad\quad\ 
 		η_1\ct{:} \ct{if}\ E\left(c\right) \ctw{then goto} η_2 \ctw{else} η_3 \ctw{;} 	\notag\\&\quad\quad\ 
- 		η_2\ct{:} S\left(s\right)											\notag\\&\quad\quad\ 
-		\quad\ \;\ctw{assert} E\left(i\ldots\right) 									\notag\\&\quad\quad\ 
-	 	\quad\ \;\ctw{goto} η_1 \ctw{;}										\notag\\&\quad\quad
- 		η_3\ct{:} \ctw{nop}	\rdbrack_\text{SIL}								\notag
+ 		η_2\ct{:} \ct{inhale} E\left(i\ldots\right)							\notag\\&\quad\quad\
+		\quad\ \;\;S\left(s\right)											\notag\\&\quad\quad\ 
+		\quad\ \;\ctw{exhale} E\left(i\ldots\right) 							\notag\\&\quad\quad\ 
+	 	\quad\ \;\ctw{goto} η_1 \ctw{;}										\notag\\&\quad\quad\
+ 		η_3\ct{:} \ct{inhale} E\left(i\ldots\right)	\rdbrack_\text{SIL}			\notag
 \end{align}
 
+%\subsection{Monitors}
+
+\subsection{Functions}
+Make sure that precondition is \ct{assert}ed before every usage. (How does this work when functions are used in predicates, pre/postconditions/invariants? Add function precondition as another clause? "inlining" it more or less? Can't the verifier do this?)
+
+\subsection{Predicates}
+Are $\ctw{assert} E\left(e_1\right)\neq\ctn{null}$ necessary for folding/unfolding?
+
+$\sigma\left(o\!\ctn{.}p\right)$  looks up the (permission) expression associated with a predicate $p$ on object t$o$.
+\begin{align}
+	S\ch{\ct{fold}\ e_1\!\ctn{.}p_1} &= \sil{\ctw{exhale} \sigma\left(E\left(e_1\right)\!\ctn{.}p_1\right)} \quad \text{missing something here}\\
+	S\ch{\ct{unfold}\ e_1\!\ctn{.}p_1} &= \sil{\ctw{inhale} \sigma\left(E\left(e_1\right)\!\ctn{.}p_1\right)}
+\end{align}
 
 \end{document}
