@@ -6,3 +6,11 @@ silast/*
 *.aux
 ~$*.*
 *.orig
+*/.cache
+*/.classpath
+*/.project
+*/bin/*
+scopt/.git/*
+scopt/.gitignore
+*/.settings/*
+target/*

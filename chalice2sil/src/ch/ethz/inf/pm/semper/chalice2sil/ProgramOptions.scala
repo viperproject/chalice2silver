@@ -1,0 +1,12 @@
+package ch.ethz.inf.pm.semper.chalice2sil
+
+import scala.collection.mutable;
+import scala.collection.mutable.HashMap
+
+/**
+ * Holds command line options. (Mutable)
+ */
+class ProgramOptions {
+  val chaliceOptions : mutable.Map[String, String]  = new HashMap[String,String]()
+  val chaliceFiles : mutable.Buffer[String] = new mutable.ArrayBuffer[String]()
+}

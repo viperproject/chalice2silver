@@ -1,4 +1,4 @@
-﻿% !TEX TS-program = xelatex
+% !TEX TS-program = xelatex
 % !TEX encoding = UTF-8
 
 \documentclass[11pt]{article} % use larger type; default would be 10pt
@@ -134,7 +134,6 @@ $E$ translates a \Chalice{} expression into an equivalent \SIL{} expression. Giv
 	E\ch{e_1 \ct{<=} e_2} &= \sil{\ctn{<=}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
 	E\ch{e_1 \ct{>=} e_2} &= \sil{\ctn{>=}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
 	E\ch{e_1 \ct{>} e_2} &= \sil{\ctn{>}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
-	E\ch{e_1 \ct{<<} e_2} &= \ct{/* lock below ??? */} \\
 	E\ch{e_1 \ctw{in} e_2} &= \sil{\ctn{in}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
 	E\ch{e_1 \ctw{!in} e_2} &= E\ch{\ctn{!}\left(e_1 \ctw{in} e_2\right)} \\
 	E\ch{e_1 \ct{+} e_2} &= \sil{\ctn{+}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
@@ -156,7 +155,7 @@ $E$ translates a \Chalice{} expression into an equivalent \SIL{} expression. Giv
 	E\ch{\ctn{true}} &= \sil{\ctn{true}} \\
 	E\ch{\ctn{false}} &= \sil{\ctn{false}} \\
 	E\ch{\ctn{null}} &= \sil{\ctn{null}} \\
-	E\ch{\ctn{this}} &= \ctn{/* ??? */} \\
+	E\ch{\ctn{this}} &= \text{First method argument} \\
 	E\ch{x} &= \sil{x}\qquad\text{where $x$ is a numeric literal}
 \end{align}
 
@@ -171,54 +170,57 @@ $S$ translates \Chalice{} statements into equivalent \SIL{} statements/expressio
 \end{align}
 Need to flatten nested stmt blocks, since SIL doesn't have local variable scoping.
 \begin{align}
-	S\ch{\ctw{spec} id\left[e\ldots\right]} &= \text{What does \ct{spec} do?} \\
-	S\ch{\ctw{var} id \ctw{:=} e_1} &= \sil{id \ctw{:=} E\left(e_1\right)} \\
-	S\ch{\ctw{const} id \ctw{:=} e_1} &= \sil{id \ctw{:=} E\left(e_1\right)} \\
-	S\ch{\ctw{ghost var} id \ctw{:=} e_1} &= \sil{id \ctw{:=} E\left(e_1\right)}\quad\text{Keep track of \ctn{ghost}?} \\
-	S\ch{\ctw{ghost const} id \ctw{:=} e_1} &= \sil{id \ctw{:=} E\left(e_1\right)} \\
-	S\ch{\ctw{call} v\ldots \ctw{:=} r\ctn{.}m_1\!\left(e\ldots\right) } &= \ldbrack{} \ctw{assert} E\left(r\right)\!\ctw{\neq\ null;}
- 		\\&\quad\quad\ \notag
- 		\ct{call}\ v\ldots \ctw{:=} E\left(r\right)\ctn{.}m_1\left(E\left(e\ldots\right)\right) \rdbrack{}_\text{SIL}
+	S\ch{\ctw{var} id \ctw{:=} e_1} &= \sil{id \ctw{:=} E\left(e_1\right)} \quad\text{Keep \ctw{const} and \ctw{ghost} attributes}\\
+	S\ch{\ctw{call} v\ldots \ctw{:=} r\ctn{.}m_1\!\left(e\ldots\right) } &= \sil{
+ 		\ct{call}\ v\ldots \ctw{:=} \rho\left(m_1\right)\left(E\left(r\right), E\left(e\ldots\right)\right) }
 \end{align}
-If SIL doesn't support multiple return values, the method will have to return a tuple containing the actual return values.
+%If SIL doesn't support multiple return values, the method will have to return a tuple containing the actual return values.
+%\begin{align}
+%	S\ch{\ctw{call} v_1, v_2, \ldots, v_n \ctw{:=} r\ctn{.}m_1\!\left(e\ldots\right) } &= \ldbrack{}
+% 		 \ctw{assert} E\left(r\right)\!\ctw{\neq\ null;} \\&\quad\quad
+%		\ct{call}\ τ_1 \ctw{:=} E\left(r\right)\ctn{.}m_1\!\left(E\left(e\ldots\right)\right) \ctw{;} \\&\quad\quad
+%		S\left(v_1 \ctw{:=} τ_1\ctn{.}elem_1\right) \ctw{;} 	\notag\\&\quad\quad
+%		S\left(v_1 \ctw{:=} τ_1\ctn{.}elem_1\right) \ctw{;} 	\notag\\&\quad\quad
+% 		\quad\quad\vdots 								\notag\\&\quad\quad
+%		S\left(v_n \ctw{:=} τ_1\ctn{.}elem_n\right) 			\ 
+% 	\rdbrack{}_{\text{SIL}}\notag \\
 \begin{align}
-	S\ch{\ctw{call} v_1, v_2, \ldots, v_n \ctw{:=} r\ctn{.}m_1\!\left(e\ldots\right) } &= \ldbrack{}
- 		 \ctw{assert} E\left(r\right)\!\ctw{\neq\ null;} \\&\quad\quad
-		\ct{call}\ τ_1 \ctw{:=} E\left(r\right)\ctn{.}m_1\!\left(E\left(e\ldots\right)\right) \ctw{;} \\&\quad\quad
-		S\left(v_1 \ctw{:=} τ_1\ctn{.}elem_1\right) \ctw{;} 	\notag\\&\quad\quad
-		S\left(v_1 \ctw{:=} τ_1\ctn{.}elem_1\right) \ctw{;} 	\notag\\&\quad\quad
- 		\quad\quad\vdots 								\notag\\&\quad\quad
-		S\left(v_n \ctw{:=} τ_1\ctn{.}elem_n\right) 			\ 
- 	\rdbrack{}_{\text{SIL}}\notag \\
 	S\ch{\ctn{if}\left(e_1\right) s_1 \ctw{else} s_2} &= \ldbrack{} 
  		\ctn{if}\ E\left(e_1\right) \ctw{then goto} η_1 \ctw{else} η_2 \ctw{;} \\&\quad\quad\!
  		η_1\ctn{:}\ S\left(s_1\right) \ctw{;} \notag\\&\quad\quad\!
-		η_2\ctn{:}\ S\left(s_2\right)\ 
+		\quad\;	 \ctw{goto} \eta_3 \notag\\&\quad\quad\!	
+		η_2\ctn{:}\ S\left(s_2\right)\notag\\&\quad\quad\!	
+		\eta_3\ctn{:}\ctw{nop} 
  	\rdbrack{}_{\text{SIL}}\notag
 \end{align}
 \ct{lockchange} for \ct{while} loops ignored for now.
 \begin{align}
-	S\ch{\ctn{while}\left(c\right) \ctw{invariant} i\ldots \ctw{;} s} &= \ldbrack{} \quad\quad\! \ctw{exhale} E\left(i\ldots\right) \ctw{;} \\&\quad\quad\ 
-		η_1\ct{:} \ct{if}\ E\left(c\right) \ctw{then goto} η_2 \ctw{else} η_3 \ctw{;} 	\notag\\&\quad\quad\ 
- 		η_2\ct{:} \ct{inhale} E\left(i\ldots\right)							\notag\\&\quad\quad\
-		\quad\ \;\;S\left(s\right)											\notag\\&\quad\quad\ 
-		\quad\ \;\ctw{exhale} E\left(i\ldots\right) 							\notag\\&\quad\quad\ 
-	 	\quad\ \;\ctw{goto} η_1 \ctw{;}										\notag\\&\quad\quad\
- 		η_3\ct{:} \ct{inhale} E\left(i\ldots\right)	\rdbrack_\text{SIL}			\notag
+	S\ch{\ctn{while}\left(c\right) \ctw{invariant} i\ldots \ctw{;} s} &= \ldbrack{} \ \,
+		η_1\ct{:}	\tau_1 \ctw{:=}  E\left(c\right) \ctw{;}						      \\&\quad\quad\
+		\quad\ 	\ctw{exhale} E\left(i\ldots\right) \ctw{;} 					\notag\\&\quad\quad\ 
+		\quad\ \;	\ct{if}\ \tau_1 \ctw{then goto} η_2 \ctw{else} η_3 \ctw{;} 		\notag\\&\quad\quad\ 
+ 		η_2\ct{:}	\ct{inhale} E\left(i\ldots\right) \ctw{;}						\notag\\&\quad\quad\
+		\quad\ \;\;S\left(s\right) \ctw{;}									\notag\\&\quad\quad\ 
+	 	\quad\ \;	\ctw{goto} η_1 \ctw{;}									\notag\\&\quad\quad\
+ 		η_3\ct{:} 	\ct{inhale} E\left(i\ldots\right)	\rdbrack_\text{SIL}			\notag
 \end{align}
 
-%\subsection{Monitors}
-
-\subsection{Functions}
-Make sure that precondition is \ct{assert}ed before every usage. (How does this work when functions are used in predicates, pre/postconditions/invariants? Add function precondition as another clause? "inlining" it more or less? Can't the verifier do this?)
-
 \subsection{Predicates}
-Are $\ctw{assert} E\left(e_1\right)\neq\ctn{null}$ necessary for folding/unfolding?
 
-$σ\left(o\!\ctn{.}p\right)$  looks up the (permission) expression associated with a predicate $p$ on object t$o$.
+$σ\left(o\!\ctn{.}p\right)$  looks up the (permission) expression associated with a predicate $p$ on object $o$.
 \begin{align}
-	S\ch{\ct{fold}\ e_1\!\ctn{.}p_1} &= \sil{\ctw{exhale} σ\left(E\left(e_1\right)\!\ctn{.}p_1\right)} \quad \text{missing something here}\\
-	S\ch{\ct{unfold}\ e_1\!\ctn{.}p_1} &= \sil{\ctw{inhale} σ\left(E\left(e_1\right)\!\ctn{.}p_1\right)}
+	S\ch{\ct{fold}\ e_1\!\ctn{.}p_1} &= \ldbrack{} \ctw{exhale} σ\left(E\left(e_1\right)\!\ctn{.}p_1\right) \ctw{;} \\
+		&\qquad \ctn{inhale acc}\left(E\left(e_1\right)\!\ctn{.}p_1\right) \rdbrack{}_\text{SIL} \notag \\
+	S\ch{\ct{unfold}\ e_1\!\ctn{.}p_1} &= \ldbrack{} \ctw{exhale acc}\left(E\left(e_1\right)\!\ctn{.}p_1\right) \ctw{;} \\
+		&\qquad \ct{inhale} σ\left(E\left(e_1\right)\!\ctn{.}p_1\right) \rdbrack{}_\text{SIL} \notag
+\end{align}
+
+\subsection{Monitors}
+$\iota\left(e\right)$ denotes the (monitor) invariant of an object $e$.
+
+\begin{align}
+	S\ch{\ct{share}\ e_1} &= \sil{\ctn{exhale}\ \iota\left(E\left(e_1\right)\right)} \\
+	S\ch{\ct{unshare}\ e_1} &= \sil{\ctn{exhale}\ \iota\left(E\left(e_1\right)\right)}
 \end{align}
 
 \end{document}

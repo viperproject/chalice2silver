@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project default="create_run_jar" name="Create Runnable Jar for Project Chalice2SIL">
+    <!--this file was created by Eclipse Runnable JAR Export Wizard-->
+    <!--ANT 1.7 is required                                        -->
+    <target name="create_run_jar">
+        <jar destfile="C:/Users/Christian/ETH/HS11/Bachelor/Chalice2SIL/chalice2sil/bin/chalice2sil.jar" filesetmanifest="mergewithoutmain">
+            <manifest>
+                <attribute name="Main-Class" value="ch.ethz.inf.pm.semper.chalice2sil.Program"/>
+                <attribute name="Class-Path" value="."/>
+            </manifest>
+            <fileset dir="C:/Users/Christian/ETH/HS11/Bachelor/Chalice2SIL/chalice2sil/bin"/>
+            <zipfileset excludes="META-INF/*.SF" src="C:/Users/Christian/ETH/HS11/Bachelor/Chalice2SIL/chalice2sil/lib/junit-4.10-src.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="C:/Users/Christian/ETH/HS11/Bachelor/Chalice2SIL/chalice2sil/lib/junit-4.10.jar"/>
+            <fileset dir="C:/Users/Christian/ETH/HS11/Bachelor/chalice2il-bg/Chalice/target/scala-2.8.1/classes"/>
+            <fileset dir="C:/Users/Christian/ETH/HS11/Bachelor/Chalice2SIL/silast/src/SILAST/bin"/>
+            <zipfileset excludes="META-INF/*.SF" src="C:/Users/Christian/ETH/HS11/Bachelor/Chalice2SIL/chalice2sil/lib/scopt_2.9.1-1.1.2.jar"/>
+        </jar>
+    </target>
+</project>
