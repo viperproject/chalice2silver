@@ -7,6 +7,14 @@ import scala.collection.mutable.HashMap
  * Holds command line options. (Mutable)
  */
 class ProgramOptions {
-  val chaliceOptions : mutable.Map[String, String]  = new HashMap[String,String]()
-  val chaliceFiles : mutable.Buffer[String] = new mutable.ArrayBuffer[String]()
+  
+  val chaliceOptions : mutable.Map[String, String]  = 
+    new HashMap[String,String]()
+    
+  /**
+   * The sequence of source files to be translated.
+   */
+  val chaliceFiles : mutable.Buffer[String] = 
+    new mutable.ArrayBuffer[String]()
+  
 }

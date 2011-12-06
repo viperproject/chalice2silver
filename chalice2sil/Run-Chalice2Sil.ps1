@@ -3,9 +3,6 @@
 #  $CHALICE2SIL_PROJECT
 #       The path to the folder that contains the Chalice2SIL source code
 #
-#  $SCALA_LIB
-#       The path to the folder that contains the scala-library.jar
-#
 #  $CHALICE_JAR
 #       The path to the chalice jar
 #
@@ -18,9 +15,9 @@ $proj  = $CHALICE2SIL_PROJECT;
 $classpath = (
     (Join-Path $proj chalice2sil\bin),
     (Join-Path $proj chalice2sil\lib\scopt_2.9.1-1.1.2.jar),
-    (Join-Path $SCALA_LIB scala-library.jar)
+    $CHALICE_JAR
     # Reference to Chalice missing
 );
 $classpath = Join-String $classpath -Separator ";";
 $package = "ch.ethz.inf.pm.semper.chalice2sil";
-java -classpath "$classpath" -ea:$package "$package.Program" $args
+scala -classpath "$classpath" -Jea:$package "$package.Program" $args
