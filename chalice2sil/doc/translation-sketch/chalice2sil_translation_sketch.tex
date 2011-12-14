@@ -96,10 +96,12 @@
 
 \newcommand{\Chalice}{Chalice}
 \newcommand{\SIL}{SIL}
-\newcommand{\ct}[1]{\ensuremath{\text{\texttt{#1}}\ }}
+\newcommand{\ct}[1]{\ensuremath{\text{\texttt{#1}}\ \ }}
 \newcommand{\ctw}[1]{\ensuremath{\ \ \text{\texttt{#1}}\ \ }}
 \newcommand{\ctn}[1]{\ensuremath{\text{\texttt{#1}}}}
 \newcommand{\bt}{\lstinline!::!}
+\newcommand{\acc}[2]{\ctn{acc}\left(#1,\; #2\right)}
+\newcommand{\transE}[1]{\ensuremath{E\left(#1\right)}}
 
 %=========================================
 
@@ -205,13 +207,62 @@ Need to flatten nested stmt blocks, since SIL doesn't have local variable scopin
  		η_3\ct{:} 	\ct{inhale} E\left(i\ldots\right)	\rdbrack_\text{SIL}			\notag
 \end{align}
 
+\subsection{Fork-Join}
+There is no direct support for fork-join in SIL, so we'll	have to simulate those asynchronous calls by exhaling the precondition at the fork-statement and returning a token object with certain properties. At the join-site, we verify that the token is valid and inhale the methods postcondition.
+
+$c\bt{}m_\text{pre}\left[e, a_1, a_2, \cdots, a_n, \pi_\text{rd}\right]$ stands for the precondition of the method $m$ in class $c$ with $e$ substituted for the \ctn{this} reference and $a_1$ through $a_n$ substituted for the formal parameters of the method. The value $\pi_\text{rd}$, finally, represents the permission fraction transferred to the callee to satisfy read permissions in the precondition of $c\bt{}m$
+
+$c\bt{}m_\text{post}\left[e, a_1, a_2, \cdots, a_n, \pi_\text{rd}\right]$ is defined analogously for the method's postcondition.
+
+The token's type contains the class and method that was invoked. This information is handled by the Chalice type checker and does not need to be encoded in SIL. On the other hand, the receiver and all method arguments need to be associated with the token at the fork-site in order to substitute them in the method's postcondition at the join-site later.
+
+We probably have to pass read-permissions to the ghost fields of tokens around implicitly. Since these fields are never changed after the token is created, we can use fractional permissions to give away read-permissions to every method that receives the token.
+
+\begin{align}
+	S\ch{t \ctw{:=} \ctw{fork} e.m\left(a_1, a_2, \ldots, a_n\right)} &= \ldbrack{}\ 
+		\tau \ctw{:=} \transE{e}												\\&\quad\quad
+		t \ctw{:=} \ctw{newobj}										\notag\\&\quad\quad
+		\ct{inhale} \acc{t\ctn{.joinable}}{\ctn{write}}						\notag\\&\quad\quad
+		t\ctn{.joinable} \ctw{:=} \ctw{True}\ 							\notag\\&\quad\quad
+		\ct{inhale} \acc{t\ctn{.}\pi_\text{rd}}{\ctn{write}}					\notag\\&\quad\quad
+		\ct{inhale} 0 < t\ctn{.}\pi_\text{rd} < R 							\notag\\&\quad\quad
+		\ct{inhale} \acc{t\ctn{.receiver}}{\ctn{write}}						\notag\\&\quad\quad
+		t\ctn{.receiver} \ctw{:=} 	\tau		 							\notag\\&\quad\quad
+		\ct{inhale} \acc{t\ctn{.arg}_1}{\ctn{write}}						\notag\\&\quad\quad
+		t\ctn{.arg}_1 \ctw{:=} \transE{a_1}\	 							\notag\\&\quad\quad
+		\qquad\vdots 												\notag\\&\quad\quad
+		\ct{inhale} \acc{t\ctn{.arg}_n}{\ctn{write}}						\notag\\&\quad\quad
+		t\ctn{.arg}_n \ctw{:=} \transE{a_n}\ 								\notag\\&\quad\quad
+		\ct{exhale} \ctn{typeof}\left(e\right)\bt{}m_\text{pre}\left[\tau, \transE{a_1, \cdots, a_n} \right] 	
+																\notag\\&\quad\quad
+\rdbrack{}_\text{SIL}			\notag
+%
+\end{align}
+where $R$ = all permissions to fields $c\bt{}m_\text{pre}$ mentions in read-access predicates.
+
+
+\begin{align}
+	S\ch{ o_1, \cdots, o_n \ctw{:=} \ctw{join} t} &= \ldbrack{}\ 					
+		\tau \ctw{:=} \transE{t}											\\&\quad\quad
+		\ct{exhale}\ \tau\ctn{.joinable} \ctw{==} \ctw{True} \land 				\notag\\&\quad\quad
+		\qquad\qquad								\acc{\tau\ctn{.joinable}}{\ctn{write}} 
+																\notag\\&\quad\quad
+		o_1 \ctw{:=} \ctw{havoc}										\notag\\&\quad\quad
+		\quad \vdots 												\notag\\&\quad\quad
+		o_n \ctw{:=} \ctw{havoc}										\notag\\&\quad\quad
+		\left. \ct{inhale}\ c\bt{}m_\text{post}\left[\tau\ctn{.receiver}, \tau\ctn{.arg}_{1,\cdots{},n}, \tau\ctn{.}\pi_\text{rd}\right] 
+	\ \right\rdbrack{}_\text{SIL}											\notag\\
+%
+		\text{where}\qquad	c &= \ctn{typeof}\left(\tau\right)\ctn{.class}		\notag\\
+					 	m &= \ctn{typeof}\left(\tau\right)\ctn{.method}		\notag
+\end{align}
 \subsection{Predicates}
 
 $σ\left(o\!\ctn{.}p\right)$  looks up the (permission) expression associated with a predicate $p$ on object $o$.
 \begin{align}
 	S\ch{\ct{fold}\ e_1\!\ctn{.}p_1} &= \ldbrack{} \ctw{exhale} σ\left(E\left(e_1\right)\!\ctn{.}p_1\right) \ctw{;} \\
-		&\qquad \ctn{inhale acc}\left(E\left(e_1\right)\!\ctn{.}p_1\right) \rdbrack{}_\text{SIL} \notag \\
-	S\ch{\ct{unfold}\ e_1\!\ctn{.}p_1} &= \ldbrack{} \ctw{exhale acc}\left(E\left(e_1\right)\!\ctn{.}p_1\right) \ctw{;} \\
+		&\qquad \ct{inhale}\ \acc{E\left(e_1\right)\!\ctn{.}p_1}{\ctn{write}} \rdbrack{}_\text{SIL} \notag \\
+	S\ch{\ct{unfold}\ e_1\!\ctn{.}p_1} &= \ldbrack{} \ctw{exhale}\acc{E\left(e_1\right)\!\ctn{.}p_1}{\ctn{write}} \ctw{;} \\
 		&\qquad \ct{inhale} σ\left(E\left(e_1\right)\!\ctn{.}p_1\right) \rdbrack{}_\text{SIL} \notag
 \end{align}
 
