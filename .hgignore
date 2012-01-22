@@ -14,3 +14,5 @@ scopt/.git/*
 scopt/.gitignore
 */.settings/*
 target/*
+chalice2sil/lib/chalice.jar
+chalice2sil/lib/silast.jar
