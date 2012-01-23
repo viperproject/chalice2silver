@@ -37,8 +37,8 @@
     <orderEntry type="library" scope="TEST" name="asm_asm_3.1" level="project" />
     <orderEntry type="library" scope="TEST" name="junit_junit_4.10" level="project" />
     <orderEntry type="library" scope="TEST" name="org.hamcrest_hamcrest-core_1.1" level="project" />
-    <orderEntry type="library" name="chalice.jar" level="project" />
     <orderEntry type="module" module-name="SILAST" />
+    <orderEntry type="module" module-name="Chalice" />
   </component>
 </module>
 

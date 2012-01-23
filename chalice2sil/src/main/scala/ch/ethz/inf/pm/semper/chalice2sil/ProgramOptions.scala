@@ -17,4 +17,8 @@ class ProgramOptions {
   val chaliceFiles : mutable.Buffer[String] = 
     new mutable.ArrayBuffer[String]()
   
+  var verbose : Boolean = false;
+  
+  var printSil : Boolean = false;
+  
 }
