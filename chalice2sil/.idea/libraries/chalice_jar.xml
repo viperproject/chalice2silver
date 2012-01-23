@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="chalice.jar">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/chalice.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

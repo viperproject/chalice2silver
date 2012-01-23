@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="silast.jar">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/silast.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
