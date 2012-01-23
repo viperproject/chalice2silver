@@ -5,7 +5,10 @@
       <configuration>
         <option name="compilerLibraryLevel" value="Project" />
         <option name="compilerLibraryName" value="scala-2.9.1" />
+        <option name="deprecationWarnings" value="true" />
+        <option name="explainTypeErrors" value="true" />
         <option name="fsc" value="true" />
+        <option name="uncheckedWarnings" value="true" />
       </configuration>
     </facet>
   </component>
@@ -22,7 +25,7 @@
       <sourceFolder url="file://$MODULE_DIR$/../src/test/resources" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/../target" />
     </content>
-    <orderEntry type="jdk" jdkName="1.7" jdkType="JavaSDK" />
+    <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="org.scala-lang_scala-library_2.9.1" level="project" />
     <orderEntry type="library" name="com.github.scopt_scopt_2.9.1_1.1.3" level="project" />
@@ -32,8 +35,10 @@
     <orderEntry type="library" scope="TEST" name="aopalliance_aopalliance_1.0" level="project" />
     <orderEntry type="library" scope="TEST" name="org.sonatype.sisu.inject_cglib_2.2.1-v20090111" level="project" />
     <orderEntry type="library" scope="TEST" name="asm_asm_3.1" level="project" />
+    <orderEntry type="library" scope="TEST" name="junit_junit_4.10" level="project" />
+    <orderEntry type="library" scope="TEST" name="org.hamcrest_hamcrest-core_1.1" level="project" />
     <orderEntry type="library" name="chalice.jar" level="project" />
-    <orderEntry type="library" name="silast.jar" level="project" />
+    <orderEntry type="module" module-name="SILAST" />
   </component>
 </module>
 
