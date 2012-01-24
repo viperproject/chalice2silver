@@ -8,14 +8,14 @@ import ch.ethz.inf.pm.semper.chalice2sil.translation.NameSequence.LowerAlphabet
 
 abstract class NameSequence {
   val alphabet : IndexedSeq[Char]
-  private val N = alphabet.length
+  private def N = alphabet.length
 
   protected def intPower(base : Int, exp : Int):Int = {
     require(exp >= 0)
     var exponent = exp
     var powerBase = base
     var result = 1;
-    while(exponent >= 0){
+    while(exponent > 0){
       if((exponent & 1) != 0)
         result *= powerBase
       exponent >>= 1
@@ -42,11 +42,15 @@ abstract class NameSequence {
     .flatMap(length => Stream.range(0,intPower(N,length)).map((length,_)))
     .map(t => genWord(t._1,t._2))
 
-  protected var currentName = allNames
+  protected var currentName : Option[Stream[String]] = None
 
   def nextName = {
-    val name = currentName.head
-    currentName = currentName.tail
+    val cn = currentName match {
+      case None => allNames
+      case Some(s) => s
+    }
+    val name = cn.head
+    currentName = Some(cn.tail)
     name
   }
 
