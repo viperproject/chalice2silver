@@ -3,14 +3,10 @@ package ch.ethz.inf.pm.semper.chalice2sil.messages
 import ch.ethz.inf.pm.semper.chalice2sil._
 import chalice.{Channel, ASTNode}
 import silAST.source.SourceLocation
-
-/**
- * Author: Christian Klauser
- * Date: 23.01.12
- */
+import Severity._
 
 object ChannelsNotImplemented extends MessageId(
-  Error(), 
+  Error,
   "ch.ethz.inf.pm.semper.chalice2sil.channelsNotImplemented",
   "Could not translate definition of channel %s.") {
   def apply(channel : Channel) = new Message(this,channel) {
@@ -19,7 +15,7 @@ object ChannelsNotImplemented extends MessageId(
 }
 
 object UnknownAstNode extends MessageId(
-  Error(),
+  Error,
   "ch.ethz.inf.pm.semper.chalice2sil.unknownAstNode",
   "Could not translate AST node of type %s. Value: (%s)") {
   def apply(node : ASTNode) = new Message(this,node) {

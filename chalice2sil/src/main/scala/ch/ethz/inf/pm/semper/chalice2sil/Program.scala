@@ -1,8 +1,11 @@
 package ch.ethz.inf.pm.semper.chalice2sil
 
-import messages.{Warning, Fault, Error}
+import messages.Severity._
 import scopt._
 import chalice.{Chalice,PrintProgram}
+import translation.ProgramTranslator
+import java.io.File
+import silAST.source.noLocation
 
 object Program {
 
@@ -90,7 +93,17 @@ object Program {
       Console.out.println("Beginning translation of Chalice program to SIL.")
     
     // Translate to SIL
-    val translator = new SilTranslator(opts)
+    val programName = opts.chaliceFiles.headOption.map(p => {
+      val ext = ".chalice"
+      val n = new File(p).getName
+      if(n.endsWith(ext))
+        n.dropRight(ext.length)
+      else
+        n
+    }).getOrElse("chalice-program")
+    val programLocation = program.headOption.map(astNodeToSourceLocation).getOrElse(noLocation)
+    val translator = new ProgramTranslator(opts, programName, programLocation)
+
     translator.onNewMessage += (m => {
       if (m.severity.indicatesFailure){
         Console.err.println(m)
@@ -99,7 +112,7 @@ object Program {
       }
     })
     
-    val (silProgram,messages) = translator.translate(opts.chaliceFiles.headOption.getOrElse("chalice_program"), program)
+    val (silProgram,messages) = translator.translate(program)
 
     def pluralize(noun : String,  count : Int) = count match {
       case 0 => "no " + noun + "s"
@@ -114,7 +127,7 @@ object Program {
       Console.out.println(silProgram.toString)
     }
 
-    val warningCount = messages.count(_.severity == Warning())
+    val warningCount = messages.count(_.severity == Warning)
     val errorCount = messages.count(_.severity.indicatesFailure)
     if(errorCount > 0)
       Console.out.println("[Failure] Chalice2SIL detected %s and %s.".format(

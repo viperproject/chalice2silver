@@ -1,7 +1,4 @@
-/**
- * Author: Christian Klauser
- * Date: 23.01.12
- */
+
 package ch.ethz.inf.pm.semper {
 
 import chalice.ASTNode
