@@ -1,12 +1,14 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
-import silAST.source.{SourceLocation}
 import collection.mutable.{ArrayBuffer, Buffer, LinkedHashSet, SynchronizedSet}
-import silAST.programs.{Program => SilProgram}
 import silAST.methods.MethodFactory
 import ch.ethz.inf.pm.semper.chalice2sil
 import chalice2sil._
 import silAST.programs.symbols.Field
+import silAST.programs.Program
+import silAST.source.{noLocation, SourceLocation}
+import silAST.types.{NonReferenceDataType, referenceType}
+import java.lang.String
 
 /**
  * Author: Christian Klauser
@@ -18,16 +20,36 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
    */
   var onNewMessage : Buffer[Message => Unit] = new ArrayBuffer
   val pastMessages = new LinkedHashSet[Message] with SynchronizedSet[Message]
-  def programFactory = SilProgram.getFactory(programLocation,programName)
-  def methodFactories = FactoryCache.apply[chalice.Method,MethodFactory](m => programFactory.getMethodFactory(m,fullMethodName(m)))
-  def fields = FactoryCache.apply[chalice.Field, Field](f => programFactory.defineReferenceField(f,fullFieldName(f))) // TODO: apply domain Field symbol for fields with domain types
+  val programFactory = Program.getFactory(programLocation,programName)
+  val methodFactories = new FactoryHashCache[chalice.Method,MethodFactory]{
+    def construct(m : chalice.Method) = programFactory.getMethodFactory(m,fullMethodName(m))
+  }
+  val fields = new FactoryHashCache[chalice.Field, Field]{
+    def construct(field : chalice.Field) = {
+      val fieldName : String = fullFieldName(field)
+      translate(field.typ) match {
+        case t:NonReferenceDataType  => programFactory.defineDomainField(field, fieldName,t)
+        case t if t == referenceType => programFactory.defineReferenceField(field,fieldName)
+        case t =>
+          report(messages.TypeNotUnderstood(t,field))
+          programFactory.defineReferenceField(field,fieldName)
+      }
+    }    
+  } // TODO: apply domain Field symbol for fields with domain types
 
-  def translate(decls : Seq[chalice.TopLevelDecl]) : (SilProgram,Seq[Message]) = {
-    val pf = SilProgram.getFactory(programLocation,programName)
-
+  def translate(decls : Seq[chalice.TopLevelDecl]) : (Program,Seq[Message]) = {
+    decls.foreach(collectSymbols)
     decls.foreach(translate)
+    (programFactory.getProgram,pastMessages.toSeq)
+  }
+  
+  protected def collectSymbols(decl : chalice.TopLevelDecl) { decl match {
+    case c:chalice.Class if c.IsNormalClass => collectSymbols(c)
+    case node => report(messages.UnknownAstNode(node))
+  }}
 
-    (pf.getProgram,pastMessages.toSeq)
+  protected def collectSymbols(classNode : chalice.Class){
+    classNode.members.view.collect({case f:chalice.Field => f}).foreach(fields(_))
   }
 
   protected def translate(decl : chalice.TopLevelDecl) {decl match {
@@ -46,5 +68,9 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
     })
   }
 
+  protected def translate(typeExpr: chalice.Type) = {
+    val translator = new TypeTranslator(this)
+    translator.translate(typeExpr)
+  }
 
 }

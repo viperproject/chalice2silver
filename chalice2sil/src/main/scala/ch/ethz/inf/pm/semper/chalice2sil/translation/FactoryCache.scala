@@ -2,17 +2,21 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import collection.mutable.HashMap
 
-class FactoryCache[K,V] protected (ctor : K => V) extends (K => V) {
-  protected val cache = new HashMap[K, V]
-  def apply(key : K) = cache.get(key) match {
-    case Some(value) => value
-    case None        =>
-      val value = ctor(key)
-      cache += key -> value
-      value
-  }
+trait FactoryCache[K,V] {
+  def getOrElseUpdate(key : K) : V
+  @inline
+  def apply(key : K) = getOrElseUpdate(key)
 }
 
-object FactoryCache {
-  def apply[K,V](ctor: K => V) = new FactoryCache[K, V](ctor)
+abstract class FactoryHashCache[K,V] extends FactoryCache[K, V] {
+  protected val cache = new HashMap[K, V]
+  protected def construct(key : K) : V
+  def getOrElseUpdate(key : K) = cache.getOrElseUpdate(key, construct(key))
+}
+
+abstract class AdjustableFactoryHashCache[K,V] extends FactoryHashCache[K, V] with AdjustableFactoryCache[K,V] {
+  def addExternal(value : V) {
+    cache.update(getKeyFor(value),value)
+  }
+  def getKeyFor(value : V) : K
 }

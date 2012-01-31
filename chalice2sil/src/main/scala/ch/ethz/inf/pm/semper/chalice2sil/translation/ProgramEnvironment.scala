@@ -10,6 +10,6 @@ import silAST.methods.MethodFactory
 
 trait ProgramEnvironment extends Environment {
   def programFactory : ProgramFactory
-  def methodFactories : (chalice.Method) => MethodFactory
-  def fields : (chalice.Field) => silAST.programs.symbols.Field
+  def methodFactories : FactoryCache[chalice.Method,MethodFactory]
+  def fields : FactoryCache[chalice.Field, silAST.programs.symbols.Field]
 }
