@@ -21,4 +21,6 @@ class ProgramOptions {
   
   var printSil : Boolean = false;
   
+  var forwardSil : Option[String] = None;
+  
 }

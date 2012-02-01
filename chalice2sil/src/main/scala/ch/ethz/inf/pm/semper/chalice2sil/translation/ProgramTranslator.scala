@@ -7,8 +7,10 @@ import chalice2sil._
 import silAST.programs.symbols.Field
 import silAST.programs.Program
 import silAST.source.{noLocation, SourceLocation}
-import silAST.types.{NonReferenceDataType, referenceType}
 import java.lang.String
+import silAST.types.{DataTypeSequence, NonReferenceDataType, referenceType}
+import silAST.expressions.util.DTermSequence
+import silAST.symbols.logical.Not
 
 /**
  * Author: Christian Klauser
@@ -24,6 +26,7 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
   val methodFactories = new FactoryHashCache[chalice.Method,MethodFactory]{
     def construct(m : chalice.Method) = programFactory.getMethodFactory(m,fullMethodName(m))
   }
+  
   val fields = new FactoryHashCache[chalice.Field, Field]{
     def construct(field : chalice.Field) = {
       val fieldName : String = fullFieldName(field)
@@ -36,6 +39,8 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
       }
     }    
   } // TODO: apply domain Field symbol for fields with domain types
+
+  val prelude = new ChalicePrelude(this)
 
   def translate(decls : Seq[chalice.TopLevelDecl]) : (Program,Seq[Message]) = {
     decls.foreach(collectSymbols)

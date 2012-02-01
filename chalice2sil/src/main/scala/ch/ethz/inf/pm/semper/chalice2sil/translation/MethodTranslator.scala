@@ -11,7 +11,7 @@ import silAST.symbols.logical.{Or, And, Not}
 import silAST.types.{DataType, NonReferenceDataType, referenceType}
 import silAST.expressions.util.TermSequence
 import silAST.domains.{DomainPredicate, Domain, DomainFunction}
-import silAST.expressions.terms.{Term, PTerm}
+import silAST.expressions.terms.{noPermissionTerm, fullPermissionTerm, Term, PTerm}
 
 class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends MethodEnvironment {
   //Environment
@@ -23,6 +23,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
   def programFactory = st.programFactory
   def methodFactories = st.methodFactories
   def fields = st.fields
+  def prelude = st.prelude
 
   //MethodEnvironment
   val methodFactory = methodFactories(method)
@@ -147,6 +148,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
         assert(access.f != null,"Chalice MemberAccess node (%s) is not linked to a field.".format(access))
         currentExpressionFactory.makeFieldReadTerm(access,translateTerm(rcvr),fields(access.f))
       case th@chalice.ImplicitThisExpr() => currentExpressionFactory.makeProgramVariableTerm(th,methodFactory.thisVar)
+      case th@chalice.ExplicitThisExpr() => currentExpressionFactory.makeProgramVariableTerm(th,methodFactory.thisVar)
       case otherNode =>
         report(messages.UnknownAstNode(otherNode))
         dummyTerm(rvalue)
@@ -280,9 +282,18 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
           report(messages.OperatorNotFound(binary,lhsType,rhsType,resultType))
           dummyExpr(currentExpressionFactory,binary)
       }
+    case chalice.Access(memberAccess, permission) =>
+      currentExpressionFactory.makePermissionExpression(expression,translateTerm(memberAccess.e),fields(memberAccess.f),translatePermission(permission))
     case otherExpr =>
       report(messages.UnknownAstNode(otherExpr))
       dummyExpr(currentExpressionFactory,otherExpr) // TODO: currently using method factory instead of implementation factory in order to be able to translate pre-/postconditions where the implementation factory is not available yet.
+  }
+  
+  protected def translatePermission(permission : chalice.Permission) : Term = permission match {
+    case chalice.Full => fullPermissionTerm
+    case _ =>
+      report(messages.UnknownAstNode(permission))
+      noPermissionTerm
   }
 
   protected def translate(typeExpr : chalice.Type) = new TypeTranslator(this).translate(typeExpr)

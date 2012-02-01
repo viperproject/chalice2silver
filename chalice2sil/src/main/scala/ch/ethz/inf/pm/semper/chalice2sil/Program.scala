@@ -19,6 +19,9 @@ object Program {
       // Chalice2SIL options
       opt("verbose","v","Prints additional information about the translation/verification process.",{opts.verbose = true })
       opt("print-sil","p","Prints the translated program in SIL.",{opts.printSil = true})
+      opt("forward-sil","f","class name",
+        "Forwards the translated SIL program to the `public static main(silAST.Program)` method of the specified class.",
+        (c:String) => { opts.forwardSil = Some(c) })
       
       // Chalice files
       arglistOpt("<chalice-files...>", "The chalice source files.", (source : String) => opts.chaliceFiles.append(source) )
@@ -138,6 +141,16 @@ object Program {
       Console.out.println("[Success] Chalice2SIL detected %s.".format(
         pluralize("warning",warningCount)
       ))
+
+    //Forward SIL to a custom backend
+    //TODO: backends might needs arguments and might produce messages
+    opts.forwardSil match {
+      case None =>
+      case Some(className) => 
+        val classT = java.lang.Class.forName(className)
+        val method = classT.getMethod("main",classOf[silAST.programs.Program])
+        method.invoke(null,silProgram)
+    }
   }
 
 }

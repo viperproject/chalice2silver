@@ -12,4 +12,5 @@ trait ProgramEnvironment extends Environment {
   def programFactory : ProgramFactory
   def methodFactories : FactoryCache[chalice.Method,MethodFactory]
   def fields : FactoryCache[chalice.Field, silAST.programs.symbols.Field]
+  def prelude : ChalicePrelude
 }

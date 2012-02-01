@@ -15,6 +15,7 @@ class TypeTranslator(programEnvironment : ProgramEnvironment) extends ProgramEnv
   def programFactory = programEnvironment.programFactory
   def methodFactories = programEnvironment.methodFactories
   def fields  = programEnvironment.fields
+  def prelude = programEnvironment.prelude
   def programOptions = programEnvironment.programOptions
   def onNewMessage = programEnvironment.onNewMessage
   def pastMessages = programEnvironment.pastMessages
@@ -33,6 +34,7 @@ class TypeTranslator(programEnvironment : ProgramEnvironment) extends ProgramEnv
   
   private val tryTranslateClass : PartialFunction[chalice.Class, DataType] = {
     case c if c == chalice.IntClass => integerType
+    case c if c == chalice.BoolClass => prelude.Boolean.Type
     case x if x.IsPermission => permissionType
     case x if x.IsNormalClass => referenceType
   }
