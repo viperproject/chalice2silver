@@ -17,3 +17,4 @@ target/*
 chalice2sil/lib/chalice.jar
 chalice2sil/lib/silast.jar
 .idea/workspace.xml
+chalice2sil/out/
