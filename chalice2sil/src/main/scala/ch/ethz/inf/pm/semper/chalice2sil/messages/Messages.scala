@@ -16,7 +16,7 @@ object ChannelsNotImplemented extends MessageId(
 }
 
 object UnknownAstNode extends MessageId(
-  Error,
+  Fault,
   "ch.ethz.inf.pm.semper.chalice2sil.unknownAstNode",
   "Could not translate AST node of type %s. Value: (%s)") {
   def apply(node : ASTNode) = new Message(this,node) {

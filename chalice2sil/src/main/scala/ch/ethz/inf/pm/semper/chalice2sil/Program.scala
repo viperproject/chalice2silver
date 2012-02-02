@@ -9,6 +9,80 @@ import silAST.source.noLocation
 
 object Program {
 
+  def invokeChalice(opts : ProgramOptions) : Option[scala.List[chalice.TopLevelDecl]] = {
+    val chOptsBuilder = scala.collection.mutable.ArrayBuilder.make[String]()
+    opts.chaliceOptions.foreach((entry) => {
+      val (option, value) = entry
+      if(value.isEmpty())
+        chOptsBuilder += "/" + option
+      else
+        chOptsBuilder += "/" + option + ":" + value
+    })
+    chOptsBuilder ++= opts.chaliceFiles
+    val chOpts = chOptsBuilder.result()
+
+    println("Forwarding to Chalice (" + chOpts.length + ")")
+    chOpts.foreach((s) => {
+      print(" "); print(s)
+    })
+    println();
+
+    val chaliceParams = Chalice.parseCommandLine(chOpts) match {
+      case Some(p) => p
+      case None =>
+        if(opts.verbose)
+          Console.out.println("Chalice failed to parse command line options. Chalice2SIL terminates.");
+        return None;
+    }
+
+    val program = Chalice.parsePrograms(chaliceParams) match {
+      case Some(p) => p
+      case None =>
+        if(opts.verbose)
+          Console.out.println("Chalice program contained syntax errors. Chalice2SIL terminates.");
+        return None; //illegal program, errors have already been displayed
+    }
+
+    if(!chaliceParams.doTypecheck || !Chalice.typecheckProgram(chaliceParams, program)) {
+      if(opts.verbose)
+        Console.out.println("Chalice program contained type errors. Chalice2SIL terminates.")
+      return None;
+    }
+
+    if(chaliceParams.printProgram) {
+      Console.out.println("Program after type checking: ");
+      PrintProgram.P(program)
+    }
+    Some(program)
+  }
+
+  def translateToSil(opts : ProgramOptions, program : scala.List[chalice.TopLevelDecl]) : (silAST.programs.Program , Seq[Message])= {
+    if(opts.verbose)
+      Console.out.println("Beginning translation of Chalice program to SIL.")
+
+    // Translate to SIL
+    val programName = opts.chaliceFiles.headOption.map(p => {
+      val ext = ".chalice"
+      val n = new File(p).getName
+      if(n.endsWith(ext))
+        n.dropRight(ext.length)
+      else
+        n
+    }).getOrElse("chalice-program")
+    val programLocation = program.headOption.map(astNodeToSourceLocation).getOrElse(noLocation)
+    val translator = new ProgramTranslator(opts, programName, programLocation)
+
+    translator.onNewMessage += (m => {
+      if(m.severity.indicatesFailure) {
+        Console.err.println(m)
+      } else {
+        Console.out.println(m)
+      }
+    })
+
+    translator.translate(program)
+  }
+
   def main(args: Array[String]) {
     println("Arguments")
     args.foreach((s) => {print(" "); print(s);}) 
@@ -46,76 +120,12 @@ object Program {
       return;
     }// */
     
-    val chOptsBuilder = scala.collection.mutable.ArrayBuilder.make[String]()
-    opts.chaliceOptions.foreach((entry) => {
-      val (option,value) = entry
-      if(value.isEmpty())
-          chOptsBuilder += "/" + option
-        else
-          chOptsBuilder += "/" + option + ":"  + value
-    })
-    chOptsBuilder ++= opts.chaliceFiles    
-    val chOpts = chOptsBuilder.result()
-    
-    println("Forwarding to Chalice (" + chOpts.length + ")")
-    chOpts.foreach((s) => {print(" "); print(s)})
-    println();
-    
-    val chaliceParams = Chalice.parseCommandLine(chOpts) match {
+    val program = invokeChalice(opts) match {
+      case None => return;
       case Some(p) => p
-      case None =>
-        if (opts.verbose)
-          Console.out.println("Chalice failed to parse command line options. Chalice2SIL terminates.");
-        return;
     }
 
-    val program = Chalice.parsePrograms(chaliceParams) match {
-      case Some(p) => p
-      case None =>
-        if (opts.verbose)
-          Console.out.println("Chalice program contained syntax errors. Chalice2SIL terminates.");
-        return; //illegal program, errors have already been displayed
-    }
-    
-    if(!chaliceParams.doTypecheck || !Chalice.typecheckProgram(chaliceParams, program)){
-      if (opts.verbose)
-        Console.out.println("Chalice program contained type errors. Chalice2SIL terminates.")
-      return;
-    }
-    
-    if (chaliceParams.printProgram) {
-      Console.out.println("Program after type checking: ");
-      PrintProgram.P(program)
-    }
-    
-    if(!chaliceParams.doTranslate) {
-      return;
-    }
-
-    if (opts.verbose)
-      Console.out.println("Beginning translation of Chalice program to SIL.")
-    
-    // Translate to SIL
-    val programName = opts.chaliceFiles.headOption.map(p => {
-      val ext = ".chalice"
-      val n = new File(p).getName
-      if(n.endsWith(ext))
-        n.dropRight(ext.length)
-      else
-        n
-    }).getOrElse("chalice-program")
-    val programLocation = program.headOption.map(astNodeToSourceLocation).getOrElse(noLocation)
-    val translator = new ProgramTranslator(opts, programName, programLocation)
-
-    translator.onNewMessage += (m => {
-      if (m.severity.indicatesFailure){
-        Console.err.println(m)
-      } else {
-        Console.out.println(m)
-      }
-    })
-    
-    val (silProgram,messages) = translator.translate(program)
+    val (silProgram,messages) = translateToSil(opts, program)
 
     def pluralize(noun : String,  count : Int) = count match {
       case 0 => "no " + noun + "s"
@@ -149,7 +159,7 @@ object Program {
       case Some(className) => 
         val classT = java.lang.Class.forName(className)
         val method = classT.getMethod("main",classOf[silAST.programs.Program])
-        method.invoke(null,silProgram)
+        method.invoke(null,silProgram.asInstanceOf[AnyRef])
     }
   }
 

@@ -75,11 +75,12 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
     //  The last block, however, cannot be anticipated. We just add an edge from the
     //    exit block of the actual (translated) body to the last block.
     val firstBody = implementationFactory.addFirstBasicBlock(method,getNextName("begin_body"))
-    val lastBlock = implementationFactory.addLastBasicBlock(method,getNextName("exit_body"))
     basicBlocks.addExternal(firstBody)
-    basicBlocks.addExternal(lastBlock)
 
     val (_,exitBody) = into(firstBody,translate(method.body))
+
+    val lastBlock = implementationFactory.addLastBasicBlock(method,getNextName("exit_body"))
+    basicBlocks.addExternal(lastBlock)
 
     exitBody.addSuccessor(method,lastBlock,TrueExpression(),false)
   }
@@ -215,33 +216,50 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
 
     (thenResult,elseResult)
   }
-  
-  def translate(stmt : chalice.Statement) {stmt match {
-    case a@chalice.LocalVar(v,rhsOpt) =>
-      rhsOpt match {
-        case None => //nothing to do
-        case Some(rhs) =>
-          val variableExpr = chalice.VariableExpr(v.id)
-          variableExpr.v = v
-          translateAssignment(variableExpr,rhs)
-      }
-    case chalice.Assign(variableExpr,rhs) => translateAssignment(variableExpr,rhs)
-    case chalice.IfStmt(cond,thn,elsOpt) => translateCondition(cond,thn,elsOpt)
-    case chalice.FieldUpdate(location,rhs) =>
-      def assignViaVar(rcvrVar : ProgramVariable){
-        currentBlock.appendFieldAssignment(stmt,rcvrVar,fields(location.f),translatePTerm(rhs))
-      }
-      location.e match {
-        case rcvr:chalice.VariableExpr => assignViaVar(localVariables(rcvr.v.id))
-        case chalice.ImplicitThisExpr() => assignViaVar(methodFactory.thisVar)
-        case rcvr =>
-          temporaries.using(referenceType, rcvrVar => {
-            currentBlock.appendAssignment(rcvr,rcvrVar,translatePTerm(rcvr))
-            currentBlock.appendFieldAssignment(stmt,rcvrVar,fields(location.f),translatePTerm(rhs))
-          })
-      }
-    case otherStmt => report(messages.UnknownAstNode(otherStmt))
-  }}
+
+  /**
+    * Translates a single Chalice statement by appending SIL statements to the current block
+    * and/or creates edges to new blocks. The number of blocks on the `blockStack` is expected
+    * to remain the same, but the top element might change.
+    */
+  def translate(stmt : chalice.Statement) {
+    require(!blockStack.isEmpty); 
+    val oldStackSize = blockStack.length
+    val stackTail = blockStack.tail.toSeq
+    
+    stmt match {
+      case chalice.BlockStmt(body) => translate(body)
+      case a@chalice.LocalVar(v,rhsOpt) =>
+        rhsOpt match {
+          case None => //nothing to do
+          case Some(rhs) =>
+            val variableExpr = chalice.VariableExpr(v.id)
+            variableExpr.v = v
+            translateAssignment(variableExpr,rhs)
+        }
+      case chalice.Assign(variableExpr,rhs) => translateAssignment(variableExpr,rhs)
+      case chalice.IfStmt(cond,thn,elsOpt) => translateCondition(cond,thn,elsOpt)
+      case chalice.FieldUpdate(location,rhs) =>
+        def assignViaVar(rcvrVar : ProgramVariable){
+          currentBlock.appendFieldAssignment(stmt,rcvrVar,fields(location.f),translatePTerm(rhs))
+        }
+        location.e match {
+          case rcvr:chalice.VariableExpr => assignViaVar(localVariables(rcvr.v.id))
+          case chalice.ImplicitThisExpr() => assignViaVar(methodFactory.thisVar)
+          case rcvr =>
+            temporaries.using(referenceType, rcvrVar => {
+              currentBlock.appendAssignment(rcvr,rcvrVar,translatePTerm(rcvr))
+              currentBlock.appendFieldAssignment(stmt,rcvrVar,fields(location.f),translatePTerm(rhs))
+            })
+        }
+      case otherStmt => report(messages.UnknownAstNode(otherStmt))
+    }
+    
+    assert(blockStack.length == oldStackSize,"translate(chalice.Statement) changed the size of the blockStack when translating %s. Expected %d, actual %d"
+      .format(stmt,oldStackSize,blockStack.length))
+    assert(blockStack.view.drop(1).sameElements(stackTail),"translate(chalice.Statement) changed the tail elements of the blockStack when translating %s."
+      .format(stmt))
+  }
 
   def translate(stmts : Traversable[chalice.Statement]){
     stmts.foreach(translate(_))

@@ -8,8 +8,12 @@ version := "0.1"
 
 scalaVersion := "2.9.1"
 
-libraryDependencies += "org.scalatest" %% "scalatest" % "1.+" % "test"
+scalacOptions ++= Seq("-unchecked", "-deprecation")
 
-libraryDependencies += "junit" % "junit" % "4.+" % "test"
+classDirectory in Test <<= classDirectory in Compile
+
+libraryDependencies += "junit" % "junit" % "4.+" % "test" withJavadoc()
+
+libraryDependencies += "com.novocode" % "junit-interface" % "0.8" % "test->default"
 
 libraryDependencies += "com.github.scopt" %% "scopt" % "1.1.+"
