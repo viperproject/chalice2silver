@@ -17,9 +17,9 @@ object Program {
     val opts = new ProgramOptions()
     val cmdParser = new OptionParser("chalice2sil") {
       // Chalice2SIL options
-      opt("verbose","v","Prints additional information about the translation/verification process.",{opts.verbose = true })
-      opt("print-sil","p","Prints the translated program in SIL.",{opts.printSil = true})
-      opt("forward-sil","f","class name",
+      opt("v","verbose","Prints additional information about the translation/verification process.",{opts.verbose = true })
+      opt("p","print-sil","Prints the translated program in SIL.",{opts.printSil = true})
+      opt("f","forward-sil","class name",
         "Forwards the translated SIL program to the `public static main(silAST.Program)` method of the specified class.",
         (c:String) => { opts.forwardSil = Some(c) })
       

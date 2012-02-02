@@ -1,3 +1,5 @@
+param([Switch] $WhatIf)
+
 #
 #Run-Chalicerequires the following (global) variables to be set
 #  $CHALICE2SIL_PROJECT
@@ -11,13 +13,22 @@
 #    PS> New-Variable -Scope Global SCALA_LIB "path\to\scala\lib"
 #
 
-$proj  = $CHALICE2SIL_PROJECT;
-$classpath = (
-    (Join-Path $proj chalice2sil\bin),
-    (Join-Path $proj chalice2sil\lib\scopt_2.9.1-1.1.2.jar),
-    $CHALICE_JAR
-    # Reference to Chalice missing
-);
-$classpath = Join-String $classpath -Separator ";";
-$package = "ch.ethz.inf.pm.semper.chalice2sil";
-scala -classpath "$classpath" -Jea:$package "$package.Program" $args
+
+
+function Get-PWD # for some reason, this *must* be wrapped in a function, can't get it to work in the script itself.
+{
+    $Invocation = (Get-Variable MyInvocation -Scope 1).Value;
+    (Split-Path $Invocation.MyCommand.Path)
+}
+$sd = Get-PWD;
+
+$sbt = Join-Path $sd "sbt.ps1";
+$sargs = $args | foreach { $s = $_.Replace("\","\\").Replace("`"","\`""); "$s" }
+$eargs = [String]::Join(" ", $sargs)
+
+if($WhatIf){
+    echo $eargs
+    echo "$sbt `"run $eargs`""
+} else {
+    & $sbt "run $eargs"
+}
