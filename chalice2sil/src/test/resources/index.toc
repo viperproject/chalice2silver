@@ -1,0 +1,4 @@
+This file is used as a "beacon" for the ChaliceSuite automated testing mini-framework.
+It is absolutely crucial that it remains at the root of the test resources!
+
+So: DO NOT DELETE ME, I'M USEFUL! (unless, of course, you find a more elegant solution)
