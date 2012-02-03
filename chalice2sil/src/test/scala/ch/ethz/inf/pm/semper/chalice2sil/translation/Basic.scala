@@ -5,7 +5,7 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
   */
 
 import ch.ethz.inf.pm.semper.chalice2sil
-import chalice2sil.{ChaliceSuite, Message, Program => _, Chalice2SilRunner}
+import chalice2sil.{ChaliceSuite, Message, Program => _}
 import silAST.programs.Program
 import silAST.types.integerType
 import org.scalatest.junit.JUnitRunner
