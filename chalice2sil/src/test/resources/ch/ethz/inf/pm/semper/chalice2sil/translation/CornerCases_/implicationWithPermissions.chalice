@@ -1,0 +1,21 @@
+class Main {
+    var f : int;
+    var p : bool;
+    method goal()
+        requires acc(p)
+        requires p ==> acc(f)
+        ensures acc(p)
+    {
+        if(p){
+            f := 3;
+        }
+    }
+    method main()
+        requires acc(f)
+        requires acc(p)
+        ensures acc(f)
+        requires acc(p)
+    {
+        call this.goal();
+    }
+}

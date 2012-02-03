@@ -14,7 +14,7 @@ abstract class FactoryHashCache[K,V] extends FactoryCache[K, V] {
   def getOrElseUpdate(key : K) = cache.getOrElseUpdate(key, construct(key))
 }
 
-abstract class AdjustableFactoryHashCache[K,V] extends FactoryHashCache[K, V] with AdjustableFactoryCache[K,V] {
+abstract class AdjustableFactoryHashCache[K,V] extends FactoryHashCache[K, V] with AdjustableCache[V] {
   def addExternal(value : V) {
     cache.update(getKeyFor(value),value)
   }

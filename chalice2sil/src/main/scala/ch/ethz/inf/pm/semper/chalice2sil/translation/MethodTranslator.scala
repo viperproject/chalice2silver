@@ -1,17 +1,18 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import ch.ethz.inf.pm.semper.chalice2sil
+import chalice.Variable
 import chalice2sil._
 import collection.mutable.Stack
 import silAST.methods.implementations.BasicBlockFactory
 import silAST.source.{SourceLocation, noLocation}
 import silAST.expressions.{TrueExpression, Expression}
 import silAST.programs.symbols.ProgramVariable
-import silAST.symbols.logical.{Or, And, Not}
 import silAST.types.{DataType, NonReferenceDataType, referenceType}
 import silAST.expressions.util.TermSequence
 import silAST.domains.{DomainPredicate, Domain, DomainFunction}
 import silAST.expressions.terms.{noPermissionTerm, fullPermissionTerm, Term, PTerm}
+import silAST.symbols.logical.{Implication, Or, And, Not}
 
 class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends MethodEnvironment {
   //Environment
@@ -32,10 +33,14 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
     methodFactory.addImplementation(method.body.map(astNodeToSourceLocation).headOption.getOrElse(method))
   }
 
-  val localVariables = new AdjustableFactoryHashCache[String, ProgramVariable] with DerivedFactoryCache[chalice.Variable,String, ProgramVariable] {
-    def construct(name : String) = implementationFactory.addLocalVariable(noLocation,name,silAST.types.referenceType)
-    def deriveKey(variable : chalice.Variable) = variable.id
-    def getKeyFor(variable : ProgramVariable)  = variable.name
+  val localVariables = new DerivedFactoryCache[chalice.Variable,String, ProgramVariable] with AdjustableCache[ProgramVariable] {
+    def deriveKey(p : Variable) = p.id
+
+    override protected def deriveKeyFromValue(value : ProgramVariable) = value.name
+
+    def construct(p : Variable) = implementationFactory.addLocalVariable(p,deriveKey(p),translate(p.t))
+
+
   }
 
   val basicBlocks = new AdjustableFactoryHashCache[String, BasicBlockFactory] {
@@ -55,7 +60,6 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
   // Translation  
   def translate(){
     val mf = methodFactory
-    // TODO: Translate Chalice.Type to SIL type
     method.ins.foreach(i => localVariables.addExternal(mf.addParameter(i, i.id, translate(i.t))))
     method.outs.foreach(o => localVariables.addExternal(mf.addResult(o,o.id,translate(o.t))))
     method.spec.foreach(spec => spec match {
@@ -86,7 +90,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
   }
 
   def translateAssignment(lhs : chalice.VariableExpr,  rhs : chalice.RValue){
-    val v = localVariables.getFromPrototype(lhs.v)
+    val v = localVariables(lhs.v)
     currentBlock.appendAssignment(lhs,v,translateTerm(rhs).asInstanceOf[PTerm]) //TODO: is there a way to avoid this cast without duplicating translateTerm?
   }
 
@@ -142,14 +146,30 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
         dummyTerm(rvalue)
       // from here on, match against the cases of Expression  
       case chalice.IntLiteral(i) => currentExpressionFactory.makeIntegerLiteralTerm(rvalue, i)
-      //case chalice.BoolLiteral(b) => // TODO: boolean literal
-      case variableExpr:chalice.VariableExpr => currentExpressionFactory.makeProgramVariableTerm(variableExpr, localVariables.getFromPrototype(variableExpr.v))
+      case chalice.BoolLiteral(true) => currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.TrueLiteral,TermSequence())
+      case chalice.BoolLiteral(false) => currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.FalseLiteral,TermSequence())
+      case variableExpr:chalice.VariableExpr => currentExpressionFactory.makeProgramVariableTerm(variableExpr, localVariables(variableExpr.v))
       case chalice.Old(e) => currentExpressionFactory.makeOldTerm(rvalue,translateTerm(e))
       case access@chalice.MemberAccess(rcvr,_) if !access.isPredicate =>
         assert(access.f != null,"Chalice MemberAccess node (%s) is not linked to a field.".format(access))
         currentExpressionFactory.makeFieldReadTerm(access,translateTerm(rcvr),fields(access.f))
       case th@chalice.ImplicitThisExpr() => currentExpressionFactory.makeProgramVariableTerm(th,methodFactory.thisVar)
       case th@chalice.ExplicitThisExpr() => currentExpressionFactory.makeProgramVariableTerm(th,methodFactory.thisVar)
+      case chalice.And(lhs,rhs) => currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.And,TermSequence(
+        translateTerm(lhs),
+        translateTerm(rhs)
+      ))
+      case chalice.Or(lhs,rhs) => currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.Or,TermSequence(
+        translateTerm(lhs),
+        translateTerm(rhs)
+      ))
+      case chalice.Implies(lhs,rhs) => currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.Implication,TermSequence(
+        translateTerm(lhs),
+        translateTerm(rhs)
+      ))
+      case chalice.Not(op) => currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.Not,TermSequence(
+        translateTerm(op)
+      ))
       case otherNode =>
         report(messages.UnknownAstNode(otherNode))
         dummyTerm(rvalue)
@@ -238,13 +258,14 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
             translateAssignment(variableExpr,rhs)
         }
       case chalice.Assign(variableExpr,rhs) => translateAssignment(variableExpr,rhs)
-      case chalice.IfStmt(cond,thn,elsOpt) => translateCondition(cond,thn,elsOpt)
+      case chalice.IfStmt(cond,thn,elsOpt) =>
+        translateCondition(cond,thn,elsOpt)
       case chalice.FieldUpdate(location,rhs) =>
         def assignViaVar(rcvrVar : ProgramVariable){
           currentBlock.appendFieldAssignment(stmt,rcvrVar,fields(location.f),translatePTerm(rhs))
         }
         location.e match {
-          case rcvr:chalice.VariableExpr => assignViaVar(localVariables(rcvr.v.id))
+          case rcvr:chalice.VariableExpr => assignViaVar(localVariables(rcvr.v))
           case chalice.ImplicitThisExpr() => assignViaVar(methodFactory.thisVar)
           case chalice.ExplicitThisExpr() => assignViaVar(methodFactory.thisVar)
           case rcvr =>
@@ -275,7 +296,11 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
       val lhsT = translateExpression(lhs)
       val rhsT = translateExpression(rhs)
       currentExpressionFactory.makeBinaryExpression(expression,Or(),lhsT,rhsT)
-    case binary:chalice.BinaryExpr => 
+    case chalice.Implies(lhs,rhs) =>
+      val lhsT = translateExpression(lhs)
+      val rhsT = translateExpression(rhs)
+      currentExpressionFactory.makeBinaryExpression(expression,Implication(),lhsT,rhsT)
+    case binary:chalice.BinaryExpr =>
       val (lhs,rhs) = (binary.E0,binary.E1)
       // binary.ExpectedXhsType is often null, use the "inferred" types for the operands instead
       val (lhsType,rhsType,resultType) = (translate(lhs.typ),translate(rhs.typ),translate(binary.ResultType))

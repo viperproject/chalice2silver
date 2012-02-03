@@ -56,10 +56,7 @@ object Program {
     Some(program)
   }
 
-  def translateToSil(opts : ProgramOptions, program : scala.List[chalice.TopLevelDecl]) : (silAST.programs.Program , Seq[Message])= {
-    if(opts.verbose)
-      Console.out.println("Beginning translation of Chalice program to SIL.")
-
+  def createTranslator(opts : ProgramOptions, program : scala.List[chalice.TopLevelDecl]) = {
     // Translate to SIL
     val programName = opts.chaliceFiles.headOption.map(p => {
       val ext = ".chalice"
@@ -79,6 +76,15 @@ object Program {
         Console.out.println(m)
       }
     })
+    
+    translator
+  }
+  
+  def translateToSil(opts : ProgramOptions, program : scala.List[chalice.TopLevelDecl]) : (silAST.programs.Program , Seq[Message])= {
+    if(opts.verbose)
+      Console.out.println("Beginning translation of Chalice program to SIL.")
+
+    val translator = createTranslator(opts, program)
 
     translator.translate(program)
   }

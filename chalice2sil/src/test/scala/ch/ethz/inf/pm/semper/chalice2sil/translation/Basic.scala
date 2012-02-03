@@ -12,6 +12,7 @@ import silAST.methods.implementations.FieldAssignment
 import silAST.types.{referenceType, integerType}
 import silAST.expressions.PermissionExpression
 import silAST.expressions.terms.{ProgramVariableTerm, fullPermissionTerm, FieldReadTerm, LiteralTerm}
+import silAST.programs.symbols.ProgramVariable
 
 @RunWith(classOf[JUnitRunner])
 class Basic extends ChaliceSuite with ShouldMatchers {
@@ -49,6 +50,12 @@ class Basic extends ChaliceSuite with ShouldMatchers {
     value.asInstanceOf[T]
   }
   
+  def matchContains(variables : Seq[ProgramVariable], name : String) : ProgramVariable = {
+    val vOpt = variables.find(_.name == name)
+    assert(vOpt.isDefined,"The variable sequence is expected to contain a variable called %s".format(name))
+    vOpt.get
+  }
+  
   // CHALICE FILES
   
   'locals.chalice {
@@ -60,6 +67,14 @@ class Basic extends ChaliceSuite with ShouldMatchers {
     
     locals should have size (2)
     locals foreach (_.dataType should be (integerType))
+    
+    val other = getImpl("Main::other")
+    val otherLocals = other.locals
+    
+    otherLocals should have size (1) //only variables that are actually used will be added in SIL
+    
+    val zV = matchContains(otherLocals,"z")
+    zV.dataType should be (integerType)
   }  
   
   'directFieldUpdate.chalice {

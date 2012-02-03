@@ -6,6 +6,6 @@ import silAST.methods.implementations.BasicBlockFactory
  * Author: Christian Klauser
  */
 
-trait AdjustableFactoryCache[K,V] extends FactoryCache[K, V] {
+trait AdjustableCache[V] {
   def addExternal(value : V)
 }
