@@ -246,6 +246,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
         location.e match {
           case rcvr:chalice.VariableExpr => assignViaVar(localVariables(rcvr.v.id))
           case chalice.ImplicitThisExpr() => assignViaVar(methodFactory.thisVar)
+          case chalice.ExplicitThisExpr() => assignViaVar(methodFactory.thisVar)
           case rcvr =>
             temporaries.using(referenceType, rcvrVar => {
               currentBlock.appendAssignment(rcvr,rcvrVar,translatePTerm(rcvr))

@@ -1,0 +1,13 @@
+class Main{
+    var f : int;
+    var obj : Main;
+    method main()
+        requires acc(f)
+        requires acc(obj)
+    {
+      f := 5;
+      this.f := 6;
+      var m : Main := obj;
+      m.f := 7;
+    }
+}

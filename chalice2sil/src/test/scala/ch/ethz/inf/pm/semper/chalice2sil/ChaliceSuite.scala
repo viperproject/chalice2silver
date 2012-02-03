@@ -35,7 +35,7 @@ abstract class ChaliceSuite extends FunSuite { //
     * The directory this test suite is associated with. Defaults to the fully qualified name of your test suite with dots replaced by slashes.
     * You are welcome to override this in subclasses.
     */
-  val directoryPath = Paths.get(getClass.getName.replace(".","/"))
+  val directoryPath = Paths.get(getClass.getName.replace(".","/") + "_")
 
   protected lazy val absoluteDirectoryPath = { //
     val rootUrl = getClass.getClassLoader.getResource("index.toc")
