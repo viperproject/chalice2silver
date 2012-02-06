@@ -19,3 +19,5 @@ chalice2sil/lib/silast.jar
 .idea/workspace.xml
 chalice2sil/out/
 Silicon/*
+chalice2sil/lib/silicon.jar
+out.bpl

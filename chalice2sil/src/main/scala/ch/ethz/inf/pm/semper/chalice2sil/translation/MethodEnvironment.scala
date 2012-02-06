@@ -16,7 +16,7 @@ trait MethodEnvironment extends ProgramEnvironment {
   def temporaries : TemporaryVariableBroker
  
   //Optional
-  protected def nameSequence = NameSequence()
+  protected val nameSequence = NameSequence()
   def getNextName(prefix : String = "") = prefix match {
     case "" => nameSequence.nextName
     case p  => p + "_" + nameSequence.nextName

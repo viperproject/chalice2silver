@@ -8,11 +8,11 @@ import ch.ethz.inf.pm.semper.chalice2sil.{ChaliceSuite}
 import org.scalatest.junit.JUnitRunner
 import org.junit.runner.RunWith
 import org.scalatest.matchers.{MatchResult, BeMatcher, ShouldMatchers}
-import silAST.methods.implementations.FieldAssignment
 import silAST.types.{referenceType, integerType}
 import silAST.expressions.PermissionExpression
 import silAST.expressions.terms.{ProgramVariableTerm, fullPermissionTerm, FieldReadTerm, LiteralTerm}
 import silAST.programs.symbols.ProgramVariable
+import silAST.methods.implementations.FieldAssignmentStatement
 
 @RunWith(classOf[JUnitRunner])
 class Basic extends ChaliceSuite with ShouldMatchers {
@@ -88,9 +88,9 @@ class Basic extends ChaliceSuite with ShouldMatchers {
     val main = getMainImpl
     
     main.body.startNode.statements foreach  (s => {
-      s should be (instanceOf[FieldAssignment])
+      s should be (instanceOf[FieldAssignmentStatement])
 
-      val fa = s.asInstanceOf[FieldAssignment]
+      val fa = s.asInstanceOf[FieldAssignmentStatement]
 
       fa.field.name should be ("Main::f")
       fa.field.dataType should be (integerType)
@@ -108,13 +108,13 @@ class Basic extends ChaliceSuite with ShouldMatchers {
     val main = mainOpt.get
     val sig = main.signature
     
-    sig.precondition should have length (1)
+    sig.precondition should have length (2)
     sig.postcondition should have length (1)
     
-    sig.precondition.head should be (instanceOf[PermissionExpression])
+    sig.precondition(1) should be (instanceOf[PermissionExpression])
     sig.postcondition.head should be (instanceOf[PermissionExpression])
     
-    val pre = sig.precondition.head.asInstanceOf[PermissionExpression]
+    val pre = sig.precondition(1).asInstanceOf[PermissionExpression]
     val post = sig.postcondition.head.asInstanceOf[PermissionExpression]
     Stream(pre,post).foreach(cond => {
       cond.permission should be (fullPermissionTerm)

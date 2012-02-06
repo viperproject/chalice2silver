@@ -2,9 +2,10 @@ class Main {
     var f : int;
     var p : bool;
     method goal()
-        requires acc(p)
+        requires rd(p)
         requires p ==> acc(f)
-        ensures acc(p)
+        ensures rd(p)
+        ensures old(p) ==> acc(f)
     {
         if(p){
             f := 3;
@@ -12,9 +13,9 @@ class Main {
     }
     method main()
         requires acc(f)
-        requires acc(p)
+        requires rd(p)
         ensures acc(f)
-        requires acc(p)
+        requires rd(p)
     {
         call this.goal();
     }

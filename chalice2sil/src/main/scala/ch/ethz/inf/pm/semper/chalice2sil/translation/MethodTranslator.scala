@@ -8,11 +8,11 @@ import silAST.methods.implementations.BasicBlockFactory
 import silAST.source.{SourceLocation, noLocation}
 import silAST.expressions.{TrueExpression, Expression}
 import silAST.programs.symbols.ProgramVariable
-import silAST.types.{DataType, NonReferenceDataType, referenceType}
 import silAST.domains.{DomainPredicate, Domain, DomainFunction}
 import silAST.expressions.terms.{noPermissionTerm, fullPermissionTerm, Term, PTerm}
 import silAST.symbols.logical.{Implication, Or, And, Not}
 import silAST.expressions.util.{PTermSequence, TermSequence}
+import silAST.types._
 
 class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends MethodEnvironment {
   //Environment
@@ -57,23 +57,52 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
   }
   def currentExpressionFactory = blockStack.headOption.getOrElse(methodFactory)
  
-  // Translation  
-  def translate(){
+  // Translation 
+  private[this] def createSignature() = {
     val mf = methodFactory
     method.ins.foreach(i => localVariables.addExternal(mf.addParameter(i, i.id, translate(i.t))))
     method.outs.foreach(o => localVariables.addExternal(mf.addResult(o,o.id,translate(o.t))))
+    val π = mf.addParameter(method,getNextName("π"),permissionType)
+    localVariables.addExternal(π)
+
+    val πTerm = mf.makeProgramVariableTerm(method,π)
+    // requires (noPermission < π ∧ π < fullPermission)
+    mf.addPrecondition(method,mf.makeBinaryExpression(method,And(),
+      mf.makeDomainPredicateExpression(method,permissionLT,TermSequence(noPermissionTerm,πTerm)), // noPermission < π
+      mf.makeDomainPredicateExpression(method,permissionLT,TermSequence(πTerm,fullPermissionTerm))) //  π < fullPermission
+    )
+
     method.spec.foreach(spec => spec match {
       case chalice.Precondition(e) =>
-        val precondition = translateExpression(e)
-        mf.addPrecondition(spec,precondition)
+        wrapFractionInOld = false
+        currentMethodCallFractionVariable = Some(π)
+        try {
+          val precondition = translateExpression(e)
+          mf.addPrecondition(spec,precondition)
+        } finally {
+          currentMethodCallFractionVariable = None
+        }
       case chalice.Postcondition(e) =>
-        val postcondition = translateExpression(e)
-        mf.addPostcondition(spec,postcondition)
+        wrapFractionInOld = true
+        currentMethodCallFractionVariable = Some(π)
+        try {
+          val postcondition = translateExpression(e)
+          mf.addPostcondition(spec,postcondition)
+        }finally{
+          currentMethodCallFractionVariable = None
+          wrapFractionInOld = false
+        }
       case otherSpec => report(messages.UnknownAstNode(otherSpec))
     })
 
     methodFactory.finalizeSignature()
 
+    π
+  }
+  
+  val readFractionVariable = createSignature();
+  
+  def translate(){
     // SILAST requires the first and last block to be created separately.
     //  The first block can be used and is supplied as the block to translate into
     //  The last block, however, cannot be anticipated. We just add an edge from the
@@ -277,12 +306,15 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
       case c@chalice.Call(_,destinations,receiver,_,args) if c.m.isInstanceOf[chalice.Method] =>
         val destinationVars = destinations.map(ve => localVariables(ve.v))
         val receiverTerm = translatePTerm(receiver)
-        val argTerms = args.map(translatePTerm)
-        currentBlock.appendCallStatement(
+        val calleeFactory = methodFactories(c.m.asInstanceOf[chalice.Method]) 
+        val readFractionVar = implementationFactory.addLocalVariable(c,getNextName("π_" + calleeFactory.name),permissionType)
+        localVariables.addExternal(readFractionVar)
+        val argTerms = args.map(translatePTerm) ++ List(currentBlock.makeProgramVariableTerm(c,readFractionVar))
+        currentBlock.appendCall(
           stmt,
           currentBlock.makeProgramVariableSequence(stmt,destinationVars),
           receiverTerm,
-          methodFactories(c.m.asInstanceOf[chalice.Method]),
+          calleeFactory,
           PTermSequence(argTerms : _*))
       case otherStmt => report(messages.UnknownAstNode(otherStmt))
     }
@@ -352,9 +384,23 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
   
   protected def translatePermission(permission : chalice.Permission) : Term = permission match {
     case chalice.Full => fullPermissionTerm
+    case π@chalice.Epsilon if π.permissionType == chalice.PermissionType.Fraction =>
+      makeCurrentMethodCallFraction(π)
     case _ =>
       report(messages.UnknownAstNode(permission))
       noPermissionTerm
+  }
+  
+  var wrapFractionInOld : Boolean = false
+  var currentMethodCallFractionVariable : Option[ProgramVariable] = None
+  def makeCurrentMethodCallFraction(sourceLocation : SourceLocation) : Term = {
+    require(currentMethodCallFractionVariable.isDefined,"No method call site-specific π defined at this location.")
+    val varTerm = currentExpressionFactory.makeProgramVariableTerm(sourceLocation,currentMethodCallFractionVariable.get)
+    if(wrapFractionInOld){
+      currentExpressionFactory.makeOldTerm(sourceLocation,varTerm)
+    }else{
+      varTerm
+    }
   }
 
   protected def translate(typeExpr : chalice.Type) = new TypeTranslator(this).translate(typeExpr)
