@@ -9,10 +9,10 @@ import silAST.source.{SourceLocation, noLocation}
 import silAST.expressions.{TrueExpression, Expression}
 import silAST.programs.symbols.ProgramVariable
 import silAST.types.{DataType, NonReferenceDataType, referenceType}
-import silAST.expressions.util.TermSequence
 import silAST.domains.{DomainPredicate, Domain, DomainFunction}
 import silAST.expressions.terms.{noPermissionTerm, fullPermissionTerm, Term, PTerm}
 import silAST.symbols.logical.{Implication, Or, And, Not}
+import silAST.expressions.util.{PTermSequence, TermSequence}
 
 class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends MethodEnvironment {
   //Environment
@@ -274,6 +274,16 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
               currentBlock.appendFieldAssignment(stmt,rcvrVar,fields(location.f),translatePTerm(rhs))
             })
         }
+      case c@chalice.Call(_,destinations,receiver,_,args) if c.m.isInstanceOf[chalice.Method] =>
+        val destinationVars = destinations.map(ve => localVariables(ve.v))
+        val receiverTerm = translatePTerm(receiver)
+        val argTerms = args.map(translatePTerm)
+        currentBlock.appendCallStatement(
+          stmt,
+          currentBlock.makeProgramVariableSequence(stmt,destinationVars),
+          receiverTerm,
+          methodFactories(c.m.asInstanceOf[chalice.Method]),
+          PTermSequence(argTerms : _*))
       case otherStmt => report(messages.UnknownAstNode(otherStmt))
     }
     
@@ -328,9 +338,16 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
       }
     case chalice.Access(memberAccess, permission) =>
       currentExpressionFactory.makePermissionExpression(expression,translateTerm(memberAccess.e),fields(memberAccess.f),translatePermission(permission))
+    case ma@chalice.MemberAccess(target,_) if ma.isPredicate =>
+      report(messages.UnknownAstNode(ma))
+      dummyExpr(currentExpressionFactory,ma)
+    case boolExpr if boolExpr.typ == chalice.BoolClass =>
+      val boolTerm = translateTerm(boolExpr)
+      currentExpressionFactory.makeDomainPredicateExpression(boolExpr,prelude.Boolean.Evaluate,TermSequence(boolTerm))
     case otherExpr =>
       report(messages.UnknownAstNode(otherExpr))
-      dummyExpr(currentExpressionFactory,otherExpr) // TODO: currently using method factory instead of implementation factory in order to be able to translate pre-/postconditions where the implementation factory is not available yet.
+      dummyExpr(currentExpressionFactory,otherExpr)
+
   }
   
   protected def translatePermission(permission : chalice.Permission) : Term = permission match {

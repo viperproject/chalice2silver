@@ -9,8 +9,13 @@ $sd = Get-PWD;
 
 $proj_root = Join-Path $sd "..";
 $chalice_root = Join-Path $proj_root ..\Boogie\Chalice;
+$chalice_version = "1.0";
 $silast_root  = Join-Path $proj_root silast\src\SILAST;
+$silast_version = "0.1";
 $chalice2sil_root = Join-Path $proj_root chalice2sil;
+$chalice2sil_version = "0.1-SNAPSHOT";
+$silicon_root = Join-Path $proj_root Silicon;
+$silicon_version = "0.1-SNAPSHOT";
 
 if($SkipCompile){
     $compileCmd = "";
@@ -30,6 +35,21 @@ if($SkipPackage){
     $packageCmd = "package";
 }
 
+$chalice_jar = Join-Path $chalice_root "target\scala-$ScalaVersion\chalice_$ScalaVersion-$chalice_version.jar"
+$silast_jar  = Join-Path $silast_root  "target\scala-$ScalaVersion\silast_$ScalaVersion-$silast_version.jar"
+$silicon_jar = Join-Path $silicon_root "target\scala-$ScalaVersion\silicon_$ScalaVersion-$silicon_version.jar"
+
+function Provide-Lib($root,$jar) {
+    $lib_dir = Join-Path $root lib;
+    if(-not (Test-Path $lib_dir)){
+        New-Item -Type Container -Path $lib_dir | Out-Null;
+    }
+    $lib = Get-Item $jar;
+    $idx = $lib.BaseName.IndexOf("_");
+    $lib_name = $lib.BaseName.Substring(0,$idx);
+    Copy-Item $lib (Join-Path $lib_dir "$lib_name.jar");
+}
+
 $sbt = Join-Path $chalice2sil_root "sbt.ps1";
 
 Push-Location $chalice_root
@@ -44,15 +64,14 @@ Push-Location $silast_root
     Write-Output "================== DONE COMPILING SILAST =========================="
 Pop-Location
 
-$chalice_jar = Join-Path $chalice_root "target\scala-$ScalaVersion\chalice_$ScalaVersion-1.0.jar"
-$silast_jar  = Join-Path $silast_root  "target\scala-$ScalaVersion\silast_$ScalaVersion-0.1.jar"
+Provide-Lib  $silicon_root $silast_jar;
 
-$lib_dir = Join-Path $chalice2sil_root lib
+Push-Location $silicon_root
+    Write-Output "================== COMPILING SILICON =============================="
+    & $sbt $cleanCmd $compileCmd $packageCmd
+    Write-Output "================== DONE COMPILING SILICON ========================="
+Pop-Location
 
-if(-not (Test-Path $lib_dir)){
-    New-Item -Type Container -Path $lib_dir | Out-Null;
-}
-
-Copy-Item $CHALICE_JAR (Join-Path $lib_dir "chalice.jar")
-Copy-Item $SILAST_JAR  (Join-Path $lib_dir "silast.jar")
-
+Provide-Lib $chalice2sil_root $chalice_jar;
+Provide-Lib $chalice2sil_root $silast_jar;
+Provide-Lib $chalice2sil_root $silicon_jar;

@@ -2,15 +2,19 @@
 
 name := "chalice2sil"
 
-organization := "ch.ethz.inf.pm.semper"
+organization := "ch.ethz.inf.pm"
 
-version := "0.1"
+version := "0.1-SNAPSHOT"
+
+// Scala
 
 scalaVersion := "2.9.1"
 
 scalacOptions ++= Seq("-unchecked", "-deprecation")
 
 classDirectory in Test <<= classDirectory in Compile
+
+// Dependencies
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "1.6.1" % "test" withJavadoc() withSources()
 
