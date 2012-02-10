@@ -4,6 +4,8 @@
       <root url="jar://$PROJECT_DIR$/lib/silast.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="file://$PROJECT_DIR$/../silast/src/SILAST/src" />
+    </SOURCES>
   </library>
 </component>

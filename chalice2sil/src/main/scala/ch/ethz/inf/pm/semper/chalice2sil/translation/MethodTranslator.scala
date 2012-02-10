@@ -3,29 +3,19 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
 import ch.ethz.inf.pm.semper.chalice2sil
 import chalice.Variable
 import chalice2sil._
+import translation.cfg.{ControlFlowSketch,SsaSurvey}
 import collection.mutable.Stack
 import silAST.methods.implementations.BasicBlockFactory
 import silAST.source.{SourceLocation, noLocation}
-import silAST.expressions.{TrueExpression, Expression}
-import silAST.programs.symbols.ProgramVariable
 import silAST.domains.{DomainPredicate, Domain, DomainFunction}
-import silAST.expressions.terms.{noPermissionTerm, fullPermissionTerm, Term, PTerm}
-import silAST.symbols.logical.{Implication, Or, And, Not}
-import silAST.expressions.util.{PTermSequence, TermSequence}
 import silAST.types._
+import silAST.expressions.util.{ExpressionSequence, PTermSequence, TermSequence}
+import silAST.programs.symbols.{Field, ProgramVariable}
+import silAST.expressions.terms._
+import silAST.expressions._
+import silAST.symbols.logical._
 
-class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends MethodEnvironment {
-  //Environment
-  def programOptions = st.programOptions
-  def onNewMessage = st.onNewMessage
-  def pastMessages = st.pastMessages
-
-  //ProgramEnvironment
-  def programFactory = st.programFactory
-  def methodFactories = st.methodFactories
-  def fields = st.fields
-  def prelude = st.prelude
-
+class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends DerivedProgramEnvironment(st) with  MethodEnvironment {
   //MethodEnvironment
   val methodFactory = methodFactories(method)
   lazy val implementationFactory = {
@@ -34,7 +24,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
   }
 
   val localVariables = new DerivedFactoryCache[chalice.Variable,String, ProgramVariable] with AdjustableCache[ProgramVariable] {
-    def deriveKey(p : Variable) = p.id
+    def deriveKey(p : Variable) = p.UniqueName
 
     override protected def deriveKeyFromValue(value : ProgramVariable) = value.name
 
@@ -60,8 +50,8 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
   // Translation 
   private[this] def createSignature() = {
     val mf = methodFactory
-    method.ins.foreach(i => localVariables.addExternal(mf.addParameter(i, i.id, translate(i.t))))
-    method.outs.foreach(o => localVariables.addExternal(mf.addResult(o,o.id,translate(o.t))))
+    method.ins.foreach(i => localVariables.addExternal(mf.addParameter(i, i.UniqueName, translate(i.t))))
+    method.outs.foreach(o => localVariables.addExternal(mf.addResult(o,o.UniqueName,translate(o.t))))
     val π = mf.addParameter(method,getNextName("π"),permissionType)
     localVariables.addExternal(π)
 
@@ -101,8 +91,21 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
   }
   
   val readFractionVariable = createSignature();
-  
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////      CONTROL FLOW GRAPH SKETCH                                       /////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
   def translate(){
+    val ssa = new SsaSurvey(this)
+    val cfg = ssa.translateControlFlow(method)
+    ssa.determineDominators(cfg)
+    ssa.determineDominanceFrontiers(cfg)
+    ssa.determineΦ(cfg)
+
+
+
     // SILAST requires the first and last block to be created separately.
     //  The first block can be used and is supplied as the block to translate into
     //  The last block, however, cannot be anticipated. We just add an edge from the
@@ -110,12 +113,12 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
     val firstBody = implementationFactory.addFirstBasicBlock(method,getNextName("begin_body"))
     basicBlocks.addExternal(firstBody)
 
-    val (_,exitBody) = into(firstBody,translate(method.body))
+    //TODO walk through cfg
 
     val lastBlock = implementationFactory.addLastBasicBlock(method,getNextName("exit_body"))
     basicBlocks.addExternal(lastBlock)
 
-    exitBody.addSuccessor(method,lastBlock,TrueExpression(),false)
+    //exitBody.addSuccessor(method,lastBlock,TrueExpression(),false)
   }
 
   def translateAssignment(lhs : chalice.VariableExpr,  rhs : chalice.RValue){
@@ -152,125 +155,22 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
   protected def continueWith(block : BasicBlockFactory) = {
     require(!blockStack.isEmpty)
     require(!hasOutgoingEdges(block))
-    blockStack pop  ()
-    blockStack push block
+    
+    blockStack.pop()
+    blockStack.push(block)
   }
   
   protected def hasOutgoingEdges(block : BasicBlockFactory) : Boolean = !block.compile().successors.isEmpty
   
-  def translatePTerm(rvalue : chalice.RValue) : PTerm = {
-    translateTerm(rvalue) match {
-      case pt:PTerm => pt
-      case t =>
-        assert(false,"Expected program term. Actual type: %s. Location: %s.".format(t.getClass,t.sourceLocation))
-        null
-    }
-  }
-  
-  def translateTerm(rvalue : chalice.RValue) : Term = {
-    rvalue match { //RValue is (expression ∪ new-obj)
-      //NewRhs  is used for both object creation and channel creation (where lower and upper bounds come into play)
-      case chalice.NewRhs(typeId,init,lowerBound,upperBound) =>
-        report(messages.UnknownAstNode(rvalue))
-        dummyTerm(rvalue)
-      // from here on, match against the cases of Expression  
-      case chalice.IntLiteral(i) => currentExpressionFactory.makeIntegerLiteralTerm(rvalue, i)
-      case chalice.BoolLiteral(true) => currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.TrueLiteral,TermSequence())
-      case chalice.BoolLiteral(false) => currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.FalseLiteral,TermSequence())
-      case variableExpr:chalice.VariableExpr => currentExpressionFactory.makeProgramVariableTerm(variableExpr, localVariables(variableExpr.v))
-      case chalice.Old(e) => currentExpressionFactory.makeOldTerm(rvalue,translateTerm(e))
-      case access@chalice.MemberAccess(rcvr,_) if !access.isPredicate =>
-        assert(access.f != null,"Chalice MemberAccess node (%s) is not linked to a field.".format(access))
-        currentExpressionFactory.makeFieldReadTerm(access,translateTerm(rcvr),fields(access.f))
-      case th@chalice.ImplicitThisExpr() => currentExpressionFactory.makeProgramVariableTerm(th,methodFactory.thisVar)
-      case th@chalice.ExplicitThisExpr() => currentExpressionFactory.makeProgramVariableTerm(th,methodFactory.thisVar)
-      case chalice.And(lhs,rhs) => currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.And,TermSequence(
-        translateTerm(lhs),
-        translateTerm(rhs)
-      ))
-      case chalice.Or(lhs,rhs) => currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.Or,TermSequence(
-        translateTerm(lhs),
-        translateTerm(rhs)
-      ))
-      case chalice.Implies(lhs,rhs) => currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.Implication,TermSequence(
-        translateTerm(lhs),
-        translateTerm(rhs)
-      ))
-      case chalice.Not(op) => currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.Not,TermSequence(
-        translateTerm(op)
-      ))
-      case otherNode =>
-        report(messages.UnknownAstNode(otherNode))
-        dummyTerm(rvalue)
-    }
+
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////      TRANSLATE STATEMENTS                                            /////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  def translate(stmts : Traversable[chalice.Statement]){
+    stmts.foreach(translate(_))
   }
 
-  def translateCondition(cond : chalice.Expression, thn : chalice.Statement, elsOpt : Option[chalice.Statement]) : Unit = {
-    val elsTransOpt = elsOpt.map((e) => () => translate(e))
-    val thnTrans = () => translate(thn)
-    translateCondition(cond,thnTrans,elsTransOpt,Some(thn),elsOpt.map(astNodeToSourceLocation))
-  }
-  
-  def translateCondition(cond : chalice.Expression,  thn : chalice.Statement) : Unit = {
-    val thnTrans = () => translate(thn)
-    val (result,_) = translateCondition(cond, thnTrans, None)
-    result
-  }
-
-  def translateCondition[T,U](cond : chalice.Expression,
-                              thn : () => T,
-                              elsOpt : Option[() => U]) : (T,Option[U]) = {
-    translateCondition(cond,thn,elsOpt,None,None)
-  }
-  
-  def translateCondition[T,U](
-                      cond : chalice.Expression,
-                      thn : () => T,
-                      elsOpt : Option[() => U],
-                      thnLoc : Option[SourceLocation],
-                      elsLoc : Option[SourceLocation]) : (T, Option[U]) = {
-    
-    val condExpr = translateExpression(cond)
-
-    //Create block for then-branch and the successor block. (else is only created when necessary)
-    val thenBlock = basicBlocks(getNextName("if_then"))
-    val nextBlock = basicBlocks(getNextName("if_continue"))
-
-    //Compile then-branch
-    //  first, connect to current block via condition
-    currentBlock.addSuccessor(thnLoc.getOrElse(cond),thenBlock,condExpr,false)
-    //  then, compile body of then-branch
-    val (thenResult,endThenBlock) = into(thenBlock,thn())
-    //  finally, connect then-block to successor with no condition (True)
-    endThenBlock.addSuccessor(thnLoc.getOrElse(cond),nextBlock,TrueExpression(),false)
-
-    //Handle else-block if there is one. "elseSuccessor" is the block the control should be transferred to
-    //  when the condition is false. This is either the actual successor block or the else-branch
-    val (elseResult,elseSuccessor) = elsOpt match {
-      case Some(els) =>
-        //Compile else-branch, same as then-branch
-        val elseBlock = basicBlocks(getNextName("if_else"))
-        val (result,elseBlockEnd) = into(elseBlock,els())
-
-        elseBlockEnd.addSuccessor(elsLoc.getOrElse(cond),nextBlock,TrueExpression(),false)
-        (Some(result),elseBlock)
-      case None => (None,nextBlock)
-    }
-
-    //Create control transfer in case the condition does not hold ↔ ¬condition holds
-    currentBlock.addSuccessor(cond,elseSuccessor,currentBlock.makeUnaryExpression(cond,Not(),condExpr),false)
-
-    //Update currentBlock
-    this continueWith nextBlock
-
-    (thenResult,elseResult)
-  }
-
-  /**
-    * Translates a single Chalice statement by appending SIL statements to the current block
-    * and/or creates edges to new blocks. The number of blocks on the `blockStack` is expected
-    * to remain the same, but the top element might change.
-    */
   def translate(stmt : chalice.Statement) {
     require(!blockStack.isEmpty); 
     val oldStackSize = blockStack.length
@@ -282,7 +182,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
         rhsOpt match {
           case None => //nothing to do
           case Some(rhs) =>
-            val variableExpr = chalice.VariableExpr(v.id)
+            val variableExpr = chalice.VariableExpr(v.UniqueName)
             variableExpr.v = v
             translateAssignment(variableExpr,rhs)
         }
@@ -303,19 +203,8 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
               currentBlock.appendFieldAssignment(stmt,rcvrVar,fields(location.f),translatePTerm(rhs))
             })
         }
-      case c@chalice.Call(_,destinations,receiver,_,args) if c.m.isInstanceOf[chalice.Method] =>
-        val destinationVars = destinations.map(ve => localVariables(ve.v))
-        val receiverTerm = translatePTerm(receiver)
-        val calleeFactory = methodFactories(c.m.asInstanceOf[chalice.Method]) 
-        val readFractionVar = implementationFactory.addLocalVariable(c,getNextName("π_" + calleeFactory.name),permissionType)
-        localVariables.addExternal(readFractionVar)
-        val argTerms = args.map(translatePTerm) ++ List(currentBlock.makeProgramVariableTerm(c,readFractionVar))
-        currentBlock.appendCall(
-          stmt,
-          currentBlock.makeProgramVariableSequence(stmt,destinationVars),
-          receiverTerm,
-          calleeFactory,
-          PTermSequence(argTerms : _*))
+      case c@chalice.Call(_,_,_,_,_) if c.m.isInstanceOf[chalice.Method] =>
+        translateMethodCall(c)
       case otherStmt => report(messages.UnknownAstNode(otherStmt))
     }
     
@@ -325,10 +214,150 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
       .format(stmt))
   }
 
-  def translate(stmts : Traversable[chalice.Statement]){
-    stmts.foreach(translate(_))
+  protected abstract sealed class ReadCondition;
+  protected final case class ReadImplication(lhs : Expression, rhs : List[ReadCondition])
+    extends ReadCondition
+    with Product2[Expression, List[ReadCondition]] {
+    def _1 = lhs
+    def _2 = rhs
   }
-  
+  protected final case class ReadField(location : Term, field : Field) extends ReadCondition
+
+  /**
+    * Translates a single Chalice statement by appending SIL statements to the current block
+    * and/or creates edges to new blocks. The number of blocks on the `blockStack` is expected
+    * to remain the same, but the top element might change.
+    */
+  def translateMethodCall(callNode : chalice.Call) {
+    import chalice.{Call => ChaliceCall}
+    val ChaliceCall(_,destinations,receiver,_,args) = callNode
+    val destinationVars = destinations.map(ve => localVariables(ve.v))
+    val receiverTerm = translatePTerm(receiver)
+    val calleeFactory = methodFactories(callNode.m.asInstanceOf[chalice.Method])
+
+    //Read (fractional) permissions
+    val readFractionVar = implementationFactory.addLocalVariable(callNode, getNextName("π_" + calleeFactory.name), permissionType)
+    localVariables.addExternal(readFractionVar)
+    val readFractionTerm = currentBlock.makeProgramVariableTerm(callNode, readFractionVar)
+    // append: { π := havoc[Permission] }
+    currentBlock.appendAssignment(callNode,readFractionVar,
+      currentBlock.makePDomainFunctionApplicationTerm(callNode,prelude.Havoc(permissionType).Function,PTermSequence()))
+
+    // Translate arguments and create mapping from parameter variables to these terms
+    val argTerms = args.map(translatePTerm) ++ List(readFractionTerm)
+    val argMapping = calleeFactory.parameters.zip(argTerms).map(x => x._1 -> x._2).toMap
+    def transplantExpression(e : Expression) : Expression = {
+      e.substitute(LogicalVariableSubstitution)
+    }
+    def transplantTerm(t : Term) : Term = {
+      null //TODO: use Uri's Substitution mechanism
+    }
+
+    // Generate assumptions and conditions on fraction
+    def genCond(expr : Expression) : Option[Expression] = expr match {
+      case p:PermissionExpression if
+      p.permission == fullPermissionTerm ||
+        p.permission == noPermissionTerm => None
+      case p@PermissionExpression(_,reference,field,pTerm) => pTerm match {
+        case ProgramVariableTerm(_,varRef) if varRef == calleeFactory.parameters.last =>
+          // translate
+          //    acc(reference,field,π)
+          // into
+          //    π `permissionLT` perm(reference,field)
+          Some(currentBlock.makeDomainPredicateExpression(callNode,permissionLT,TermSequence(
+            readFractionTerm,
+            currentBlock.makePermTerm(callNode,transplantTerm(reference),field)
+          )))
+        case _ =>
+          report(messages.PermissionNotUnderstood(callNode,pTerm))
+          None
+      }
+      case BinaryExpression(_,Implication(),lhs,rhs) =>
+        //use lhs as-is in implications
+        genCond(rhs).map(currentBlock.makeBinaryExpression(callNode,Implication(),transplantExpression(lhs),_))
+      case BinaryExpression(_,op,lhs,rhs) =>
+        //omit non-permission related nodes
+        List(lhs,rhs).map(genCond _).collect({case Some(x) => x}) match {
+          case List(lhsCond,rhsCond) => Some(currentBlock.makeBinaryExpression(callNode,op,lhsCond,rhsCond))
+          case List(cond) => Some(cond)
+          case _ => None
+        }
+      case _:AtomicExpression => None
+      case _ =>
+        report(messages.PermissionNotUnderstood(callNode,expr))
+        None
+    }
+
+    def genReadCond(expr : Expression) : List[ReadCondition] = expr match {
+      case p:PermissionExpression if
+      p.permission == fullPermissionTerm ||
+        p.permission == noPermissionTerm => Nil
+      case p@PermissionExpression(_,reference,field,pTerm) => pTerm match {
+        case ProgramVariableTerm(_,varRef) if varRef == calleeFactory.parameters.last =>
+
+          List(ReadField(transplantTerm(reference),field))
+        case _ =>
+          report(messages.PermissionNotUnderstood(callNode,pTerm))
+          Nil
+      }
+      case BinaryExpression(_,Implication(),lhs,rhs) =>
+        //use lhs as-is in implications
+        List(ReadImplication(transplantExpression(lhs),genReadCond(rhs)))
+      case BinaryExpression(_,And(),lhs,rhs) =>
+        List(lhs,rhs).map(genReadCond).flatten
+      case BinaryExpression(_,Or(),lhs,rhs) =>
+        report(messages.PermissionNotUnderstood(callNode,expr))
+        Nil
+      case BinaryExpression(_,Equivalence(),lhs,rhs) =>
+        // Interpret A ↔ B ≡ (A → B) ∧ (B → A)
+        genReadCond(currentBlock.makeBinaryExpression(
+          callNode,
+          And(),
+          currentBlock.makeBinaryExpression(callNode,Implication(),lhs,rhs),
+          currentBlock.makeBinaryExpression(callNode,Implication(),rhs,lhs)
+        ))
+      case _:AtomicExpression => Nil
+      case _ =>
+        report(messages.PermissionNotUnderstood(callNode,expr))
+        Nil
+    }
+
+    def appendCond(rs : List[ReadCondition]){
+      rs foreach { 
+        case ReadField(location,field) =>
+          val currentPermission = currentBlock.makePermTerm(callNode,location,field)
+          currentBlock.appendInhale(callNode,
+            currentBlock.makeDomainPredicateExpression(
+              callNode,
+              permissionLT,
+              TermSequence(readFractionTerm,currentPermission))
+          )
+        case _ =>
+      }
+      
+      rs collect { case a@ReadImplication(_,_) => a } groupBy (_.lhs) foreach { i =>
+        silIf(i._1){
+          appendCond(i._2.map(_.rhs).flatten)
+        }
+      }
+    }
+
+    calleeFactory.method.signature.precondition
+      .map(genReadCond _)
+      .foreach(appendCond _)
+
+    // Generate call statement
+    currentBlock.appendCall(
+      callNode,
+      currentBlock.makeProgramVariableSequence(callNode, destinationVars),
+      receiverTerm,
+      calleeFactory,
+      PTermSequence(argTerms : _*))
+  }
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////      TRANSLATE EXPRESSION                                            /////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   def translateExpression(expression : chalice.Expression):Expression = expression match {
     case chalice.And(lhs,rhs) => 
       val lhsT = translateExpression(lhs)
@@ -381,7 +410,70 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
       dummyExpr(currentExpressionFactory,otherExpr)
 
   }
-  
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////      TRANSLATE TERMS                                                 /////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  def translatePTerm(rvalue : chalice.RValue) : PTerm = {
+    translateTerm(rvalue) match {
+      case pt:PTerm => pt
+      case t =>
+        assert(false,"Expected program term. Actual type: %s. Location: %s.".format(t.getClass,t.sourceLocation))
+        null
+    }
+  }
+
+  def translateTerm(rvalue : chalice.RValue) : Term = {
+    rvalue match { //RValue is (expression ∪ new-obj)
+      //NewRhs  is used for both object creation and channel creation (where lower and upper bounds come into play)
+      case chalice.NewRhs(typeId,init,lowerBound,upperBound) =>
+        report(messages.UnknownAstNode(rvalue))
+        dummyTerm(rvalue)
+      // from here on, match against the cases of Expression
+      case chalice.IntLiteral(i) =>
+        currentExpressionFactory.makeIntegerLiteralTerm(rvalue, i)
+      case chalice.BoolLiteral(true) =>
+        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.TrueLiteral,TermSequence())
+      case chalice.BoolLiteral(false) =>
+        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.FalseLiteral,TermSequence())
+      case variableExpr:chalice.VariableExpr =>
+        currentExpressionFactory.makeProgramVariableTerm(variableExpr, localVariables(variableExpr.v))
+      case chalice.Old(e) => currentExpressionFactory.makeOldTerm(rvalue,translateTerm(e))
+      case access@chalice.MemberAccess(rcvr,_) if !access.isPredicate =>
+        assert(access.f != null,"Chalice MemberAccess node (%s) is not linked to a field.".format(access))
+        currentExpressionFactory.makeFieldReadTerm(access,translateTerm(rcvr),fields(access.f))
+      case th@chalice.ImplicitThisExpr() =>
+        currentExpressionFactory.makeProgramVariableTerm(th,methodFactory.thisVar)
+      case th@chalice.ExplicitThisExpr() =>
+        currentExpressionFactory.makeProgramVariableTerm(th,methodFactory.thisVar)
+      case chalice.And(lhs,rhs) =>
+        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.And,TermSequence(
+        translateTerm(lhs),
+        translateTerm(rhs)
+      ))
+      case chalice.Or(lhs,rhs) =>
+        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.Or,TermSequence(
+        translateTerm(lhs),
+        translateTerm(rhs)
+      ))
+      case chalice.Implies(lhs,rhs) =>
+        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.Implication,TermSequence(
+        translateTerm(lhs),
+        translateTerm(rhs)
+      ))
+      case chalice.Not(op) =>
+        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.Not,TermSequence(
+        translateTerm(op)
+      ))
+      case otherNode =>
+        report(messages.UnknownAstNode(otherNode))
+        dummyTerm(rvalue)
+    }
+  }
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////      TRANSLATE PERMISSION                                            /////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   protected def translatePermission(permission : chalice.Permission) : Term = permission match {
     case chalice.Full => fullPermissionTerm
     case π@chalice.Epsilon if π.permissionType == chalice.PermissionType.Fraction =>
@@ -390,7 +482,10 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
       report(messages.UnknownAstNode(permission))
       noPermissionTerm
   }
-  
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////      METHOD CALL FRACTION VARIABLE                                   /////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   var wrapFractionInOld : Boolean = false
   var currentMethodCallFractionVariable : Option[ProgramVariable] = None
   def makeCurrentMethodCallFraction(sourceLocation : SourceLocation) : Term = {
@@ -403,7 +498,89 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
     }
   }
 
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////      TRANSLATE TYPES                                                 /////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   protected def translate(typeExpr : chalice.Type) = new TypeTranslator(this).translate(typeExpr)
 
   protected def translate(classRef : chalice.Class) = new TypeTranslator(this).translate(classRef)
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////      HELPER FUNCTIONS (TRANSLATION DSL)                              /////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  protected def silIf[T](cond : Expression, conditionLocation : SourceLocation = noLocation)(thnBlock : => T) = new {
+    def els[U](elsBlock : => U) = new {
+      def end() = {
+        translateSilCondition[T, U](cond,() => thnBlock,Some(() => elsBlock),Some(conditionLocation))
+      }
+    }
+    def end() = {
+      translateSilCondition[T,Unit](cond,() => thnBlock,None,Some(conditionLocation))
+    }
+  }
+  
+  protected def chaliceIf[T](cond : chalice.Expression)(thnBlock : => T) = silIf(translateExpression(cond))(thnBlock)
+
+  def translateCondition(cond : chalice.Expression, thn : chalice.Statement, elsOpt : Option[chalice.Statement]) : Unit = {
+    val elsTransOpt = elsOpt.map((e) => () => translate(e))
+    val thnTrans = () => translate(thn)
+    translateCondition(cond,thnTrans,elsTransOpt,Some(thn),elsOpt.map(astNodeToSourceLocation))
+  }
+
+  def translateCondition(cond : chalice.Expression,  thn : chalice.Statement) : Unit = {
+    val thnTrans = () => translate(thn)
+    val (result,_) = translateCondition(cond, thnTrans, None, None, None)
+    result
+  }
+
+  def translateCondition[T,U](
+                               cond : chalice.Expression,
+                               thn : () => T,
+                               elsOpt : Option[() => U],
+                               thnLoc : Option[SourceLocation],
+                               elsLoc : Option[SourceLocation]) : (T, Option[U]) = {
+    translateSilCondition(translateExpression(cond),thn,elsOpt,thnLoc,elsLoc)
+  }
+
+  def translateSilCondition[T,U](
+                                  condExpr : Expression,
+                                  thn : () => T,
+                                  elsOpt : Option[() => U] = None,
+                                  thnLoc : Option[SourceLocation] = None,
+                                  elsLoc : Option[SourceLocation] = None) : (T, Option[U]) = {
+
+    //Create block for then-branch and the successor block. (else is only created when necessary)
+    val thenBlock = basicBlocks(getNextName("if_then"))
+    val nextBlock = basicBlocks(getNextName("if_continue"))
+
+    //Compile then-branch
+    //  first, connect to current block via condition
+    currentBlock.addSuccessor(thnLoc.getOrElse(noLocation),thenBlock,condExpr,false)
+    //  then, compile body of then-branch
+    val (thenResult,endThenBlock) = into(thenBlock,thn())
+    //  finally, connect then-block to successor with no condition (True)
+    endThenBlock.addSuccessor(thnLoc.getOrElse(noLocation),nextBlock,TrueExpression(),false)
+
+    //Handle else-block if there is one. "elseSuccessor" is the block the control should be transferred to
+    //  when the condition is false. This is either the actual successor block or the else-branch
+    val (elseResult,elseSuccessor) = elsOpt match {
+      case Some(els) =>
+        //Compile else-branch, same as then-branch
+        val elseBlock = basicBlocks(getNextName("if_else"))
+        val (result,elseBlockEnd) = into(elseBlock,els())
+
+        elseBlockEnd.addSuccessor(elsLoc.getOrElse(noLocation),nextBlock,TrueExpression(),false)
+        (Some(result),elseBlock)
+      case None => (None,nextBlock)
+    }
+
+    //Create control transfer in case the condition does not hold ↔ ¬condition holds
+    currentBlock.addSuccessor(noLocation,elseSuccessor,currentBlock.makeUnaryExpression(noLocation,Not(),condExpr),false)
+
+    //Update currentBlock
+    this.continueWith(nextBlock)
+
+    (thenResult,elseResult)
+  }
+
 }

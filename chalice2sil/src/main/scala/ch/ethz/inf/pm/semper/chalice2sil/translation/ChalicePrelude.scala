@@ -5,12 +5,12 @@ import silAST.expressions.util.DTermSequence._
 import silAST.symbols.logical.Not._
 import silAST.expressions.util.DTermSequence
 import silAST.symbols.logical.Not
-import silAST.source.{noLocation}
 import silAST.expressions.terms.DTerm
-import silAST.domains.{DomainPredicate, DomainFunction}
 import silAST.expressions.DExpression
 import silAST.types.{DataType, DataTypeSequence}
 import silAST.symbols.logical.quantification.{BoundVariable, Forall}
+import silAST.source.{SourceLocation, noLocation}
+import silAST.domains.{Domain, DomainPredicate, DomainFunction}
 
 /**
  * Author: Christian Klauser
@@ -19,41 +19,45 @@ import silAST.symbols.logical.quantification.{BoundVariable, Forall}
 class ChalicePrelude(programEnvironment : ProgramEnvironment) {
   private val names = NameSequence()
   
-  private val programFactory = programEnvironment.programFactory
+  
   private val loc = noLocation  //TODO: define a more sensible location than `noLocation` for the Prelude
 
-  object Boolean {    
-    private val factory = programFactory.getDomainFactory("Boolean",Nil)(loc)
-    private def fApp(domainFunction : DomainFunction, args : DTerm*) = {
+  protected class DomainEnvironment(domainName: String, typeVariableNames: Seq[(SourceLocation,String)] = Nil) extends DerivedProgramEnvironment(programEnvironment){
+    protected val factory = programFactory.getDomainFactory(domainName, typeVariableNames)(loc)
+
+    protected def fApp(domainFunction : DomainFunction, args : DTerm*) = {
       factory.makeDDomainFunctionApplicationTerm(loc,domainFunction,DTermSequence(args:_*))
     }
-    private def pApp(domainPredicate : DomainPredicate, args : DTerm*) = {
+    protected def pApp(domainPredicate : DomainPredicate, args : DTerm*) = {
       factory.makeDDomainPredicateExpression(loc,domainPredicate,DTermSequence(args:_*))
     }
-    private def not(operand : DExpression) : DExpression = 
+    protected def not(operand : DExpression) : DExpression =
       factory.makeDUnaryExpression(loc,silAST.symbols.logical.Not(),operand)
-    private def and(lhs : DExpression, rhs : DExpression) : DExpression =
+    protected def and(lhs : DExpression, rhs : DExpression) : DExpression =
       factory.makeDBinaryExpression(loc,silAST.symbols.logical.And(),lhs,rhs)
-    private def or(lhs : DExpression, rhs : DExpression) : DExpression =
+    protected def or(lhs : DExpression, rhs : DExpression) : DExpression =
       factory.makeDBinaryExpression(loc,silAST.symbols.logical.Or(),lhs,rhs)
-    private def equiv(lhs : DExpression,  rhs : DExpression) : DExpression =
+    protected def equiv(lhs : DExpression,  rhs : DExpression) : DExpression =
       factory.makeDBinaryExpression(loc,silAST.symbols.logical.Equivalence(),lhs,rhs)
-    private def imply(lhs : DExpression,rhs:DExpression) : DExpression = 
+    protected def imply(lhs : DExpression,rhs:DExpression) : DExpression =
       factory.makeDBinaryExpression(loc,silAST.symbols.logical.Implication(),lhs,rhs)
-    private def equality(lhs : DTerm, rhs : DTerm) =
+    protected def equality(lhs : DTerm, rhs : DTerm) =
       factory.makeDEqualityExpression(loc,lhs,rhs)
-    private def ∀(aType : DataType, expr : BoundVariable => DExpression) : DExpression = {
+    protected def ∀(aType : DataType, expr : BoundVariable => DExpression) : DExpression = {
       val a = factory.makeBoundVariable(loc,names.nextName,aType)
       factory.makeDQuantifierExpression(loc,Forall,a,expr(a))
     }
-    private def ∀(aType : DataType,  bType : DataType,  expr : (BoundVariable,BoundVariable) => DExpression) : DExpression = {
+    protected def ∀(aType : DataType,  bType : DataType,  expr : (BoundVariable,BoundVariable) => DExpression) : DExpression = {
       val a = factory.makeBoundVariable(loc,names.nextName,aType)
       val b = factory.makeBoundVariable(loc,names.nextName,bType)
       factory.makeDQuantifierExpression(loc,Forall,a,
         factory.makeDQuantifierExpression(loc,Forall,b,expr(a,b))
       )
     }
-    implicit private def boundVariableAsTerm(v : BoundVariable) : DTerm = factory.makeBoundVariableTerm(loc,v)
+    implicit protected def boundVariableAsTerm(v : BoundVariable) : DTerm = factory.makeBoundVariableTerm(loc,v)
+  } 
+  
+  object Boolean extends DomainEnvironment("Boolean") {
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Core
@@ -127,5 +131,29 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) {
     // Compile Domain
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     lazy val Domain = factory.compile()
+  }
+  
+  object Havoc extends DomainEnvironment("Havoc",Seq((loc,"a"))) with (DataType => HavocInstance) {
+    val typeParameter = factory.typeVariables.head
+    private val instances = new FactoryHashCache[DataType, HavocInstance] {
+      protected def construct(dataType : DataType) = 
+        new HavocInstance(programFactory.makeDomainInstance(factory,DataTypeSequence(dataType)))
+    }
+    
+    def apply(dataType : DataType) = instances(dataType)
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Havoc[a] : a
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    protected[ChalicePrelude] val functionTemplate = factory.defineDomainFunction(loc,"havoc",DataTypeSequence(),factory.makeVariableType(loc,typeParameter))
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Compile Domain
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    lazy val DomainConstructor = factory.compile()
+  }  
+  
+  class HavocInstance(domain : Domain) {
+     def Function : DomainFunction = domain.functions.find(_.name == Havoc.functionTemplate.name).get
   }
 }

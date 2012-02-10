@@ -12,5 +12,7 @@ package object chalice2sil {
       val pos = p.pos
       override def toString = pos.toString()
     }
+    implicit def astNodeToOptionalSourceLocation(p : ASTNode) : Option[SourceLocation] =
+      Some(astNodeToSourceLocation(p))
   }
 }

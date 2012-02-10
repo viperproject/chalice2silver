@@ -5,6 +5,7 @@ import chalice.{Channel, ASTNode}
 import silAST.source.SourceLocation
 import Severity._
 import silAST.types.DataType
+import silAST.expressions.terms.Term
 
 object ChannelsNotImplemented extends MessageId(
   Error,
@@ -38,6 +39,15 @@ object TypeNotUnderstood extends MessageId(
 "Chalice2SIL does not understand the SIL type %s, derived from node %s.") {
   def apply(dataType : DataType, node : ASTNode) = new Message(this,node) {
     def data : Iterable[Any] = Array(dataType, node)
+  }
+}
+
+object PermissionNotUnderstood extends MessageId(
+  Fault,
+  "ch.ethz.inf.pm.semper.chalice2sil.permissionNotUnderstood",
+  "Chalice2SIL does not understand the SIL permission amount %s.") {
+  def apply(location : SourceLocation, permissionAmount : silAST.ASTNode) = new Message(this,location) {
+    def data : Iterable[Any] = Array(permissionAmount)
   }
 }
 
