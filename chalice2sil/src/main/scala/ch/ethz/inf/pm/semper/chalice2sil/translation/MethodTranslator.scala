@@ -1,9 +1,8 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import ch.ethz.inf.pm.semper.chalice2sil
-import chalice.Variable
 import chalice2sil._
-import translation.cfg.{ControlFlowSketch,SsaSurvey}
+import translation.ssa.{ControlFlowSketch,SsaSurvey}
 import collection.mutable.Stack
 import silAST.methods.implementations.BasicBlockFactory
 import silAST.source.{SourceLocation, noLocation}
@@ -19,16 +18,15 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
   //MethodEnvironment
   val methodFactory = methodFactories(method)
   lazy val implementationFactory = {
-    //requires(!methodFactory.isSignatureDefined)
     methodFactory.addImplementation(method.body.map(astNodeToSourceLocation).headOption.getOrElse(method))
   }
 
   val localVariables = new DerivedFactoryCache[chalice.Variable,String, ProgramVariable] with AdjustableCache[ProgramVariable] {
-    def deriveKey(p : Variable) = p.UniqueName
+    def deriveKey(p : chalice.Variable) = p.UniqueName
 
     override protected def deriveKeyFromValue(value : ProgramVariable) = value.name
 
-    def construct(p : Variable) = implementationFactory.addLocalVariable(p,deriveKey(p),translate(p.t))
+    def construct(p : chalice.Variable) = implementationFactory.addLocalVariable(p,deriveKey(p),translate(p.t))
 
 
   }
@@ -97,14 +95,19 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
+  protected def determineVariableVersions(cfg : ControlFlowSketch){
+
+  }
+  
   def translate(){
-    val ssa = new SsaSurvey(this)
+    val ssa = new SsaSurvey(this, nameSequence)
     val cfg = ssa.translateControlFlow(method)
     ssa.determineDominators(cfg)
     ssa.determineDominanceFrontiers(cfg)
     ssa.determineΦ(cfg)
 
-
+    // Determine intermediate (intra-basic-block) local variable versions
+    determineVariableVersions(cfg)
 
     // SILAST requires the first and last block to be created separately.
     //  The first block can be used and is supplied as the block to translate into
@@ -113,7 +116,30 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
     val firstBody = implementationFactory.addFirstBasicBlock(method,getNextName("begin_body"))
     basicBlocks.addExternal(firstBody)
 
-    //TODO walk through cfg
+    for(chaliceBlock <- cfg.reversePostorder){
+      val loc = chaliceBlock.sourceLocation
+      val beginBlock = implementationFactory.addBasicBlock(loc, chaliceBlock.name)
+      
+      into(beginBlock,{
+        for(v <- chaliceBlock.assignedVariables){
+          val vi = chaliceBlock.blockVariableInfo(v)
+          if(vi.needsΦAssignment){
+            // create ϕ assignment:
+            // currently implemented as `inhale (v_1 = v_a ∨ v_1 = v_b ∨ ... ∨ v_1 = v_z)`
+            val tv = vi.firstVersion //the target variable (of the ϕ assignment)
+            /*
+            val assertion = vi.ϕ
+              .map(b => b.blockVariableInfo(v).lastVersion)
+              .map(sv => currentExpressionFactory.makeEqualityExpression(loc, // assert `tv = sv`
+                currentExpressionFactory.makeProgramVariableTerm(loc,tv),
+                currentExpressionFactory.makeProgramVariableTerm(loc,sv))) //sv is the source variable of the ϕ assignment
+              .reduce[Expression](currentExpressionFactory.makeBinaryExpression(loc,Or(),_,_)) // connect via logical or
+            currentBlock.appendInhale(loc,assertion)
+            */
+          }
+        }
+      })
+    }
 
     val lastBlock = implementationFactory.addLastBasicBlock(method,getNextName("exit_body"))
     basicBlocks.addExternal(lastBlock)
@@ -123,6 +149,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
 
   def translateAssignment(lhs : chalice.VariableExpr,  rhs : chalice.RValue){
     val v = localVariables(lhs.v)
+
     currentBlock.appendAssignment(lhs,v,translateTerm(rhs).asInstanceOf[PTerm]) //TODO: is there a way to avoid this cast without duplicating translateTerm?
   }
 
@@ -204,7 +231,8 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
             })
         }
       case c@chalice.Call(_,_,_,_,_) if c.m.isInstanceOf[chalice.Method] =>
-        translateMethodCall(c)
+        //translateMethodCall(c) //TODO: reinstate method call once Uri's substitution is implemented
+        report(messages.UnknownAstNode(c))
       case otherStmt => report(messages.UnknownAstNode(otherStmt))
     }
     
@@ -247,7 +275,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
     val argTerms = args.map(translatePTerm) ++ List(readFractionTerm)
     val argMapping = calleeFactory.parameters.zip(argTerms).map(x => x._1 -> x._2).toMap
     def transplantExpression(e : Expression) : Expression = {
-      e.substitute(LogicalVariableSubstitution)
+      null // TODO: use Uri's Substitution mechanism
     }
     def transplantTerm(t : Term) : Term = {
       null //TODO: use Uri's Substitution mechanism
