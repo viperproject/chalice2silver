@@ -8,7 +8,7 @@ import silAST.source.noLocation
  * Author: Christian Klauser
  */
 
-class TemporaryVariableBroker(environment : MethodEnvironment) {
+class TemporaryVariableBroker(environment : MethodEnvironment) { // TODO: in SSA form, temporary variables are not re-used.
   private val knownTemporaryVariables = collection.mutable.Set[ProgramVariable]()
   private val freeTemporaryVariables = collection.mutable.Map[DataType, List[ProgramVariable]]()
 

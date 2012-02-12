@@ -2,7 +2,6 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import ch.ethz.inf.pm.semper.chalice2sil
 import chalice2sil._
-import translation.ssa.{ControlFlowSketch,SsaSurvey}
 import collection.mutable.Stack
 import silAST.methods.implementations.BasicBlockFactory
 import silAST.source.{SourceLocation, noLocation}
@@ -13,6 +12,7 @@ import silAST.programs.symbols.{Field, ProgramVariable}
 import silAST.expressions.terms._
 import silAST.expressions._
 import silAST.symbols.logical._
+import ssa.{AssignmentInterpretation, ChaliceBlock, ControlFlowSketch, SsaSurvey}
 
 class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends DerivedProgramEnvironment(st) with  MethodEnvironment {
   //MethodEnvironment
@@ -21,19 +21,53 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
     methodFactory.addImplementation(method.body.map(astNodeToSourceLocation).headOption.getOrElse(method))
   }
 
-  val localVariables = new DerivedFactoryCache[chalice.Variable,String, ProgramVariable] with AdjustableCache[ProgramVariable] {
-    def deriveKey(p : chalice.Variable) = p.UniqueName
+  val programVariables = new DerivedFactoryCache[ssa.Version,String, ProgramVariable] with AdjustableCache[ProgramVariable] {
+    override protected def deriveKey(p : ssa.Version) = p.uniqueName
 
     override protected def deriveKeyFromValue(value : ProgramVariable) = value.name
 
-    def construct(p : chalice.Variable) = implementationFactory.addLocalVariable(p,deriveKey(p),translate(p.t))
-
-
+    override protected def construct(p : ssa.Version) = implementationFactory.addLocalVariable(p.chaliceVariable,deriveKey(p),translate(p.chaliceVariable.t))
+  }
+  
+  def localVariableVersion(variable : chalice.Variable) = {
+    if(currentAssignmentInterpretation == null && (method.ins.contains(variable) || method.outs.contains(variable))){
+      programVariables.lookup(variable.UniqueName)
+    } else {
+      require(currentAssignmentInterpretation != null,
+        "Tried to access local variable version of variable %s without an assignment interpretation.".format(variable))
+      programVariables(currentAssignmentInterpretation.version(variable))
+    }
   }
 
   val basicBlocks = new AdjustableFactoryHashCache[String, BasicBlockFactory] {
-    def construct(name : String) = implementationFactory.addBasicBlock(noLocation,name)
-    def getKeyFor(block : BasicBlockFactory) = block.name
+    protected override def construct(name : String) : BasicBlockFactory = {
+      require(false,"Cannot create basic blocks this way.") //TODO: adjust MethodEnvironment
+      null
+    }
+    protected override def getKeyFor(block : BasicBlockFactory) = block.name
+  }
+
+  /**
+    * Adds a basic block to the SIL AST. The specified Chalice block is used as a prototype for Chalice-level properties
+    * like local variable scope.
+    * @param chaliceBlock The Chalice block to use as a prototype for the new basic block.
+    * @param name The name of the basic block. Optional.
+    */
+  def addBasicBlock(chaliceBlock : ChaliceBlock, name : String = null) = {
+    val uniqueName = if(name == null) getNextName(chaliceBlock.name + "_" + name) else getNextName(chaliceBlock.name)
+    val block = implementationFactory.addBasicBlock(chaliceBlock.sourceLocation,uniqueName)
+
+    inheritChaliceBlockProperties(chaliceBlock, block)
+
+    //return block
+    block
+  }
+  
+  def inheritChaliceBlockProperties(chaliceBlock : ChaliceBlock, block : BasicBlockFactory){
+    // variable scope
+    chaliceBlock.versionsInScope foreach { v =>
+      block.addProgramVariableToScope(programVariables(v))
+    }
   }
 
   val temporaries = new TemporaryVariableBroker(this)
@@ -44,14 +78,33 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
     blockStack.top
   }
   def currentExpressionFactory = blockStack.headOption.getOrElse(methodFactory)
- 
-  // Translation 
+  
+  var currentChaliceBlock : ChaliceBlock = null
+  var currentAssignmentInterpretation : AssignmentInterpretation = null
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////      TRANSLATION                                                     /////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  val cfg : ControlFlowSketch = {
+    val ssa = new SsaSurvey(this, nameSequence)
+    val cfg = ssa.translateControlFlow(method)
+    ssa.determineDominators(cfg)
+    ssa.determineDominanceFrontiers(cfg)
+    ssa.determineΦ(cfg)
+    ssa.determineIntermediateVersions(cfg)
+    ssa.determineDefinitionReach(cfg)
+    ssa.determineVariableScopes(cfg,method.ins ++ method.outs)
+    
+    cfg
+  }
+
   private[this] def createSignature() = {
     val mf = methodFactory
-    method.ins.foreach(i => localVariables.addExternal(mf.addParameter(i, i.UniqueName, translate(i.t))))
-    method.outs.foreach(o => localVariables.addExternal(mf.addResult(o,o.UniqueName,translate(o.t))))
+    method.ins.foreach(i => programVariables.addExternal(mf.addParameter(i, i.UniqueName, translate(i.t))))
+    method.outs.foreach(o => programVariables.addExternal(mf.addResult(o,o.UniqueName,translate(o.t))))
     val π = mf.addParameter(method,getNextName("π"),permissionType)
-    localVariables.addExternal(π)
+    programVariables.addExternal(π)
 
     val πTerm = mf.makeProgramVariableTerm(method,π)
     // requires (noPermission < π ∧ π < fullPermission)
@@ -91,34 +144,29 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
   val readFractionVariable = createSignature();
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  //////////////      CONTROL FLOW GRAPH SKETCH                                       /////////////////////////////////
+  //////////////      CONTROL FLOW GRAPH SKETCH / TRANSLATION TO SSA FORM             /////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-  protected def determineVariableVersions(cfg : ControlFlowSketch){
-
-  }
   
-  def translate(){
-    val ssa = new SsaSurvey(this, nameSequence)
-    val cfg = ssa.translateControlFlow(method)
-    ssa.determineDominators(cfg)
-    ssa.determineDominanceFrontiers(cfg)
-    ssa.determineΦ(cfg)
-
-    // Determine intermediate (intra-basic-block) local variable versions
-    determineVariableVersions(cfg)
-
+  def translate(){   
     // SILAST requires the first and last block to be created separately.
     //  The first block can be used and is supplied as the block to translate into
     //  The last block, however, cannot be anticipated. We just add an edge from the
     //    exit block of the actual (translated) body to the last block.
-    val firstBody = implementationFactory.addFirstBasicBlock(method,getNextName("begin_body"))
-    basicBlocks.addExternal(firstBody)
+    var firstBlock : BasicBlockFactory = null
 
     for(chaliceBlock <- cfg.reversePostorder){
       val loc = chaliceBlock.sourceLocation
-      val beginBlock = implementationFactory.addBasicBlock(loc, chaliceBlock.name)
+      val beginBlock = if (chaliceBlock == cfg.entryBlock) {
+        val block = implementationFactory.addFirstBasicBlock(chaliceBlock.sourceLocation,chaliceBlock.name)
+        inheritChaliceBlockProperties(chaliceBlock,block)
+        firstBlock = block
+        block
+      } else {
+        addBasicBlock(chaliceBlock)
+      }
+      
+      currentChaliceBlock = chaliceBlock
+      currentAssignmentInterpretation = AssignmentInterpretation.atBeginning(chaliceBlock)
       
       into(beginBlock,{
         for(v <- chaliceBlock.assignedVariables){
@@ -140,17 +188,21 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
         }
       })
     }
+    
+    assert(firstBlock != null, "firstBlock was not created.")
 
     val lastBlock = implementationFactory.addLastBasicBlock(method,getNextName("exit_body"))
-    basicBlocks.addExternal(lastBlock)
+    basicBlocks.addExternal(lastBlock) //TODO: assign out variables from SSA form
 
     //exitBody.addSuccessor(method,lastBlock,TrueExpression(),false)
   }
 
   def translateAssignment(lhs : chalice.VariableExpr,  rhs : chalice.RValue){
-    val v = localVariables(lhs.v)
+    // Watch out: It is important that `rhs` is translated *before* the assignment to `lhs` is registered
+    val rhsTerm = translateTerm(rhs).asInstanceOf[PTerm]  //TODO: is there a way to avoid this cast without duplicating translateTerm?
 
-    currentBlock.appendAssignment(lhs,v,translateTerm(rhs).asInstanceOf[PTerm]) //TODO: is there a way to avoid this cast without duplicating translateTerm?
+    val targetVersion = programVariables(currentAssignmentInterpretation.registerAssignment(lhs.v))
+    currentBlock.appendAssignment(lhs,targetVersion,rhsTerm)
   }
 
   def dummyTerm(location : SourceLocation) = currentExpressionFactory.makeIntegerLiteralTerm(location,27)
@@ -221,7 +273,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
           currentBlock.appendFieldAssignment(stmt,rcvrVar,fields(location.f),translatePTerm(rhs))
         }
         location.e match {
-          case rcvr:chalice.VariableExpr => assignViaVar(localVariables(rcvr.v))
+          case rcvr:chalice.VariableExpr => assignViaVar(localVariableVersion(rcvr.v))
           case chalice.ImplicitThisExpr() => assignViaVar(methodFactory.thisVar)
           case chalice.ExplicitThisExpr() => assignViaVar(methodFactory.thisVar)
           case rcvr =>
@@ -259,13 +311,12 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
   def translateMethodCall(callNode : chalice.Call) {
     import chalice.{Call => ChaliceCall}
     val ChaliceCall(_,destinations,receiver,_,args) = callNode
-    val destinationVars = destinations.map(ve => localVariables(ve.v))
     val receiverTerm = translatePTerm(receiver)
     val calleeFactory = methodFactories(callNode.m.asInstanceOf[chalice.Method])
 
     //Read (fractional) permissions
     val readFractionVar = implementationFactory.addLocalVariable(callNode, getNextName("π_" + calleeFactory.name), permissionType)
-    localVariables.addExternal(readFractionVar)
+    programVariables.addExternal(readFractionVar)
     val readFractionTerm = currentBlock.makeProgramVariableTerm(callNode, readFractionVar)
     // append: { π := havoc[Permission] }
     currentBlock.appendAssignment(callNode,readFractionVar,
@@ -375,6 +426,8 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
       .foreach(appendCond _)
 
     // Generate call statement
+    val destinationVars = destinations.map(vExpr =>
+      programVariables(currentAssignmentInterpretation.registerAssignment(vExpr.v)))
     currentBlock.appendCall(
       callNode,
       currentBlock.makeProgramVariableSequence(callNode, destinationVars),
@@ -465,7 +518,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
       case chalice.BoolLiteral(false) =>
         currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.FalseLiteral,TermSequence())
       case variableExpr:chalice.VariableExpr =>
-        currentExpressionFactory.makeProgramVariableTerm(variableExpr, localVariables(variableExpr.v))
+        currentExpressionFactory.makeProgramVariableTerm(variableExpr,(localVariableVersion(variableExpr.v)))
       case chalice.Old(e) => currentExpressionFactory.makeOldTerm(rvalue,translateTerm(e))
       case access@chalice.MemberAccess(rcvr,_) if !access.isPredicate =>
         assert(access.f != null,"Chalice MemberAccess node (%s) is not linked to a field.".format(access))

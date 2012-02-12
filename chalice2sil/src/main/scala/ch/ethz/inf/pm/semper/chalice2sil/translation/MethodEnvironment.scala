@@ -11,7 +11,7 @@ import silAST.methods.implementations.{ImplementationFactory, BasicBlockFactory}
 
 trait MethodEnvironment extends ProgramEnvironment {
   def implementationFactory : ImplementationFactory
-  def localVariables : DerivedFactoryCache[chalice.Variable,String, ProgramVariable]
+  def programVariables : DerivedFactoryCache[ssa.Version,String, ProgramVariable]
   def basicBlocks : FactoryCache[String,  BasicBlockFactory] with AdjustableCache[BasicBlockFactory]
   def temporaries : TemporaryVariableBroker
  

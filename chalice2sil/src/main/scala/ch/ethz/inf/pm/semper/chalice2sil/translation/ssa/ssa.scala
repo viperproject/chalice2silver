@@ -10,5 +10,5 @@ package object ssa {
     def assignedVariables = stmt.Targets
   }
 
-  type Version = String
+  type Version = ChaliceVariableVersion
 }

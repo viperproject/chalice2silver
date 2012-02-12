@@ -7,8 +7,13 @@ import collection._
 /**
   * @author Christian Klauser
   */
-class AssignmentInterpretation(block : ChaliceBlock) {
-  private [this] val indices = mutable.Map(block.blockVariableInfoMap.keys.map(_ -> 0).toSeq: _*)
+class AssignmentInterpretation private (block : ChaliceBlock, atEnd : Boolean) {
+  private val indices = mutable.Map((
+      if(atEnd)
+        block.blockVariableInfoMap.values.map(vi => vi.chaliceVariable -> (vi.versions.size-1))
+      else 
+        block.blockVariableInfoMap.keys.map(_ -> 0)
+    ).toSeq: _*)
   
   def version(v : chalice.Variable) : Version = {
     val vi = block.blockVariableInfo(v)
@@ -21,7 +26,10 @@ class AssignmentInterpretation(block : ChaliceBlock) {
     require(vi.versions.isDefinedAt(nextIndex),"Too many assignments registered in block %s.".format(block))
     indices.update(v,nextIndex)
     version(v)
-  }
-  
-  
+  }  
+}
+
+object AssignmentInterpretation {
+  def atBeginning(block : ChaliceBlock) = new AssignmentInterpretation(block, false)
+  def atEnd(block : ChaliceBlock) = new AssignmentInterpretation(block, true)
 }

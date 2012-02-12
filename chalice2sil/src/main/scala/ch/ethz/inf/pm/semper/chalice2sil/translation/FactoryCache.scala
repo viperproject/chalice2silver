@@ -18,5 +18,5 @@ abstract class AdjustableFactoryHashCache[K,V] extends FactoryHashCache[K, V] wi
   def addExternal(value : V) {
     cache.update(getKeyFor(value),value)
   }
-  def getKeyFor(value : V) : K
+  protected def getKeyFor(value : V) : K
 }

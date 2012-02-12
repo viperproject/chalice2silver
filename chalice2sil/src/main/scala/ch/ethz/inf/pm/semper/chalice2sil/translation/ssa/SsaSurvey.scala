@@ -240,13 +240,13 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
   ////////////////  DETERMINE VARIABLE VERSIONS                                                      ///////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  def determineIntermediateVersion(cfg : ControlFlowSketch) {
+  def determineIntermediateVersions(cfg : ControlFlowSketch) {
     import ssa._
     import collection._
 
     for(block <- cfg.reversePostorder){
       def createVersion(v : chalice.Variable) =
-        getNextName(v.UniqueName)
+        new ChaliceVariableVersion(v, getNextName())
 
       val vBuilders = block.assignedVariables.map(v => v -> immutable.IndexedSeq.newBuilder[Version]).toMap
 
@@ -306,7 +306,7 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
       .flatten
 
     //then, simulate the execution of the basic block to observe which versions are accessed
-    val interpretation = new AssignmentInterpretation(block)
+    val interpretation = AssignmentInterpretation.atBeginning(block)
     def inspect(expr : chalice.RValue) {
       chalice.AST.visit(expr,{
         case variableExpr@chalice.VariableExpr(_) => builder += interpretation.version(variableExpr.v)
