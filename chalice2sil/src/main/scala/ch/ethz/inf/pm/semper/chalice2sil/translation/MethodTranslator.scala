@@ -12,7 +12,7 @@ import silAST.programs.symbols.{Field, ProgramVariable}
 import silAST.expressions.terms._
 import silAST.expressions._
 import silAST.symbols.logical._
-import ssa.{AssignmentInterpretation, ChaliceBlock, ControlFlowSketch, SsaSurvey}
+import ssa._
 
 class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends DerivedProgramEnvironment(st) with  MethodEnvironment {
   //MethodEnvironment
@@ -54,7 +54,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
     * @param name The name of the basic block. Optional.
     */
   def addBasicBlock(chaliceBlock : ChaliceBlock, name : String = null) = {
-    val uniqueName = if(name == null) getNextName(chaliceBlock.name + "_" + name) else getNextName(chaliceBlock.name)
+    val uniqueName = if(name != null) getNextName(chaliceBlock.name + "_" + name) else getNextName(chaliceBlock.name)
     val block = implementationFactory.addBasicBlock(chaliceBlock.sourceLocation,uniqueName)
 
     inheritChaliceBlockProperties(chaliceBlock, block)
@@ -153,6 +153,23 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
     //  The last block, however, cannot be anticipated. We just add an edge from the
     //    exit block of the actual (translated) body to the last block.
     var firstBlock : BasicBlockFactory = null
+    var lastCodeBlock : BasicBlockFactory = null;
+
+    def withChaliceBlock[T](chaliceBlock : ChaliceBlock, assignmentInterpretation : AssignmentInterpretation = null)(body : => T) = {
+      currentChaliceBlock = chaliceBlock
+      currentAssignmentInterpretation = 
+        if(assignmentInterpretation != null)
+          assignmentInterpretation
+        else
+          AssignmentInterpretation.atBeginning(chaliceBlock)
+      
+      try {
+        body
+      } finally {
+        currentChaliceBlock = null
+        currentAssignmentInterpretation = null
+      }
+    }
 
     for(chaliceBlock <- cfg.reversePostorder){
       val loc = chaliceBlock.sourceLocation
@@ -165,36 +182,107 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
         addBasicBlock(chaliceBlock)
       }
       
-      currentChaliceBlock = chaliceBlock
-      currentAssignmentInterpretation = AssignmentInterpretation.atBeginning(chaliceBlock)
-      
-      into(beginBlock,{
-        for(v <- chaliceBlock.assignedVariables){
-          val vi = chaliceBlock.blockVariableInfo(v)
-          if(vi.needsΦAssignment){
-            // create ϕ assignment:
-            // currently implemented as `inhale (v_1 = v_a ∨ v_1 = v_b ∨ ... ∨ v_1 = v_z)`
-            val tv = vi.firstVersion //the target variable (of the ϕ assignment)
-            /*
-            val assertion = vi.ϕ
-              .map(b => b.blockVariableInfo(v).lastVersion)
-              .map(sv => currentExpressionFactory.makeEqualityExpression(loc, // assert `tv = sv`
-                currentExpressionFactory.makeProgramVariableTerm(loc,tv),
-                currentExpressionFactory.makeProgramVariableTerm(loc,sv))) //sv is the source variable of the ϕ assignment
-              .reduce[Expression](currentExpressionFactory.makeBinaryExpression(loc,Or(),_,_)) // connect via logical or
-            currentBlock.appendInhale(loc,assertion)
-            */
+      chaliceBlock.silBeginBlock = beginBlock
+
+      withChaliceBlock(chaliceBlock){
+        val (_,exitBody) = into(beginBlock,{
+          for(v <- chaliceBlock.assignedVariables){
+            val vi = chaliceBlock.blockVariableInfo(v)
+            if(vi.needsΦAssignment){
+              // create ϕ assignment:
+              // currently implemented as `inhale (v_1 = v_a ∨ v_1 = v_b ∨ ... ∨ v_1 = v_z)`
+              val tv = vi.firstVersion //the target variable (of the ϕ assignment)
+              val assertion = vi.ϕ
+                .map(b => b.blockVariableInfo(v).lastVersion)
+                .map(sv => currentExpressionFactory.makeEqualityExpression(loc, // assert `tv = sv`
+                  currentExpressionFactory.makeProgramVariableTerm(loc,programVariables(tv)),
+                  currentExpressionFactory.makeProgramVariableTerm(loc,programVariables(sv)))) //sv is the source variable of the ϕ assignment
+                .reduce[Expression](currentExpressionFactory.makeBinaryExpression(loc,Or(),_,_)) // connect via logical or
+              currentBlock.appendInhale(loc,assertion)
+            }
           }
+
+          translate(chaliceBlock.statements)
+        })
+
+        if(chaliceBlock == cfg.exitBlock){
+          lastCodeBlock = exitBody
         }
-      })
+
+        chaliceBlock.silEndBlock = exitBody
+
+      }
     }
-    
+
     assert(firstBlock != null, "firstBlock was not created.")
 
     val lastBlock = implementationFactory.addLastBasicBlock(method,getNextName("exit_body"))
     basicBlocks.addExternal(lastBlock) //TODO: assign out variables from SSA form
 
-    //exitBody.addSuccessor(method,lastBlock,TrueExpression(),false)
+    lastCodeBlock.addSuccessor(method,lastBlock,TrueExpression(),false)
+    
+    //Connect begin and end blocks of the Chalice cfg
+    for {
+      chaliceBlock <- cfg.reversePostorder
+    } {
+      def translateCondition(cs : Seq[chalice.Expression]) = {
+        val (cond,newEndBlock) = withChaliceBlock(chaliceBlock, AssignmentInterpretation.atEnd(chaliceBlock)){
+          blockStack.push(chaliceBlock.silEndBlock)
+          try{
+            val ts = cs map translateExpression
+            if(ts.isEmpty)
+              (TrueExpression(),currentBlock)
+            else
+              (ts.reduce(currentExpressionFactory.makeBinaryExpression(chaliceBlock.sourceLocation,And(),_,_)),
+                currentBlock)
+          }finally{
+            blockStack.pop()
+          }
+        }
+        
+        assert(newEndBlock == chaliceBlock.silEndBlock)
+        cond
+      }
+      def addEdge(edge : ChaliceEdge,  condition : Expression){
+        val finalCondition =
+          if(edge.isInverted)
+            currentExpressionFactory.makeUnaryExpression(chaliceBlock.sourceLocation,Not(),condition)
+          else
+            condition
+        
+        edge.origin.silEndBlock.addSuccessor(
+          chaliceBlock.sourceLocation, 
+          edge.destination.silBeginBlock,
+          finalCondition,
+          edge.isBackEdge)
+      }
+      
+      var successors = chaliceBlock.successors.toSet
+      while(!successors.isEmpty){
+        val someEdge = successors.head
+        successors -= someEdge
+        val someCondition = translateCondition(someEdge.condition)
+        successors.find({
+          case ChaliceEdge(_,dest,cond,isInverted,_) =>
+            dest == someEdge.destination &&
+            cond == someEdge.condition &&
+            isInverted == !someEdge.isInverted
+          case _ => false
+        }) match {
+          case Some(otherEdge) =>
+            successors -= otherEdge
+            val posEdge = if(someEdge.isInverted) otherEdge else someEdge
+            val negEdge = if(someEdge.isInverted) someEdge else otherEdge
+            
+            addEdge(posEdge, someCondition)
+            addEdge(negEdge, someCondition)
+          case None =>
+            addEdge(someEdge, someCondition)
+        }
+      }
+    }
+    
+    assert(cfg.entryBlock.silBeginBlock != null)
   }
 
   def translateAssignment(lhs : chalice.VariableExpr,  rhs : chalice.RValue){

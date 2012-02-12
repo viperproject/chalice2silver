@@ -41,10 +41,16 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
   def translateControlFlow(method : chalice.Method) = {
     val entryBlock = createBlock("entry")
     val exitBlock =  translateStatementList(entryBlock,method.body)
-    val cfg = new ControlFlowSketch(entryBlock, exitBlock)
+    val cfg = new ControlFlowSketch(entryBlock, exitBlock, method.ins, method.outs)
     
     // Treat entry block as the one "assigning" parameters (both in and out)
-    (method.ins.toStream ++ method.outs).foreach(entryBlock.assignedVariables += _)
+    val parameters = (cfg.ins.toStream ++ cfg.outs)
+    entryBlock.assignedVariables ++= parameters
+
+    //cfg.localVariables is defined in terms of assignedVariables, so in order to get ins and outs included, we need to
+    // add them separately
+    entryBlock.assignedVariables ++= cfg.localVariables
+    entryBlock.initializedVariables ++= cfg.localVariables
 
     cfg
   }
@@ -246,7 +252,7 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
 
     for(block <- cfg.reversePostorder){
       def createVersion(v : chalice.Variable) =
-        new ChaliceVariableVersion(v, getNextName())
+        Version.intermediate(v, getNextName())
 
       val vBuilders = block.assignedVariables.map(v => v -> immutable.IndexedSeq.newBuilder[Version]).toMap
 
@@ -271,6 +277,20 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
         vi.versions = vBuilders(v).result()
       }
     }
+
+    //Initialize variables/parameters
+    for {
+      block <- cfg.reversePostorder
+      initVar <- block.initializedVariables
+      vi = block.blockVariableInfo(initVar)
+    }{
+      val initVersion =
+        if(cfg.ins.contains(initVar))
+          ssa.Version.mapped(initVar)
+        else
+          ssa.Version.intermediate(initVar,getNextName("init"))
+      vi.versions = vi.versions.+:(initVersion)
+    }
   }
 
   /**
@@ -279,12 +299,13 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
     * @param cfg The control flow graph to operate on.
     */
   def determineDefinitionReach(cfg : ControlFlowSketch) {
-    cfg.reversePostorder.tail foreach { block =>
+    cfg.reversePostorder.tail foreach { block => // tail means "skip entry block"
       cfg.localVariables foreach { v =>
         val vi = block.blockVariableInfo(v)
         assert(vi.ϕ.size != 1,"The size of a ϕ assignment should never be 1. Offending block: %s.".format(block))
-        if(!vi.needsΦAssignment){
-          val first = block.immediateDominator.blockVariableInfo(v).lastVersion
+        if((!vi.needsΦAssignment) && (!block.initializedVariables.contains(v))){
+          val idomInfo = block.immediateDominator.blockVariableInfo(v)
+          val first = idomInfo.lastVersion
           vi.versions = vi.versions.+:(first) //prepend first version
         }
       }
@@ -380,6 +401,8 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
       case w:chalice.WhileStmt => report(messages.UnknownAstNode(w))
 
     }
+    
+    block.successors.toStream.map(_.condition).flatten.foreach(inspect)
 
     builder.result()
   }

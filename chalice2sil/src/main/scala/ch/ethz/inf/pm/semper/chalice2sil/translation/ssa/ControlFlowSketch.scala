@@ -9,7 +9,7 @@ import scala.collection._;
   * 
   * @author Christian Klauser
   */
-class ControlFlowSketch(val entryBlock : ChaliceBlock, val exitBlock : ChaliceBlock) {
+class ControlFlowSketch(val entryBlock : ChaliceBlock, val exitBlock : ChaliceBlock, val ins : immutable.Seq[chalice.Variable], val outs : immutable.Seq[chalice.Variable]) {
   require(entryBlock.predecessors.isEmpty)
   require(exitBlock.successors.isEmpty)
 

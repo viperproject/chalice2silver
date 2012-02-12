@@ -5,6 +5,7 @@ import collection.mutable.Buffer
 import collection._
 import ch.ethz.inf.pm.semper.chalice2sil._
 import silAST.source.{SourceLocation, noLocation}
+import silAST.methods.implementations.BasicBlockFactory
 
 /**
   * A chalice-level basic block with links to predecessors and successors. Used to
@@ -109,11 +110,39 @@ class ChaliceBlock(val name : String) { origin =>
       false
     } else {
       bvi.ϕ += block
+      assignedVariables += v
       true
     }
   }
   
   var versionsInScope : immutable.Set[Version] = null
+  
+  var initializedVariables : immutable.Set[chalice.Variable] = immutable.Set()
 
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  /////////////////      ANNOTATIONS CHALICE TO SIL TRANSLATION                                       /////////////////
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  
+  private[this] var _silBeginBlock : BasicBlockFactory = null
+  private[this] var _silEndBlock   : BasicBlockFactory = null
+  
+  def silBeginBlock = {
+    require(_silBeginBlock != null, "The underlying SIL begin block has not yet been assigned to chalice block %s.".format(this))
+    _silBeginBlock
+  }
+  
+  def silBeginBlock_=(beginBlock : BasicBlockFactory){
+    _silBeginBlock = beginBlock
+  }
+
+  def silEndBlock_=(endBlock : BasicBlockFactory){
+    _silEndBlock = endBlock
+  }
+
+  def silEndBlock = {
+    require(_silEndBlock != null, "The underlying SIL end block has not yet been assigned to chalice block %s.".format(this))
+    _silEndBlock
+  }
+  
   override def toString = name
 }

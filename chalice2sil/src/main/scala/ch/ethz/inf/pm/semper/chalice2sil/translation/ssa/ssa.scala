@@ -11,4 +11,5 @@ package object ssa {
   }
 
   type Version = ChaliceVariableVersion
+  val Version = ChaliceVariableVersion
 }

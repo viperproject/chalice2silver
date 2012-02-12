@@ -17,6 +17,7 @@ class AssignmentInterpretation private (block : ChaliceBlock, atEnd : Boolean) {
   
   def version(v : chalice.Variable) : Version = {
     val vi = block.blockVariableInfo(v)
+    require(!vi.versions.isEmpty,"There is no information about variable versions for %s in block %s. Full information: %s".format(v,vi.block,vi))
     vi.versions(indices(v))
   }
   
