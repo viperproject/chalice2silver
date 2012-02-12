@@ -225,28 +225,33 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
     for {
       chaliceBlock <- cfg.reversePostorder
     } {
-      def translateCondition(cs : Seq[chalice.Expression]) = {
-        val (cond,newEndBlock) = withChaliceBlock(chaliceBlock, AssignmentInterpretation.atEnd(chaliceBlock)){
-          blockStack.push(chaliceBlock.silEndBlock)
+
+      def withEndBlock[T](body : => T) = {
+        val (v,newEndBlock) = withChaliceBlock(chaliceBlock,AssignmentInterpretation.atEnd(chaliceBlock)){
+          val block = chaliceBlock.silEndBlock
+          blockStack.push(block)
           try{
-            val ts = cs map translateExpression
-            if(ts.isEmpty)
-              (TrueExpression(),currentBlock)
-            else
-              (ts.reduce(currentExpressionFactory.makeBinaryExpression(chaliceBlock.sourceLocation,And(),_,_)),
-                currentBlock)
+            (body,currentBlock)
           }finally{
             blockStack.pop()
           }
         }
         
         assert(newEndBlock == chaliceBlock.silEndBlock)
-        cond
+        v
+      } 
+
+      def translateCondition(cs : Seq[chalice.Expression]) = withEndBlock {
+        val ts = cs map translateExpression
+        if(ts.isEmpty)
+          TrueExpression()
+        else
+          ts.reduce(currentExpressionFactory.makeBinaryExpression(chaliceBlock.sourceLocation,And(),_,_))
       }
       def addEdge(edge : ChaliceEdge,  condition : Expression){
         val finalCondition =
           if(edge.isInverted)
-            currentExpressionFactory.makeUnaryExpression(chaliceBlock.sourceLocation,Not(),condition)
+            withEndBlock(currentExpressionFactory.makeUnaryExpression(chaliceBlock.sourceLocation,Not(),condition))
           else
             condition
         

@@ -47,10 +47,10 @@ class ChaliceBlock(val name : String) { origin =>
   
   private def conditionalTransfer(cond : List[chalice.Expression], isInverted : Boolean) = new {
     def -->(target : ChaliceBlock) {
-      addSuccessor(ChaliceEdge(origin,target,cond))
+      addSuccessor(ChaliceEdge(origin,target,cond,isInverted))
     }
     def backedgeTo(target : ChaliceBlock) {
-      addSuccessor(ChaliceEdge(origin,target,cond,isBackEdge = true))
+      addSuccessor(ChaliceEdge(origin,target,cond,isInverted,isBackEdge = true))
     }
   }
   
