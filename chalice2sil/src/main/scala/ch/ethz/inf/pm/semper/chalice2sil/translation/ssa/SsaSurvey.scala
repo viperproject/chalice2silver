@@ -363,7 +363,7 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
       .toStream
       .map(block.blockVariableInfo(_))
       .filter(_.needsΦAssignment)
-      .map(_.ϕ)
+      .map(vi => vi.firstVersion +: vi.ϕ.toStream) //firstVersion is the target of the ϕ-assignment.
       .flatten
 
     //then, simulate the execution of the basic block to observe which versions are accessed

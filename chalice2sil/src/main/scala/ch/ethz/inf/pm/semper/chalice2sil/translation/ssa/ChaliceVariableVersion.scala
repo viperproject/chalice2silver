@@ -13,7 +13,7 @@ final case class IntermediateChaliceVariableVersion(override val chaliceVariable
   extends ChaliceVariableVersion(chaliceVariable) {
 
   val uniqueName = chaliceVariable.UniqueName + "_" + versionSuffix
-  override def toString = uniqueName + ": " + chaliceVariable.t
+  override def toString = uniqueName
 }
 
 final case class MappedChaliceVariableVersion(override val chaliceVariable : chalice.Variable)

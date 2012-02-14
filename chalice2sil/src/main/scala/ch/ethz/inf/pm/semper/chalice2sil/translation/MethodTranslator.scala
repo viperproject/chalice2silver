@@ -194,12 +194,18 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
               // create ϕ assignment:
               // currently implemented as `inhale (v_1 = v_a ∨ v_1 = v_b ∨ ... ∨ v_1 = v_z)`
               val tv = vi.firstVersion //the target variable (of the ϕ assignment)
-              val assertion = vi.ϕ
-                .map(sv => currentExpressionFactory.makeEqualityExpression(loc, // assert `tv = sv`
-                  currentExpressionFactory.makeProgramVariableTerm(loc,programVariables(tv)),
-                  currentExpressionFactory.makeProgramVariableTerm(loc,programVariables(sv)))) //sv is the source variable of the ϕ assignment
-                .reduce[Expression](currentExpressionFactory.makeBinaryExpression(loc,Or(),_,_)) // connect via logical or
-              currentBlock.appendInhale(loc,assertion)
+              val fac = currentExpressionFactory
+              (vi.ϕ.toStream :+ tv).foreach{ v =>
+                assert(currentBlock.localVariables contains programVariables(v),
+                  "SIL block %s (backing chalice block %s) is expected to have version %s in scope."
+                  .format(currentBlock.name,chaliceBlock,v))
+              }
+              val ϕAssignment = vi.ϕ
+                .map(sv => fac.makeEqualityExpression(loc, // create expression `tv = sv`
+                fac.makeProgramVariableTerm(loc,programVariables(tv)),
+                fac.makeProgramVariableTerm(loc,programVariables(sv)))) //sv is the source variable of the ϕ assignment
+                .reduce[Expression](fac.makeBinaryExpression(loc,Or(),_,_)) // connect via logical or
+              currentBlock.appendInhale(loc,ϕAssignment)
             }
           }
 
@@ -658,7 +664,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
   def translateBinaryOperationTerm(binOp : chalice.BinaryExpr, domain : Domain) = {
     val funcSuffix = binOp.OpName
     val guessedOpName = funcSuffix
-    domain.functions.find(_.name.equalsIgnoreCase(guessedOpName)) match {
+    domain.functions.find(f => f.name.equalsIgnoreCase(guessedOpName) && f.signature.parameterTypes.length == 2) match {
       case Some(f) => currentExpressionFactory.makeDomainFunctionApplicationTerm(binOp,f,
         TermSequence(translateTerm(binOp.E0),translateTerm(binOp.E1)))
       case _ =>

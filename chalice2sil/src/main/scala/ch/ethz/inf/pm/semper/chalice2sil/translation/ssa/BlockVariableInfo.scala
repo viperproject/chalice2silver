@@ -9,7 +9,7 @@ import silAST.programs.symbols.ProgramVariable
 final class BlockVariableInfo(val block : ChaliceBlock, val variable : chalice.Variable) {
 
   override def hashCode() = variable.UniqueName.hashCode() ^ block.hashCode()
-  override def toString = variable + (if(needsΦAssignment)  "ϕ(" + ϕ.map(_.uniqueName).mkString(", ") + ")" else "") +
+  override def toString = variable.UniqueName + (if(needsΦAssignment)  "ϕ(" + ϕ.map(_.uniqueName).mkString(", ") + ")" else "") +
     " versions(" + versions.map(_.uniqueName).mkString(", ") + ")"
 
   override def equals(obj : Any) = obj match {
