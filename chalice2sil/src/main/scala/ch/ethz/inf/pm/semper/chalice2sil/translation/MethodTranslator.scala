@@ -259,7 +259,8 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
       tv = programVariables.lookup(outParam.UniqueName)
       sv = programVariables(outVi.lastVersion)
     }{
-      //lastBlock.appendAssignment(method,tv,lastBlock.makeProgramVariableTerm(method,sv))
+      lastBlock.addProgramVariableToScope(sv)
+      lastBlock.appendAssignment(method,tv,lastBlock.makeProgramVariableTerm(method,sv))
     }
     
     // Finally, implement the Chalice CFG by looping over all Chalice blocks and adding

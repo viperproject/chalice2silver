@@ -349,7 +349,7 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
     val assignmentBuilder = immutable.Set.newBuilder[Version]
 
     //first,consider all ϕ assignments
-    assignmentBuilder ++= block.assignedVariables
+    usageBuilder ++= block.assignedVariables
       .toStream
       .map(block.blockVariableInfo(_))
       .filter(_.needsΦAssignment)
@@ -358,14 +358,15 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
                 // to skip a ϕ-assignment if the target variable is not in scope.
       .flatten
 
-    //then, simulate the execution of the basic block to observe which versions are accessed
-    val interpretation = AssignmentInterpretation.atBeginning(block)
-    //Simulation of the ϕ assignment, even for eliminated ϕ-assigned versions (otherwise the versions would shift)
-    block.assignedVariables
+    //also record the ϕ-assignment as an assignment
+    assignmentBuilder ++= block.assignedVariables
       .toStream
       .map(block.blockVariableInfo(_))
-      .filter(_.hasΦAssignment)
-      .foreach(f => interpretation.registerAssignment(f.variable))
+      .filter(_.needsΦAssignment)
+      .map(_.firstVersion)
+
+    //then, simulate the execution of the basic block to observe which versions are accessed
+    val interpretation = AssignmentInterpretation.atBeginning(block)
 
     def inspect(expr : chalice.RValue) {
       chalice.AST.visit(expr,{
@@ -480,7 +481,7 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
       
       // 2. compute gen(block), the set of versions used by this block
       val (assigned,used) = computeUsedVersions(block)
-      val gen = used
+      val gen = used -- assigned
       
       // 3. compute kill(block)
       val kill = for {
@@ -494,13 +495,19 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
       // 4. compute liveIn(block)
       val newIn = gen ++ (liveOut(block) -- kill.toStream.flatten)
       val oldIn = liveIn(block)
+      def assignScope() {
+        block.versionsInScope = used ++ assigned ++ liveIn(block)
+      }
       if(newIn != oldIn){
         liveIn.update(block, newIn)
         block.predecessors.map(_.origin).foreach(workSet += _)
+        assignScope()
+      } else if(block.versionsInScope == null){
+        assignScope()
       }
     }
 
     // Finally, use the information from the data flow equation solution to fill in variable scopes.
-    cfg.preorder.foreach(b => b.versionsInScope = liveIn(b))
+    //cfg.preorder.foreach(b => b.versionsInScope = liveIn(b))
   }
 }

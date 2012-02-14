@@ -18,8 +18,9 @@ class TemporaryVariableBroker(environment : MethodEnvironment) { // TODO: in SSA
     temporary
   }
 
-  def acquire(dataType : DataType) : ProgramVariable =
-    freeTemporaryVariables.getOrElse(dataType,Nil).headOption.getOrElse(allocate(dataType))
+  def acquire(dataType : DataType) : ProgramVariable = allocate(dataType)
+    //freeTemporaryVariables.getOrElse(dataType,Nil).headOption.getOrElse(allocate(dataType))
+    
 
   def release(variable : ProgramVariable) {
     require(knownTemporaryVariables contains variable,

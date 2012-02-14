@@ -72,16 +72,13 @@ class Basic extends ChaliceSuite with ShouldMatchers {
     val otherLocals = other.locals
     
     otherLocals should have size (1) //only variables that are actually used will be added in SIL
-    
-    val zV = matchContains(otherLocals,"z")
-    zV.dataType should be (integerType)
   }  
   
   'directFieldUpdate.chalice {
     val main = getMainImpl
     
     main.locals should have size (1)
-    main.locals.head.name should equal ("m")
+    main.locals.head.name.startsWith("m#") should be (true)
   }
 
   'singleFieldUpdate.chalice {
