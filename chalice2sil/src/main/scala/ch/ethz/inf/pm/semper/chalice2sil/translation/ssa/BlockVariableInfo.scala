@@ -31,6 +31,16 @@ final class BlockVariableInfo(val block : ChaliceBlock, val variable : chalice.V
     */
   var needsΦAssignment = false
 
+  def eliminatedΦAssignment = !needsΦAssignment && hasΦAssignment
+
+  def hasΦAssignment = !ϕ.isEmpty
+
+  /**
+    * Indicates whether the variable inherits its value directly from the blocks preceding it. False does not
+    * mean that the variable is independent of any previous versions.
+    */
+  def inheritsValue = !needsΦAssignment && !(block.initializedVariables contains variable)
+
   /**
     * A temporary storage for the intermediate versions of a variable within a basic block. Includes `firstVersion` and
     * `lastVersion`.

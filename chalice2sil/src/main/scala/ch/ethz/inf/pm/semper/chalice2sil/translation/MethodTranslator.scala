@@ -66,7 +66,10 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
   def inheritChaliceBlockProperties(chaliceBlock : ChaliceBlock, block : BasicBlockFactory){
     // variable scope
     chaliceBlock.versionsInScope foreach { v =>
-      block.addProgramVariableToScope(programVariables(v))
+      val pv = programVariables(v)
+      if(!((methodFactory.parameters contains pv) || (methodFactory.results contains pv))){
+        block.addProgramVariableToScope(programVariables(v))
+      }
     }
   }
 
@@ -213,7 +216,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
             val tv = vi.firstVersion //the target variable (of the ϕ assignment)
             val fac = currentExpressionFactory
             (vi.ϕ.toStream :+ tv).foreach{ v =>
-              assert(currentBlock.localVariables contains programVariables(v),
+              assert(currentBlock.programVariables contains programVariables(v),
                 "SIL block %s (backing chalice block %s) is expected to have version %s in scope."
                 .format(currentBlock.name,chaliceBlock,v))
             }
@@ -248,6 +251,16 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
     val lastBlock = implementationFactory.addLastBasicBlock(method,getNextName("exit_body"))
     basicBlocks.addExternal(lastBlock) //TODO: assign out variables from SSA form
     lastCodeBlock.addSuccessor(method,lastBlock,TrueExpression(),false)
+
+    // Assign out parameters from the respective last versions in the
+    for {
+      outParam <- method.outs
+      outVi = cfg.exitBlock.blockVariableInfo(outParam)
+      tv = programVariables.lookup(outParam.UniqueName)
+      sv = programVariables(outVi.lastVersion)
+    }{
+      //lastBlock.appendAssignment(method,tv,lastBlock.makeProgramVariableTerm(method,sv))
+    }
     
     // Finally, implement the Chalice CFG by looping over all Chalice blocks and adding
     //  the translated edges to the `silEndBlock` of each Chalice block.
@@ -345,9 +358,9 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
     val rhsTerm = translateTerm(rhs).asInstanceOf[PTerm]  //TODO: is there a way to avoid this cast without duplicating translateTerm?
 
     val targetVersion = programVariables(currentAssignmentInterpretation.registerAssignment(lhs.v))
-    assert(currentBlock.localVariables contains targetVersion,
+    assert(currentBlock.programVariables contains targetVersion,
       "The SIL basic block %s is expected to have the SIL program variable %s in scope. Program variables actually in scope: {%s}"
-        .format(currentBlock.name,targetVersion,currentBlock.localVariables.mkString(", ")))
+        .format(currentBlock.name,targetVersion,currentBlock.programVariables.mkString(", ")))
     currentBlock.appendAssignment(lhs,targetVersion,rhsTerm)
   }
 

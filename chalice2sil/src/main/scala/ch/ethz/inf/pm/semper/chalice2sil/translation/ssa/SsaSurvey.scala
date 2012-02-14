@@ -311,7 +311,7 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
       var changed = false
       for (v <- cfg.localVariables){
         val vi = block.blockVariableInfo(v)
-        if((!vi.needsΦAssignment) && (!block.initializedVariables.contains(v))){
+        if(vi.inheritsValue){
           val idomInfo = block.immediateDominator.blockVariableInfo(v)
           if(!idomInfo.versions.isEmpty){
             vi.versions.headOption match {
@@ -344,28 +344,37 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
   /**
     * Computes the Gen set for a given block, i.e. the set of variable versions used by that block.
     */
-  def computeUsedVersions(block : ChaliceBlock) : immutable.Set[Version] = {
-    val builder = immutable.Set.newBuilder[Version]
+  def computeUsedVersions(block : ChaliceBlock) : (immutable.Set[Version],immutable.Set[Version]) = {
+    val usageBuilder = immutable.Set.newBuilder[Version]
+    val assignmentBuilder = immutable.Set.newBuilder[Version]
 
     //first,consider all ϕ assignments
-    builder ++= block.assignedVariables
+    assignmentBuilder ++= block.assignedVariables
       .toStream
       .map(block.blockVariableInfo(_))
       .filter(_.needsΦAssignment)
+      //.map(f=> f.ϕ.toStream :+ f.firstVersion)
       .map(_.ϕ) //note that the target of the ϕ-assignment has *not* been marked as used. The translator is expected
                 // to skip a ϕ-assignment if the target variable is not in scope.
       .flatten
 
     //then, simulate the execution of the basic block to observe which versions are accessed
     val interpretation = AssignmentInterpretation.atBeginning(block)
+    //Simulation of the ϕ assignment, even for eliminated ϕ-assigned versions (otherwise the versions would shift)
+    block.assignedVariables
+      .toStream
+      .map(block.blockVariableInfo(_))
+      .filter(_.hasΦAssignment)
+      .foreach(f => interpretation.registerAssignment(f.variable))
+
     def inspect(expr : chalice.RValue) {
       chalice.AST.visit(expr,{
-        case variableExpr@chalice.VariableExpr(_) => builder += interpretation.version(variableExpr.v)
+        case variableExpr@chalice.VariableExpr(_) => usageBuilder += interpretation.version(variableExpr.v)
         case _ =>
       })
     }
     def assign(v : chalice.Variable) {
-      builder += interpretation.registerAssignment(v)
+      assignmentBuilder += interpretation.registerAssignment(v)
     }
     def assignMany(args : Seq[chalice.VariableExpr]) {
       args.foreach(x => assign(x.v))
@@ -423,7 +432,7 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
       case chalice.SpecStmt(lhs,locals,pre,post) =>
         inspect(pre)
         inspect(post)
-        builder ++= locals.map(interpretation.version(_))
+        usageBuilder ++= locals.map(interpretation.version(_))
         assignMany(lhs)
       case chalice.Unfold(e) => inspect(e)
       case chalice.Unshare(e) => inspect(e)
@@ -435,33 +444,30 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
     // finally also take conditions on CFG edges into account
     block.successors.toStream.map(_.condition).flatten.foreach(inspect)
 
-    builder.result()
+    (assignmentBuilder.result(), usageBuilder.result())
   }
 
   /**
     * Uses live variable analysis to determine which versions are in scope for which blocks (SIL requires this
-    * information) Since we don't want to eliminate any assignments, we consider assignments "usages".
+    * information)
     * @param cfg The control flow graph to operate on.
     * @param parameters The parameters of the method represented by the CFG. These will be guaranteed to be alive on exit.
     */
   def determineVariableScopes(cfg : ControlFlowSketch, parameters : Seq[chalice.Variable]){
-    /*
-        Live_in(s) = Gen(s) ∪ (Live_out(s) - Kill(s))  
-        Live_out(exit) = {}
-        Live_out(s) = Union(p ∈ succ(s): Live_in(p))
-        
-        Note that our Kill sets are always empty, since in SSA form there are no re-assignments. A version of a variable
-        is either used or it is not used.
-     */
+    //  Data-flow equations
+    //
+    //  Live_in(s) = Gen(s) ∪ (Live_out(s) - Kill(s))
+    //  Live_out(exit) = {}
+    //  Live_out(s) = Union(p ∈ succ(s): Live_in(p))
+    //
     
     val (liveIn, liveOut) = {
       val emptySet = cfg.preorder.toStream.map(_ -> immutable.Set.empty[Version]) 
       (mutable.Map(emptySet:_*),mutable.Map(emptySet:_*))
     }
     
-    //Ensure that all parameters (ins and outs) are alive at the end (for use contracts)
-    liveOut(cfg.exitBlock) = parameters.map(cfg.entryBlock.blockVariableInfo(_).firstVersion).toSet
-
+    //Ensure that all parameters (ins and outs) are alive at the end (for use in contracts)
+    liveOut(cfg.exitBlock) = parameters.map(cfg.exitBlock.blockVariableInfo(_).lastVersion).toSet
     val workSet = mutable.Set(cfg.postorder:_*)
     while(!workSet.isEmpty){
       val block = workSet.head
@@ -473,12 +479,20 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
       }
       
       // 2. compute gen(block), the set of versions used by this block
-      val gen = computeUsedVersions(block)
+      val (assigned,used) = computeUsedVersions(block)
+      val gen = used
       
-      // 3. compute kill(block), is trivially empty since we are operating on SSA form
+      // 3. compute kill(block)
+      val kill = for {
+        v <- block.assignedVariables
+        vi = block.blockVariableInfo(v)
+      } yield if(vi.inheritsValue)
+          vi.versions.tail
+        else
+          vi.versions
       
       // 4. compute liveIn(block)
-      val newIn = gen ++ liveOut(block)
+      val newIn = gen ++ (liveOut(block) -- kill.toStream.flatten)
       val oldIn = liveIn(block)
       if(newIn != oldIn){
         liveIn.update(block, newIn)
