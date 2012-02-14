@@ -33,7 +33,8 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
     * @param prefix The prefix of the generated block name. Optional.
     * @return The created empty block.
     */
-  protected def createBlock(prefix : String = "") = new ChaliceBlock(getNextName(prefix))
+  protected def createBlock(prefix : String = "") = createNamedBlock(getNextName(prefix))
+  protected def createNamedBlock(name : String) = new ChaliceBlock(name)
   
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////////////  TRANSLATE TO CONTROL FLOW GRAPH                                                  ///////////////////
@@ -80,9 +81,10 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
     case chalice.BlockStmt(stmts) => 
       translateStatementList(head, stmts)
     case chalice.IfStmt(cond, thn, elsOpt) =>
-      val thnBlock = createBlock("then")
+      val instanceName = getNextName("if")
+      val thnBlock = createNamedBlock(instanceName + "_then")
       val endThnBlock = translateStatement(thnBlock, thn)
-      val endIfBlock = createBlock("endif")
+      val endIfBlock = createNamedBlock(instanceName + "_endif")
 
       elsOpt match {
         case None =>
@@ -91,7 +93,7 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
           head ?¬cond --> endIfBlock
           endThnBlock --> endIfBlock
         case Some(els) =>
-          val elsBlock = createBlock("else")
+          val elsBlock = createNamedBlock(instanceName + "_else")
           val endElsBlock = translateStatement(elsBlock, els)
 
           //connect blocks
@@ -103,10 +105,11 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
 
       endIfBlock
     case w@chalice.WhileStmt(cond,_,_,_,body) =>
-      val whileContinue = createBlock("while_continue")
-      val beginBody = createBlock("while_begin")
+      val instanceName = getNextName("while")
+      val whileContinue = createNamedBlock(instanceName + "_continue")
+      val beginBody = createNamedBlock(instanceName + "_begin")
       val endBody = translateStatement(beginBody, body)
-      val endWhile = createBlock("while_end")
+      val endWhile = createNamedBlock(instanceName + "_end")
 
       head --> whileContinue
       whileContinue ? cond --> beginBody
@@ -225,7 +228,7 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
   ////////////////  DETERMINE LOCATION OF ϕ ASSIGNMENTS                                              ///////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  def determineΦ(cfg : ControlFlowSketch) {
+  def determineΦLocations(cfg : ControlFlowSketch) {
     val workSet = mutable.Set[ChaliceBlock](cfg.reversePostorder.filterNot(_.assignedVariables.isEmpty):_*)
     while(!workSet.isEmpty){
       val b = workSet.head
@@ -234,7 +237,7 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
       for(f <- b.dominanceFrontier){
         var changed = false;
         for(v <- b.assignedVariables){
-          changed ||= f.addΦEntry(v,b)
+          changed |= f.addΦEntry(v,b)
         }
         if(changed)
           workSet += f
@@ -300,20 +303,6 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
     * @param cfg The control flow graph to operate on.
     */
   def determineDefinitionReach(cfg : ControlFlowSketch) {
-    /*
-    cfg.reversePostorder.tail foreach { block => // tail means "skip entry block"
-      cfg.localVariables foreach { v =>
-        val vi = block.blockVariableInfo(v)
-        if((!vi.needsΦAssignment) && (!block.initializedVariables.contains(v))){
-          val idomInfo = block.immediateDominator.blockVariableInfo(v)
-          assert(!idomInfo.versions.isEmpty,"The last version of variable %s in block %s has not been determined while in block %s."
-            .format(v,block.immediateDominator,block))
-          val first = idomInfo.lastVersion
-          vi.versions = vi.versions.+:(first) //prepend first version
-        }
-      }
-    } */
-    
     val workSet = mutable.Set[ChaliceBlock](cfg.reversePostorder:_*)
     while(!workSet.isEmpty){
       val block = workSet.head
@@ -363,7 +352,8 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
       .toStream
       .map(block.blockVariableInfo(_))
       .filter(_.needsΦAssignment)
-      .map(vi => vi.firstVersion +: vi.ϕ.toStream) //firstVersion is the target of the ϕ-assignment.
+      .map(_.ϕ) //note that the target of the ϕ-assignment has *not* been marked as used. The translator is expected
+                // to skip a ϕ-assignment if the target variable is not in scope.
       .flatten
 
     //then, simulate the execution of the basic block to observe which versions are accessed

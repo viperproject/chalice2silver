@@ -27,7 +27,7 @@ final class BlockVariableInfo(val block : ChaliceBlock, val variable : chalice.V
 
   /**
     * Indicates whether a ϕ assignment is necessary for this variable in this block. 
-    * Is assigned by [[ch.ethz.inf.pm.semper.chalice2sil.translation.ssa.SsaSurvey.determineΦ]]
+    * Is assigned by [[ch.ethz.inf.pm.semper.chalice2sil.translation.ssa.SsaSurvey.determineΦLocations]]
     */
   var needsΦAssignment = false
 
