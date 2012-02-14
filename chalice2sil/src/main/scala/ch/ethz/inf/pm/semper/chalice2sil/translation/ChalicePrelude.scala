@@ -71,6 +71,12 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) {
           fApp(TrueLiteral),
           fApp(FalseLiteral)))
     )
+    
+    factory.addDomainAxiom(loc,"onlyTrueAndFalse",∀(Type,x =>
+      or(
+        equality(x,fApp(TrueLiteral)),
+        equality(x,fApp(FalseLiteral)))
+    ))
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Evaluate

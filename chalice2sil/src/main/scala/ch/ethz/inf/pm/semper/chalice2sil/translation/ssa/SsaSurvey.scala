@@ -250,6 +250,7 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
     import ssa._
     import collection._
 
+    //Determine intermediate local variable versions (excluding the ones used in ϕ assignments)
     for(block <- cfg.reversePostorder){
       def createVersion(v : chalice.Variable) =
         Version.intermediate(v, getNextName())
@@ -299,16 +300,55 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
     * @param cfg The control flow graph to operate on.
     */
   def determineDefinitionReach(cfg : ControlFlowSketch) {
+    /*
     cfg.reversePostorder.tail foreach { block => // tail means "skip entry block"
       cfg.localVariables foreach { v =>
         val vi = block.blockVariableInfo(v)
-        assert(vi.ϕ.size != 1,"The size of a ϕ assignment should never be 1. Offending block: %s.".format(block))
         if((!vi.needsΦAssignment) && (!block.initializedVariables.contains(v))){
           val idomInfo = block.immediateDominator.blockVariableInfo(v)
+          assert(!idomInfo.versions.isEmpty,"The last version of variable %s in block %s has not been determined while in block %s."
+            .format(v,block.immediateDominator,block))
           val first = idomInfo.lastVersion
           vi.versions = vi.versions.+:(first) //prepend first version
         }
       }
+    } */
+    
+    val workSet = mutable.Set[ChaliceBlock](cfg.reversePostorder:_*)
+    while(!workSet.isEmpty){
+      val block = workSet.head
+      workSet -= block
+      
+      var changed = false
+      for (v <- cfg.localVariables){
+        val vi = block.blockVariableInfo(v)
+        if((!vi.needsΦAssignment) && (!block.initializedVariables.contains(v))){
+          val idomInfo = block.immediateDominator.blockVariableInfo(v)
+          if(!idomInfo.versions.isEmpty){
+            vi.versions.headOption match {
+              case Some(h) if h == idomInfo.lastVersion => //do nothing, definition already reached this node
+              case _ => 
+                vi.versions = idomInfo.lastVersion +: vi.versions
+                changed = true
+            }
+          }
+        }
+      }
+      
+      if(changed){
+        workSet ++= block.successors.map(_.destination)
+      }
+    }
+    
+    assert(true)
+    
+    for {
+      block <- cfg.reversePostorder
+      v <- cfg.localVariables
+      vi = block.blockVariableInfo(v)
+      if vi.needsΦAssignment
+    } {
+      vi.ϕ = block.predecessors.toStream.map(_.origin.blockVariableInfo(v).lastVersion).toSet
     }
   }
 
@@ -323,7 +363,7 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
       .toStream
       .map(block.blockVariableInfo(_))
       .filter(_.needsΦAssignment)
-      .map(vi => vi.ϕ.map(_.blockVariableInfo(vi.chaliceVariable).lastVersion))
+      .map(_.ϕ)
       .flatten
 
     //then, simulate the execution of the basic block to observe which versions are accessed

@@ -106,13 +106,11 @@ class ChaliceBlock(val name : String) { origin =>
   def addΦEntry(v : chalice.Variable, block : ChaliceBlock) : Boolean ={
     require(block.assignedVariables contains v)
     val bvi = blockVariableInfo(v)
-    if(bvi.ϕ contains block){
-      false
-    } else {
-      bvi.ϕ += block
-      assignedVariables += v
-      true
-    }
+    val old = bvi.needsΦAssignment
+    bvi.needsΦAssignment = true
+    assignedVariables += v
+
+    !old // return true iff needsΦAssignment was false before
   }
   
   var versionsInScope : immutable.Set[Version] = null

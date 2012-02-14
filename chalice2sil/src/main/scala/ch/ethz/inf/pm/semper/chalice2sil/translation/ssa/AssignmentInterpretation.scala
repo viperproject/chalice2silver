@@ -10,7 +10,7 @@ import collection._
 class AssignmentInterpretation private (block : ChaliceBlock, atEnd : Boolean) {
   private val indices = mutable.Map((
       if(atEnd)
-        block.blockVariableInfoMap.values.map(vi => vi.chaliceVariable -> (vi.versions.size-1))
+        block.blockVariableInfoMap.values.map(vi => vi.variable -> (vi.versions.size-1))
       else 
         block.blockVariableInfoMap.keys.map(_ -> 0)
     ).toSeq: _*)

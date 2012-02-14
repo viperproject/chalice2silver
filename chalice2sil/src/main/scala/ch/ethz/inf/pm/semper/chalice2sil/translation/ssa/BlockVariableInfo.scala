@@ -6,32 +6,30 @@ import silAST.programs.symbols.ProgramVariable
 /**
   * @author Christian Klauser
   */
-final class BlockVariableInfo(val block : ChaliceBlock, val chaliceVariable : chalice.Variable) {
+final class BlockVariableInfo(val block : ChaliceBlock, val variable : chalice.Variable) {
 
-  override def hashCode() = chaliceVariable.UniqueName.hashCode() ^ block.hashCode()
-  override def toString = chaliceVariable.UniqueName + (if(needsΦAssignment)  "ϕ(" + ϕ.mkString(", ") + ")" else "") +
+  override def hashCode() = variable.UniqueName.hashCode() ^ block.hashCode()
+  override def toString = variable + (if(needsΦAssignment)  "ϕ(" + ϕ.map(_.uniqueName).mkString(", ") + ")" else "") +
     " versions(" + versions.map(_.uniqueName).mkString(", ") + ")"
 
   override def equals(obj : Any) = obj match {
     case other:BlockVariableInfo => 
-      chaliceVariable == other.chaliceVariable &&
+      variable == other.variable &&
       block == other.block
     case _ => false
   }
 
   /**
-    * The set of blocks contributing to a ϕ-assignment for this variable.
-    *
-    * At this stage, instead of directly mentioning the variable version in the argument list of the
-    * ϕ assignment, we just refer to the block that will supply the version. This is necessary, because
-    * the variable version numbers will only be assigned afterwards, during the translation to the SIL AST.
+    * The set of versions contributing to the ϕ assignment to the `variable` at the beginning of the `block`.
+    * Is assigned by [[ch.ethz.inf.pm.semper.chalice2sil.translation.ssa.SsaSurvey.determineDefinitionReach]]
     */
-  var ϕ = immutable.Set[ChaliceBlock]()
+  var ϕ = immutable.Set[Version]()
 
   /**
-    * Indicates whether a ϕ assignment is necessary for this variable in this block.
+    * Indicates whether a ϕ assignment is necessary for this variable in this block. 
+    * Is assigned by [[ch.ethz.inf.pm.semper.chalice2sil.translation.ssa.SsaSurvey.determineΦ]]
     */
-  def needsΦAssignment = ϕ.size > 1
+  var needsΦAssignment = false
 
   /**
     * A temporary storage for the intermediate versions of a variable within a basic block. Includes `firstVersion` and

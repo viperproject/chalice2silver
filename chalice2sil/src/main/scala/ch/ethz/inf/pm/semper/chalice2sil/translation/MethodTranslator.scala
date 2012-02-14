@@ -195,7 +195,6 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
               // currently implemented as `inhale (v_1 = v_a ∨ v_1 = v_b ∨ ... ∨ v_1 = v_z)`
               val tv = vi.firstVersion //the target variable (of the ϕ assignment)
               val assertion = vi.ϕ
-                .map(b => b.blockVariableInfo(v).lastVersion)
                 .map(sv => currentExpressionFactory.makeEqualityExpression(loc, // assert `tv = sv`
                   currentExpressionFactory.makeProgramVariableTerm(loc,programVariables(tv)),
                   currentExpressionFactory.makeProgramVariableTerm(loc,programVariables(sv)))) //sv is the source variable of the ϕ assignment
