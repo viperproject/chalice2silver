@@ -95,7 +95,7 @@ abstract class ChaliceSuite extends FunSuite { //
             val translator = Chalice2Sil.createTranslator(opts,p)
             val (silProgram, silMessages) = translator.translate(p)
 
-            Console.out.println(silProgram.toString)
+            Console.out.println(silProgram.toString())
 
             silMessages.view.filter(_.severity.indicatesFailure).foreach(m => fail("Detected message that indicates failure: %s".format(m)))
 

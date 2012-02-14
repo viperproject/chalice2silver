@@ -109,8 +109,10 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
     val πTerm = mf.makeProgramVariableTerm(method,π)
     // requires (noPermission < π ∧ π < fullPermission)
     mf.addPrecondition(method,mf.makeBinaryExpression(method,And(),
-      mf.makeDomainPredicateExpression(method,permissionLT,TermSequence(noPermissionTerm,πTerm)), // noPermission < π
-      mf.makeDomainPredicateExpression(method,permissionLT,TermSequence(πTerm,fullPermissionTerm))) //  π < fullPermission
+      mf.makeDomainPredicateExpression(method,permissionLT,
+        TermSequence(currentExpressionFactory.makeNoPermission(method),πTerm)), // noPermission < π
+      mf.makeDomainPredicateExpression(method,permissionLT,
+        TermSequence(πTerm,currentExpressionFactory.makeFullPermission(method)))) //  π < fullPermission
     )
 
     method.spec.foreach(spec => spec match {
@@ -295,6 +297,9 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
     val rhsTerm = translateTerm(rhs).asInstanceOf[PTerm]  //TODO: is there a way to avoid this cast without duplicating translateTerm?
 
     val targetVersion = programVariables(currentAssignmentInterpretation.registerAssignment(lhs.v))
+    assert(currentBlock.localVariables contains targetVersion,
+      "The SIL basic block %s is expected to have the SIL program variable %s in scope. Program variables actually in scope: {%s}"
+        .format(currentBlock.name,targetVersion,currentBlock.localVariables.mkString(", ")))
     currentBlock.appendAssignment(lhs,targetVersion,rhsTerm)
   }
 
@@ -427,9 +432,8 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
 
     // Generate assumptions and conditions on fraction
     def genCond(expr : Expression) : Option[Expression] = expr match {
-      case p:PermissionExpression if
-      p.permission == fullPermissionTerm ||
-        p.permission == noPermissionTerm => None
+      case PermissionExpression(_,_,_,FullPermissionTerm(_)) => None
+      case PermissionExpression(_,_,_,NoPermissionTerm(_)) => None
       case p@PermissionExpression(_,reference,field,pTerm) => pTerm match {
         case ProgramVariableTerm(_,varRef) if varRef == calleeFactory.parameters.last =>
           // translate
@@ -461,9 +465,8 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
     }
 
     def genReadCond(expr : Expression) : List[ReadCondition] = expr match {
-      case p:PermissionExpression if
-      p.permission == fullPermissionTerm ||
-        p.permission == noPermissionTerm => Nil
+      case PermissionExpression(_,_,_,FullPermissionTerm(_)) => Nil
+      case PermissionExpression(_,_,_,NoPermissionTerm(_)) => Nil
       case p@PermissionExpression(_,reference,field,pTerm) => pTerm match {
         case ProgramVariableTerm(_,varRef) if varRef == calleeFactory.parameters.last =>
 
@@ -639,9 +642,29 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
         currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.Not,TermSequence(
         translateTerm(op)
       ))
+      case b:chalice.BinaryExpr =>
+        translate(b.typ) match {
+          case NonReferenceDataType(_,domain) =>
+            translateBinaryOperationTerm(b,domain)
+          case _ => 
+            report(messages.UnknownAstNode(b))
+            dummyTerm(b)
+        }        
       case otherNode =>
         report(messages.UnknownAstNode(otherNode))
         dummyTerm(rvalue)
+    }
+  }
+  
+  def translateBinaryOperationTerm(binOp : chalice.BinaryExpr, domain : Domain) = {
+    val funcSuffix = binOp.OpName
+    val guessedOpName = funcSuffix
+    domain.functions.find(_.name.equalsIgnoreCase(guessedOpName)) match {
+      case Some(f) => currentExpressionFactory.makeDomainFunctionApplicationTerm(binOp,f,
+        TermSequence(translateTerm(binOp.E0),translateTerm(binOp.E1)))
+      case _ =>
+        report(messages.UnknownAstNode(binOp))
+        dummyTerm(binOp)
     }
   }
 
@@ -649,12 +672,12 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
   //////////////      TRANSLATE PERMISSION                                            /////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   protected def translatePermission(permission : chalice.Permission) : Term = permission match {
-    case chalice.Full => fullPermissionTerm
+    case chalice.Full => currentExpressionFactory.makeFullPermission(permission)
     case π@chalice.Epsilon if π.permissionType == chalice.PermissionType.Fraction =>
       makeCurrentMethodCallFraction(π)
     case _ =>
       report(messages.UnknownAstNode(permission))
-      noPermissionTerm
+      currentExpressionFactory.makeNoPermission(permission)
   }
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

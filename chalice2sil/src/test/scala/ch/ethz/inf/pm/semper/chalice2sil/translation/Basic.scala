@@ -10,9 +10,9 @@ import org.junit.runner.RunWith
 import org.scalatest.matchers.{MatchResult, BeMatcher, ShouldMatchers}
 import silAST.types.{referenceType, integerType}
 import silAST.expressions.PermissionExpression
-import silAST.expressions.terms.{ProgramVariableTerm, fullPermissionTerm, FieldReadTerm, LiteralTerm}
 import silAST.programs.symbols.ProgramVariable
 import silAST.methods.implementations.FieldAssignmentStatement
+import silAST.expressions.terms.{FullPermissionTerm, ProgramVariableTerm, FieldReadTerm, LiteralTerm}
 
 @RunWith(classOf[JUnitRunner])
 class Basic extends ChaliceSuite with ShouldMatchers {
@@ -117,7 +117,7 @@ class Basic extends ChaliceSuite with ShouldMatchers {
     val pre = sig.precondition(1).asInstanceOf[PermissionExpression]
     val post = sig.postcondition.head.asInstanceOf[PermissionExpression]
     Stream(pre,post).foreach(cond => {
-      cond.permission should be (fullPermissionTerm)
+      cond.permission.getClass should be (classOf[FullPermissionTerm])
 
       val thisVar = matchCast[ProgramVariableTerm](cond.reference)
       thisVar.variable.name should be ("this")

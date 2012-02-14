@@ -401,7 +401,8 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
       case w:chalice.WhileStmt => report(messages.UnknownAstNode(w))
 
     }
-    
+
+    // finally also take conditions on CFG edges into account
     block.successors.toStream.map(_.condition).flatten.foreach(inspect)
 
     builder.result()
@@ -431,7 +432,7 @@ class SsaSurvey(programEnvironment: ProgramEnvironment, nameSequence : NameSeque
     //Ensure that all parameters (ins and outs) are alive at the end (for use contracts)
     liveOut(cfg.exitBlock) = parameters.map(cfg.entryBlock.blockVariableInfo(_).firstVersion).toSet
 
-    val workSet = mutable.Set(cfg.exitBlock)
+    val workSet = mutable.Set(cfg.postorder:_*)
     while(!workSet.isEmpty){
       val block = workSet.head
       workSet -= block
