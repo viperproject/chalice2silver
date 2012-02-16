@@ -23,7 +23,7 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) {
   private val loc = noLocation  //TODO: define a more sensible location than `noLocation` for the Prelude
 
   protected class DomainEnvironment(domainName: String, typeVariableNames: Seq[(SourceLocation,String)] = Nil) extends DerivedProgramEnvironment(programEnvironment){
-    protected val factory = programFactory.getDomainFactory(domainName, typeVariableNames)(loc)
+    val factory = programFactory.getDomainFactory(domainName, typeVariableNames)(loc)
 
     protected def fApp(domainFunction : DomainFunction, args : DTerm*) = {
       factory.makeDDomainFunctionApplicationTerm(loc,domainFunction,DTermSequence(args:_*))
@@ -32,26 +32,26 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) {
       factory.makeDDomainPredicateExpression(loc,domainPredicate,DTermSequence(args:_*))
     }
     protected def not(operand : DExpression) : DExpression =
-      factory.makeDUnaryExpression(loc,silAST.symbols.logical.Not(),operand)
+      factory.makeDUnaryExpression(loc,silAST.symbols.logical.Not(loc),operand)
     protected def and(lhs : DExpression, rhs : DExpression) : DExpression =
-      factory.makeDBinaryExpression(loc,silAST.symbols.logical.And(),lhs,rhs)
+      factory.makeDBinaryExpression(loc,silAST.symbols.logical.And(loc),lhs,rhs)
     protected def or(lhs : DExpression, rhs : DExpression) : DExpression =
-      factory.makeDBinaryExpression(loc,silAST.symbols.logical.Or(),lhs,rhs)
+      factory.makeDBinaryExpression(loc,silAST.symbols.logical.Or(loc),lhs,rhs)
     protected def equiv(lhs : DExpression,  rhs : DExpression) : DExpression =
-      factory.makeDBinaryExpression(loc,silAST.symbols.logical.Equivalence(),lhs,rhs)
+      factory.makeDBinaryExpression(loc,silAST.symbols.logical.Equivalence(loc),lhs,rhs)
     protected def imply(lhs : DExpression,rhs:DExpression) : DExpression =
-      factory.makeDBinaryExpression(loc,silAST.symbols.logical.Implication(),lhs,rhs)
+      factory.makeDBinaryExpression(loc,silAST.symbols.logical.Implication(loc),lhs,rhs)
     protected def equality(lhs : DTerm, rhs : DTerm) =
       factory.makeDEqualityExpression(loc,lhs,rhs)
     protected def ∀(aType : DataType, expr : BoundVariable => DExpression) : DExpression = {
       val a = factory.makeBoundVariable(loc,names.nextName,aType)
-      factory.makeDQuantifierExpression(loc,Forall,a,expr(a))
+      factory.makeDQuantifierExpression(loc,Forall(loc),a,expr(a))
     }
     protected def ∀(aType : DataType,  bType : DataType,  expr : (BoundVariable,BoundVariable) => DExpression) : DExpression = {
       val a = factory.makeBoundVariable(loc,names.nextName,aType)
       val b = factory.makeBoundVariable(loc,names.nextName,bType)
-      factory.makeDQuantifierExpression(loc,Forall,a,
-        factory.makeDQuantifierExpression(loc,Forall,b,expr(a,b))
+      factory.makeDQuantifierExpression(loc,Forall(loc),a,
+        factory.makeDQuantifierExpression(loc,Forall(loc),b,expr(a,b))
       )
     }
     implicit protected def boundVariableAsTerm(v : BoundVariable) : DTerm = factory.makeBoundVariableTerm(loc,v)
@@ -86,7 +86,7 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) {
     factory.addDomainAxiom(loc,"evaluateBooleanTrue",factory.makeDDomainPredicateExpression(
       loc,Evaluate,DTermSequence(fApp(TrueLiteral))
     ))
-    factory.addDomainAxiom(loc,"evaluateBooleanFalse",factory.makeDUnaryExpression(loc,silAST.symbols.logical.Not(),
+    factory.addDomainAxiom(loc,"evaluateBooleanFalse",factory.makeDUnaryExpression(loc,silAST.symbols.logical.Not(loc),
       pApp (Evaluate,fApp(FalseLiteral))
     ))
 
@@ -136,7 +136,7 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Compile Domain
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    lazy val Domain = factory.compile()
+    lazy val Domain = factory.compile
   }
   
   object Havoc extends DomainEnvironment("Havoc",Seq((loc,"a"))) with (DataType => HavocInstance) {
@@ -156,7 +156,9 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Compile Domain
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    lazy val DomainConstructor = factory.compile()
+    lazy val DomainConstructor = {
+      factory.compile()
+    }
   }  
   
   class HavocInstance(domain : Domain) {

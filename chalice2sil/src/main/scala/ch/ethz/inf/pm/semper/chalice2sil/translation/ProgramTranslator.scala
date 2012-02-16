@@ -30,15 +30,9 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
   val fields = new FactoryHashCache[chalice.Field, Field]{
     def construct(field : chalice.Field) = {
       val fieldName : String = fullFieldName(field)
-      translate(field.typ) match {
-        case t:NonReferenceDataType  => programFactory.defineDomainField(field, fieldName,t)
-        case t if t == referenceType => programFactory.defineReferenceField(field,fieldName)
-        case t =>
-          report(messages.TypeNotUnderstood(t,field))
-          programFactory.defineReferenceField(field,fieldName)
-      }
+      programFactory.defineField(field, fieldName,translate(field.typ))
     }    
-  } // TODO: apply domain Field symbol for fields with domain types
+  }
 
   val prelude = new ChalicePrelude(this)
 
