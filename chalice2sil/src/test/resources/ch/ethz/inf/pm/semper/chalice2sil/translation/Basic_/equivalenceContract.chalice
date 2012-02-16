@@ -1,0 +1,5 @@
+class Main{
+    method main()
+        ensures false == true
+    {}
+}
