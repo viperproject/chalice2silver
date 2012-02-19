@@ -15,20 +15,25 @@ import ssa._
 import silAST.methods.MethodFactory
 import silAST.domains.{DomainInstance, DomainPredicate, Domain, DomainFunction}
 
-class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends DerivedProgramEnvironment(st) with  MethodEnvironment {
+class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
+    extends DerivedProgramEnvironment(st)
+    with MethodEnvironment
+    with TypeTranslator {
   //MethodEnvironment
   val methodFactory = methodFactories(method)
-  lazy val implementationFactory = {
+  override lazy val implementationFactory = {
     methodFactory.addImplementation(method.body.map(astNodeToSourceLocation).headOption.getOrElse(method))
   }
 
-  val programVariables = new DerivedFactoryCache[ssa.Version,String, ProgramVariable] with AdjustableCache[ProgramVariable] {
+  override val programVariables = new DerivedFactoryCache[ssa.Version,String, ProgramVariable] with AdjustableCache[ProgramVariable] {
     override protected def deriveKey(p : ssa.Version) = p.uniqueName
 
     override protected def deriveKeyFromValue(value : ProgramVariable) = value.name
 
-    override protected def construct(p : ssa.Version) = implementationFactory.addLocalVariable(p.chaliceVariable,deriveKey(p),translate(p.chaliceVariable.t))
+    override protected def construct(p : ssa.Version) = implementationFactory.addLocalVariable(p.chaliceVariable,deriveKey(p),translateTypeExpr(p.chaliceVariable.t))
   }
+
+  override val thisVariable = methodFactory.thisVar
   
   def localVariableVersion(variable : chalice.Variable) = {
     if(currentAssignmentInterpretation == null && (method.ins.contains(variable) || method.outs.contains(variable))){
@@ -40,7 +45,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
     }
   }
 
-  val basicBlocks = new AdjustableFactoryHashCache[String, BasicBlockFactory] {
+  override val basicBlocks = new AdjustableFactoryHashCache[String, BasicBlockFactory] {
     protected override def construct(name : String) : BasicBlockFactory = {
       require(false,"Cannot create basic blocks this way.") //TODO: adjust MethodEnvironment
       null
@@ -74,7 +79,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
     }
   }
 
-  val temporaries = new TemporaryVariableBroker(this)
+  override val temporaries = new TemporaryVariableBroker(this)
   
   val blockStack = new Stack[BasicBlockFactory]
   def currentBlock = {
@@ -105,14 +110,14 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
 
   private[this] def createSignature() = {
     val mf = methodFactory
-    method.ins.foreach(i => programVariables.addExternal(mf.addParameter(i, i.UniqueName, translate(i.t))))
-    method.outs.foreach(o => programVariables.addExternal(mf.addResult(o,o.UniqueName,translate(o.t))))
+    method.ins.foreach(i => programVariables.addExternal(mf.addParameter(i, i.UniqueName, translateTypeExpr(i.t))))
+    method.outs.foreach(o => programVariables.addExternal(mf.addResult(o,o.UniqueName,translateTypeExpr(o.t))))
     val π = mf.addParameter(method,getNextName("π"),permissionType)
     programVariables.addExternal(π)
 
     val πTerm = mf.makeProgramVariableTerm(method,π)
     // requires (noPermission < π ∧ π < fullPermission)
-    mf.addPrecondition(method,mf.makeBinaryExpression(method,And(method),
+    mf.addPrecondition(method,mf.makeBinaryExpression(method,And()(method),
       mf.makeDomainPredicateExpression(method,permissionLT,
         TermSequence(currentExpressionFactory.makeNoPermission(method),πTerm)), // noPermission < π
       mf.makeDomainPredicateExpression(method,permissionLT,
@@ -225,7 +230,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
               .map(sv => fac.makeEqualityExpression(loc, // create expression `tv = sv`
               fac.makeProgramVariableTerm(loc,programVariables(tv)),
               fac.makeProgramVariableTerm(loc,programVariables(sv)))) //sv is the source variable of the ϕ assignment
-              .reduce[Expression](fac.makeBinaryExpression(loc,Or(chaliceBlock.sourceLocation),_,_)) // connect via logical or
+              .reduce[Expression](fac.makeBinaryExpression(loc,Or()(chaliceBlock.sourceLocation),_,_)) // connect via logical or
             currentBlock.appendInhale(loc,ϕAssignment)
           }
 
@@ -298,7 +303,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
         if(ts.isEmpty)
           TrueExpression()(noLocation)
         else
-          ts.reduce(currentExpressionFactory.makeBinaryExpression(chaliceBlock.sourceLocation,And(chaliceBlock.sourceLocation),_,_))
+          ts.reduce(currentExpressionFactory.makeBinaryExpression(chaliceBlock.sourceLocation,And()(chaliceBlock.sourceLocation),_,_))
       }
 
       /**
@@ -311,7 +316,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
       def addEdge(edge : ChaliceEdge,  condition : Expression){
         val finalCondition =
           if(edge.isInverted)
-            withEndBlock(currentExpressionFactory.makeUnaryExpression(chaliceBlock.sourceLocation,Not(chaliceBlock.sourceLocation),condition))
+            withEndBlock(currentExpressionFactory.makeUnaryExpression(chaliceBlock.sourceLocation,Not()(chaliceBlock.sourceLocation),condition))
           else
             condition
         
@@ -511,9 +516,9 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
           report(messages.PermissionNotUnderstood(callNode,pTerm))
           None
       }
-      case BinaryExpression(Implication(_),lhs,rhs) =>
+      case BinaryExpression(Implication(),lhs,rhs) =>
         //use lhs as-is in implications
-        genCond(rhs).map(currentBlock.makeBinaryExpression(callNode,Implication(callNode),transplantExpression(lhs),_))
+        genCond(rhs).map(currentBlock.makeBinaryExpression(callNode,Implication()(callNode),transplantExpression(lhs),_))
       case BinaryExpression(op,lhs,rhs) =>
         //omit non-permission related nodes
         List(lhs,rhs).map(genCond _).collect({case Some(x) => x}) match {
@@ -538,21 +543,21 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
           report(messages.PermissionNotUnderstood(callNode,pTerm))
           Nil
       }
-      case BinaryExpression(Implication(_),lhs,rhs) =>
+      case BinaryExpression(Implication(),lhs,rhs) =>
         //use lhs as-is in implications
         List(ReadImplication(transplantExpression(lhs),genReadCond(rhs)))
-      case BinaryExpression(And(_),lhs,rhs) =>
+      case BinaryExpression(And(),lhs,rhs) =>
         List(lhs,rhs).map(genReadCond).flatten
-      case BinaryExpression(Or(_),lhs,rhs) =>
+      case BinaryExpression(Or(),lhs,rhs) =>
         report(messages.PermissionNotUnderstood(callNode,expr))
         Nil
-      case BinaryExpression(Equivalence(_),lhs,rhs) =>
+      case BinaryExpression(Equivalence(),lhs,rhs) =>
         // Interpret A ↔ B ≡ (A → B) ∧ (B → A)
         genReadCond(currentBlock.makeBinaryExpression(
           callNode,
-          And(callNode),
-          currentBlock.makeBinaryExpression(callNode,Implication(callNode),lhs,rhs),
-          currentBlock.makeBinaryExpression(callNode,Implication(callNode),rhs,lhs)
+          And()(callNode),
+          currentBlock.makeBinaryExpression(callNode,Implication()(callNode),lhs,rhs),
+          currentBlock.makeBinaryExpression(callNode,Implication()(callNode),rhs,lhs)
         ))
       case _:AtomicExpression => Nil
       case _ =>
@@ -608,19 +613,20 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
     case chalice.And(lhs,rhs) => 
       val lhsT = translateExpression(lhs)
       val rhsT = translateExpression(rhs)
-      currentExpressionFactory.makeBinaryExpression(expression,And(expression),lhsT,rhsT)
+      currentExpressionFactory.makeBinaryExpression(expression,And()(expression),lhsT,rhsT)
     case chalice.Or(lhs,rhs) =>
       val lhsT = translateExpression(lhs)
       val rhsT = translateExpression(rhs)
-      currentExpressionFactory.makeBinaryExpression(expression,Or(expression),lhsT,rhsT)
+      currentExpressionFactory.makeBinaryExpression(expression,Or()(expression),lhsT,rhsT)
     case chalice.Implies(lhs,rhs) =>
       val lhsT = translateExpression(lhs)
       val rhsT = translateExpression(rhs)
-      currentExpressionFactory.makeBinaryExpression(expression,Implication(expression),lhsT,rhsT)
+      currentExpressionFactory.makeBinaryExpression(expression,Implication()(expression),lhsT,rhsT)
     case binary:chalice.BinaryExpr =>
       val (lhs,rhs) = (binary.E0,binary.E1)
       // binary.ExpectedXhsType is often null, use the "inferred" types for the operands instead
-      val (lhsType,rhsType,resultType) = (translate(lhs.typ),translate(rhs.typ),translate(binary.ResultType))
+      val (lhsType,rhsType,resultType) =
+        (translateClassRef(lhs.typ),translateClassRef(rhs.typ),translateClassRef(binary.ResultType))
       // TODO: ensure that resultType is a boolean value, otherwise report messages.TermInExpressionPosition
 
       val nameCandidates = operatorNameCandidates(binary.OpName)
@@ -714,7 +720,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
         translateTerm(op)
       ))
       case b:chalice.BinaryExpr =>
-        translateBinaryOperationTerm(b,translate(b.typ).domain)
+        translateBinaryOperationTerm(b,translateClassRef(b.typ).domain)
       case otherNode =>
         report(messages.UnknownAstNode(otherNode))
         dummyTerm(rvalue)
@@ -761,13 +767,6 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
       varTerm
     }
   }
-
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  //////////////      TRANSLATE TYPES                                                 /////////////////////////////////
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  protected def translate(typeExpr : chalice.Type) = new TypeTranslator(this).translate(typeExpr)
-
-  protected def translate(classRef : chalice.Class) = new TypeTranslator(this).translate(classRef)
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////      HELPER FUNCTIONS (TRANSLATION DSL)                              /////////////////////////////////
@@ -845,7 +844,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method) extends 
 
     //Create control transfer in case the condition does not hold ↔ ¬condition holds
     currentBlock.addSuccessor(noLocation,elseSuccessor,currentBlock.makeUnaryExpression(
-      elseLocation,Not(elseLocation),condExpr),false)
+      elseLocation,Not()(elseLocation),condExpr),false)
 
     //Update currentBlock
     this.continueWith(nextBlock)

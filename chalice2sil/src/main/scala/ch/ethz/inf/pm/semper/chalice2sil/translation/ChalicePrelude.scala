@@ -32,26 +32,26 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) {
       factory.makeDDomainPredicateExpression(loc,domainPredicate,DTermSequence(args:_*))
     }
     protected def not(operand : DExpression) : DExpression =
-      factory.makeDUnaryExpression(loc,silAST.symbols.logical.Not(loc),operand)
+      factory.makeDUnaryExpression(loc,silAST.symbols.logical.Not()(loc),operand)
     protected def and(lhs : DExpression, rhs : DExpression) : DExpression =
-      factory.makeDBinaryExpression(loc,silAST.symbols.logical.And(loc),lhs,rhs)
+      factory.makeDBinaryExpression(loc,silAST.symbols.logical.And()(loc),lhs,rhs)
     protected def or(lhs : DExpression, rhs : DExpression) : DExpression =
-      factory.makeDBinaryExpression(loc,silAST.symbols.logical.Or(loc),lhs,rhs)
+      factory.makeDBinaryExpression(loc,silAST.symbols.logical.Or()(loc),lhs,rhs)
     protected def equiv(lhs : DExpression,  rhs : DExpression) : DExpression =
-      factory.makeDBinaryExpression(loc,silAST.symbols.logical.Equivalence(loc),lhs,rhs)
+      factory.makeDBinaryExpression(loc,silAST.symbols.logical.Equivalence()(loc),lhs,rhs)
     protected def imply(lhs : DExpression,rhs:DExpression) : DExpression =
-      factory.makeDBinaryExpression(loc,silAST.symbols.logical.Implication(loc),lhs,rhs)
+      factory.makeDBinaryExpression(loc,silAST.symbols.logical.Implication()(loc),lhs,rhs)
     protected def equality(lhs : DTerm, rhs : DTerm) =
       factory.makeDEqualityExpression(loc,lhs,rhs)
     protected def ∀(aType : DataType, expr : BoundVariable => DExpression) : DExpression = {
       val a = factory.makeBoundVariable(loc,names.nextName,aType)
-      factory.makeDQuantifierExpression(loc,Forall(loc),a,expr(a))
+      factory.makeDQuantifierExpression(loc,Forall()(loc),a,expr(a))
     }
     protected def ∀(aType : DataType,  bType : DataType,  expr : (BoundVariable,BoundVariable) => DExpression) : DExpression = {
       val a = factory.makeBoundVariable(loc,names.nextName,aType)
       val b = factory.makeBoundVariable(loc,names.nextName,bType)
-      factory.makeDQuantifierExpression(loc,Forall(loc),a,
-        factory.makeDQuantifierExpression(loc,Forall(loc),b,expr(a,b))
+      factory.makeDQuantifierExpression(loc,Forall()(loc),a,
+        factory.makeDQuantifierExpression(loc,Forall()(loc),b,expr(a,b))
       )
     }
     implicit protected def boundVariableAsTerm(v : BoundVariable) : DTerm = factory.makeBoundVariableTerm(loc,v)
@@ -81,12 +81,12 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Evaluate
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val Evaluate = factory.defineDomainPredicate(loc,"EvalBool",DataTypeSequence(Type))
+    val Evaluate = factory.defineDomainPredicate(loc,"Eval",DataTypeSequence(Type))
 
     factory.addDomainAxiom(loc,"evaluateBooleanTrue",factory.makeDDomainPredicateExpression(
       loc,Evaluate,DTermSequence(fApp(TrueLiteral))
     ))
-    factory.addDomainAxiom(loc,"evaluateBooleanFalse",factory.makeDUnaryExpression(loc,silAST.symbols.logical.Not(loc),
+    factory.addDomainAxiom(loc,"evaluateBooleanFalse",factory.makeDUnaryExpression(loc,silAST.symbols.logical.Not()(loc),
       pApp (Evaluate,fApp(FalseLiteral))
     ))
 

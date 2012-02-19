@@ -16,7 +16,9 @@ import silAST.symbols.logical.Not
  * Author: Christian Klauser
  */
 
-class ProgramTranslator(val programOptions : ProgramOptions, val programName : String, val programLocation : SourceLocation) extends ProgramEnvironment {
+class ProgramTranslator(val programOptions : ProgramOptions, val programName : String, val programLocation : SourceLocation)
+    extends ProgramEnvironment
+    with TypeTranslator {
   /**
    * The SilTranslator will call this function whenever a new message is generated.
    */
@@ -30,7 +32,7 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
   val fields = new FactoryHashCache[chalice.Field, Field]{
     def construct(field : chalice.Field) = {
       val fieldName : String = fullFieldName(field)
-      programFactory.defineField(field, fieldName,translate(field.typ))
+      programFactory.defineField(field, fieldName,translateTypeExpr(field.typ))
     }    
   }
 
@@ -66,10 +68,4 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
       case otherNode => report(messages.UnknownAstNode(otherNode))
     })
   }
-
-  protected def translate(typeExpr: chalice.Type) = {
-    val translator = new TypeTranslator(this)
-    translator.translate(typeExpr)
-  }
-
 }

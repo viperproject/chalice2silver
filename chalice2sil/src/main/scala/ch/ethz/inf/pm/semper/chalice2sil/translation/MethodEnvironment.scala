@@ -14,6 +14,7 @@ trait MethodEnvironment extends ProgramEnvironment {
   def programVariables : DerivedFactoryCache[ssa.Version,String, ProgramVariable]
   def basicBlocks : FactoryCache[String,  BasicBlockFactory] with AdjustableCache[BasicBlockFactory]
   def temporaries : TemporaryVariableBroker
+  def thisVariable : ProgramVariable
  
   //Optional
   protected val nameSequence = NameSequence()
