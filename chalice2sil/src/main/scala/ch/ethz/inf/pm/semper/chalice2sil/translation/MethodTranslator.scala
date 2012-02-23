@@ -112,22 +112,27 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     val mf = methodFactory
     method.ins.foreach(i => programVariables.addExternal(mf.addParameter(i, i.UniqueName, translateTypeExpr(i.t))))
     method.outs.foreach(o => programVariables.addExternal(mf.addResult(o,o.UniqueName,translateTypeExpr(o.t))))
-    val π = mf.addParameter(method,getNextName("π"),permissionType)
-    programVariables.addExternal(π)
+    val k = mf.addParameter(method,getNextName("k"),permissionType)
+    programVariables.addExternal(k)
 
-    val πTerm = mf.makeProgramVariableTerm(method,π)
-    // requires (noPermission < π ∧ π < fullPermission)
+    val kTerm = mf.makeProgramVariableTerm(method,k)
+    // requires (noPermission < k ∧ k < fullPermission)
     mf.addPrecondition(method,mf.makeBinaryExpression(method,And()(method),
       mf.makeDomainPredicateExpression(method,permissionLT,
-        TermSequence(currentExpressionFactory.makeNoPermission(method),πTerm)), // noPermission < π
+        TermSequence(currentExpressionFactory.makeNoPermission(method),kTerm)), // noPermission < k
       mf.makeDomainPredicateExpression(method,permissionLT,
-        TermSequence(πTerm,currentExpressionFactory.makeFullPermission(method)))) //  π < fullPermission
+        TermSequence(kTerm,currentExpressionFactory.makeFullPermission(method)))) //  k < fullPermission
     )
+
+    val expressionTranslator = new DerivedMethodEnvironment(this)
+      with ExpressionTranslator[Expression] {
+
+    }
 
     method.spec.foreach(spec => spec match {
       case chalice.Precondition(e) =>
         wrapFractionInOld = false
-        currentMethodCallFractionVariable = Some(π)
+        currentMethodCallFractionVariable = Some(k)
         try {
           val precondition = translateExpression(e)
           mf.addPrecondition(spec,precondition)
@@ -136,7 +141,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
         }
       case chalice.Postcondition(e) =>
         wrapFractionInOld = true
-        currentMethodCallFractionVariable = Some(π)
+        currentMethodCallFractionVariable = Some(k)
         try {
           val postcondition = translateExpression(e)
           mf.addPostcondition(spec,postcondition)
@@ -149,7 +154,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
 
     methodFactory.finalizeSignature()
 
-    π
+    k
   }
   
   val readFractionVariable = createSignature();
@@ -481,10 +486,10 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     val calleeFactory = methodFactories(callNode.m.asInstanceOf[chalice.Method])
 
     //Read (fractional) permissions
-    val readFractionVar = implementationFactory.addLocalVariable(callNode, getNextName("π_" + calleeFactory.name), permissionType)
+    val readFractionVar = implementationFactory.addLocalVariable(callNode, getNextName("k_" + calleeFactory.name), permissionType)
     programVariables.addExternal(readFractionVar)
     val readFractionTerm = currentBlock.makeProgramVariableTerm(callNode, readFractionVar)
-    // append: { π := havoc[Permission] }
+    // append: { k := havoc[Permission] }
     currentBlock.appendAssignment(callNode,readFractionVar,
       currentBlock.makePDomainFunctionApplicationTerm(callNode,prelude.Havoc(permissionType).Function,PTermSequence()))
 
@@ -505,9 +510,9 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       case p@PermissionExpression(reference,field,pTerm) => pTerm match {
         case ProgramVariableTerm(varRef) if varRef == calleeFactory.parameters.last =>
           // translate
-          //    acc(reference,field,π)
+          //    acc(reference,field,k)
           // into
-          //    π `permissionLT` perm(reference,field)
+          //    k `permissionLT` perm(reference,field)
           Some(currentBlock.makeDomainPredicateExpression(callNode,permissionLT,TermSequence(
             readFractionTerm,
             currentBlock.makePermTerm(callNode,transplantTerm(reference),field)
@@ -604,65 +609,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
   //////////////      TRANSLATE EXPRESSION                                            /////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   
-  protected def operatorNameCandidates(opName : String) : List[String] = opName :: (opName match {
-    case "==" => List("↔")
-    case _ => Nil
-  })
-  
-  def translateExpression(expression : chalice.Expression):Expression = expression match {
-    case chalice.And(lhs,rhs) => 
-      val lhsT = translateExpression(lhs)
-      val rhsT = translateExpression(rhs)
-      currentExpressionFactory.makeBinaryExpression(expression,And()(expression),lhsT,rhsT)
-    case chalice.Or(lhs,rhs) =>
-      val lhsT = translateExpression(lhs)
-      val rhsT = translateExpression(rhs)
-      currentExpressionFactory.makeBinaryExpression(expression,Or()(expression),lhsT,rhsT)
-    case chalice.Implies(lhs,rhs) =>
-      val lhsT = translateExpression(lhs)
-      val rhsT = translateExpression(rhs)
-      currentExpressionFactory.makeBinaryExpression(expression,Implication()(expression),lhsT,rhsT)
-    case binary:chalice.BinaryExpr =>
-      val (lhs,rhs) = (binary.E0,binary.E1)
-      // binary.ExpectedXhsType is often null, use the "inferred" types for the operands instead
-      val (lhsType,rhsType,resultType) =
-        (translateClassRef(lhs.typ),translateClassRef(rhs.typ),translateClassRef(binary.ResultType))
-      // TODO: ensure that resultType is a boolean value, otherwise report messages.TermInExpressionPosition
-
-      val nameCandidates = operatorNameCandidates(binary.OpName)
-
-      // search the three involved types/domains (lhs,rhs,result) and verify that the operator has the correct signature
-      def findOperator(d:Domain):Option[DomainPredicate] = {
-        d.predicates.find(p =>
-          nameCandidates.contains(p.name)
-            && p.signature.parameterTypes.length == 2
-            && p.signature.parameterTypes.view
-                .zip(List(lhsType,rhsType))
-                .forall(((sig : DataType,act : DataType) => sig.isCompatible(act)).tupled)
-            )
-      }
-      Set(lhsType,rhsType,resultType)
-        .map(_.domain)
-        .map(findOperator).collect({case Some(x) => x}).headOption match {
-        case Some(opPred) =>
-          currentExpressionFactory.makeDomainPredicateExpression(binary,opPred,TermSequence(translateTerm(lhs),translateTerm(rhs)))
-        case None => 
-          //Fall back to translating a boolean term and use EvalBool
-          val term = translateTerm(binary)
-          currentExpressionFactory.makeDomainPredicateExpression(binary,prelude.Boolean.Evaluate,TermSequence(term))
-      }
-    case chalice.Access(memberAccess, permission) =>
-      currentExpressionFactory.makePermissionExpression(expression,translateTerm(memberAccess.e),fields(memberAccess.f),translatePermission(permission))
-    case ma@chalice.MemberAccess(target,_) if ma.isPredicate =>
-      report(messages.UnknownAstNode(ma))
-      dummyExpr(currentExpressionFactory,ma)
-    case boolExpr if boolExpr.typ == chalice.BoolClass =>
-      val boolTerm = translateTerm(boolExpr)
-      currentExpressionFactory.makeDomainPredicateExpression(boolExpr,prelude.Boolean.Evaluate,TermSequence(boolTerm))
-    case otherExpr =>
-      report(messages.UnknownAstNode(otherExpr))
-      dummyExpr(currentExpressionFactory,otherExpr)
-
+  def translateExpression(expression : chalice.Expression):Expression = {
   }
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -678,67 +625,6 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
   }
 
   def translateTerm(rvalue : chalice.RValue) : Term = {
-    rvalue match { //RValue is (expression ∪ new-obj)
-      //NewRhs  is used for both object creation and channel creation (where lower and upper bounds come into play)
-      case chalice.NewRhs(typeId,init,lowerBound,upperBound) =>
-        report(messages.UnknownAstNode(rvalue))
-        dummyTerm(rvalue)
-      // from here on, match against the cases of Expression
-      case chalice.IntLiteral(i) =>
-        currentExpressionFactory.makeIntegerLiteralTerm(rvalue, i)
-      case chalice.BoolLiteral(true) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.TrueLiteral,TermSequence())
-      case chalice.BoolLiteral(false) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.FalseLiteral,TermSequence())
-      case variableExpr:chalice.VariableExpr =>
-        currentExpressionFactory.makeProgramVariableTerm(variableExpr,(localVariableVersion(variableExpr.v)))
-      case chalice.Old(e) => currentExpressionFactory.makeOldTerm(rvalue,translateTerm(e))
-      case access@chalice.MemberAccess(rcvr,_) if !access.isPredicate =>
-        assert(access.f != null,"Chalice MemberAccess node (%s) is not linked to a field.".format(access))
-        currentExpressionFactory.makeFieldReadTerm(access,translateTerm(rcvr),fields(access.f))
-      case th@chalice.ImplicitThisExpr() =>
-        currentExpressionFactory.makeProgramVariableTerm(th,methodFactory.thisVar)
-      case th@chalice.ExplicitThisExpr() =>
-        currentExpressionFactory.makeProgramVariableTerm(th,methodFactory.thisVar)
-      case chalice.And(lhs,rhs) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.And,TermSequence(
-        translateTerm(lhs),
-        translateTerm(rhs)
-      ))
-      case chalice.Or(lhs,rhs) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.Or,TermSequence(
-        translateTerm(lhs),
-        translateTerm(rhs)
-      ))
-      case chalice.Implies(lhs,rhs) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.Implication,TermSequence(
-        translateTerm(lhs),
-        translateTerm(rhs)
-      ))
-      case chalice.Not(op) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.Not,TermSequence(
-        translateTerm(op)
-      ))
-      case b:chalice.BinaryExpr =>
-        translateBinaryOperationTerm(b,translateClassRef(b.typ).domain)
-      case otherNode =>
-        report(messages.UnknownAstNode(otherNode))
-        dummyTerm(rvalue)
-    }
-  }
-  
-  def translateBinaryOperationTerm(binOp : chalice.BinaryExpr, domain : Domain) = {
-    val nameCandidates = operatorNameCandidates(binOp.OpName)
-
-    domain.functions.find(f => nameCandidates.exists(f.name.equalsIgnoreCase(_)) && f.signature.parameterTypes.length == 2) match {
-      case Some(f) =>
-        val realF = f
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(binOp,realF,
-          TermSequence(translateTerm(binOp.E0),translateTerm(binOp.E1)))
-      case _ =>
-        report(messages.UnknownAstNode(binOp))
-        dummyTerm(binOp)
-    }
   }
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -746,8 +632,8 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   protected def translatePermission(permission : chalice.Permission) : Term = permission match {
     case chalice.Full => currentExpressionFactory.makeFullPermission(permission)
-    case π@chalice.Epsilon if π.permissionType == chalice.PermissionType.Fraction =>
-      makeCurrentMethodCallFraction(π)
+    case k@chalice.Epsilon if k.permissionType == chalice.PermissionType.Fraction =>
+      makeCurrentMethodCallFraction(k)
     case _ =>
       report(messages.UnknownAstNode(permission))
       currentExpressionFactory.makeNoPermission(permission)
@@ -759,7 +645,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
   var wrapFractionInOld : Boolean = false
   var currentMethodCallFractionVariable : Option[ProgramVariable] = None
   def makeCurrentMethodCallFraction(sourceLocation : SourceLocation) : Term = {
-    require(currentMethodCallFractionVariable.isDefined,"No method call site-specific π defined at this location.")
+    require(currentMethodCallFractionVariable.isDefined,"No method call site-specific k defined at this location.")
     val varTerm = currentExpressionFactory.makeProgramVariableTerm(sourceLocation,currentMethodCallFractionVariable.get)
     if(wrapFractionInOld){
       currentExpressionFactory.makeOldTerm(sourceLocation,varTerm)

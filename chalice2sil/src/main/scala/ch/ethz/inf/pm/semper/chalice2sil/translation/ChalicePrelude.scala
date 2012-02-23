@@ -54,7 +54,36 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) {
         factory.makeDQuantifierExpression(loc,Forall()(loc),b,expr(a,b))
       )
     }
+    protected def ∀(aType : DataType,  bType : DataType, cType : DataType,  expr : (BoundVariable,BoundVariable, BoundVariable) => DExpression) : DExpression = {
+      val a = factory.makeBoundVariable(loc,names.nextName,aType)
+      val b = factory.makeBoundVariable(loc,names.nextName,bType)
+      val c = factory.makeBoundVariable(loc,names.nextName,cType)
+      factory.makeDQuantifierExpression(loc,Forall()(loc),a,
+        factory.makeDQuantifierExpression(loc,Forall()(loc),b,
+          factory.makeDQuantifierExpression(loc,Forall()(loc),c,expr(a,b,c))))
+    }
+    protected def ∀(
+                     aType : DataType,  
+                     bType : DataType, 
+                     cType : DataType, 
+                     dType : DataType,  
+                     expr : (BoundVariable,BoundVariable, BoundVariable,BoundVariable) => DExpression) : DExpression = {
+      val a = factory.makeBoundVariable(loc,names.nextName,aType)
+      val b = factory.makeBoundVariable(loc,names.nextName,bType)
+      val c = factory.makeBoundVariable(loc,names.nextName,cType)
+      val d = factory.makeBoundVariable(loc,names.nextName,dType)
+      factory.makeDQuantifierExpression(loc,Forall()(loc),a,
+        factory.makeDQuantifierExpression(loc,Forall()(loc),b,
+          factory.makeDQuantifierExpression(loc,Forall()(loc),c,
+            factory.makeDQuantifierExpression(loc,Forall()(loc),d,expr(a,b,c,d)))))
+    }
     implicit protected def boundVariableAsTerm(v : BoundVariable) : DTerm = factory.makeBoundVariableTerm(loc,v)
+    implicit protected def directlyApplyDomainFunction(df : DomainFunction) = new {
+      def apply(args : DTerm*) = fApp(df,args:_*)
+    }
+    implicit protected def directlyApplyDomainPredicate(dp : DomainPredicate) = new {
+      def apply(args : DTerm*) = pApp(dp,args:_*)
+    }
   } 
   
   object Boolean extends DomainEnvironment("Boolean") {
@@ -136,32 +165,53 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Compile Domain
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    lazy val Domain = factory.compile
+    lazy val Domain = factory.compile()
   }
   
-  object Havoc extends DomainEnvironment("Havoc",Seq((loc,"a"))) with (DataType => HavocInstance) {
-    val typeParameter = factory.typeVariables.head
-    private val instances = new FactoryHashCache[DataType, HavocInstance] {
-      protected def construct(dataType : DataType) = 
-        new HavocInstance(programFactory.makeDomainInstance(factory,DataTypeSequence(dataType)))
+  object Map {
+    object Generic extends DomainEnvironment("Map",Seq((loc,"K"),(loc,"V")))  {
+      val KeyType = programFactory.makeVariableType(loc,factory.typeVariables.find(_.name == "K").get)
+      val ValueType = programFactory.makeVariableType(loc,factory.typeVariables.find(_.name == "V").get)
+      val Type = programFactory.makeNonReferenceDataType(loc,factory,DataTypeSequence(KeyType, ValueType))
+      
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      // Constructors
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      val Empty = factory.defineDomainFunction(loc,"empty",DataTypeSequence(),Type)
+      val Update = factory.defineDomainFunction(loc,"update",DataTypeSequence(Type,KeyType,ValueType),Type)
+      
+
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      // Operations
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      val Get = factory.defineDomainFunction(loc,"get",DataTypeSequence(Type,KeyType),ValueType)
+      // ∀ m : Map[K,V], k1,k2 : K, v : V . (k1 ≠ k2 → Get(Update(m,k1,v),k2) = Get(m,k2)) ∧ ((k1 = k2) → Get(Update(m,k1,v),k2) = v)
+      factory.addDomainAxiom(loc,"get_update",∀(Type,KeyType,KeyType,ValueType,(m,k1,k2,v) =>
+        and(
+          imply(not(equality(k1,k2)), equality(Get(Update(m,k1,v),k2), Get(m,k2))),
+          imply(    equality(k1,k2) , equality(Get(Update(m,k1,v),k2), v))
+        )
+      ))
+
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      // Predicates
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      val Has = factory.defineDomainPredicate(loc,"has",DataTypeSequence(Type,KeyType))
+      // ∀ k : K . ¬Has(Empty(),k)
+      factory.addDomainAxiom(loc,"empty_has_no_entries",∀(KeyType,k => not(Has(Empty(),k))))
+      // ∀ m : Map[K,V], k1,k2 : K, v : V  . Has(Update(m,k1,v),k2) ↔ (k1 = k2 ∨ (k1≠k2 ∧ Has(m,k2))
+      factory.addDomainAxiom(loc,"has_update",∀(Type,KeyType,KeyType,ValueType,(m,k1,k2,v) =>
+        equiv(  Has(Update(m,k1,v),k2), 
+          or( equality(k1,k2), and(not(equality(k1,k2)), Has(m,k2)))
+        )))
     }
     
-    def apply(dataType : DataType) = instances(dataType)
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Havoc[a] : a
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    protected[ChalicePrelude] val functionTemplate = factory.defineDomainFunction(loc,"havoc",DataTypeSequence(),factory.makeVariableType(loc,typeParameter))
-
+    
+    
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Compile Domain
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    lazy val DomainConstructor = {
-      factory.compile()
-    }
-  }  
-  
-  class HavocInstance(domain : Domain) {
-     def Function : DomainFunction = domain.functions.find(_.name == Havoc.functionTemplate.name).get
+    
   }
 }
