@@ -18,7 +18,7 @@ import silAST.domains.{DomainInstance, DomainPredicate, Domain, DomainFunction}
 class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     extends DerivedProgramEnvironment(st)
     with MethodEnvironment
-    with TypeTranslator {
+    with TypeTranslator { thisMethodTranslator =>
   //MethodEnvironment
   val methodFactory = methodFactories(method)
   override lazy val implementationFactory = {
@@ -124,8 +124,8 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
         TermSequence(kTerm,currentExpressionFactory.makeFullPermission(method)))) //  k < fullPermission
     )
 
-    val contractTranslator = new DefaultCodeTranslator[Expression,Term](this) {
-      override protected def readFraction(location : SourceLocation) = currentExpressionFactory.makeProgramVariableTerm(location,k)
+    val contractTranslator = new DefaultCodeTranslator(this){
+      override protected def readFraction(location : SourceLocation) = kTerm
     }
 
     method.spec.foreach(spec => spec match {
@@ -239,7 +239,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
           }
 
           // finally, translate the statements in this Chalice block. Might result in additional SIL blocks being created
-          translateStatements(new DefaultCodeTranslator[Expression, Term](this),chaliceBlock.statements)
+          translateStatements(new MethodCodeTranslator,chaliceBlock.statements)
         })
 
         // Assign the method exit block
@@ -273,8 +273,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       lastBlock.appendAssignment(method,tv,lastBlock.makeProgramVariableTerm(method,sv))
     }
 
-    val guardTranslator = new DefaultCodeTranslator[Expression,Term](this)
-
+    val guardTranslator = new MethodCodeTranslator
     // Finally, implement the Chalice CFG by looping over all Chalice blocks and adding
     //  the translated edges to the `silEndBlock` of each Chalice block.
     for {
@@ -416,7 +415,12 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////      TRANSLATE STATEMENTS                                            /////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  type CodeTranslator = ExpressionTranslator[Expression] with TermTranslator[Term] with PermissionTranslator[Term]
+  class MethodCodeTranslator extends DefaultCodeTranslator(thisMethodTranslator) {
+    override protected def readFraction(location : SourceLocation) =
+      currentExpressionFactory.makeProgramVariableTerm(location, readFractionVariable)
+  }
+
+  type CodeTranslator = ExpressionTranslator with TermTranslator with PermissionTranslator
 
   def translateStatements(codeTranslator : CodeTranslator, stmts : Traversable[chalice.Statement]){
     stmts.foreach(translateStatement(codeTranslator, _))
@@ -437,6 +441,10 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
             variableExpr.v = v
             translateAssignment(codeTranslator,variableExpr,rhs)
         }
+      case a@chalice.Assert(assertion) =>
+        translateAssert(assertion)
+      case a@chalice.Assume(assumption) =>
+        translateAssume(assumption)
       case chalice.Assign(variableExpr,rhs) => translateAssignment(codeTranslator,variableExpr,rhs)
       case chalice.FieldUpdate(location,rhs) =>
         def assignViaVar(rcvrVar : ProgramVariable){
@@ -472,14 +480,13 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     def _2 = rhs
   }
   protected final case class ReadField(location : Term, field : Field) extends ReadCondition
-
   /**
     * Translates a single Chalice statement by appending SIL statements to the current block
     * and/or creates edges to new blocks. The number of blocks on the `blockStack` is expected
     * to remain the same, but the top element might change.
     */
   def translateMethodCall(callNode : chalice.Call) {
-    val codeTranslator = new DefaultCodeTranslator[Expression,Term](this)
+    val codeTranslator = new MethodCodeTranslator
     val chalice.Call(_,destinations,receiver,_,args) = callNode
     val receiverTerm = translatePTerm(codeTranslator,receiver)
     val calleeFactory = methodFactories(callNode.m.asInstanceOf[chalice.Method])
@@ -599,6 +606,16 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       receiverTerm,
       calleeFactory,
       PTermSequence(argTerms : _*))
+  }
+
+  def translateAssert(expr : chalice.Expression) {
+    val translator = new MethodCodeTranslator with AssertionTranslator
+    currentBlock.appendExhale(expr,translator.translateExpression(expr))
+  }
+
+  def translateAssume(expr : chalice.Expression) {
+    val translator = new MethodCodeTranslator with AssertionTranslator
+    currentBlock.appendInhale(expr,translator.translateExpression(expr))
   }
   
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

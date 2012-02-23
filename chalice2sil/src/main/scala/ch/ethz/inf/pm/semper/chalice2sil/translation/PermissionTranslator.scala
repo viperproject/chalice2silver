@@ -8,19 +8,15 @@ import silAST.source.SourceLocation
 /**
   * @author Christian Klauser
   */
-trait PermissionTranslator[T <: Term] extends TermTranslator[T] {
+trait PermissionTranslator extends TermTranslator {
   
   def translatePermission(permission : chalice.Permission) = permissionTranslation(permission)
 
-  protected def matchingPermission(partialFunction : PartialFunction[chalice.Permission, Term]) : PartialFunction[chalice.Permission, T] =
-    partialFunction andThen {
-      case e if ClassManifest.fromClass(e.getClass) <:< termClassManifest =>  e.asInstanceOf[T]
-      case e => throw new InvalidNodeTypeError(e,termClassManifest)
-    }
+  protected def matchingPermission(partialFunction : PartialFunction[chalice.Permission, Term]) = partialFunction
 
   protected def permissionTranslation = matchingPermission {
     case f@chalice.Full => currentExpressionFactory.makeFullPermission(f)
-    case k@chalice.Epsilon if k.permissionType == chalice.PermissionType.Fraction => readFraction(k)
+    case k@chalice.Epsilon => readFraction(k)
     case permission =>
       report(messages.UnknownAstNode(permission))
       currentExpressionFactory.makeNoPermission(permission)

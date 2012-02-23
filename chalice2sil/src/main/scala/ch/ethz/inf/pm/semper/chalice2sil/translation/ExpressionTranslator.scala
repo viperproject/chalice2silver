@@ -17,21 +17,16 @@ import silAST.ASTNode
 /**
   * @author Christian Klauser
   */
-trait ExpressionTranslator[E <: Expression] extends MethodEnvironment {
+trait ExpressionTranslator extends MethodEnvironment {
   protected def translateTerm(exprNode :  chalice.RValue ) : Term
   protected def translateClassRef(classRef : chalice.Class) : DataType
   protected def translatePermission(permission : chalice.Permission) : Term
-  protected def expressionClassManifest : ClassManifest[E]
   
-  protected def matchingExpression(partialFunction : PartialFunction[chalice.Expression, Expression]) : PartialFunction[chalice.Expression, E] =
-    partialFunction andThen {
-      case e if ClassManifest.fromClass(e.getClass) <:< expressionClassManifest =>  e.asInstanceOf[E]
-      case e => throw new InvalidNodeTypeError(e,expressionClassManifest)
-    }
+  protected final def matchingExpression(partialFunction : PartialFunction[chalice.Expression, Expression]) : PartialFunction[chalice.Expression, Expression] = partialFunction
 
-  def translateExpression(e : chalice.Expression) : E = expressionTranslation(e)
+  def translateExpression(e : chalice.Expression) : Expression = expressionTranslation(e)
 
-  protected def expressionTranslation : PartialFunction[chalice.Expression, E] = matchingExpression {
+  protected def expressionTranslation : PartialFunction[chalice.Expression, Expression] = matchingExpression {
       case expression@chalice.And(lhs,rhs) =>
         val lhsT = translateExpression(lhs)
         val rhsT = translateExpression(rhs)

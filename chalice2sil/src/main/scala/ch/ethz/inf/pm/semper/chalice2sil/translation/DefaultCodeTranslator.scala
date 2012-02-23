@@ -6,13 +6,9 @@ import silAST.expressions.Expression
 /**
   * @author Christian Klauser
   */
-class DefaultCodeTranslator[TExpression <: Expression,TTerm <: Term]
-    (methodEnvironment : MethodEnvironment)(implicit
-                                            override val expressionClassManifest : ClassManifest[TExpression],
-                                            override val termClassManifest : ClassManifest[TTerm])
+class DefaultCodeTranslator
+    (methodEnvironment : MethodEnvironment)
   extends DerivedMethodEnvironment(methodEnvironment)
-  with ExpressionTranslator[TExpression]
-  with TermTranslator[TTerm] 
-  with PermissionTranslator[TTerm] {
-
-}
+  with ExpressionTranslator
+  with TermTranslator
+  with PermissionTranslator

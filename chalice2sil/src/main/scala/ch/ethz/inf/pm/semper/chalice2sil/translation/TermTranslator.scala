@@ -14,20 +14,15 @@ import ch.ethz.inf.pm.semper.chalice2sil._
 /**
   * @author Christian Klauser
   */
-trait TermTranslator[T <: Term] extends MethodEnvironment with TypeTranslator {
-  
-  def termClassManifest : ClassManifest[T]
-  def translateTerm(expression : chalice.RValue) : T = termTranslation(expression)
+trait TermTranslator extends MethodEnvironment with TypeTranslator {
 
-  protected def matchingTerm(partialFunction : PartialFunction[chalice.RValue, Term]) : PartialFunction[chalice.RValue, T] =
-    partialFunction andThen {
-      case e if ClassManifest.fromClass(e.getClass) <:< termClassManifest =>  e.asInstanceOf[T]
-      case e => throw new InvalidNodeTypeError(e,termClassManifest)
-    }
+  def translateTerm(expression : chalice.RValue) : Term = termTranslation(expression)
+
+  protected def matchingTerm(partialFunction : PartialFunction[chalice.RValue, Term]) = partialFunction
   
   def dummyTerm(location : SourceLocation) = currentExpressionFactory.makeIntegerLiteralTerm(location,27)
   
-  protected def termTranslation : PartialFunction[chalice.RValue,T] = matchingTerm {
+  protected def termTranslation : PartialFunction[chalice.RValue,Term] = matchingTerm {
      //RValue is (expression ∪ new-obj)
       //NewRhs  is used for both object creation and channel creation (where lower and upper bounds come into play)
       case rvalue@chalice.NewRhs(typeId,init,lowerBound,upperBound) =>
