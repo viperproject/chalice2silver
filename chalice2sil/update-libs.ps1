@@ -1,4 +1,4 @@
-param([Switch] $SkipCompile, [Switch] $SkipClean, [Switch] $SkipPackage, [String] $ScalaVersion = "2.9.1")
+param([Switch] $SkipCompile, [Switch] $SkipClean, [Switch] $SkipPackage, [String] $ScalaVersion = "2.9.1", [Switch] $SkipChalice)
 
 function Get-PWD # for some reason, this *must* be wrapped in a function, can't get it to work in the script itself.
 {
@@ -47,31 +47,57 @@ function Provide-Lib($root,$jar) {
     $lib = Get-Item $jar;
     $idx = $lib.BaseName.IndexOf("_");
     $lib_name = $lib.BaseName.Substring(0,$idx);
+    Write-Output "Copying $lib_name.jar to $((Get-Item $root).Name)/lib"
     Copy-Item $lib (Join-Path $lib_dir "$lib_name.jar");
 }
 
 $sbt = Join-Path $chalice2sil_root "sbt.ps1";
 
-Push-Location $chalice_root
-    Write-Output "================== COMPILING CHALICE =============================="
-    & $sbt "set scalaVersion := \`"$ScalaVersion\`"" $cleanCmd $compileCmd $packageCmd #scala version needs to be escaped twice
-    Write-Output "================== DONE COMPILING CHALICE ========================="
-Pop-Location
+if($SkipChalice){
+    $chalice_exit = 0;
+} else {
+    Push-Location $chalice_root
+        Write-Output "================== COMPILING CHALICE =============================="
+        & $sbt "set scalaVersion := \`"$ScalaVersion\`"" $cleanCmd $compileCmd $packageCmd #scala version needs to be escaped twice
+        $chalice_exit = $LASTEXITCODE;
+        Write-Output "================== DONE COMPILING CHALICE ========================="
+    Pop-Location
+}
 
 Push-Location $silast_root
     Write-Output "================== COMPILING SILAST ==============================="
     & $sbt $cleanCmd $compileCmd $packageCmd
+    $silast_exit = $LASTEXITCODE;
     Write-Output "================== DONE COMPILING SILAST =========================="
 Pop-Location
 
-Provide-Lib  $silicon_root $silast_jar;
+if($silast_exit -eq 0){
+    Provide-Lib  $silicon_root $silast_jar;
 
-Push-Location $silicon_root
-    Write-Output "================== COMPILING SILICON =============================="
-    & $sbt $cleanCmd $compileCmd $packageCmd
-    Write-Output "================== DONE COMPILING SILICON ========================="
-Pop-Location
+    Push-Location $silicon_root
+        Write-Output "================== COMPILING SILICON =============================="
+        & $sbt $cleanCmd $compileCmd $packageCmd
+        $silicon_exit = $LASTEXITCODE;
+        Write-Output "================== DONE COMPILING SILICON ========================="
+    Pop-Location
+} else {
+    $silicon_exit = -77;
+}
 
-Provide-Lib $chalice2sil_root $chalice_jar;
-Provide-Lib $chalice2sil_root $silast_jar;
-Provide-Lib $chalice2sil_root $silicon_jar;
+if($chalice_exit -eq 0){
+    Provide-Lib $chalice2sil_root $chalice_jar;
+}
+
+if($silast_exit -eq 0){
+    Provide-Lib $chalice2sil_root $silast_jar;
+}
+
+if($silicon_exit -eq 0){
+    Provide-Lib $chalice2sil_root $silicon_jar;
+}
+
+if(($chalice_exit -eq 0) -and ($silast_exit -eq 0) -and ($silicon_exit -eq 0)){
+    Write-Output "[success] Libraries successfully updated."
+} else {
+    Write-Output "[error] One or more libraries could not be updated."
+}
