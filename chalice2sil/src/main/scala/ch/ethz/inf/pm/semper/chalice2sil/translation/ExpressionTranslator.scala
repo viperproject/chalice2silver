@@ -18,14 +18,10 @@ import silAST.ASTNode
   * @author Christian Klauser
   */
 trait ExpressionTranslator[E <: Expression] extends MethodEnvironment {
-
-  protected def currentExpressionFactory : ExpressionFactory
-  protected def translateTerm(exprNode :  chalice.Expression ) : Term
+  protected def translateTerm(exprNode :  chalice.RValue ) : Term
   protected def translateClassRef(classRef : chalice.Class) : DataType
   protected def translatePermission(permission : chalice.Permission) : Term
   protected def expressionClassManifest : ClassManifest[E]
-
-
   
   protected def matchingExpression(partialFunction : PartialFunction[chalice.Expression, Expression]) : PartialFunction[chalice.Expression, E] =
     partialFunction andThen {
@@ -33,7 +29,7 @@ trait ExpressionTranslator[E <: Expression] extends MethodEnvironment {
       case e => throw new InvalidNodeTypeError(e,expressionClassManifest)
     }
 
-  def translateExpression(e : chalice.Expression) = expressionTranslation(e)
+  def translateExpression(e : chalice.Expression) : E = expressionTranslation(e)
 
   protected def expressionTranslation : PartialFunction[chalice.Expression, E] = matchingExpression {
       case expression@chalice.And(lhs,rhs) =>
@@ -88,5 +84,3 @@ trait ExpressionTranslator[E <: Expression] extends MethodEnvironment {
   }
 }
 
-class InvalidNodeTypeError(node : ASTNode,classManifest : ClassManifest[_]) extends Error(
-  "Chalice2SIL tried to supply a node of type %s (%s) where a node of type %s is expected.".format(node.getClass,node,classManifest))

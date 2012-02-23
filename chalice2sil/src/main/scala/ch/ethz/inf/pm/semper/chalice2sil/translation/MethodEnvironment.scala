@@ -3,6 +3,7 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
 import silAST.programs.symbols.ProgramVariable
 import silAST.methods.MethodFactory
 import silAST.methods.implementations.{ImplementationFactory, BasicBlockFactory}
+import silAST.expressions.ExpressionFactory
 
 /**
  * Author: Christian Klauser
@@ -12,9 +13,11 @@ import silAST.methods.implementations.{ImplementationFactory, BasicBlockFactory}
 trait MethodEnvironment extends ProgramEnvironment {
   def implementationFactory : ImplementationFactory
   def programVariables : DerivedFactoryCache[ssa.Version,String, ProgramVariable]
+  def localVariableVersion(variable : chalice.Variable) : ProgramVariable
   def basicBlocks : FactoryCache[String,  BasicBlockFactory] with AdjustableCache[BasicBlockFactory]
   def temporaries : TemporaryVariableBroker
   def thisVariable : ProgramVariable
+  def currentExpressionFactory : ExpressionFactory
  
   //Optional
   protected val nameSequence = NameSequence()

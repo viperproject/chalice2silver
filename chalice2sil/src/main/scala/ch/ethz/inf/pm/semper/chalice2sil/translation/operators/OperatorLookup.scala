@@ -32,8 +32,8 @@ class OperatorLookup[TOp <: {def signature : {def parameterTypes : DataTypeSeque
     })
       .filter(_.isDefined)
       .map(_.get)
-      .toList
-    Lookup.fromList(finalCandidatesView)
+      .toSet
+    Lookup.fromList(finalCandidatesView.toList)
   }
 }
 

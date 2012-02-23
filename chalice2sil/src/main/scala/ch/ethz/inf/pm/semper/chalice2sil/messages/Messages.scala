@@ -51,6 +51,13 @@ object PermissionNotUnderstood extends MessageId(
   }
 }
 
+object NoContextForReadPermission extends MessageId(
+Fault,"ch.ethz.inf.pm.semper.chalice2sil.noContextForReadPermission","Unknown interpretation for read permission at %s.") {
+ def apply(location : SourceLocation) = new Message(this,location) {
+   def data = Array(location)
+ }
+}
+
 object OperatorNotFound extends MessageId(Error,
 "ch.ethz.inf.pm.semper.chalice2sil.operatorNotFound",
 "Cannot find operator \"%s\" implementing (%s,%s) => %s."){

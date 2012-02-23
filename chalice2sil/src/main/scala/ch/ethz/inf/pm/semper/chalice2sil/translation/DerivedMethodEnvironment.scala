@@ -23,4 +23,8 @@ class DerivedMethodEnvironment(methodEnvironment : MethodEnvironment)
   override def temporaries = parentEnvironment.temporaries
 
   override def thisVariable = parentEnvironment.thisVariable
+
+  override def currentExpressionFactory = parentEnvironment.currentExpressionFactory
+  
+  override def localVariableVersion(v : chalice.Variable) = parentEnvironment.localVariableVersion(v)
 }
