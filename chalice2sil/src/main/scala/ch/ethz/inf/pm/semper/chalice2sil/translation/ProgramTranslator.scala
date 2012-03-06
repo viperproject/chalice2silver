@@ -11,6 +11,7 @@ import silAST.expressions.util.DTermSequence
 import silAST.symbols.logical.Not
 import silAST.programs.symbols.{FunctionFactory, PredicateFactory, Predicate, Field}
 import silAST.types.{DataType, DataTypeSequence, NonReferenceDataType, referenceType}
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Author: Christian Klauser
@@ -18,7 +19,7 @@ import silAST.types.{DataType, DataTypeSequence, NonReferenceDataType, reference
 
 class ProgramTranslator(val programOptions : ProgramOptions, val programName : String, val programLocation : SourceLocation)
     extends ProgramEnvironment
-    with TypeTranslator {
+    with TypeTranslator { programTranslator =>
   /**
    * The SilTranslator will call this function whenever a new message is generated.
    */
@@ -28,12 +29,14 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
   val methodFactories = new FactoryHashCache[chalice.Method,MethodFactory]{
     def construct(m : chalice.Method) = programFactory.getMethodFactory(m,fullMethodName(m))
   }
-  
-  val fields = new FactoryHashCache[chalice.Field, Field]{
+
+  val fields = new DerivedFactoryCache[chalice.Field, String,  FieldTranslator]{
+    val count = new AtomicInteger(0)
     def construct(field : chalice.Field) = {
-      val fieldName : String = fullFieldName(field)
-      programFactory.defineField(field, fieldName,translateTypeExpr(field.typ))
-    }    
+      new FieldTranslator(field,count.incrementAndGet(),programTranslator)
+    }
+
+    protected def deriveKey(p : chalice.Field) = fullFieldName(p)
   }
 
   val predicates = new DerivedFactoryCache[chalice.Predicate, String, PredicateFactory] {
@@ -79,7 +82,7 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
     classNode.members.foreach({
       case m:chalice.Method  =>
         val translator = new MethodTranslator(this,m)
-        translator.translate
+        translator.translate()
       case f:chalice.Field => // nothing to do for fields at this time
       case otherNode => report(messages.UnknownAstNode(otherNode))
     })

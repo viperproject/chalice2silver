@@ -14,7 +14,7 @@ import silAST.symbols.logical._
 import ssa._
 import silAST.methods.MethodFactory
 import silAST.domains.{DomainInstance, DomainPredicate, Domain, DomainFunction}
-import support.{TemporaryVariableHost, TemporaryVariableBroker}
+import support.{ExpressionTransplantation, TemporaryVariableHost, TemporaryVariableBroker}
 
 class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     extends DerivedProgramEnvironment(st)
@@ -490,7 +490,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     def _1 = lhs
     def _2 = rhs
   }
-  protected final case class ReadField(location : Term, field : Field) extends ReadCondition
+  protected final case class ReadField(reference : Term, field : FieldTranslator) extends ReadCondition
   /**
     * Translates a single Chalice statement by appending SIL statements to the current block
     * and/or creates edges to new blocks. The number of blocks on the `blockStack` is expected
@@ -506,58 +506,43 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     val readFractionVar = implementationFactory.addLocalVariable(callNode, getNextName("k_" + calleeFactory.name), permissionType)
     programVariables.addExternal(readFractionVar)
     val readFractionTerm = currentBlock.makeProgramVariableTerm(callNode, readFractionVar)
+    // `inhale 0 < k`
+    currentBlock.appendInhale(callNode,implementationFactory.makeDomainPredicateExpression(callNode,
+      integerLT,TermSequence(implementationFactory.makeIntegerLiteralTerm(callNode,0),readFractionTerm)))
+    
+    // Permission maps
+    // `var m_0 : Map[(ref,int),Permission]`
+    val originalPermMapVar = temporaries.acquire(prelude.Map.PermissionMap.dataType)
+    val originalPermMapTerm = implementationFactory.makeProgramVariableTerm(callNode,originalPermMapVar)
+    // `var m : Map[(ref,int),Permission]`
+    val permMapVar = temporaries.acquire(prelude.Map.PermissionMap.dataType)
+    val permMapTerm = implementationFactory.makeProgramVariableTerm(callNode,permMapVar)
+    // `inhale m = m_0`
+    currentBlock.appendInhale(callNode,implementationFactory.makeEqualityExpression(callNode,
+      permMapTerm,originalPermMapTerm
+    ))
 
     // Translate arguments and create mapping from parameter variables to these terms
     val argTerms = args.map(translatePTerm(codeTranslator,_)) ++ List(readFractionTerm)
-    val argMapping = calleeFactory.parameters.zip(argTerms).map(x => x._1 -> x._2).toMap
+    def callSubstitution = new ExpressionTransplantation(this) {
+      val argMapping = calleeFactory.parameters.zip(argTerms).map(x => x._1 -> x._2).toMap
+      def translateProgramVariable(variable : ProgramVariable) = argMapping(variable)
+    }
     def transplantExpression(e : Expression) : Expression = {
-      null // TODO: use Uri's Substitution mechanism
+      callSubstitution.transplant(e)
     }
     def transplantTerm(t : Term) : Term = {
-      null //TODO: use Uri's Substitution mechanism
+      callSubstitution.transplant(t)
     }
 
     // Generate assumptions and conditions on fraction
-    def genCond(expr : Expression) : Option[Expression] = expr match {
-      case PermissionExpression(_,_,FullPermissionTerm()) => None
-      case PermissionExpression(_,_,NoPermissionTerm()) => None
-      case p@PermissionExpression(reference,field,pTerm) => pTerm match {
-        case ProgramVariableTerm(varRef) if varRef == calleeFactory.parameters.last =>
-          // translate
-          //    acc(reference,field,k)
-          // into
-          //    k `permissionLT` perm(reference,field)
-          Some(currentBlock.makeDomainPredicateExpression(callNode,permissionLT,TermSequence(
-            readFractionTerm,
-            currentBlock.makePermTerm(callNode,transplantTerm(reference),field)
-          )))
-        case _ =>
-          report(messages.PermissionNotUnderstood(callNode,pTerm))
-          None
-      }
-      case BinaryExpression(Implication(),lhs,rhs) =>
-        //use lhs as-is in implications
-        genCond(rhs).map(currentBlock.makeBinaryExpression(callNode,Implication()(callNode),transplantExpression(lhs),_))
-      case BinaryExpression(op,lhs,rhs) =>
-        //omit non-permission related nodes
-        List(lhs,rhs).map(genCond _).collect({case Some(x) => x}) match {
-          case List(lhsCond,rhsCond) => Some(currentBlock.makeBinaryExpression(callNode,op,lhsCond,rhsCond))
-          case List(cond) => Some(cond)
-          case _ => None
-        }
-      case _:AtomicExpression => None
-      case _ =>
-        report(messages.PermissionNotUnderstood(callNode,expr))
-        None
-    }
-
     def genReadCond(expr : Expression) : List[ReadCondition] = expr match {
       case PermissionExpression(_,_,FullPermissionTerm()) => Nil
       case PermissionExpression(_,_,NoPermissionTerm()) => Nil
       case p@PermissionExpression(reference,field,pTerm) => pTerm match {
         case ProgramVariableTerm(varRef) if varRef == calleeFactory.parameters.last =>
 
-          List(ReadField(transplantTerm(reference),field))
+          List(ReadField(transplantTerm(reference),fields.lookup(field.name)))
         case _ =>
           report(messages.PermissionNotUnderstood(callNode,pTerm))
           Nil
@@ -586,14 +571,32 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
 
     def appendCond(rs : List[ReadCondition]){
       rs foreach { 
-        case ReadField(location,field) =>
-          val currentPermission = currentBlock.makePermTerm(callNode,location,field)
-          currentBlock.appendInhale(callNode,
-            currentBlock.makeDomainPredicateExpression(
-              callNode,
-              permissionLT,
-              TermSequence(readFractionTerm,currentPermission))
-          )
+        case ReadField(reference,field) =>
+          val currentActualPermission = currentBlock.makePermTerm(callNode,reference,field)
+          val location = field.locationLiteral(implementationFactory, reference.asInstanceOf[PTerm])
+          
+          // `inhale  get(m_0,(ref,field)) = perm(ref,field)` where (ref,field) = location
+          currentBlock.appendInhale(callNode,implementationFactory.makeEqualityExpression(callNode,
+            implementationFactory.makeDomainFunctionApplicationTerm(callNode,
+              prelude.Map.PermissionMap.get,TermSequence(originalPermMapTerm,location)),
+            // ==
+            currentActualPermission))
+          
+          // `exhale 0 < get(m,(ref,field))`
+          val currentVirtualPermission = implementationFactory.makePDomainFunctionApplicationTerm(callNode,
+            prelude.Map.PermissionMap.get,PTermSequence(permMapTerm,location))
+          currentBlock.appendExhale(callNode,implementationFactory.makeDomainPredicateExpression(callNode,
+            integerLT,TermSequence(implementationFactory.makeIntegerLiteralTerm(callNode,0),currentVirtualPermission)))
+          
+          // `inhale k < get(m,(ref,field))`
+          currentBlock.appendInhale(callNode,implementationFactory.makeDomainPredicateExpression(callNode,
+            integerLT,TermSequence(readFractionTerm,currentVirtualPermission)))
+          
+          // `m := set(m,(ref,field),get(m,(ref,field)) - k)`
+          val nextVirtualPermission = implementationFactory.makePDomainFunctionApplicationTerm(callNode,
+            permissionSubtraction,PTermSequence(currentVirtualPermission,readFractionTerm))
+          currentBlock.appendAssignment(callNode,permMapVar,implementationFactory.makePDomainFunctionApplicationTerm(callNode,
+            prelude.Map.PermissionMap.update,PTermSequence(permMapTerm,location,nextVirtualPermission)))
         case _ =>
       }
       
@@ -680,9 +683,8 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     val thenLocation = thnLoc.getOrElse(noLocation)
     val elseLocation = elsLoc.getOrElse(noLocation)
 
-    //Create block for then-branch and the successor block. (else is only created when necessary)
+    //Create block for then-branch. (else is only created when necessary)
     val thenBlock = basicBlocks(getNextName("if_then"))
-    val nextBlock = basicBlocks(getNextName("if_continue"))
 
     //Compile then-branch
     //  first, connect to current block via condition
@@ -690,8 +692,10 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     currentBlock.addSuccessor(thenLocation,thenBlock,condExpr,false)
     //  then, compile body of then-branch
     val (thenResult,endThenBlock) = into(thenBlock,thn())
-    //  finally, connect then-block to successor with no condition (True)
-    endThenBlock.addSuccessor(thenLocation,nextBlock,TrueExpression()(thenLocation),false)
+
+    // IMPORTANT: do not create the nextBlock until both branches are compiled
+    //  otherwise, temporary variables declared in else might not be in scope!
+    lazy val nextBlock = basicBlocks(getNextName("if_continue"))
 
     //Handle else-block if there is one. "elseSuccessor" is the block the control should be transferred to
     //  when the condition is false. This is either the actual successor block or the else-branch
@@ -706,6 +710,9 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
         (Some(result),elseBlock)
       case None => (None,nextBlock)
     }
+
+    //  finally, connect then-block to successor with no condition (True)
+    endThenBlock.addSuccessor(thenLocation,nextBlock,TrueExpression()(thenLocation),false)
 
     //Create control transfer in case the condition does not hold ↔ ¬condition holds
     currentBlock.addSuccessor(noLocation,elseSuccessor,currentBlock.makeUnaryExpression(
