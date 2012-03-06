@@ -52,8 +52,8 @@ trait ExpressionTranslator extends MethodEnvironment {
           case Failure() =>
             //Fall back to translating a boolean term and use Boolean.Eval
             val term = translateTerm(binary)
-            if(term.dataType.isCompatible(prelude.Boolean.Type)) {
-              currentExpressionFactory.makeDomainPredicateExpression(binary,prelude.Boolean.Evaluate,TermSequence(term))
+            if(term.dataType.isCompatible(prelude.Boolean.dataType)) {
+              currentExpressionFactory.makeDomainPredicateExpression(binary,prelude.Boolean.eval,TermSequence(term))
             } else {
               report(messages.TermInExpressionPosition(binary,term.dataType))
               dummyExpr(currentExpressionFactory,binary)
@@ -66,7 +66,7 @@ trait ExpressionTranslator extends MethodEnvironment {
         dummyExpr(currentExpressionFactory,ma)
       case boolExpr if boolExpr.typ == chalice.BoolClass =>
         val boolTerm = translateTerm(boolExpr)
-        currentExpressionFactory.makeDomainPredicateExpression(boolExpr,prelude.Boolean.Evaluate,TermSequence(boolTerm))
+        currentExpressionFactory.makeDomainPredicateExpression(boolExpr,prelude.Boolean.eval,TermSequence(boolTerm))
 
   } orElse missingTranslation
 

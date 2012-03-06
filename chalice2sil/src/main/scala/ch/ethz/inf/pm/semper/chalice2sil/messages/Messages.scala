@@ -33,6 +33,15 @@ object UnknownAstNode extends MessageId(
   }
 }
 
+object ContractNotUnderstood extends MessageId(
+  Fault,
+"ch.ethz.inf.pm.semper.chalice2sil.contractNotUnderstood",
+"Chalice2SIL does not understand the contract expression %s.") {
+  def apply(node : silAST.ASTNode) = new Message(this,node.sourceLocation) {
+    def data = Array(node)
+  }
+}
+
 object TypeNotUnderstood extends MessageId(
   Fault,
 "ch.ethz.inf.pm.semper.chalice2sil.typeNotUnderstood",

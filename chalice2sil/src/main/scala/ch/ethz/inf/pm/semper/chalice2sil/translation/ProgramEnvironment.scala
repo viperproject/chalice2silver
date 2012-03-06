@@ -5,6 +5,7 @@ import silAST.programs.ProgramFactory
 import silAST.methods.MethodFactory
 import silAST.domains.{Domain, DomainPredicate, DomainFunction}
 import silAST.types.{DataType, referenceDomain, permissionDomain, integerDomain}
+import silAST.programs.symbols.{FunctionFactory, PredicateFactory}
 
 /**
  * Author: Christian Klauser
@@ -15,9 +16,11 @@ trait ProgramEnvironment extends Environment {
   def programFactory : ProgramFactory
   def methodFactories : FactoryCache[chalice.Method,MethodFactory]
   def fields : FactoryCache[chalice.Field, silAST.programs.symbols.Field]
+  def predicates : DerivedFactoryCache[chalice.Predicate, String, PredicateFactory]
+  def functions : DerivedFactoryCache[chalice.Function,  String,  FunctionFactory]
   def prelude : ChalicePrelude
 
-  lazy val domains = List(integerDomain,permissionDomain,referenceDomain,prelude.Boolean.Domain)
+  lazy val domains = List(integerDomain,permissionDomain,referenceDomain,prelude.Boolean.domain)
   lazy val domainFunctionLookup = new operators.OperatorLookup[DomainFunction]() {
     def lookup(domains : TraversableOnce[Domain]) : (String, Seq[Option[DataType]]) => Lookup[DomainFunction] =
       lookup(domains.flatMap(d => d.functions)) _

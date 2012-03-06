@@ -4,13 +4,13 @@ import collection.mutable.{ArrayBuffer, Buffer, LinkedHashSet, SynchronizedSet}
 import silAST.methods.MethodFactory
 import ch.ethz.inf.pm.semper.chalice2sil
 import chalice2sil._
-import silAST.programs.symbols.Field
 import silAST.programs.Program
 import silAST.source.{noLocation, SourceLocation}
 import java.lang.String
-import silAST.types.{DataTypeSequence, NonReferenceDataType, referenceType}
 import silAST.expressions.util.DTermSequence
 import silAST.symbols.logical.Not
+import silAST.programs.symbols.{FunctionFactory, PredicateFactory, Predicate, Field}
+import silAST.types.{DataType, DataTypeSequence, NonReferenceDataType, referenceType}
 
 /**
  * Author: Christian Klauser
@@ -34,6 +34,22 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
       val fieldName : String = fullFieldName(field)
       programFactory.defineField(field, fieldName,translateTypeExpr(field.typ))
     }    
+  }
+
+  val predicates = new DerivedFactoryCache[chalice.Predicate, String, PredicateFactory] {
+    protected def deriveKey(p : chalice.Predicate) = fullPredicateName(p)
+
+    protected def construct(p : chalice.Predicate) = programFactory.getPredicateFactory(p,fullPredicateName(p))
+  }
+  
+  val functions = new DerivedFactoryCache[chalice.Function,  String,  FunctionFactory] {
+    protected def deriveKey(f : chalice.Function) = fullFunctionName(f)
+
+    protected def construct(f : chalice.Function) = {
+      val params = f.ins.map[(SourceLocation,String, DataType),Seq[(SourceLocation,String, DataType)]](
+        v => (v,v.id,translateTypeExpr(v.t)))
+      programFactory.getFunctionFactory(f,fullFunctionName(f),params,translateTypeExpr(f.out))
+    }
   }
 
   val prelude = new ChalicePrelude(this)

@@ -4,6 +4,7 @@ import silAST.programs.symbols.ProgramVariable
 import silAST.methods.MethodFactory
 import silAST.methods.implementations.{ImplementationFactory, BasicBlockFactory}
 import silAST.expressions.ExpressionFactory
+import support.TemporaryVariableBroker
 
 /**
  * Author: Christian Klauser
@@ -18,9 +19,9 @@ trait MethodEnvironment extends ProgramEnvironment {
   def temporaries : TemporaryVariableBroker
   def thisVariable : ProgramVariable
   def currentExpressionFactory : ExpressionFactory
+  def nameSequence : NameSequence
  
   //Optional
-  protected val nameSequence = NameSequence()
   def getNextName(prefix : String = "") = prefix match {
     case "" => nameSequence.nextName
     case p  => p + "_" + nameSequence.nextName

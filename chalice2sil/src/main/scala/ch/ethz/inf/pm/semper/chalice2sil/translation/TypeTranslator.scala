@@ -26,7 +26,7 @@ trait TypeTranslator extends ProgramEnvironment {
   
   private val tryTranslateClass : PartialFunction[chalice.Class, DataType] = {
     case c if c == chalice.IntClass => integerType
-    case c if c == chalice.BoolClass => prelude.Boolean.Type
+    case c if c == chalice.BoolClass => prelude.Boolean.dataType
     case x if x.IsPermission => permissionType
     case x if x.IsNormalClass => referenceType
   }

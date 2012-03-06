@@ -19,4 +19,8 @@ class DerivedProgramEnvironment(programEnvironment: ProgramEnvironment) extends 
   def onNewMessage = programEnvironment.onNewMessage
 
   def pastMessages = programEnvironment.pastMessages
+
+  def predicates = programEnvironment.predicates
+
+  def functions = programEnvironment.functions
 }

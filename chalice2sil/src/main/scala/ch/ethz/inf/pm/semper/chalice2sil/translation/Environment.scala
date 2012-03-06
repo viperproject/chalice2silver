@@ -33,5 +33,18 @@ trait Environment {
    */
   def fullFieldName(f : chalice.Field) = f.Parent.id + "::" + f.id
 
+  /**
+    * Returns the globally unique name of a predicate.
+    * @param p The predicate to provide a name for
+    * @return a globally unique name for p.
+    */
+  def fullPredicateName(p : chalice.Predicate) = p.Parent.id + "::" + p.Id
+
+  /**
+    * Returns the globally unique name of a function.
+    * @param f the function to provide a name for
+    * @return a globally unique name for f
+    */
+  def fullFunctionName(f : chalice.Function) = f.Parent.id + "::" + f.Id
 
 }

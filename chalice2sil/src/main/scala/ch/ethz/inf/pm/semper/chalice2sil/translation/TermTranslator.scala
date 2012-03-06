@@ -32,9 +32,9 @@ trait TermTranslator extends MethodEnvironment with TypeTranslator {
       case rvalue@chalice.IntLiteral(i) =>
         currentExpressionFactory.makeIntegerLiteralTerm(rvalue, i)
       case rvalue@chalice.BoolLiteral(true) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.TrueLiteral,TermSequence())
+        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.trueLiteral,TermSequence())
       case rvalue@chalice.BoolLiteral(false) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.FalseLiteral,TermSequence())
+        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.falseLiteral,TermSequence())
       case variableExpr:chalice.VariableExpr =>
         currentExpressionFactory.makeProgramVariableTerm(variableExpr,(localVariableVersion(variableExpr.v)))
       case rvalue@chalice.Old(e) => currentExpressionFactory.makeOldTerm(rvalue,translateTerm(e))
@@ -46,22 +46,22 @@ trait TermTranslator extends MethodEnvironment with TypeTranslator {
       case th@chalice.ExplicitThisExpr() =>
         currentExpressionFactory.makeProgramVariableTerm(th,thisVariable)
       case rvalue@chalice.And(lhs,rhs) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.And,TermSequence(
+        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.logicalAnd,TermSequence(
           translateTerm(lhs),
           translateTerm(rhs)
         ))
       case rvalue@chalice.Or(lhs,rhs) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.Or,TermSequence(
+        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.logicalOr,TermSequence(
           translateTerm(lhs),
           translateTerm(rhs)
         ))
       case rvalue@chalice.Implies(lhs,rhs) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.Implication,TermSequence(
+        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.implication,TermSequence(
           translateTerm(lhs),
           translateTerm(rhs)
         ))
       case rvalue@chalice.Not(op) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.Not,TermSequence(
+        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.not,TermSequence(
           translateTerm(op)
         ))
       case binary:chalice.BinaryExpr => translateBinaryExpression(binary)

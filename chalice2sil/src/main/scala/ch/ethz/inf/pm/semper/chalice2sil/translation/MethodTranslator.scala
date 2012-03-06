@@ -14,16 +14,20 @@ import silAST.symbols.logical._
 import ssa._
 import silAST.methods.MethodFactory
 import silAST.domains.{DomainInstance, DomainPredicate, Domain, DomainFunction}
+import support.{TemporaryVariableHost, TemporaryVariableBroker}
 
 class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     extends DerivedProgramEnvironment(st)
     with MethodEnvironment
+    with TemporaryVariableHost
     with TypeTranslator { thisMethodTranslator =>
   //MethodEnvironment
   val methodFactory = methodFactories(method)
   override lazy val implementationFactory = {
     methodFactory.addImplementation(method.body.map(astNodeToSourceLocation).headOption.getOrElse(method))
   }
+
+  def nameSequence = NameSequence()
 
   override val programVariables = new DerivedFactoryCache[ssa.Version,String, ProgramVariable] with AdjustableCache[ProgramVariable] {
     override protected def deriveKey(p : ssa.Version) = p.uniqueName
@@ -77,10 +81,17 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
         block.addProgramVariableToScope(programVariables(v))
       }
     }
+    chaliceBlock.temporariesInScope foreach  { v =>
+      block.addProgramVariableToScope(v)
+    }
   }
 
   override val temporaries = new TemporaryVariableBroker(this)
-  
+
+  def bringTemporaryVariableIntoScope(v : ProgramVariable) {
+    currentChaliceBlock.temporariesInScope += v
+  }
+
   val blockStack = new Stack[BasicBlockFactory]
   def currentBlock = {
     require(!blockStack.isEmpty,"Attempted to access \"current block\" outside of method body.")

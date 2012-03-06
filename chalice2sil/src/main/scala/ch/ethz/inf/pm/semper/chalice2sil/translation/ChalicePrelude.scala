@@ -7,16 +7,16 @@ import silAST.expressions.util.DTermSequence
 import silAST.symbols.logical.Not
 import silAST.expressions.terms.DTerm
 import silAST.expressions.DExpression
-import silAST.types.{DataType, DataTypeSequence}
 import silAST.symbols.logical.quantification.{BoundVariable, Forall}
 import silAST.source.{SourceLocation, noLocation}
 import silAST.domains.{Domain, DomainPredicate, DomainFunction}
+import silAST.types._
 
 /**
  * Author: Christian Klauser
  */
 
-class ChalicePrelude(programEnvironment : ProgramEnvironment) {
+class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
   private val names = NameSequence()
   
   
@@ -91,127 +91,185 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Core
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val Type = programFactory.makeNonReferenceDataType(loc,factory,programFactory.emptyDTSequence)
-    val TrueLiteral = factory.defineDomainFunction(loc,"True",programFactory.emptyDTSequence,Type)
-    val FalseLiteral = factory.defineDomainFunction(loc,"False",programFactory.emptyDTSequence,Type)
+    val dataType = programFactory.makeNonReferenceDataType(loc,factory,programFactory.emptyDTSequence)
+    val trueLiteral = factory.defineDomainFunction(loc,"true",programFactory.emptyDTSequence,dataType)
+    val falseLiteral = factory.defineDomainFunction(loc,"false",programFactory.emptyDTSequence,dataType)
 
     factory.addDomainAxiom(loc,"trueAndFalseNotEqual",
         not(equality(
-          fApp(TrueLiteral),
-          fApp(FalseLiteral)))
+          fApp(trueLiteral),
+          fApp(falseLiteral)))
     )
     
-    factory.addDomainAxiom(loc,"onlyTrueAndFalse",∀(Type,x =>
+    factory.addDomainAxiom(loc,"onlyTrueAndFalse",∀(dataType,x =>
       or(
-        equality(x,fApp(TrueLiteral)),
-        equality(x,fApp(FalseLiteral)))
+        equality(x,fApp(trueLiteral)),
+        equality(x,fApp(falseLiteral)))
     ))
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Evaluate
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val Evaluate = factory.defineDomainPredicate(loc,"Eval",DataTypeSequence(Type))
+    val eval = factory.defineDomainPredicate(loc,"eval",DataTypeSequence(dataType))
 
     factory.addDomainAxiom(loc,"evaluateBooleanTrue",factory.makeDDomainPredicateExpression(
-      loc,Evaluate,DTermSequence(fApp(TrueLiteral))
+      loc,eval,DTermSequence(fApp(trueLiteral))
     ))
     factory.addDomainAxiom(loc,"evaluateBooleanFalse",factory.makeDUnaryExpression(loc,silAST.symbols.logical.Not()(loc),
-      pApp (Evaluate,fApp(FalseLiteral))
+      pApp (eval,fApp(falseLiteral))
     ))
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Unary Not
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val Not = factory.defineDomainFunction(loc,"¬",DataTypeSequence(Type),Type)
-    factory.addDomainAxiom(loc,"notTrueIsFalse",equality(fApp(Not,fApp(TrueLiteral)),fApp(FalseLiteral)))
-    factory.addDomainAxiom(loc,"notFalseIsTrue",equality(fApp(Not,fApp(FalseLiteral)),fApp(TrueLiteral)))
+    val not = factory.defineDomainFunction(loc,"¬",DataTypeSequence(dataType),dataType)
+    factory.addDomainAxiom(loc,"notTrueIsFalse",equality(fApp(not,fApp(trueLiteral)),fApp(falseLiteral)))
+    factory.addDomainAxiom(loc,"notFalseIsTrue",equality(fApp(not,fApp(falseLiteral)),fApp(trueLiteral)))
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Binary And
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val And = factory.defineDomainFunction(loc,"∧",DataTypeSequence(Type,Type),Type)
+    val logicalAnd = factory.defineDomainFunction(loc,"∧",DataTypeSequence(dataType,dataType),dataType)
     // ∀ a,b : Boolean . Evaluate(And(a,b)) ↔ Evaluate(a) ∧ Evaluate(b)
-    factory.addDomainAxiom(loc,"and",∀(Type,Type,(a,b) =>
-      equiv(pApp(Evaluate,fApp(And,a,b)),and(pApp(Evaluate,a),pApp(Evaluate,b)))
+    factory.addDomainAxiom(loc,"and",∀(dataType,dataType,(a,b) =>
+      equiv(pApp(eval,fApp(logicalAnd,a,b)),and(pApp(eval,a),pApp(eval,b)))
     ))
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Binary Or
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val Or = factory.defineDomainFunction(loc,"∨",DataTypeSequence(Type,Type),Type)
+    val logicalOr = factory.defineDomainFunction(loc,"∨",DataTypeSequence(dataType,dataType),dataType)
     // ∀ a,b : Boolean . Evaluate(Or(a,b)) ↔ Evaluate(a) ∨ Evaluate(b)
-    factory.addDomainAxiom(loc,"or",∀(Type,Type,(a,b) =>
-      equiv(pApp(Evaluate,fApp(And,a,b)),or(pApp(Evaluate,a),pApp(Evaluate,b)))
+    factory.addDomainAxiom(loc,"or",∀(dataType,dataType,(a,b) =>
+      equiv(pApp(eval,fApp(logicalAnd,a,b)),or(pApp(eval,a),pApp(eval,b)))
     ))
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Binary Implication
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val Implication = factory.defineDomainFunction(loc,"→",DataTypeSequence(Type,Type),Type)
+    val implication = factory.defineDomainFunction(loc,"→",DataTypeSequence(dataType,dataType),dataType)
     // ∀ a,b : Boolean . Evaluate(Implication(a,b)) ↔ Evaluate(a) → Evaluate(b)
-    factory.addDomainAxiom(loc,"implication",∀(Type,Type,(a,b) =>
-      equiv(pApp(Evaluate,fApp(Implication,a,b)),imply(pApp(Evaluate,a),pApp(Evaluate,b)))
+    factory.addDomainAxiom(loc,"implication",∀(dataType,dataType,(a,b) =>
+      equiv(pApp(eval,fApp(implication,a,b)),imply(pApp(eval,a),pApp(eval,b)))
     ))
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Binary Equivalence
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val Equivalence = factory.defineDomainFunction(loc,"↔",DataTypeSequence(Type,Type),Type)
+    val equivalence = factory.defineDomainFunction(loc,"↔",DataTypeSequence(dataType,dataType),dataType)
     // ∀ a,b : Boolean . Evaluate(Equivalence(a,b)) ↔ Evaluate(a) = Evaluate(b)
-    factory.addDomainAxiom(loc,"equivalence",∀(Type,Type,(a,b) =>
-      equiv(pApp(Evaluate,fApp(Implication,a,b)),equiv(pApp(Evaluate,a),pApp(Evaluate,b)))
+    factory.addDomainAxiom(loc,"equivalence",∀(dataType,dataType,(a,b) =>
+      equiv(pApp(eval,fApp(implication,a,b)),equiv(pApp(eval,a),pApp(eval,b)))
     ))
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Compile Domain
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    lazy val Domain = factory.compile()
+    lazy val domain = factory.compile()
+  }
+
+  object Pair {
+    object Template extends DomainEnvironment("Pair",Seq((loc,"A"),(loc,"B"))){
+      val firstType = programFactory.makeVariableType(loc,factory.typeVariables.find(_.name ==  "A").get)
+      var secondType = programFactory.makeVariableType(loc,factory.typeVariables.find(_.name == "B").get)
+      val dataType = programFactory.makeNonReferenceDataType(loc,factory,DataTypeSequence(firstType,secondType))
+
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      // Constructors
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      val create = factory.defineDomainFunction(loc,"create",DataTypeSequence(firstType,secondType),dataType)
+
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      // Operations
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      val getFirst =  factory.defineDomainFunction(loc,"getFirst",DataTypeSequence(dataType),firstType)
+      factory.addDomainAxiom(loc,"getFirst",
+        ∀(firstType,secondType,(a,b) => equality(getFirst(create(a,b)),a)))
+
+      val getSecond = factory.defineDomainFunction(loc,"getSecond",DataTypeSequence(dataType),secondType)
+      factory.addDomainAxiom(loc,"getSecond",
+        ∀(firstType,secondType,(a,b) => equality(getSecond(create(a,b)),b)))
+
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      // Axioms
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      factory.addDomainAxiom(loc,"equality",∀(firstType,secondType,firstType,secondType,
+        (a,b,x,y) => equiv(
+          equality(create(a,b),create(x,y)),
+          and(equality(a,x),equality(b,y))
+        )))
+
+      lazy val domain = factory.compile()
+    }
+    case class PreludeDomainInfo protected[Pair] (firstType : DataType, secondType : DataType) {
+      val domain = programEnvironment.programFactory.makeDomainInstance(Template.factory,DataTypeSequence(firstType,secondType))
+      val dataType = programEnvironment.programFactory.makeNonReferenceDataType(loc,Template.factory,DataTypeSequence(firstType,secondType))
+
+      val create = domain.functions.find(_.name == "create").get
+      val getFirst = domain.functions.find(_.name == "getFirst").get
+      val getSecond = domain.functions.find(_.name == "getSecond").get
+    }
+    val instances = new FactoryHashCache[(DataType,DataType),PreludeDomainInfo] {
+      protected def construct(t : (DataType, DataType)) = PreludeDomainInfo(t._1,t._2)
+    }
+    def apply(t1 : DataType, t2 : DataType) = instances.apply((t1,t2))
+    lazy val Location = prelude.Pair(referenceType,integerType)
   }
   
   object Map {
-    object Generic extends DomainEnvironment("Map",Seq((loc,"K"),(loc,"V")))  {
-      val KeyType = programFactory.makeVariableType(loc,factory.typeVariables.find(_.name == "K").get)
-      val ValueType = programFactory.makeVariableType(loc,factory.typeVariables.find(_.name == "V").get)
-      val Type = programFactory.makeNonReferenceDataType(loc,factory,DataTypeSequence(KeyType, ValueType))
+    object Template extends DomainEnvironment("Map",Seq((loc,"K"),(loc,"V")))  {
+      val keyType = programFactory.makeVariableType(loc,factory.typeVariables.find(_.name == "K").get)
+      val valueType = programFactory.makeVariableType(loc,factory.typeVariables.find(_.name == "V").get)
+      val dataType = programFactory.makeNonReferenceDataType(loc,factory,DataTypeSequence(keyType, valueType))
       
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       // Constructors
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-      val Empty = factory.defineDomainFunction(loc,"empty",DataTypeSequence(),Type)
-      val Update = factory.defineDomainFunction(loc,"update",DataTypeSequence(Type,KeyType,ValueType),Type)
+      val empty = factory.defineDomainFunction(loc,"empty",DataTypeSequence(),dataType)
+      val update = factory.defineDomainFunction(loc,"update",DataTypeSequence(dataType,keyType,valueType),dataType)
       
 
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       // Operations
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-      val Get = factory.defineDomainFunction(loc,"get",DataTypeSequence(Type,KeyType),ValueType)
+      val get = factory.defineDomainFunction(loc,"get",DataTypeSequence(dataType,keyType),valueType)
       // ∀ m : Map[K,V], k1,k2 : K, v : V . (k1 ≠ k2 → Get(Update(m,k1,v),k2) = Get(m,k2)) ∧ ((k1 = k2) → Get(Update(m,k1,v),k2) = v)
-      factory.addDomainAxiom(loc,"get_update",∀(Type,KeyType,KeyType,ValueType,(m,k1,k2,v) =>
+      factory.addDomainAxiom(loc,"get_update",∀(dataType,keyType,keyType,valueType,(m,k1,k2,v) =>
         and(
-          imply(not(equality(k1,k2)), equality(Get(Update(m,k1,v),k2), Get(m,k2))),
-          imply(    equality(k1,k2) , equality(Get(Update(m,k1,v),k2), v))
+          imply(not(equality(k1,k2)), equality(get(update(m,k1,v),k2), get(m,k2))),
+          imply(    equality(k1,k2) , equality(get(update(m,k1,v),k2), v))
         )
       ))
 
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       // Predicates
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-      val Has = factory.defineDomainPredicate(loc,"has",DataTypeSequence(Type,KeyType))
+      val has = factory.defineDomainPredicate(loc,"has",DataTypeSequence(dataType,keyType))
       // ∀ k : K . ¬Has(Empty(),k)
-      factory.addDomainAxiom(loc,"empty_has_no_entries",∀(KeyType,k => not(Has(Empty(),k))))
+      factory.addDomainAxiom(loc,"empty_has_no_entries",∀(keyType,k => not(has(empty(),k))))
       // ∀ m : Map[K,V], k1,k2 : K, v : V  . Has(Update(m,k1,v),k2) ↔ (k1 = k2 ∨ (k1≠k2 ∧ Has(m,k2))
-      factory.addDomainAxiom(loc,"has_update",∀(Type,KeyType,KeyType,ValueType,(m,k1,k2,v) =>
-        equiv(  Has(Update(m,k1,v),k2), 
-          or( equality(k1,k2), and(not(equality(k1,k2)), Has(m,k2)))
+      factory.addDomainAxiom(loc,"has_update",∀(dataType,keyType,keyType,valueType,(m,k1,k2,v) =>
+        equiv(  has(update(m,k1,v),k2),
+          or( equality(k1,k2), and(not(equality(k1,k2)), has(m,k2)))
         )))
     }
-    
-
-    
     
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Compile Domain
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    
+    case class PreludeDomainInfo protected[Map] (keyType : DataType, valueType : DataType) {
+      val domain = programEnvironment.programFactory.makeDomainInstance(Template.factory,DataTypeSequence(keyType,valueType))
+      val dataType = programEnvironment.programFactory.makeNonReferenceDataType(loc,Template.factory,DataTypeSequence(keyType,valueType))
+
+      val empty = domain.functions.find(_.name == "empty").get
+      val update = domain.functions.find(_.name == "update").get
+      val get = domain.functions.find(_.name == "get").get
+      val has = domain.predicates.find(_.name == "has").get
+    }
+    val instances = new FactoryHashCache[(DataType,DataType),PreludeDomainInfo] {
+      protected def construct(t : (DataType, DataType)) = PreludeDomainInfo(t._1,t._2)
+    }
+    def apply(t1 : DataType, t2 : DataType) = instances.apply((t1,t2))
+    lazy val PermissionMap = prelude.Map(prelude.Pair.Location.dataType,permissionType)
   }
 }

@@ -6,6 +6,7 @@ import collection._
 import ch.ethz.inf.pm.semper.chalice2sil._
 import silAST.source.{SourceLocation, noLocation}
 import silAST.methods.implementations.BasicBlockFactory
+import silAST.programs.symbols.ProgramVariable
 
 /**
   * A chalice-level basic block with links to predecessors and successors. Used to
@@ -114,6 +115,7 @@ class ChaliceBlock(val name : String) { origin =>
   }
   
   var versionsInScope : immutable.Set[Version] = null
+  var temporariesInScope : immutable.Set[ProgramVariable] = immutable.Set[ProgramVariable]()
   
   var initializedVariables : immutable.Set[chalice.Variable] = immutable.Set()
 
