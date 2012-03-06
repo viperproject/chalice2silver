@@ -14,7 +14,7 @@ import silAST.programs.symbols.{FunctionFactory, PredicateFactory}
 
 trait ProgramEnvironment extends Environment {
   def programFactory : ProgramFactory
-  def methodFactories : FactoryCache[chalice.Method,MethodFactory]
+  def methods : FactoryCache[chalice.Method,MethodTranslator]
   def fields : DerivedFactoryCache[chalice.Field, String, FieldTranslator]
   def predicates : DerivedFactoryCache[chalice.Predicate, String, PredicateFactory]
   def functions : DerivedFactoryCache[chalice.Function,  String,  FunctionFactory]

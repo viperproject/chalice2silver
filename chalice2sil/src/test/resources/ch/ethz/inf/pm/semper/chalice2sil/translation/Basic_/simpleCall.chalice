@@ -1,0 +1,15 @@
+class Main {
+    var f : int;
+    var g : int;
+    method main(){
+        f := 5;
+        call m();
+        assert g == f;
+    }
+    method m()
+        requires rd(f) && acc(g)
+        ensures rd(f) && acc(g) && f == g
+    {
+        g := f;
+    }
+}

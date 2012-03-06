@@ -20,7 +20,9 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
   private val names = NameSequence()
   
   
-  private val loc = noLocation  //TODO: define a more sensible location than `noLocation` for the Prelude
+  private val loc = new SourceLocation{
+    override def toString = "Chalice#built-in"
+  }  //TODO: define a more sensible location than `noLocation` for the Prelude
 
   protected class DomainEnvironment(domainName: String, typeVariableNames: Seq[(SourceLocation,String)] = Nil) extends DerivedProgramEnvironment(programEnvironment){
     val factory = programFactory.getDomainFactory(domainName, typeVariableNames)(loc)
@@ -170,9 +172,9 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
 
   object Pair {
     object Template extends DomainEnvironment("Pair",Seq((loc,"A"),(loc,"B"))){
-      val firstType = programFactory.makeVariableType(loc,factory.typeVariables.find(_.name ==  "A").get)
-      var secondType = programFactory.makeVariableType(loc,factory.typeVariables.find(_.name == "B").get)
-      val dataType = programFactory.makeNonReferenceDataType(loc,factory,DataTypeSequence(firstType,secondType))
+      val firstType = factory.makeVariableType(loc,factory.typeVariables.find(_.name ==  "A").get)
+      var secondType = factory.makeVariableType(loc,factory.typeVariables.find(_.name == "B").get)
+      val dataType = factory.makeNonReferenceDataType(loc,factory,DataTypeSequence(firstType,secondType))
 
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       // Constructors
@@ -218,9 +220,9 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
   
   object Map {
     object Template extends DomainEnvironment("Map",Seq((loc,"K"),(loc,"V")))  {
-      val keyType = programFactory.makeVariableType(loc,factory.typeVariables.find(_.name == "K").get)
-      val valueType = programFactory.makeVariableType(loc,factory.typeVariables.find(_.name == "V").get)
-      val dataType = programFactory.makeNonReferenceDataType(loc,factory,DataTypeSequence(keyType, valueType))
+      val keyType = factory.makeVariableType(loc,factory.typeVariables.find(_.name == "K").get)
+      val valueType = factory.makeVariableType(loc,factory.typeVariables.find(_.name == "V").get)
+      val dataType = factory.makeNonReferenceDataType(loc,factory,DataTypeSequence(keyType, valueType))
       
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       // Constructors

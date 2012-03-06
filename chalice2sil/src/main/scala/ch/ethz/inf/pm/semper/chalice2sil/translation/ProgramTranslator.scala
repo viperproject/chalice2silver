@@ -26,8 +26,8 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
   var onNewMessage : Buffer[Message => Unit] = new ArrayBuffer
   val pastMessages = new LinkedHashSet[Message] with SynchronizedSet[Message]
   val programFactory = Program.getFactory(programLocation,programName)
-  val methodFactories = new FactoryHashCache[chalice.Method,MethodFactory]{
-    def construct(m : chalice.Method) = programFactory.getMethodFactory(m,fullMethodName(m))
+  val methods = new FactoryHashCache[chalice.Method, MethodTranslator]{
+    def construct(m : chalice.Method) = new MethodTranslator(programTranslator, m)
   }
 
   val fields = new DerivedFactoryCache[chalice.Field, String,  FieldTranslator]{
@@ -81,8 +81,7 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
   protected def translate(classNode: chalice.Class){
     classNode.members.foreach({
       case m:chalice.Method  =>
-        val translator = new MethodTranslator(this,m)
-        translator.translate()
+        methods(m).translate()
       case f:chalice.Field => // nothing to do for fields at this time
       case otherNode => report(messages.UnknownAstNode(otherNode))
     })

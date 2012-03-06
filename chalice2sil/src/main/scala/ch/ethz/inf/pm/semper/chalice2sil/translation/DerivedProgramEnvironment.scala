@@ -8,7 +8,7 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
 class DerivedProgramEnvironment(programEnvironment: ProgramEnvironment) extends ProgramEnvironment {
   def programFactory = programEnvironment.programFactory
 
-  def methodFactories = programEnvironment.methodFactories
+  def methods = programEnvironment.methods
 
   def fields = programEnvironment.fields
 

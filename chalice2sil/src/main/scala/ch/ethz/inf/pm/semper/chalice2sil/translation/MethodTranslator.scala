@@ -22,12 +22,12 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     with TemporaryVariableHost
     with TypeTranslator { thisMethodTranslator =>
   //MethodEnvironment
-  val methodFactory = methodFactories(method)
+  val methodFactory = programFactory.getMethodFactory(method,fullMethodName(method))
   override lazy val implementationFactory = {
     methodFactory.addImplementation(method.body.map(astNodeToSourceLocation).headOption.getOrElse(method))
   }
 
-  def nameSequence = NameSequence()
+  val nameSequence = NameSequence()
 
   override val programVariables = new DerivedFactoryCache[ssa.Version,String, ProgramVariable] with AdjustableCache[ProgramVariable] {
     override protected def deriveKey(p : ssa.Version) = p.uniqueName
@@ -90,6 +90,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
 
   def bringTemporaryVariableIntoScope(v : ProgramVariable) {
     currentChaliceBlock.temporariesInScope += v
+    currentBlock.addProgramVariableToScope(v)
   }
 
   val blockStack = new Stack[BasicBlockFactory]
@@ -471,9 +472,8 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
               currentBlock.appendFieldAssignment(stmt,rcvrVar,fields(location.f),translatePTerm(codeTranslator, rhs))
             })
         }
-      case c@chalice.Call(_,_,_,_,_) if c.m.isInstanceOf[chalice.Method] =>
-        //translateMethodCall(c) //TODO: reinstate method call once Uri's substitution is implemented
-        report(messages.UnknownAstNode(c))
+      case c:chalice.Call if c.m.isInstanceOf[chalice.Method] =>
+        translateMethodCall(c)
       case otherStmt => report(messages.UnknownAstNode(otherStmt))
     }
     
@@ -500,30 +500,32 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     val codeTranslator = new MethodCodeTranslator
     val chalice.Call(_,destinations,receiver,_,args) = callNode
     val receiverTerm = translatePTerm(codeTranslator,receiver)
-    val calleeFactory = methodFactories(callNode.m.asInstanceOf[chalice.Method])
+    val calleeFactory = methods(callNode.m.asInstanceOf[chalice.Method])
 
     //Read (fractional) permissions
-    val readFractionVar = implementationFactory.addLocalVariable(callNode, getNextName("k_" + calleeFactory.name), permissionType)
-    programVariables.addExternal(readFractionVar)
-    val readFractionTerm = currentBlock.makeProgramVariableTerm(callNode, readFractionVar)
+    val readFractionVar = temporaries.acquire(permissionType) // we won't give it back, ever
+    val readFractionTerm = currentExpressionFactory.makeProgramVariableTerm(callNode, readFractionVar)
     // `inhale 0 < k`
-    currentBlock.appendInhale(callNode,implementationFactory.makeDomainPredicateExpression(callNode,
-      integerLT,TermSequence(implementationFactory.makeIntegerLiteralTerm(callNode,0),readFractionTerm)))
+    currentBlock.appendInhale(callNode,currentExpressionFactory.makeDomainPredicateExpression(callNode,
+      permissionLT,TermSequence(currentExpressionFactory.makeNoPermission(callNode),readFractionTerm)))
     
     // Permission maps
     // `var m_0 : Map[(ref,int),Permission]`
     val originalPermMapVar = temporaries.acquire(prelude.Map.PermissionMap.dataType)
-    val originalPermMapTerm = implementationFactory.makeProgramVariableTerm(callNode,originalPermMapVar)
+    val originalPermMapTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,originalPermMapVar)
     // `var m : Map[(ref,int),Permission]`
     val permMapVar = temporaries.acquire(prelude.Map.PermissionMap.dataType)
-    val permMapTerm = implementationFactory.makeProgramVariableTerm(callNode,permMapVar)
+    val permMapTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,permMapVar)
     // `inhale m = m_0`
-    currentBlock.appendInhale(callNode,implementationFactory.makeEqualityExpression(callNode,
+    currentBlock.appendInhale(callNode,currentExpressionFactory.makeEqualityExpression(callNode,
       permMapTerm,originalPermMapTerm
     ))
 
     // Translate arguments and create mapping from parameter variables to these terms
-    val argTerms = args.map(translatePTerm(codeTranslator,_)) ++ List(readFractionTerm)
+    val argTerms =
+      currentExpressionFactory.makeProgramVariableTerm (callNode,thisVariable) ::
+        args.map(translatePTerm(codeTranslator,_)) ++
+          List(readFractionTerm)
     def callSubstitution = new ExpressionTransplantation(this) {
       val argMapping = calleeFactory.parameters.zip(argTerms).map(x => x._1 -> x._2).toMap
       def translateProgramVariable(variable : ProgramVariable) = argMapping(variable)
@@ -573,29 +575,29 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       rs foreach { 
         case ReadField(reference,field) =>
           val currentActualPermission = currentBlock.makePermTerm(callNode,reference,field)
-          val location = field.locationLiteral(implementationFactory, reference.asInstanceOf[PTerm])
+          val location = field.locationLiteral(currentExpressionFactory, reference.asInstanceOf[PTerm])
           
           // `inhale  get(m_0,(ref,field)) = perm(ref,field)` where (ref,field) = location
-          currentBlock.appendInhale(callNode,implementationFactory.makeEqualityExpression(callNode,
-            implementationFactory.makeDomainFunctionApplicationTerm(callNode,
+          currentBlock.appendInhale(callNode,currentExpressionFactory.makeEqualityExpression(callNode,
+            currentExpressionFactory.makeDomainFunctionApplicationTerm(callNode,
               prelude.Map.PermissionMap.get,TermSequence(originalPermMapTerm,location)),
             // ==
             currentActualPermission))
           
           // `exhale 0 < get(m,(ref,field))`
-          val currentVirtualPermission = implementationFactory.makePDomainFunctionApplicationTerm(callNode,
+          val currentVirtualPermission = currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,
             prelude.Map.PermissionMap.get,PTermSequence(permMapTerm,location))
-          currentBlock.appendExhale(callNode,implementationFactory.makeDomainPredicateExpression(callNode,
-            integerLT,TermSequence(implementationFactory.makeIntegerLiteralTerm(callNode,0),currentVirtualPermission)))
+          currentBlock.appendExhale(callNode,currentExpressionFactory.makeDomainPredicateExpression(callNode,
+            permissionLT,TermSequence(currentExpressionFactory.makeNoPermission(callNode),currentVirtualPermission)))
           
           // `inhale k < get(m,(ref,field))`
-          currentBlock.appendInhale(callNode,implementationFactory.makeDomainPredicateExpression(callNode,
-            integerLT,TermSequence(readFractionTerm,currentVirtualPermission)))
+          currentBlock.appendInhale(callNode,currentExpressionFactory.makeDomainPredicateExpression(callNode,
+            permissionLT,TermSequence(readFractionTerm,currentVirtualPermission)))
           
           // `m := set(m,(ref,field),get(m,(ref,field)) - k)`
-          val nextVirtualPermission = implementationFactory.makePDomainFunctionApplicationTerm(callNode,
+          val nextVirtualPermission = currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,
             permissionSubtraction,PTermSequence(currentVirtualPermission,readFractionTerm))
-          currentBlock.appendAssignment(callNode,permMapVar,implementationFactory.makePDomainFunctionApplicationTerm(callNode,
+          currentBlock.appendAssignment(callNode,permMapVar,currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,
             prelude.Map.PermissionMap.update,PTermSequence(permMapTerm,location,nextVirtualPermission)))
         case _ =>
       }
