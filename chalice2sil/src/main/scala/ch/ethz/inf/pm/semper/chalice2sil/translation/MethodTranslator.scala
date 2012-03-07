@@ -471,10 +471,10 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
           case chalice.ImplicitThisExpr() => assignViaVar(methodFactory.thisVar)
           case chalice.ExplicitThisExpr() => assignViaVar(methodFactory.thisVar)
           case rcvr =>
-            temporaries.using(referenceType, rcvrVar => {
+            temporaries.using(referenceType){ rcvrVar =>
               currentBlock.appendAssignment(rcvr,rcvrVar,translatePTerm(codeTranslator, rcvr))
               currentBlock.appendFieldAssignment(stmt,rcvrVar,fields(location.f),translatePTerm(codeTranslator, rhs))
-            })
+            }
         }
       case c:chalice.Call if c.m.isInstanceOf[chalice.Method] =>
         translateMethodCall(c)
@@ -579,30 +579,36 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       rs foreach { 
         case ReadField(reference,field) =>
           val currentActualPermission = currentBlock.makePermTerm(callNode,reference,field)
-          val location = field.locationLiteral(currentExpressionFactory, reference.asInstanceOf[PTerm])
-          
-          // `inhale  get(m_0,(ref,field)) = perm(ref,field)` where (ref,field) = location
-          currentBlock.appendInhale(callNode,currentExpressionFactory.makeEqualityExpression(callNode,
-            currentExpressionFactory.makeDomainFunctionApplicationTerm(callNode,
-              prelude.Map.PermissionMap.get,TermSequence(originalPermMapTerm,location)),
-            // ==
-            currentActualPermission))
-          
-          // `exhale 0 < get(m,(ref,field))`
-          val currentVirtualPermission = currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,
-            prelude.Map.PermissionMap.get,PTermSequence(permMapTerm,location))
-          currentBlock.appendExhale(callNode,currentExpressionFactory.makeDomainPredicateExpression(callNode,
-            permissionLT,TermSequence(currentExpressionFactory.makeNoPermission(callNode),currentVirtualPermission)))
-          
-          // `inhale k < get(m,(ref,field))`
-          currentBlock.appendInhale(callNode,currentExpressionFactory.makeDomainPredicateExpression(callNode,
-            permissionLT,TermSequence(readFractionTerm,currentVirtualPermission)))
-          
-          // `m := set(m,(ref,field),get(m,(ref,field)) - k)`
-          val nextVirtualPermission = currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,
-            permissionSubtraction,PTermSequence(currentVirtualPermission,readFractionTerm))
-          currentBlock.appendAssignment(callNode,permMapVar,currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,
-            prelude.Map.PermissionMap.update,PTermSequence(permMapTerm,location,nextVirtualPermission)))
+          temporaries.using(prelude.Pair.Location.dataType){ locationVar =>
+            val location = currentExpressionFactory.makeProgramVariableTerm(callNode,locationVar)
+
+            // `location := (ref,field)`
+            currentBlock.appendAssignment(callNode,locationVar,
+              field.locationLiteral(currentExpressionFactory, reference.asInstanceOf[PTerm]))
+
+            // `inhale  get(m_0,(ref,field)) = perm(ref,field)` where (ref,field) = location
+            currentBlock.appendInhale(callNode,currentExpressionFactory.makeEqualityExpression(callNode,
+              currentExpressionFactory.makeDomainFunctionApplicationTerm(callNode,
+                prelude.Map.PermissionMap.get,TermSequence(originalPermMapTerm,location)),
+              // ==
+              currentActualPermission))
+
+            // `exhale 0 < get(m,(ref,field))`
+            val currentVirtualPermission = currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,
+              prelude.Map.PermissionMap.get,PTermSequence(permMapTerm,location))
+            currentBlock.appendExhale(callNode,currentExpressionFactory.makeDomainPredicateExpression(callNode,
+              permissionLT,TermSequence(currentExpressionFactory.makeNoPermission(callNode),currentVirtualPermission)))
+
+            // `inhale k < get(m,(ref,field))`
+            currentBlock.appendInhale(callNode,currentExpressionFactory.makeDomainPredicateExpression(callNode,
+              permissionLT,TermSequence(readFractionTerm,currentVirtualPermission)))
+
+            // `m := set(m,(ref,field),get(m,(ref,field)) - k)`
+            val nextVirtualPermission = currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,
+              permissionSubtraction,PTermSequence(currentVirtualPermission,readFractionTerm))
+            currentBlock.appendAssignment(callNode,permMapVar,currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,
+              prelude.Map.PermissionMap.update,PTermSequence(permMapTerm,location,nextVirtualPermission)))
+          }
         case _ =>
       }
       

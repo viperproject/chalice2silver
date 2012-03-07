@@ -15,53 +15,52 @@ import util.TermSequence
   */
 abstract class ExpressionTransplantation(methodEnvironment : MethodEnvironment) extends DerivedMethodEnvironment(methodEnvironment) {
   implicit def extractSourceLocation(node : ASTNode) : SourceLocation = node.sourceLocation
-  val expressionFactory : ExpressionFactory = implementationFactory
   
   def translateProgramVariable(variable : ProgramVariable) : PTerm
   
   def transplant(expression : Expression) : Expression = expression match {
     case BinaryExpression(op,lhs,rhs) =>
-      expressionFactory.makeBinaryExpression(expression,op,transplant(lhs),transplant(rhs))
+      currentExpressionFactory.makeBinaryExpression(expression,op,transplant(lhs),transplant(rhs))
     case UnaryExpression(op,expr) =>
-      expressionFactory.makeUnaryExpression(expression,op,transplant(expr))
+      currentExpressionFactory.makeUnaryExpression(expression,op,transplant(expr))
     case EqualityExpression(lhs,rhs) =>
-      expressionFactory.makeEqualityExpression(expression,transplant(lhs),transplant(rhs))
+      currentExpressionFactory.makeEqualityExpression(expression,transplant(lhs),transplant(rhs))
     case DomainPredicateExpression(p,args) =>
-      expressionFactory.makeDomainPredicateExpression(expression,p,args)
+      currentExpressionFactory.makeDomainPredicateExpression(expression,p,transplant(args))
     case PermissionExpression(ref,field,perm) =>
-      expressionFactory.makePermissionExpression(expression,transplant(ref),field,transplant(perm))
+      currentExpressionFactory.makePermissionExpression(expression,transplant(ref),field,transplant(perm))
     case UnfoldingExpression(p,expr) =>
-      expressionFactory.makeUnfoldingExpression(expression,transplantPredicateExpression(p),transplant(expr))
+      currentExpressionFactory.makeUnfoldingExpression(expression,transplantPredicateExpression(p),transplant(expr))
     case PredicateExpression(receiver,predicate) =>
-      expressionFactory.makePredicateExpression(expression, transplant(receiver),  predicates.lookup(predicate.name))
+      currentExpressionFactory.makePredicateExpression(expression, transplant(receiver),  predicates.lookup(predicate.name))
     case _ => 
       report(messages.ContractNotUnderstood(expression))
-      dummyExpr(expressionFactory,expression)
+      dummyExpr(currentExpressionFactory,expression)
   }
 
   protected def transplantPredicateExpression(predicateExpression : PredicateExpression) : PredicateExpression = {
-    expressionFactory.makePredicateExpression(
+    currentExpressionFactory.makePredicateExpression(
       predicateExpression,
       transplant(predicateExpression.receiver),
       predicates.lookup(predicateExpression.predicate.name))
   }
 
   def transplant(term : Term) : Term = term match {
-    case CastTerm(operand,newType) => expressionFactory.makeCastTerm(term,transplant(operand),newType)
-    case FieldReadTerm(location,field) => expressionFactory.makeFieldReadTerm(term, transplant(location),field)
-    case DomainFunctionApplicationTerm(f,args) => expressionFactory.makeDomainFunctionApplicationTerm(term,f,transplant(args))
-    case EpsilonPermissionTerm() => expressionFactory.makeEpsilonPermission(term)
-    case FullPermissionTerm() => expressionFactory.makeFullPermission(term)
-    case FunctionApplicationTerm(receiver,f,args) => expressionFactory.makeFunctionApplicationTerm(term,transplant(receiver),
+    case CastTerm(operand,newType) => currentExpressionFactory.makeCastTerm(term,transplant(operand),newType)
+    case FieldReadTerm(location,field) => currentExpressionFactory.makeFieldReadTerm(term, transplant(location),field)
+    case DomainFunctionApplicationTerm(f,args) => currentExpressionFactory.makeDomainFunctionApplicationTerm(term,f,transplant(args))
+    case EpsilonPermissionTerm() => currentExpressionFactory.makeEpsilonPermission(term)
+    case FullPermissionTerm() => currentExpressionFactory.makeFullPermission(term)
+    case FunctionApplicationTerm(receiver,f,args) => currentExpressionFactory.makeFunctionApplicationTerm(term,transplant(receiver),
       functions.lookup(f.name),transplant(args))
-    case NoPermissionTerm() => expressionFactory.makeNoPermission(term)
-    case UnfoldingTerm(receiver, p, body) => expressionFactory.makeUnfoldingTerm(term,transplant(receiver),predicates.lookup(p.name),transplant(body))
-    case PermTerm(location,field) => expressionFactory.makePermTerm(term,transplant(location),field)
+    case NoPermissionTerm() => currentExpressionFactory.makeNoPermission(term)
+    case UnfoldingTerm(receiver, p, body) => currentExpressionFactory.makeUnfoldingTerm(term,transplant(receiver),predicates.lookup(p.name),transplant(body))
+    case PermTerm(location,field) => currentExpressionFactory.makePermTerm(term,transplant(location),field)
     case ProgramVariableTerm(v) => translateProgramVariable(v)
-    case i:IntegerLiteralTerm => expressionFactory.makeIntegerLiteralTerm(term,i.value)
+    case i:IntegerLiteralTerm => currentExpressionFactory.makeIntegerLiteralTerm(term,i.value)
     case _ => 
       report(messages.ContractNotUnderstood(term))
-      expressionFactory.makeIntegerLiteralTerm(term,67)
+      currentExpressionFactory.makeIntegerLiteralTerm(term,67)
   }
   
   protected def transplant(terms : TermSequence) : TermSequence = TermSequence(terms.map(transplant(_)):_*)

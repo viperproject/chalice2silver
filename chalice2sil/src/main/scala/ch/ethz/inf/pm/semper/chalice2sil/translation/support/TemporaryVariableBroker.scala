@@ -29,13 +29,14 @@ class TemporaryVariableBroker(environment : TemporaryVariableHost) {
   def release(variable : ProgramVariable) {
     require(knownTemporaryVariables contains variable,
       "Cannot release SIL program variable %s because it is not a temporary variable.".format(variable))
-    require(!(freeTemporaryVariables(variable.dataType) contains variable),
+    require((freeTemporaryVariables.get(variable.dataType).map(vs => ! (vs contains variable)).getOrElse(true)),
       "Cannot release SIL program variable %s because it is not currently acquired.".format(variable))
 
-    freeTemporaryVariables.update(variable.dataType, variable :: freeTemporaryVariables(variable.dataType))
+    val oldList = freeTemporaryVariables.getOrElse(variable.dataType,Nil)
+    freeTemporaryVariables.update(variable.dataType, variable :: oldList)
   }
 
-  def using(dataType : DataType, f : (ProgramVariable) => Unit) {
+  def using(dataType : DataType)(f : (ProgramVariable) => Unit) {
     val temp = acquire(dataType)
     try {
       f(temp)
