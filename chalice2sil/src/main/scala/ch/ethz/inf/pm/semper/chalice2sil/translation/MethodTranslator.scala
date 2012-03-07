@@ -620,7 +620,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       }
       
       rs collect { case a@ReadImplication(_,_) => a } groupBy (_.lhs) foreach { i =>
-        silIf(i._1){
+        silIf(moveToBlock.transplant(i._1)){
           appendCond(i._2.map(_.rhs).flatten)
         } end()
       }

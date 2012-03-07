@@ -1,0 +1,38 @@
+class Main {
+    var f : int;
+    var g : int;
+    var h : int;
+    var q : bool;
+    var p : bool;
+    method goal()
+        requires rd(p)
+        requires p ==> acc(f) && rd(q) && (q ==> rd(g)) && (!q ==> rd(h))
+        ensures rd(p)
+        ensures old(p) ==> acc(f) && rd(q) && (old(q) ==> rd(g) && f == g) && (!old(q) ==> rd(h) && f == h)
+    {
+        if(p){
+            if(q){
+                f := g;
+            } else {
+                f := h;
+            }
+        }
+    }
+    method main()
+        requires acc(f)
+        requires acc(p)
+        requires acc(g)
+        requires rd(h)
+        requires rd(q)
+        ensures acc(f)
+        ensures acc(g)
+        ensures rd(p)
+        ensures rd(h)
+        ensures rd(q)
+    {
+        g := 3;
+        p := true;
+        call this.goal();
+        assert f == g || f == h;
+    }
+}
