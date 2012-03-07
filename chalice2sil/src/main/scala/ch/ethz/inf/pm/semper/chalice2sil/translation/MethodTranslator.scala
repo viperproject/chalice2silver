@@ -88,6 +88,12 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
 
   override val temporaries = new TemporaryVariableBroker(this)
 
+  def allocateLocallyScoped(sourceLocation : SourceLocation, name : String, dataType : DataType) : ProgramVariable = {
+    var v = implementationFactory.addLocalVariable(sourceLocation, getNextName(name),dataType)
+    bringTemporaryVariableIntoScope(v)
+    v
+  }
+
   def bringTemporaryVariableIntoScope(v : ProgramVariable) {
     currentChaliceBlock.temporariesInScope += v
     currentBlock.addProgramVariableToScope(v)
@@ -129,11 +135,9 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
 
     val kTerm = mf.makeProgramVariableTerm(method,k)
     // requires (noPermission < k ∧ k < fullPermission)
-    mf.addPrecondition(method,mf.makeBinaryExpression(method,And()(method),
+    mf.addPrecondition(method,
       mf.makeDomainPredicateExpression(method,permissionLT,
-        TermSequence(currentExpressionFactory.makeNoPermission(method),kTerm)), // noPermission < k
-      mf.makeDomainPredicateExpression(method,permissionLT,
-        TermSequence(kTerm,currentExpressionFactory.makeFullPermission(method)))) //  k < fullPermission
+        TermSequence(currentExpressionFactory.makeNoPermission(method),kTerm)) // noPermission < k
     )
 
     val contractTranslator = new DefaultCodeTranslator(this){
@@ -503,7 +507,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     val calleeFactory = methods(callNode.m.asInstanceOf[chalice.Method])
 
     //Read (fractional) permissions
-    val readFractionVar = temporaries.acquire(permissionType) // we won't give it back, ever
+    val readFractionVar = allocateLocallyScoped(callNode, "k", permissionType) // we won't give it back, ever
     val readFractionTerm = currentExpressionFactory.makeProgramVariableTerm(callNode, readFractionVar)
     // `inhale 0 < k`
     currentBlock.appendInhale(callNode,currentExpressionFactory.makeDomainPredicateExpression(callNode,
@@ -511,10 +515,10 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     
     // Permission maps
     // `var m_0 : Map[(ref,int),Permission]`
-    val originalPermMapVar = temporaries.acquire(prelude.Map.PermissionMap.dataType)
+    val originalPermMapVar = allocateLocallyScoped(callNode,"m0",prelude.Map.PermissionMap.dataType)
     val originalPermMapTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,originalPermMapVar)
     // `var m : Map[(ref,int),Permission]`
-    val permMapVar = temporaries.acquire(prelude.Map.PermissionMap.dataType)
+    val permMapVar = allocateLocallyScoped(callNode,"m",prelude.Map.PermissionMap.dataType)
     val permMapTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,permMapVar)
     // `inhale m = m_0`
     currentBlock.appendInhale(callNode,currentExpressionFactory.makeEqualityExpression(callNode,

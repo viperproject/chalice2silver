@@ -1,7 +1,9 @@
 class Main {
     var f : int;
     var g : int;
-    method main(){
+    method main()
+        requires acc(f) && acc(g)
+    {
         f := 5;
         call m();
         assert g == f;
