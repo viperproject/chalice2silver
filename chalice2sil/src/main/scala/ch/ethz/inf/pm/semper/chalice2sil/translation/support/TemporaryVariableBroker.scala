@@ -20,7 +20,12 @@ class TemporaryVariableBroker(environment : TemporaryVariableHost) {
   }
 
   def acquire(dataType : DataType) : ProgramVariable = {
-    val v = freeTemporaryVariables.getOrElse(dataType, Nil).headOption.getOrElse(allocate(dataType))
+    val v = freeTemporaryVariables.getOrElseUpdate(dataType, Nil).headOption match {
+      case None => allocate(dataType)
+      case Some(e) =>
+        freeTemporaryVariables.update(dataType,freeTemporaryVariables(dataType).tail)
+        e
+    }
     environment.bringTemporaryVariableIntoScope(v)
     v
   }

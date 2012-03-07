@@ -14,7 +14,7 @@ import silAST.symbols.logical._
 import ssa._
 import silAST.methods.MethodFactory
 import silAST.domains.{DomainInstance, DomainPredicate, Domain, DomainFunction}
-import support.{ExpressionTransplantation, TemporaryVariableHost, TemporaryVariableBroker}
+import support.{MoveToBlock, ExpressionTransplantation, TemporaryVariableHost, TemporaryVariableBroker}
 
 class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     extends DerivedProgramEnvironment(st)
@@ -96,7 +96,9 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
 
   def bringTemporaryVariableIntoScope(v : ProgramVariable) {
     currentChaliceBlock.temporariesInScope += v
-    currentBlock.addProgramVariableToScope(v)
+    if(!currentBlock.localVariables.contains(v)){
+      currentBlock.addProgramVariableToScope(v)
+    }
   }
 
   val blockStack = new Stack[BasicBlockFactory]
@@ -503,7 +505,6 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
   def translateMethodCall(callNode : chalice.Call) {
     val codeTranslator = new MethodCodeTranslator
     val chalice.Call(_,destinations,receiver,_,args) = callNode
-    val receiverTerm = translatePTerm(codeTranslator,receiver)
     val calleeFactory = methods(callNode.m.asInstanceOf[chalice.Method])
 
     //Read (fractional) permissions
@@ -530,7 +531,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       currentExpressionFactory.makeProgramVariableTerm (callNode,thisVariable) ::
         args.map(translatePTerm(codeTranslator,_)) ++
           List(readFractionTerm)
-    def callSubstitution = new ExpressionTransplantation(this) {
+    val callSubstitution = new ExpressionTransplantation(this) {
       val argMapping = calleeFactory.parameters.zip(argTerms).map(x => x._1 -> x._2).toMap
       def translateProgramVariable(variable : ProgramVariable) = argMapping(variable)
     }
@@ -540,6 +541,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     def transplantTerm(t : Term) : Term = {
       callSubstitution.transplant(t)
     }
+    val moveToBlock = new MoveToBlock(this)
 
     // Generate assumptions and conditions on fraction
     def genReadCond(expr : Expression) : List[ReadCondition] = expr match {
@@ -578,13 +580,18 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     def appendCond(rs : List[ReadCondition]){
       rs foreach { 
         case ReadField(reference,field) =>
-          val currentActualPermission = currentBlock.makePermTerm(callNode,reference,field)
+          val localReference = moveToBlock.transplant(reference)
+          val originalPermMapTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,originalPermMapVar)
+          val permMapTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,permMapVar)
+          val readFractionTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,readFractionVar)
+
+          val currentActualPermission = currentExpressionFactory.makePermTerm(callNode,localReference,field)
           temporaries.using(prelude.Pair.Location.dataType){ locationVar =>
             val location = currentExpressionFactory.makeProgramVariableTerm(callNode,locationVar)
 
             // `location := (ref,field)`
             currentBlock.appendAssignment(callNode,locationVar,
-              field.locationLiteral(currentExpressionFactory, reference.asInstanceOf[PTerm]))
+              field.locationLiteral(currentExpressionFactory, localReference.asInstanceOf[PTerm]))
 
             // `inhale  get(m_0,(ref,field)) = perm(ref,field)` where (ref,field) = location
             currentBlock.appendInhale(callNode,currentExpressionFactory.makeEqualityExpression(callNode,
@@ -615,7 +622,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       rs collect { case a@ReadImplication(_,_) => a } groupBy (_.lhs) foreach { i =>
         silIf(i._1){
           appendCond(i._2.map(_.rhs).flatten)
-        }
+        } end()
       }
     }
 
@@ -624,6 +631,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       .foreach(appendCond _)
 
     // Generate call statement
+    val receiverTerm = translatePTerm(codeTranslator,receiver)
     val destinationVars = destinations.map(vExpr =>
       programVariables(currentAssignmentInterpretation.registerAssignment(vExpr.v)))
     currentBlock.appendCall(
@@ -631,7 +639,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       currentBlock.makeProgramVariableSequence(callNode, destinationVars),
       receiverTerm,
       calleeFactory,
-      PTermSequence(argTerms : _*))
+      PTermSequence(argTerms.map(t => moveToBlock.transplant(t).asInstanceOf[PTerm]) : _*))
   }
 
   def translateAssert(expr : chalice.Expression) {
@@ -696,7 +704,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     val elseLocation = elsLoc.getOrElse(noLocation)
 
     //Create block for then-branch. (else is only created when necessary)
-    val thenBlock = basicBlocks(getNextName("if_then"))
+    val thenBlock = addBasicBlock(currentChaliceBlock, "if_then")
 
     //Compile then-branch
     //  first, connect to current block via condition
@@ -707,7 +715,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
 
     // IMPORTANT: do not create the nextBlock until both branches are compiled
     //  otherwise, temporary variables declared in else might not be in scope!
-    lazy val nextBlock = basicBlocks(getNextName("if_continue"))
+    lazy val nextBlock = addBasicBlock(currentChaliceBlock, "if_continue")
 
     //Handle else-block if there is one. "elseSuccessor" is the block the control should be transferred to
     //  when the condition is false. This is either the actual successor block or the else-branch
@@ -715,7 +723,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     val (elseResult,elseSuccessor) = elsOpt match {
       case Some(els) =>
         //Compile else-branch, same as then-branch
-        val elseBlock = basicBlocks(getNextName("if_else"))
+        val elseBlock = addBasicBlock(currentChaliceBlock, "if_else")
         val (result,elseBlockEnd) = into(elseBlock,els())
 
         elseBlockEnd.addSuccessor(elseLocation,nextBlock,TrueExpression()(elseLocation),false)
