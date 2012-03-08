@@ -176,6 +176,8 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
   
   val readFractionVariable = createSignature();
 
+  lazy val
+
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////      CONTROL FLOW GRAPH SKETCH / TRANSLATION TO SSA FORM             /////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -467,8 +469,6 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     stmts.foreach(translateStatement(codeTranslator, _))
   }
 
-
-
   def translateStatement(codeTranslator : CodeTranslator, stmt : chalice.Statement) {
     require(!blockStack.isEmpty); 
     val oldStackSize = blockStack.length
@@ -489,6 +489,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       case a@chalice.Assume(assumption) =>
         translateAssume(assumption)
       case chalice.Assign(variableExpr,rhs) => translateAssignment(codeTranslator,variableExpr,rhs)
+      case callNode:chalice.CallAsync => translateMethodFork(callNode)
       case chalice.FieldUpdate(location,rhs) =>
         // rhs could be an object creation. withRhsTranslation makes sure that
         //  the temporary variable used to create the object is released.
@@ -535,23 +536,27 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     def _2 = rhs
   }
   protected final case class ReadField(reference : Term, field : FieldTranslator) extends ReadCondition
-  /**
-    * Translates a single Chalice statement by appending SIL statements to the current block
-    * and/or creates edges to new blocks. The number of blocks on the `blockStack` is expected
-    * to remain the same, but the top element might change.
-    */
-  def translateMethodCall(callNode : chalice.Call) {
-    val codeTranslator = new MethodCodeTranslator
-    val chalice.Call(_,destinations,receiver,_,args) = callNode
-    val calleeFactory = methods(callNode.m.asInstanceOf[chalice.Method])
 
+  /**
+    * Produces SIL code that determines the read permission fraction (`k`) for a call (synchronous or asynchronous)
+    * This method might introduce new SIL blocks into the CFG.
+    * @param codeTranslator The translator to use for the receiver and the arguments.
+    * @param callNode The Chalice AST node for the call. Either [[chalice.Call]] or [[chalice.CallAsync]].
+    * @return the term that represents the chosen `k`.
+    */
+  def determineReadPermissionFraction(
+        codeTranslator : CodeTranslator, 
+        callNode : chalice.Statement { def obj : chalice.Expression;  def args : List[chalice.Expression]; def m : chalice.Callable }) : PTerm = {
+    val args = callNode.args;
+    val calleeFactory = methods(callNode.m.asInstanceOf[chalice.Method])
+    
     //Read (fractional) permissions
     val readFractionVar = allocateLocallyScoped(callNode, "k", permissionType) // we won't give it back, ever
     val readFractionTerm = currentExpressionFactory.makeProgramVariableTerm(callNode, readFractionVar)
     // `inhale 0 < k`
     currentBlock.appendInhale(callNode,currentExpressionFactory.makeDomainPredicateExpression(callNode,
       permissionLT,TermSequence(currentExpressionFactory.makeNoPermission(callNode),readFractionTerm)))
-    
+
     // Permission maps
     // `var m_0 : Map[(ref,int),Permission]`
     val originalPermMapVar = allocateLocallyScoped(callNode,"m0",prelude.Map.PermissionMap.dataType)
@@ -566,7 +571,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
 
     // Translate arguments and create mapping from parameter variables to these terms
     val argTerms =
-      currentExpressionFactory.makeProgramVariableTerm (callNode,thisVariable) ::
+      translatePTerm (codeTranslator, callNode.obj) ::
         args.map(translatePTerm(codeTranslator,_)) ++
           List(readFractionTerm)
     val callSubstitution = new ExpressionTransplantation(this) {
@@ -582,6 +587,11 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     val moveToBlock = new MoveToBlock(this)
 
     // Generate assumptions and conditions on fraction
+    /**
+      * Walks over an [[silAST.expressions.Expression]] and extracts just read permission assertions and implications.
+      * @param expr
+      * @return
+      */
     def genReadCond(expr : Expression) : List[ReadCondition] = expr match {
       case PermissionExpression(_,_,FullPermissionTerm()) => Nil
       case PermissionExpression(_,_,NoPermissionTerm()) => Nil
@@ -615,8 +625,13 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
         Nil
     }
 
+    /**
+      * Takes a list of read permission conditions as extracted by {{genReadCon}} and generates
+      * the corresponding conditions on `k`.
+      * @param rs
+      */
     def appendCond(rs : List[ReadCondition]){
-      rs foreach { 
+      rs foreach {
         case ReadField(reference,field) =>
           val localReference = moveToBlock.transplant(reference)
           val originalPermMapTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,originalPermMapVar)
@@ -656,7 +671,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
           }
         case _ =>
       }
-      
+
       rs collect { case a@ReadImplication(_,_) => a } groupBy (_.lhs) foreach { i =>
         silIf(moveToBlock.transplant(i._1)){
           appendCond(i._2.map(_.rhs).flatten)
@@ -668,16 +683,48 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       .map(genReadCond _)
       .foreach(appendCond _)
 
+    moveToBlock.transplant(readFractionTerm).asInstanceOf[PTerm]
+  }
+  
+  /**
+    * Translates a single Chalice statement by appending SIL statements to the current block
+    * and/or creates edges to new blocks. The number of blocks on the `blockStack` is expected
+    * to remain the same, but the top element might change.
+    */
+  def translateMethodCall(callNode : chalice.Call) {
+    val codeTranslator = new MethodCodeTranslator
+    val chalice.Call(_,destinations,receiver,_,args) = callNode
+    val calleeFactory = methods(callNode.m.asInstanceOf[chalice.Method])
+
+    val readFractionTerm = determineReadPermissionFraction(codeTranslator,callNode)
+
     // Generate call statement
     val receiverTerm = translatePTerm(codeTranslator,receiver)
     val destinationVars = destinations.map(vExpr =>
       programVariables(currentAssignmentInterpretation.registerAssignment(vExpr.v)))
+    val argTerms = args.map(translatePTerm(codeTranslator, _)) ++ List(readFractionTerm)
     currentBlock.appendCall(
       callNode,
       currentBlock.makeProgramVariableSequence(callNode, destinationVars),
       receiverTerm,
       calleeFactory,
-      PTermSequence(argTerms.map(t => moveToBlock.transplant(t).asInstanceOf[PTerm]) : _*))
+      PTermSequence(argTerms : _*))
+  }
+
+  def translateMethodFork(callNode : chalice.CallAsync) {
+    val codeTranslator = new MethodCodeTranslator
+    val chalice.CallAsync(_,tokenVar,receiver,_,args) = callNode
+    val calleeFactory = methods(callNode.m)
+
+    // `tok := new object`
+    val tokenVersion = programVariables(currentAssignmentInterpretation.registerAssignment(tokenVar.v))
+    currentBlock.appendNew(callNode,tokenVersion,referenceType)
+
+    //Determine read fraction
+    val readFractionTerm = determineReadPermissionFraction(codeTranslator, callNode)
+
+    // Store state (arguments, old(*) values)
+
   }
 
   def translateAssert(expr : chalice.Expression) {
