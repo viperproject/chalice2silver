@@ -8,27 +8,21 @@ import math.BigInt._
 import silAST.expressions.ExpressionFactory
 import silAST.expressions.util.TermSequence
 import silAST.programs.symbols.ProgramVariable
-import silAST.types.DataType
 import ch.ethz.inf.pm.semper.chalice2sil._
+import silAST.types.{referenceType, DataType}
 
 /**
   * @author Christian Klauser
   */
 trait TermTranslator extends MethodEnvironment with TypeTranslator {
 
-  def translateTerm(expression : chalice.RValue) : Term = termTranslation(expression)
+  def translateTerm(expression : chalice.Expression) : Term = termTranslation(expression)
 
-  protected def matchingTerm(partialFunction : PartialFunction[chalice.RValue, Term]) = partialFunction
+  protected def matchingTerm(partialFunction : PartialFunction[chalice.Expression, Term]) = partialFunction
   
   def dummyTerm(location : SourceLocation) = currentExpressionFactory.makeIntegerLiteralTerm(location,27)
   
-  protected def termTranslation : PartialFunction[chalice.RValue,Term] = matchingTerm {
-     //RValue is (expression ∪ new-obj)
-      //NewRhs  is used for both object creation and channel creation (where lower and upper bounds come into play)
-      case rvalue@chalice.NewRhs(typeId,init,lowerBound,upperBound) =>
-        report(messages.UnknownAstNode(rvalue))
-        dummyTerm(rvalue)
-      // from here on, match against the cases of Expression
+  protected def termTranslation : PartialFunction[chalice.Expression,Term] = matchingTerm {
       case rvalue@chalice.IntLiteral(i) =>
         currentExpressionFactory.makeIntegerLiteralTerm(rvalue, i)
       case rvalue@chalice.BoolLiteral(true) =>

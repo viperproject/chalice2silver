@@ -41,7 +41,7 @@ class TemporaryVariableBroker(environment : TemporaryVariableHost) {
     freeTemporaryVariables.update(variable.dataType, variable :: oldList)
   }
 
-  def using(dataType : DataType)(f : (ProgramVariable) => Unit) {
+  def using[T](dataType : DataType)(f : (ProgramVariable) => T) : T = {
     val temp = acquire(dataType)
     try {
       f(temp)

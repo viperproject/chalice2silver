@@ -385,13 +385,36 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
 
   def translateAssignment(codeTranslator : CodeTranslator, lhs : chalice.VariableExpr,  rhs : chalice.RValue){
     // Watch out: It is important that `rhs` is translated *before* the assignment to `lhs` is registered
-    val rhsTerm = translatePTerm(codeTranslator, rhs)
+    lazy val targetVersion = programVariables(currentAssignmentInterpretation.registerAssignment(lhs.v))
 
-    val targetVersion = programVariables(currentAssignmentInterpretation.registerAssignment(lhs.v))
+    rhs match {
+      //chalice.RValue is (expression ∪ new-obj)
+      //NewRhs  is used for both object creation and channel creation (where lower and upper bounds come into play)
+      case newObj@chalice.NewRhs(typeId,init,lowerBound,upperBound) =>
+        translateNew(codeTranslator,newObj,targetVersion)
+      case e:chalice.Expression =>
+        val rhsTerm = translatePTerm(codeTranslator, e)
+        currentBlock.appendAssignment(lhs,targetVersion,rhsTerm)
+    }
+    
     assert(currentBlock.programVariables contains targetVersion,
       "The SIL basic block %s is expected to have the SIL program variable %s in scope. Program variables actually in scope: {%s}"
         .format(currentBlock.name,targetVersion,currentBlock.programVariables.mkString(", ")))
-    currentBlock.appendAssignment(lhs,targetVersion,rhsTerm)
+  }
+
+  def translateNew(codeTranslator : CodeTranslator, newObj : chalice.NewRhs, targetVar : ProgramVariable) {
+    currentBlock.appendNew(newObj,targetVar,referenceType)
+    val refTerm = currentExpressionFactory.makeProgramVariableTerm(newObj,targetVar)
+    val fullAccess = currentExpressionFactory.makeFullPermission(newObj)
+    newObj.typ.Fields foreach { cf =>
+      val field = fields(cf)
+      currentBlock.appendInhale(newObj,
+        currentExpressionFactory.makePermissionExpression(newObj,refTerm,field,fullAccess))
+    }
+    newObj.initialization foreach  { init =>
+      val rhsTerm = translatePTerm(codeTranslator,init.e)
+      currentBlock.appendFieldAssignment(init,targetVar,fields(init.f),rhsTerm)
+    }
   }
 
   def dummyTerm(location : SourceLocation) = currentExpressionFactory.makeIntegerLiteralTerm(location,27)
@@ -444,6 +467,8 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     stmts.foreach(translateStatement(codeTranslator, _))
   }
 
+
+
   def translateStatement(codeTranslator : CodeTranslator, stmt : chalice.Statement) {
     require(!blockStack.isEmpty); 
     val oldStackSize = blockStack.length
@@ -465,8 +490,20 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
         translateAssume(assumption)
       case chalice.Assign(variableExpr,rhs) => translateAssignment(codeTranslator,variableExpr,rhs)
       case chalice.FieldUpdate(location,rhs) =>
-        def assignViaVar(rcvrVar : ProgramVariable){
-          currentBlock.appendFieldAssignment(stmt,rcvrVar,fields(location.f),translatePTerm(codeTranslator, rhs))
+        // rhs could be an object creation. withRhsTranslation makes sure that
+        //  the temporary variable used to create the object is released.
+        def withRhsTranslation[T](block : PTerm => T) : T = rhs match {
+          case newObj:chalice.NewRhs =>
+            temporaries.using(referenceType){targetVar => 
+              translateNew(codeTranslator,newObj,targetVar)
+              block(currentExpressionFactory.makeProgramVariableTerm(newObj,targetVar))
+            }
+          case expr:chalice.Expression => 
+            val t = translatePTerm(codeTranslator, expr)
+            block(t)
+        }
+        def assignViaVar(rcvrVar : ProgramVariable) {
+          withRhsTranslation(currentBlock.appendFieldAssignment(stmt, rcvrVar, fields(location.f), _))
         }
         location.e match {
           case rcvr:chalice.VariableExpr => assignViaVar(localVariableVersion(rcvr.v))
@@ -474,8 +511,9 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
           case chalice.ExplicitThisExpr() => assignViaVar(methodFactory.thisVar)
           case rcvr =>
             temporaries.using(referenceType){ rcvrVar =>
-              currentBlock.appendAssignment(rcvr,rcvrVar,translatePTerm(codeTranslator, rcvr))
-              currentBlock.appendFieldAssignment(stmt,rcvrVar,fields(location.f),translatePTerm(codeTranslator, rhs))
+              val rcvrTerm = translatePTerm(codeTranslator, rcvr)
+              currentBlock.appendAssignment(rcvr,rcvrVar,rcvrTerm)
+              withRhsTranslation(currentBlock.appendFieldAssignment(stmt,rcvrVar,fields(location.f),_))
             }
         }
       case c:chalice.Call if c.m.isInstanceOf[chalice.Method] =>
@@ -655,8 +693,8 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////      TRANSLATE TERMS                                                 /////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  def translatePTerm(codeTranslator : CodeTranslator, rvalue : chalice.RValue) : PTerm = {
-    codeTranslator.translateTerm(rvalue) match {
+  def translatePTerm(codeTranslator : CodeTranslator, expr : chalice.Expression) : PTerm = {
+    codeTranslator.translateTerm(expr) match {
       case pt:PTerm => pt
       case t =>
         assert(false,"Expected program term. Actual type: %s. Location: %s.".format(t.getClass,t.sourceLocation))

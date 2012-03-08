@@ -18,7 +18,7 @@ import silAST.ASTNode
   * @author Christian Klauser
   */
 trait ExpressionTranslator extends MethodEnvironment {
-  protected def translateTerm(exprNode :  chalice.RValue ) : Term
+  protected def translateTerm(exprNode :  chalice.Expression ) : Term
   protected def translateClassRef(classRef : chalice.Class) : DataType
   protected def translatePermission(permission : chalice.Permission) : Term
   

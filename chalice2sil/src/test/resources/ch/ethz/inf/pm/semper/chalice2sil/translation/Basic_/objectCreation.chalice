@@ -1,0 +1,7 @@
+class Main {
+    var f;
+    method main(){
+        var m : Main := new Main;
+        assert acc(m.f);
+    }
+}
