@@ -13,7 +13,7 @@ package object chalice2sil {
     //at some point, use the node's Positional trait to provide a source location.
     implicit def astNodeToSourceLocation(p : ASTNode) : SourceLocation = new SourceLocation {
       val pos = p.pos
-      override def toString = pos.toString()
+      override def toString = "%d.%d".format(pos.line,pos.column)
     }
     implicit def astNodeToOptionalSourceLocation(p : ASTNode) : Option[SourceLocation] =
       Some(astNodeToSourceLocation(p))
