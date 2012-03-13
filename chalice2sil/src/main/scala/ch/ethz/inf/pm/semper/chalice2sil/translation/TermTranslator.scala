@@ -68,6 +68,14 @@ trait TermTranslator extends MethodEnvironment with TypeTranslator {
 
     domainFunctionLookup.lookup(List(lhsType,rhsType,resultType).map(_.domain))(binary.OpName,List(Some(lhsType),Some(rhsType))) match {
       case Success(e) => currentExpressionFactory.makeDomainFunctionApplicationTerm(binary,e,TermSequence(translateTerm(lhs),translateTerm(rhs)))
+      case _ if binary.OpName == "!=" => // If no NEQ operator exists, translate as ¬(_ == _)
+        val eq = chalice.Eq(binary.E0,binary.E1)
+        eq.typ = binary.ResultType
+        eq.pos = binary.pos
+        val neg = chalice.Not(eq)
+        neg.typ = binary.ResultType
+        neg.pos = binary.pos
+        translateTerm(neg)
       case _ =>
         report(messages.OperatorNotFound(binary,lhsType,rhsType,resultType))
         dummyTerm(binary)

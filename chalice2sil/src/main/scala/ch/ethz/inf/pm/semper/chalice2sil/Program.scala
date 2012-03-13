@@ -159,7 +159,7 @@ object Program {
       ))
 
     //Forward SIL to a custom backend
-    //TODO: backends might needs arguments and might produce messages
+    //TODO: backends might need arguments and might produce messages
     opts.forwardSil match {
       case None =>
       case Some(className) => 

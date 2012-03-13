@@ -7,10 +7,10 @@ import silAST.expressions.util.DTermSequence
 import silAST.symbols.logical.Not
 import silAST.expressions.terms.DTerm
 import silAST.expressions.DExpression
-import silAST.symbols.logical.quantification.{BoundVariable, Forall}
 import silAST.source.{SourceLocation, noLocation}
 import silAST.domains.{Domain, DomainPredicate, DomainFunction}
 import silAST.types._
+import silAST.symbols.logical.quantification.{LogicalVariable, Forall}
 
 /**
  * Author: Christian Klauser
@@ -18,7 +18,6 @@ import silAST.types._
 
 class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
   private val names = NameSequence()
-  
   
   private val loc = new SourceLocation{
     override def toString = "Chalice#built-in"
@@ -45,18 +44,18 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
       factory.makeDBinaryExpression(loc,silAST.symbols.logical.Implication()(loc),lhs,rhs)
     protected def equality(lhs : DTerm, rhs : DTerm) =
       factory.makeDEqualityExpression(loc,lhs,rhs)
-    protected def ∀(aType : DataType, expr : BoundVariable => DExpression) : DExpression = {
+    protected def ∀(aType : DataType, expr : LogicalVariable => DExpression) : DExpression = {
       val a = factory.makeBoundVariable(loc,names.nextName,aType)
       factory.makeDQuantifierExpression(loc,Forall()(loc),a,expr(a))
     }
-    protected def ∀(aType : DataType,  bType : DataType,  expr : (BoundVariable,BoundVariable) => DExpression) : DExpression = {
+    protected def ∀(aType : DataType,  bType : DataType,  expr : (LogicalVariable,LogicalVariable) => DExpression) : DExpression = {
       val a = factory.makeBoundVariable(loc,names.nextName,aType)
       val b = factory.makeBoundVariable(loc,names.nextName,bType)
       factory.makeDQuantifierExpression(loc,Forall()(loc),a,
         factory.makeDQuantifierExpression(loc,Forall()(loc),b,expr(a,b))
       )
     }
-    protected def ∀(aType : DataType,  bType : DataType, cType : DataType,  expr : (BoundVariable,BoundVariable, BoundVariable) => DExpression) : DExpression = {
+    protected def ∀(aType : DataType,  bType : DataType, cType : DataType,  expr : (LogicalVariable,LogicalVariable, LogicalVariable) => DExpression) : DExpression = {
       val a = factory.makeBoundVariable(loc,names.nextName,aType)
       val b = factory.makeBoundVariable(loc,names.nextName,bType)
       val c = factory.makeBoundVariable(loc,names.nextName,cType)
@@ -69,7 +68,7 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
                      bType : DataType, 
                      cType : DataType, 
                      dType : DataType,  
-                     expr : (BoundVariable,BoundVariable, BoundVariable,BoundVariable) => DExpression) : DExpression = {
+                     expr : (LogicalVariable,LogicalVariable, LogicalVariable,LogicalVariable) => DExpression) : DExpression = {
       val a = factory.makeBoundVariable(loc,names.nextName,aType)
       val b = factory.makeBoundVariable(loc,names.nextName,bType)
       val c = factory.makeBoundVariable(loc,names.nextName,cType)
@@ -79,7 +78,7 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
           factory.makeDQuantifierExpression(loc,Forall()(loc),c,
             factory.makeDQuantifierExpression(loc,Forall()(loc),d,expr(a,b,c,d)))))
     }
-    implicit protected def boundVariableAsTerm(v : BoundVariable) : DTerm = factory.makeBoundVariableTerm(loc,v)
+    implicit protected def boundVariableAsTerm(v : LogicalVariable) : DTerm = factory.makeBoundVariableTerm(loc,v)
     implicit protected def directlyApplyDomainFunction(df : DomainFunction) = new {
       def apply(args : DTerm*) = fApp(df,args:_*)
     }
@@ -88,95 +87,49 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     }
   } 
   
-  object Boolean extends DomainEnvironment("Boolean") {
+  object Boolean {
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Core
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val dataType = programFactory.makeNonReferenceDataType(loc,factory,programFactory.emptyDTSequence)
-    val trueLiteral = factory.defineDomainFunction(loc,"true",programFactory.emptyDTSequence,dataType)
-    val falseLiteral = factory.defineDomainFunction(loc,"false",programFactory.emptyDTSequence,dataType)
-
-    factory.addDomainAxiom(loc,"trueAndFalseNotEqual",
-        not(equality(
-          fApp(trueLiteral),
-          fApp(falseLiteral)))
-    )
-    
-    factory.addDomainAxiom(loc,"onlyTrueAndFalse",∀(dataType,x =>
-      or(
-        equality(x,fApp(trueLiteral)),
-        equality(x,fApp(falseLiteral)))
-    ))
+    val dataType = booleanType
+    val trueLiteral = booleanTrue
+    val falseLiteral = booleanFalse
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Evaluate
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val eval = factory.defineDomainPredicate(loc,"eval",DataTypeSequence(dataType))
-
-    factory.addDomainAxiom(loc,"evaluateBooleanTrue",factory.makeDDomainPredicateExpression(
-      loc,eval,DTermSequence(fApp(trueLiteral))
-    ))
-    factory.addDomainAxiom(loc,"evaluateBooleanFalse",factory.makeDUnaryExpression(loc,silAST.symbols.logical.Not()(loc),
-      pApp (eval,fApp(falseLiteral))
-    ))
+    val eval = booleanEvaluate
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Unary Not
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val not = factory.defineDomainFunction(loc,"¬",DataTypeSequence(dataType),dataType)
-    factory.addDomainAxiom(loc,"notTrueIsFalse",equality(fApp(not,fApp(trueLiteral)),fApp(falseLiteral)))
-    factory.addDomainAxiom(loc,"notFalseIsTrue",equality(fApp(not,fApp(falseLiteral)),fApp(trueLiteral)))
+    val not = booleanNegation
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Binary And
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val logicalAnd = factory.defineDomainFunction(loc,"∧",DataTypeSequence(dataType,dataType),dataType)
-    // ∀ a,b : Boolean . Evaluate(And(a,b)) ↔ Evaluate(a) ∧ Evaluate(b)
-    factory.addDomainAxiom(loc,"and",∀(dataType,dataType,(a,b) =>
-      equiv(pApp(eval,fApp(logicalAnd,a,b)),and(pApp(eval,a),pApp(eval,b)))
-    ))
+    val logicalAnd = booleanConjunction
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Binary Or
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val logicalOr = factory.defineDomainFunction(loc,"∨",DataTypeSequence(dataType,dataType),dataType)
-    // ∀ a,b : Boolean . Evaluate(Or(a,b)) ↔ Evaluate(a) ∨ Evaluate(b)
-    factory.addDomainAxiom(loc,"or",∀(dataType,dataType,(a,b) =>
-      equiv(pApp(eval,fApp(logicalAnd,a,b)),or(pApp(eval,a),pApp(eval,b)))
-    ))
+    val logicalOr = booleanDisjunction
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Binary Implication
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val implication = factory.defineDomainFunction(loc,"→",DataTypeSequence(dataType,dataType),dataType)
-    // ∀ a,b : Boolean . Evaluate(Implication(a,b)) ↔ Evaluate(a) → Evaluate(b)
-    factory.addDomainAxiom(loc,"implication",∀(dataType,dataType,(a,b) =>
-      equiv(pApp(eval,fApp(implication,a,b)),imply(pApp(eval,a),pApp(eval,b)))
-    ))
+    val implication = booleanImplication
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Binary Equivalence
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val equivalence = factory.defineDomainFunction(loc,"↔",DataTypeSequence(dataType,dataType),dataType)
-    // ∀ a,b : Boolean . Evaluate(Equivalence(a,b)) ↔ Evaluate(a) = Evaluate(b)
-    factory.addDomainAxiom(loc,"equivalence",∀(dataType,dataType,(a,b) =>
-      equiv(pApp(eval,fApp(implication,a,b)),equiv(pApp(eval,a),pApp(eval,b)))
-    ))
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Binary NEQ
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val neq = factory.defineDomainFunction(loc,"!=",DataTypeSequence(dataType,dataType),dataType)
-    // ∀ a,b : Boolean . Evaluate(neq(a,b)) ↔ ¬(Evaluate(a) = Evaluate(b))
-    factory.addDomainAxiom(loc,"neq",∀(dataType,dataType,(a,b) => 
-      equiv(eval(neq(a,b)),not(equiv(eval(a),eval(b))))
-    ))
+    val equivalence = booleanEquivalence
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Compile Domain
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    lazy val domain = factory.compile()
+    val domain = booleanDomain
   }
 
   object Pair {

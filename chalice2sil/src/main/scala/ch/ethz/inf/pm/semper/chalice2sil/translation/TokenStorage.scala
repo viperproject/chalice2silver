@@ -17,4 +17,5 @@ class TokenStorage(val receiver : FieldTranslator,
 
 object TokenStorage {
   //def fromMethod(method : MethodTranslator) : TokenStorage = {  }
+
 }
