@@ -65,7 +65,3 @@ abstract class ExpressionTransplantation(methodEnvironment : MethodEnvironment) 
   
   def transplant(terms : TermSequence) : TermSequence = TermSequence(terms.map(transplant(_)):_*)
 }
-
-class MoveToBlock(methodEnvironment : MethodEnvironment) extends ExpressionTransplantation(methodEnvironment) {
-  def translateProgramVariable(variable : ProgramVariable) = currentExpressionFactory.makeProgramVariableTerm(variable.sourceLocation,variable)
-}

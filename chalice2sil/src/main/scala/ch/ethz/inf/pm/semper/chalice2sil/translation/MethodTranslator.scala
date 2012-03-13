@@ -14,7 +14,7 @@ import silAST.symbols.logical._
 import ssa._
 import silAST.methods.MethodFactory
 import silAST.domains.{DomainInstance, DomainPredicate, Domain, DomainFunction}
-import support.{MoveToBlock, ExpressionTransplantation, TemporaryVariableHost, TemporaryVariableBroker}
+import support.{ExpressionTransplantation, TemporaryVariableHost, TemporaryVariableBroker}
 
 class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     extends DerivedProgramEnvironment(st)
@@ -583,7 +583,6 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     def transplantTerm(t : Term) : Term = {
       callSubstitution.transplant(t)
     }
-    val moveToBlock = new MoveToBlock(this)
 
     // Generate assumptions and conditions on fraction
     /**
@@ -632,18 +631,17 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     def appendCond(rs : List[ReadCondition]){
       rs foreach {
         case ReadField(reference,field) =>
-          val localReference = moveToBlock.transplant(reference)
           val originalPermMapTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,originalPermMapVar)
           val permMapTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,permMapVar)
           val readFractionTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,readFractionVar)
 
-          val currentActualPermission = currentExpressionFactory.makePermTerm(callNode,localReference,field)
+          val currentActualPermission = currentExpressionFactory.makePermTerm(callNode,reference,field)
           temporaries.using(prelude.Pair.Location.dataType){ locationVar =>
             val location = currentExpressionFactory.makeProgramVariableTerm(callNode,locationVar)
 
             // `location := (ref,field)`
             currentBlock.appendAssignment(callNode,locationVar,
-              field.locationLiteral(currentExpressionFactory, localReference.asInstanceOf[PTerm]))
+              field.locationLiteral(currentExpressionFactory, reference.asInstanceOf[PTerm]))
 
             // `inhale  get(m_0,(ref,field)) = perm(ref,field)` where (ref,field) = location
             currentBlock.appendInhale(callNode,currentExpressionFactory.makeEqualityExpression(callNode,
@@ -672,7 +670,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       }
 
       rs collect { case a@ReadImplication(_,_) => a } groupBy (_.lhs) foreach { i =>
-        silIf(moveToBlock.transplant(i._1)){
+        silIf(i._1){
           appendCond(i._2.map(_.rhs).flatten)
         } end()
       }
@@ -682,7 +680,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       .map(genReadCond _)
       .foreach(appendCond _)
 
-    moveToBlock.transplant(readFractionTerm).asInstanceOf[PTerm]
+    readFractionTerm
   }
   
   /**
