@@ -4,15 +4,16 @@ import silAST.source.noLocation
 import silAST.expressions.ExpressionFactory
 import silAST.expressions.terms.{PTerm, Term}
 import silAST.expressions.util.{PTermSequence, TermSequence}
+import silAST.programs.symbols.Field
 
 /**
   * @author Christian Klauser
   */
 class FieldTranslator(
                        /**
-                         * The underlying Chalice field
+                         * The SILAST field
                          */
-                       val sourceField : chalice.Field,
+                       val field : Field,
 
                        /**
                          * An id that is unique within the program and is used to identify this field
@@ -21,7 +22,6 @@ class FieldTranslator(
                        val id : Int, programEnvironment : ProgramEnvironment)
   extends DerivedProgramEnvironment(programEnvironment)
   with TypeTranslator {
-  val field = programFactory.defineField(noLocation,fullFieldName(sourceField),translateTypeExpr(sourceField.typ))
   
   def locationLiteral(expressionFactory : ExpressionFactory, reference : PTerm) : PTerm = {
     val fieldLiteral = expressionFactory.makeIntegerLiteralTerm(reference.sourceLocation, id)

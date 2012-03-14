@@ -12,9 +12,11 @@ import silAST.expressions.terms._
 import silAST.expressions._
 import silAST.symbols.logical._
 import ssa._
-import silAST.methods.MethodFactory
 import silAST.domains.{DomainInstance, DomainPredicate, Domain, DomainFunction}
-import support.{ExpressionTransplantation, TemporaryVariableHost, TemporaryVariableBroker}
+import support.{ExpressionVisitor, ExpressionTransplantation, TemporaryVariableHost, TemporaryVariableBroker}
+import collection.immutable
+import immutable.Set
+import silAST.methods.{Method, MethodFactory}
 
 class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     extends DerivedProgramEnvironment(st)
@@ -28,6 +30,38 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
   }
 
   val nameSequence = NameSequence()
+
+  lazy val callToken : TokenStorage = {
+    def createField(baseName : String, dataType : DataType) : FieldTranslator = {
+      val f = programFactory.defineField(method,baseName,dataType)
+      val ft = new FieldTranslator(f,fields.getNextId,this)
+      fields.addExternal(ft)
+      ft
+    }
+    val argFields = methodFactory.parameters.map(p => createField(methodFactory.name + p.name,p.dataType)).toList
+    val oldFieldEnumerator  = new ExpressionVisitor[Null, immutable.Set[OldNode]] {
+      override protected def merge(left : immutable.Set[OldNode], right : immutable.Set[OldNode]) = left union right
+      override protected def mergeMany(rs : Traversable[Set[OldNode]]) = rs.flatten.toSet
+      override protected def zero = immutable.Set()
+
+      override def visitExpression(expression : Expression, arg : Null) : immutable.Set[OldNode] = expression match {
+        case o:OldExpression => immutable.Set(OldExpressionNode(o))
+        case _ => super.visitExpression(expression,arg)
+      }
+
+      override def visitTerm(term : Term, arg : Null) = term match {
+        case o:OldTerm => immutable.Set(OldTermNode(o))
+        case _ => super.visitTerm(term,arg)
+      }
+    }
+    val olds : Seq[OldNode] = methodFactory.method.signature.postcondition
+      .map(oldFieldEnumerator.visitExpression(_,null)).flatten.toSet.toSeq
+
+    val oldMap = olds.map(o => o -> createField(getNextName("old"),o.dataType))
+      .toMap
+
+    new TokenStorage(this, argFields, oldMap)
+  }
 
   override val programVariables = new DerivedFactoryCache[ssa.Version,String, ProgramVariable] with AdjustableCache[ProgramVariable] {
     override protected def deriveKey(p : ssa.Version) = p.uniqueName
@@ -138,8 +172,12 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     val kTerm = mf.makeProgramVariableTerm(method,k)
     // requires (noPermission < k ∧ k < fullPermission)
     mf.addPrecondition(method,
-      mf.makeDomainPredicateExpression(method,permissionLT,
-        TermSequence(currentExpressionFactory.makeNoPermission(method),kTerm)) // noPermission < k
+      mf.makeBinaryExpression (method,And()(method),
+        mf.makeDomainPredicateExpression(method,permissionLT,
+          TermSequence(currentExpressionFactory.makeNoPermission(method),kTerm)), // noPermission < k
+        mf.makeDomainPredicateExpression(method,permissionLT,
+          TermSequence(kTerm,currentExpressionFactory.makeFullPermission(method))) // k < writePermission
+      )
     )
 
     val contractTranslator = new DefaultCodeTranslator(this){
@@ -676,7 +714,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       }
     }
 
-    calleeFactory.method.signature.precondition
+    calleeFactory.methodFactory.method.signature.precondition
       .map(genReadCond _)
       .foreach(appendCond _)
 

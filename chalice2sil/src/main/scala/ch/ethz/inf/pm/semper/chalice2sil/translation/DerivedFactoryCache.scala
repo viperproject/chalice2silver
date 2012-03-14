@@ -1,6 +1,7 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import collection.immutable.HashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
   * The derived factory cache acts much like an ordinary FactoryHashCache, with the difference that
@@ -61,6 +62,14 @@ abstract class DerivedFactoryCache[P,K,V] extends FactoryCache[P, V] {
     * @return mapping from keys to values.
     */
   def lookup : Map[K, V] = internalCache
+
+  private val nextId = new AtomicInteger(0)
+
+  /**
+    * As an optional service, [[ch.ethz.inf.pm.semper.chalice2sil.translation.DerivedFactoryCache]] offers unique id's.
+    * @return one of 2**16-1 unique id's
+    */
+  def getNextId : Int = nextId.getAndIncrement
 
   /**
     * Derives the key from a supplied prototype.

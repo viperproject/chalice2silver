@@ -33,6 +33,8 @@ abstract class ExpressionTransplantation(methodEnvironment : MethodEnvironment) 
       currentExpressionFactory.makeUnfoldingExpression(expression,transplantPredicateExpression(p),transplant(expr))
     case PredicateExpression(receiver,predicate) =>
       currentExpressionFactory.makePredicateExpression(expression, transplant(receiver),  predicates.lookup(predicate.name))
+    case t@TrueExpression() => t
+    case t@FalseExpression() => t
     case _ => 
       report(messages.ContractNotUnderstood(expression))
       dummyExpr(currentExpressionFactory,expression)

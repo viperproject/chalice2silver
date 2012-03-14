@@ -132,6 +132,23 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     val domain = booleanDomain
   }
 
+  object Token {
+    val dataType = referenceType
+    val receiverField = {
+      val f = programEnvironment.programFactory.defineField(loc,"receiver",referenceType)
+      val t = new FieldTranslator(f,programEnvironment.fields.getNextId,programEnvironment)
+      programEnvironment.fields.addExternal(t)
+      t
+    }
+    val readFractionField = {
+      val f = programEnvironment.programFactory.defineField(loc,"k",permissionType)
+      val t = new FieldTranslator(f,programEnvironment.fields.getNextId,programEnvironment)
+      programEnvironment.fields.addExternal(t)
+      t
+    }
+
+  }
+
   object Pair {
     object Template extends DomainEnvironment("Pair",Seq((loc,"A"),(loc,"B"))){
       val firstType = factory.makeVariableType(loc,factory.typeVariables.find(_.name ==  "A").get)

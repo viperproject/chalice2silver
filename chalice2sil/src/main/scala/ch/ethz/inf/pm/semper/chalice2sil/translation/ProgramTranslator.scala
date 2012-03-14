@@ -31,9 +31,9 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
   }
 
   val fields = new DerivedFactoryCache[chalice.Field, String,  FieldTranslator]{
-    val count = new AtomicInteger(0)
     def construct(field : chalice.Field) = {
-      new FieldTranslator(field,count.incrementAndGet(),programTranslator)
+      val silField = programFactory.defineField(noLocation,fullFieldName(field),translateTypeExpr(field.typ))
+      new FieldTranslator(silField,getNextId,programTranslator)
     }
 
     protected def deriveKey(p : chalice.Field) = fullFieldName(p)
