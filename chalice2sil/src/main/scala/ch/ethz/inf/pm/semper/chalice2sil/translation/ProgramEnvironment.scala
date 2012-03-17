@@ -6,6 +6,7 @@ import silAST.methods.MethodFactory
 import silAST.domains.{Domain, DomainPredicate, DomainFunction}
 import silAST.types.{DataType, referenceDomain, permissionDomain, integerDomain}
 import silAST.programs.symbols.{FunctionFactory, PredicateFactory}
+import util.{DerivedFactoryCache, FactoryCache}
 
 /**
  * Author: Christian Klauser

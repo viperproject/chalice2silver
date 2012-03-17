@@ -1,4 +1,4 @@
-package ch.ethz.inf.pm.semper.chalice2sil.translation
+package ch.ethz.inf.pm.semper.chalice2sil.translation.util
 
 import collection.immutable.HashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -19,18 +19,18 @@ import java.util.concurrent.atomic.AtomicInteger
   * @tparam K The key used for identifying entries.
   * @tparam V The type of elements in the cache.
   */
-abstract class DerivedFactoryCache[P,K,V] extends FactoryCache[P, V] {
+abstract class DerivedFactoryCache[P, K, V] extends FactoryCache[P, V] {
   private var internalCache = HashMap[K, V]()
 
   def getOrElseUpdate(key : P) = {
     val hashKey = deriveKey(key)
-    internalCache.get(hashKey) match {
-      case Some(v) => v
-      case None    => 
+    internalCache.get(hashKey)
+      .orElse(outerScope(hashKey))
+      .getOrElse({
         val v = construct(key)
         internalCache += hashKey → v
         v
-    }
+    })
   }
 
   /**
@@ -41,7 +41,8 @@ abstract class DerivedFactoryCache[P,K,V] extends FactoryCache[P, V] {
   def addExternal(value : V) {
     val key = deriveKeyFromValue(value)
     if(internalCache contains key)
-      throw new java.lang.IllegalArgumentException("The derived factory cache of type %s already has an entry for '%s' (trying to manually add an entry).".format(getClass.getName,key))
+      throw new
+          java.lang.IllegalArgumentException("The derived factory cache of type %s already has an entry for '%s' (trying to manually add an entry).".format(getClass.getName, key))
     internalCache += key → value
   }
 
@@ -54,19 +55,20 @@ abstract class DerivedFactoryCache[P,K,V] extends FactoryCache[P, V] {
     * @return The (unique) key for this value.
     */
   protected def deriveKeyFromValue(value : V) : K = {
-    throw new java.lang.UnsupportedOperationException("The type %s has not defined the optional method `deriveKeyFromValue`.".format(getClass.getName))
+    throw new
+        java.lang.UnsupportedOperationException("The type %s has not defined the optional method `deriveKeyFromValue`.".format(getClass.getName))
   }
 
   /**
     * A mapping from keys to values for direct lookup via keys (`K`)
     * @return mapping from keys to values.
     */
-  def lookup : Map[K, V] = internalCache
+  def lookup(key : K) : V = internalCache(key)
 
   private val nextId = new AtomicInteger(0)
 
   /**
-    * As an optional service, [[ch.ethz.inf.pm.semper.chalice2sil.translation.DerivedFactoryCache]] offers unique id's.
+    * As an optional service, [[ch.ethz.inf.pm.semper.chalice2sil.translation.util.DerivedFactoryCache]] offers unique id's.
     * @return one of 2**16-1 unique id's
     */
   def getNextId : Int = nextId.getAndIncrement
@@ -94,4 +96,13 @@ abstract class DerivedFactoryCache[P,K,V] extends FactoryCache[P, V] {
     * @return The value to be added to the cache.
     */
   protected def construct(p : P) : V
+
+  /**
+    * Can be overridden to forward entries from a "parent" cache. New entries will always be created locally.
+    * [[ch.ethz.inf.pm.semper.chalice2sil.translation.util.DerivedFactoryCache.addExternal]] can create shadowing
+    * entries.
+    * @param key The key to look up in the outer scope.
+    * @return Some(value) if the outer scope can supply a value for the requested key, None otherwise.
+    */
+  protected def outerScope(key : K) : Option[V] = None
 }

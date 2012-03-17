@@ -5,6 +5,7 @@ import collection._
 import translation._
 import cfg._
 import silAST.programs.symbols.ProgramVariable
+import util.NameSequence
 
 
 /**

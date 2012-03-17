@@ -1,43 +1,41 @@
-package ch.ethz.inf.pm.semper.chalice2sil.translation.support
+package ch.ethz.inf.pm.semper.chalice2sil.translation.util
 
 import silAST.programs.symbols.ProgramVariable
 import silAST.types.DataType
 import silAST.source.noLocation
-import ch.ethz.inf.pm.semper.chalice2sil.translation.MethodEnvironment
+import ch.ethz.inf.pm.semper.chalice2sil.translation.ScopeTranslator
 
 /**
   * Author: Christian Klauser
   */
 
-class TemporaryVariableBroker(environment : TemporaryVariableHost) {
+class TemporaryVariableBroker(environment : ScopeTranslator) {
   private val knownTemporaryVariables = collection.mutable.Set[ProgramVariable]()
   private val freeTemporaryVariables = collection.mutable.Map[DataType, List[ProgramVariable]]()
 
   protected def allocate(dataType : DataType) : ProgramVariable = {
-    val temporary = environment.implementationFactory.addLocalVariable(noLocation, environment.getNextName("τ"), dataType)
+    val temporary = environment.declareScopedVariable(noLocation, environment.getNextName("τ"),dataType)
     knownTemporaryVariables += temporary
     temporary
   }
 
   def acquire(dataType : DataType) : ProgramVariable = {
-    val v = freeTemporaryVariables.getOrElseUpdate(dataType, Nil).headOption match {
+    freeTemporaryVariables.getOrElseUpdate(dataType, Nil).headOption match {
       case None => allocate(dataType)
       case Some(e) =>
-        freeTemporaryVariables.update(dataType,freeTemporaryVariables(dataType).tail)
+        freeTemporaryVariables.update(dataType, freeTemporaryVariables(dataType).tail)
         e
     }
-    environment.bringTemporaryVariableIntoScope(v)
-    v
   }
 
 
   def release(variable : ProgramVariable) {
     require(knownTemporaryVariables contains variable,
       "Cannot release SIL program variable %s because it is not a temporary variable.".format(variable))
-    require((freeTemporaryVariables.get(variable.dataType).map(vs => ! (vs contains variable)).getOrElse(true)),
+    require((freeTemporaryVariables.get(variable.dataType).map(vs => !(vs contains variable)).getOrElse(true)),
       "Cannot release SIL program variable %s because it is not currently acquired.".format(variable))
 
-    val oldList = freeTemporaryVariables.getOrElse(variable.dataType,Nil)
+    val oldList = freeTemporaryVariables.getOrElse(variable.dataType, Nil)
     freeTemporaryVariables.update(variable.dataType, variable :: oldList)
   }
 

@@ -11,6 +11,7 @@ import silAST.source.{SourceLocation, noLocation}
 import silAST.domains.{Domain, DomainPredicate, DomainFunction}
 import silAST.types._
 import silAST.symbols.logical.quantification.{LogicalVariable, Forall}
+import util.{FactoryHashCache, NameSequence}
 
 /**
  * Author: Christian Klauser

@@ -12,6 +12,7 @@ import silAST.symbols.logical.Not
 import silAST.programs.symbols.{FunctionFactory, PredicateFactory, Predicate, Field}
 import silAST.types.{DataType, DataTypeSequence, NonReferenceDataType, referenceType}
 import java.util.concurrent.atomic.AtomicInteger
+import util.{DerivedFactoryCache, FactoryHashCache}
 
 /**
  * Author: Christian Klauser

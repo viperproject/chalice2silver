@@ -1,21 +1,20 @@
-package ch.ethz.inf.pm.semper.chalice2sil.translation
-
-import ch.ethz.inf.pm.semper.chalice2sil.translation.NameSequence.LowerAlphabet
+package ch.ethz.inf.pm.semper.chalice2sil.translation.util
 
 /**
- * Author: Christian Klauser
- */
+  * Author: Christian Klauser
+  */
 
 abstract class NameSequence {
   val alphabet : IndexedSeq[Char]
+
   private def N = alphabet.length
 
-  protected def intPower(base : Int, exp : Int):Int = {
+  protected def intPower(base : Int, exp : Int) : Int = {
     require(exp >= 0)
     var exponent = exp
     var powerBase = base
     var result = 1;
-    while(exponent > 0){
+    while(exponent > 0) {
       if((exponent & 1) != 0)
         result *= powerBase
       exponent >>= 1
@@ -24,23 +23,23 @@ abstract class NameSequence {
     result
   }
 
-  protected def lex(len : Int, index : Int) : List[Char] =  
-    if (len <= 0) 
+  protected def lex(len : Int, index : Int) : List[Char] =
+    if(len <= 0)
       Nil
     else
-      alphabet(index % N) :: lex(len-1,index / N)
-  
+      alphabet(index % N) :: lex(len - 1, index / N)
+
   protected def genWord(len : Int, index : Int) = {
-    val  sb = new StringBuilder(len)
-    sb ++= lex (len,index)
+    val sb = new StringBuilder(len)
+    sb ++= lex(len, index)
     sb.reverseContents()
     sb.toString()
   }
 
   def allNames : Stream[String] =
     Stream.from(1)
-    .flatMap(length => Stream.range(0,intPower(N,length)).map((length,_)))
-    .map(t => genWord(t._1,t._2))
+      .flatMap(length => Stream.range(0, intPower(N, length)).map((length, _)))
+      .map(t => genWord(t._1, t._2))
 
   protected var currentName : Option[Stream[String]] = None
 
@@ -57,8 +56,10 @@ abstract class NameSequence {
 }
 
 object NameSequence {
-  class LowerAlphabet extends NameSequence{
+
+  class LowerAlphabet extends NameSequence {
     override val alphabet = ('a' to 'z')
   }
+
   def apply() = new LowerAlphabet
 }

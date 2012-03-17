@@ -14,13 +14,9 @@ class DerivedMethodEnvironment(methodEnvironment : MethodEnvironment)
   
   assert(!parentEnvironment.isInstanceOf[DerivedMethodEnvironment])
 
-  override def implementationFactory = parentEnvironment.implementationFactory
+  override def readFractionVariable = parentEnvironment.readFractionVariable
 
   override def programVariables = parentEnvironment.programVariables
-
-  override def basicBlocks = parentEnvironment.basicBlocks
-
-  override def temporaries = parentEnvironment.temporaries
 
   override def thisVariable = parentEnvironment.thisVariable
 
