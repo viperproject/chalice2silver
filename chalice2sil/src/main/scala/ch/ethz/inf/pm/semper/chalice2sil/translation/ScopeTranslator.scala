@@ -48,6 +48,7 @@ trait ScopeTranslator
 
     cfgFactory.setStartNode(methodEntry)
     cfgFactory.setEndNode(methodExit)
+    methodExit.setHalt()(noLocation)
   }
 
   protected def translateStatements(codeTranslator : CodeTranslator, stmts : Traversable[chalice.Statement]){
@@ -61,23 +62,28 @@ trait ScopeTranslator
 
     stmt match {
       case chalice.IfStmt(guard,thn,None) =>
-        val guardExpr = codeTranslator.translateExpression(guard).asInstanceOf[PExpression]
+        val guardExpr = translatePExpression(codeTranslator,guard)
         silIf(guardExpr,stmt){
           translateStatement(codeTranslator,thn)
-        }.end()
+        } end ()
       case chalice.IfStmt(guard,thn,Some(els)) =>
-        val guardExpr = codeTranslator.translateExpression(guard).asInstanceOf[PExpression]
+        val guardExpr = translatePExpression(codeTranslator,guard)
         silIf(guardExpr,stmt){
           translateStatement(codeTranslator,thn)
         } els {
           translateStatement(codeTranslator,els)
-        }
+        } end ()
       case chalice.BlockStmt(ss) => translateStatements(codeTranslator, ss)
-      case chalice.WhileStmt(condition,oldInvs,newInvs,lockChange,body) =>
-        val conditionExpr = codeTranslator.translateExpression(condition).asInstanceOf[PExpression]
+      case loopNode@chalice.WhileStmt(condition,_,_,lockChange,body) =>
+        val conditionExpr = translatePExpression(codeTranslator,condition)
         //compile loop body
         val loop = cfgFactory.addLoopBlock(getNextName(),conditionExpr)(stmt)
-        // TODO: Set loop invariant
+        if(loopNode.Invs != Nil){
+          loop.setInvariant(
+            loopNode.Invs
+              .map(translatePExpression(codeTranslator,_))
+              .reduce(currentExpressionFactory.makePBinaryExpression(loopNode,And()(loopNode),_,_)))
+        }
         val loopTranslator = new LoopBodyTranslator(this,loop)
         loopTranslator.translateBody(loopTranslator.translateStatement(_,body))
 
@@ -199,8 +205,8 @@ trait ScopeTranslator
     // Generate assumptions and conditions on fraction
     /**
       * Walks over an [[silAST.expressions.Expression]] and extracts just read permission assertions and implications.
-      * @param expr
-      * @return
+      * @param expr The expression to analyse.
+      * @return A list of extracted read conditions.
       */
     def genReadCond(expr : Expression) : List[ReadCondition] = expr match {
       case PermissionExpression(_,_,FullPermissionTerm()) => Nil
@@ -238,7 +244,7 @@ trait ScopeTranslator
     /**
       * Takes a list of read permission conditions as extracted by {{genReadCon}} and generates
       * the corresponding conditions on `k`.
-      * @param rs
+      * @param rs the list of read permission conditions to implement.
       */
     def appendCond(rs : List[ReadCondition]){
       rs foreach {
@@ -387,6 +393,15 @@ trait ScopeTranslator
     }
   }
 
+  def translatePExpression(codeTranslator : CodeTranslator, expr : chalice.Expression) : PExpression = {
+    codeTranslator.translateExpression(expr) match {
+      case pe:PExpression => pe
+      case t =>
+        assert(false,"Expected program expression. Actual type: %s. Location: %s.".format(t.getClass,t.sourceLocation))
+        null
+    }
+  }
+
   class MethodCodeTranslator extends DefaultCodeTranslator(thisScopeTranslator) {
     override protected def readFraction(location : SourceLocation) =
       currentExpressionFactory.makeProgramVariableTerm(location, readFractionVariable)
@@ -481,17 +496,13 @@ trait ScopeTranslator
     blockStack push blockHead
     val result = translation
     val blockEnd = blockStack.pop()
-    assert(!hasOutgoingEdges(blockEnd),"The block \"%s\" is expected to not have any outgoing edges. %s".format(blockEnd.name, blockEnd.compile()))
     (result,blockEnd)
   }
 
   protected def continueWith(block : BasicBlockFactory) = {
     require(!blockStack.isEmpty)
-    require(!hasOutgoingEdges(block))
 
     blockStack.pop()
     blockStack.push(block)
   }
-
-  protected def hasOutgoingEdges(block : BasicBlockFactory) : Boolean = !block.compile().successors.isEmpty
 }

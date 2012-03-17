@@ -77,7 +77,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     override protected def construct(p : chalice.Variable) = implementationFactory.addProgramVariable(p,deriveKey(p),translateTypeExpr(p.t))
   }
 
-  override val thisVariable : ProgramVariable = methodFactory.method.signature.parameters(0)
+  override val thisVariable : ProgramVariable = methodFactory.addParameter(method,"this",referenceType)
 
   /**
     * Adds a basic block to the SIL AST. The specified Chalice block is used as a prototype for Chalice-level properties

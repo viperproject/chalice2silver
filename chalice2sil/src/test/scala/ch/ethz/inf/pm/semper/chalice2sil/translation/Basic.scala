@@ -71,7 +71,7 @@ class Basic extends ChaliceSuite with ShouldMatchers {
     val other = getImpl("Main::other")
     val otherLocals = other.locals
     
-    otherLocals should have size (2) //only variables that are actually used will be added in SIL
+    otherLocals should have size (1) //only variables that are actually used will be added in SIL
   }  
   
   'directFieldUpdate.chalice {
