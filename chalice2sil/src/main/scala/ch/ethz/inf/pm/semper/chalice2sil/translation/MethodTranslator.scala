@@ -11,7 +11,6 @@ import silAST.programs.symbols.{Field, ProgramVariable}
 import silAST.expressions.terms._
 import silAST.expressions._
 import silAST.symbols.logical._
-import cfg._
 import silAST.domains.{DomainInstance, DomainPredicate, Domain, DomainFunction}
 import collection.immutable
 import immutable.Set
@@ -96,8 +95,6 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
 
   val blockStack = new Stack[BasicBlockFactory]
   def currentExpressionFactory = blockStack.headOption.getOrElse(methodFactory)
-  
-  var currentChaliceBlock : ChaliceBlock = null
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////      TRANSLATION                                                     /////////////////////////////////
@@ -107,6 +104,15 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     val mf = methodFactory
     method.ins.foreach(i => programVariables.addExternal(mf.addParameter(i, i.UniqueName, translateTypeExpr(i.t))))
     method.outs.foreach(o => programVariables.addExternal(mf.addResult(o,o.UniqueName,translateTypeExpr(o.t))))
+
+    // this pointer
+    mf.addPrecondition(method,
+      mf.makeUnaryExpression(method,Not()(method),          // ¬
+        mf.makeEqualityExpression(method,                   // ==
+          mf.makeProgramVariableTerm(method,thisVariable),  // this
+          mf.makePDomainFunctionApplicationTerm(method,nullFunction,PTermSequence())))) // null
+
+    // read fraction
     val k = mf.addParameter(method,getNextName("k"),permissionType)
     programVariables.addExternal(k)
 

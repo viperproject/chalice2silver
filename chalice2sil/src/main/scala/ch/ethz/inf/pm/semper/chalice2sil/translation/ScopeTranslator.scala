@@ -235,7 +235,9 @@ trait ScopeTranslator
           currentBlock.makeBinaryExpression(callNode,Implication()(callNode),lhs,rhs),
           currentBlock.makeBinaryExpression(callNode,Implication()(callNode),rhs,lhs)
         ))
-      case _:AtomicExpression => Nil
+      case  _:EqualityExpression
+          | _:AtomicExpression
+          | _:UnaryExpression => Nil
       case _ =>
         report(messages.PermissionNotUnderstood(callNode,expr))
         Nil

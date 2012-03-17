@@ -105,7 +105,7 @@ class Basic extends ChaliceSuite with ShouldMatchers {
     val main = mainOpt.get
     val sig = main.signature
     
-    sig.precondition should have length (2)
+    sig.precondition should have length (3)
     sig.postcondition should have length (1)
     
     sig.precondition(1) should be (instanceOf[PermissionExpression])

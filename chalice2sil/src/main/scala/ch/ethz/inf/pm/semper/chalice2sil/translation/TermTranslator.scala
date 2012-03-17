@@ -6,10 +6,10 @@ import silAST.expressions.util.TermSequence._
 import silAST.source.SourceLocation
 import math.BigInt._
 import silAST.expressions.ExpressionFactory
-import silAST.expressions.util.TermSequence
 import silAST.programs.symbols.ProgramVariable
 import ch.ethz.inf.pm.semper.chalice2sil._
-import silAST.types.{referenceType, DataType}
+import silAST.types.{nullFunction, referenceType, DataType}
+import silAST.expressions.util.{PTermSequence, TermSequence}
 
 /**
   * @author Christian Klauser
@@ -35,6 +35,11 @@ trait TermTranslator extends MethodEnvironment with TypeTranslator {
       case access@chalice.MemberAccess(rcvr,_) if !access.isPredicate =>
         assert(access.f != null,"Chalice MemberAccess node (%s) is not linked to a field.".format(access))
         currentExpressionFactory.makeFieldReadTerm(access,translateTerm(rcvr),fields(access.f))
+      case ifThenElse@chalice.IfThenElse(cond,thn,els) =>
+        val condTerm = translateTerm(cond)
+        val thnTerm = translateTerm(thn)
+        val elsTerm = translateTerm(els)
+        currentExpressionFactory.makeIfThenElseTerm(ifThenElse,condTerm,thnTerm,elsTerm)
       case th@chalice.ImplicitThisExpr() =>
         currentExpressionFactory.makeProgramVariableTerm(th,thisVariable)
       case th@chalice.ExplicitThisExpr() =>
@@ -58,6 +63,8 @@ trait TermTranslator extends MethodEnvironment with TypeTranslator {
         currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.not,TermSequence(
           translateTerm(op)
         ))
+      case literal@chalice.NullLiteral() =>
+        currentExpressionFactory.makePDomainFunctionApplicationTerm(literal,nullFunction,PTermSequence())
       case binary:chalice.BinaryExpr => translateBinaryExpression(binary)
   }
 

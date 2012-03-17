@@ -7,12 +7,12 @@ import silAST.symbols.logical.Implication._
 import silAST.domains.{DomainPredicate, Domain}
 import silAST.types.DataType
 import silAST.expressions.util.TermSequence._
-import ch.ethz.inf.pm.semper.chalice2sil._
 import silAST.expressions.{ExpressionFactory, Expression}
-import silAST.symbols.logical.{And, Or, Implication}
 import silAST.expressions.util.TermSequence
 import silAST.expressions.terms.Term
 import silAST.ASTNode
+import ch.ethz.inf.pm.semper.chalice2sil._
+import silAST.symbols.logical.{Not, And, Or, Implication}
 
 /**
   * @author Christian Klauser
@@ -39,6 +39,23 @@ trait ExpressionTranslator extends MethodEnvironment {
         val lhsT = translateExpression(lhs)
         val rhsT = translateExpression(rhs)
         currentExpressionFactory.makeBinaryExpression(expression,Implication()(expression),lhsT,rhsT)
+      case equality@chalice.Eq(lhs,rhs) => 
+        val lhsTerm = translateTerm(lhs)
+        val rhsTerm = translateTerm(rhs)
+        currentExpressionFactory.makeEqualityExpression(equality,lhsTerm,rhsTerm)
+      case inequality@chalice.Neq(lhs,rhs) =>
+        val lhsTerm = translateTerm(lhs)
+        val rhsTerm = translateTerm(rhs)
+        val eq = currentExpressionFactory.makeEqualityExpression(inequality,lhsTerm,rhsTerm)
+        currentExpressionFactory.makeUnaryExpression(inequality,Not()(inequality),eq)
+      case ifThenElse@chalice.IfThenElse(cond,thn,els) =>
+        val condExpr = translateExpression(cond)
+        val thnExpr = translateExpression(thn)
+        val elsExpr = translateExpression(els)
+        val pos = currentExpressionFactory.makeBinaryExpression(ifThenElse,Implication()(ifThenElse),condExpr,thnExpr)
+        val negCondExpr = currentExpressionFactory.makeUnaryExpression(ifThenElse,Not()(ifThenElse),condExpr)
+        val neg = currentExpressionFactory.makeBinaryExpression(ifThenElse,Implication()(ifThenElse),negCondExpr,elsExpr)
+        currentExpressionFactory.makeBinaryExpression(ifThenElse,And()(ifThenElse),pos,neg)
       case binary:chalice.BinaryExpr =>
         val (lhs,rhs) = (binary.E0,binary.E1)
         // binary.ExpectedXhsType is often null, use the "inferred" types for the operands instead
