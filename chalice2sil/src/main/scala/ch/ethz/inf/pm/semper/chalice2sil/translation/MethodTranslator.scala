@@ -11,7 +11,7 @@ import silAST.programs.symbols.{Field, ProgramVariable}
 import silAST.expressions.terms._
 import silAST.expressions._
 import silAST.symbols.logical._
-import ssa._
+import cfg._
 import silAST.domains.{DomainInstance, DomainPredicate, Domain, DomainFunction}
 import support.{ExpressionVisitor, ExpressionTransplantation, TemporaryVariableHost, TemporaryVariableBroker}
 import collection.immutable
@@ -63,25 +63,15 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     new TokenStorage(this, argFields, oldMap)
   }
 
-  override val programVariables = new DerivedFactoryCache[ssa.Version,String, ProgramVariable] with AdjustableCache[ProgramVariable] {
-    override protected def deriveKey(p : ssa.Version) = p.uniqueName
+  override val programVariables = new DerivedFactoryCache[chalice.Variable,String, ProgramVariable] with AdjustableCache[ProgramVariable] {
+    override protected def deriveKey(p : chalice.Variable) = p.UniqueName
 
     override protected def deriveKeyFromValue(value : ProgramVariable) = value.name
 
-    override protected def construct(p : ssa.Version) = implementationFactory.addLocalVariable(p.chaliceVariable,deriveKey(p),translateTypeExpr(p.chaliceVariable.t))
+    override protected def construct(p : chalice.Variable) = implementationFactory.addLocalVariable(p,deriveKey(p),translateTypeExpr(p.t))
   }
 
   override val thisVariable = methodFactory.thisVar
-
-  def localVariableVersion(variable : chalice.Variable) = {
-    if(currentAssignmentInterpretation == null && (method.ins.contains(variable) || method.outs.contains(variable))){
-      programVariables.lookup(variable.UniqueName)
-    } else {
-      require(currentAssignmentInterpretation != null,
-        "Tried to access local variable version of variable %s without an assignment interpretation.".format(variable))
-      programVariables(currentAssignmentInterpretation.version(variable))
-    }
-  }
 
   override val basicBlocks = new AdjustableFactoryHashCache[String, BasicBlockFactory] {
     protected override def construct(name : String) : BasicBlockFactory = {
@@ -109,21 +99,19 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
   
   def inheritChaliceBlockProperties(chaliceBlock : ChaliceBlock, block : BasicBlockFactory){
     // variable scope
-    chaliceBlock.versionsInScope foreach { v =>
-      val pv = programVariables(v)
+    ( chaliceBlock.variablesInScope.map(programVariables(_)).toStream ++
+      chaliceBlock.temporariesInScope) foreach { v =>
+      val pv = v
       if(!((methodFactory.parameters contains pv) || (methodFactory.results contains pv))){
-        block.addProgramVariableToScope(programVariables(v))
+        block.addProgramVariableToScope(v)
       }
-    }
-    chaliceBlock.temporariesInScope foreach  { v =>
-      block.addProgramVariableToScope(v)
     }
   }
 
   override val temporaries = new TemporaryVariableBroker(this)
 
   def allocateLocallyScoped(sourceLocation : SourceLocation, name : String, dataType : DataType) : ProgramVariable = {
-    var v = implementationFactory.addLocalVariable(sourceLocation, getNextName(name),dataType)
+    val v = implementationFactory.addLocalVariable(sourceLocation, getNextName(name),dataType)
     bringTemporaryVariableIntoScope(v)
     v
   }
@@ -143,21 +131,14 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
   def currentExpressionFactory = blockStack.headOption.getOrElse(methodFactory)
   
   var currentChaliceBlock : ChaliceBlock = null
-  var currentAssignmentInterpretation : AssignmentInterpretation = null
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////      TRANSLATION                                                     /////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   val cfg : ControlFlowSketch = {
-    val ssa = new SsaSurvey(this, nameSequence)
-    val cfg = ssa.translateControlFlow(method)
-    ssa.determineDominators(cfg)
-    ssa.determineDominanceFrontiers(cfg)
-    ssa.determineΦLocations(cfg)
-    ssa.determineIntermediateVersions(cfg)
-    ssa.determineDefinitionReach(cfg)
-    ssa.determineVariableScopes(cfg,method.ins ++ method.outs)
+    val survey = new CfgSurvey(this, nameSequence)
+    val cfg = survey.translateControlFlow(method)
     
     cfg
   }
@@ -255,28 +236,19 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   /**
-    * Executes `body` with the supplied [[ch.ethz.inf.pm.semper.chalice2sil.translation.ssa.ChaliceBlock]] and
-    * [[ch.ethz.inf.pm.semper.chalice2sil.translation.ssa.AssignmentInterpretation]] in scope. Ensures that the original
+    * Executes `body` with the supplied [[ch.ethz.inf.pm.semper.chalice2sil.translation.cfg.ChaliceBlock]] in scope. Ensures that the original
     * state is restored, even in the case of `body` failing with an exception.
     * @param chaliceBlock The Chalice block to refer to.
-    * @param assignmentInterpretation Optional. By default [[ch.ethz.inf.pm.semper.chalice2sil.translation.ssa.AssignmentInterpretation.atBeginning]] is used.
     * @param body The expression to evaluate with `chaliceBlock` in scope.
     * @tparam T The type of the body's return value.
     * @return The value returned by the body.
     */
-  protected def withChaliceBlock[T](chaliceBlock : ChaliceBlock, assignmentInterpretation : AssignmentInterpretation = null)(body : => T) = {
+  protected def withChaliceBlock[T](chaliceBlock : ChaliceBlock)(body : => T) = {
     currentChaliceBlock = chaliceBlock
-    currentAssignmentInterpretation =
-      if(assignmentInterpretation != null)
-        assignmentInterpretation
-      else
-        AssignmentInterpretation.atBeginning(chaliceBlock)
-
     try {
       body
     } finally {
       currentChaliceBlock = null
-      currentAssignmentInterpretation = null
     }
   }
 
@@ -306,31 +278,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
 
       withChaliceBlock(chaliceBlock){
         val (_,exitBody) = into(beginBlock,{
-          // Generate inhale statements for all the ϕ-assignments
-          for {
-            v <- chaliceBlock.assignedVariables
-            vi = chaliceBlock.blockVariableInfo(v)
-            if vi.needsΦAssignment
-            if chaliceBlock.versionsInScope contains vi.firstVersion //Do not generate ϕ-assignments if the target version is never used
-          } {
-            // create ϕ assignment:
-            // currently implemented as `inhale (v_1 = v_a ∨ v_1 = v_b ∨ ... ∨ v_1 = v_z)`
-            val tv = vi.firstVersion //the target variable (of the ϕ assignment)
-            val fac = currentExpressionFactory
-            (vi.ϕ.toStream :+ tv).foreach{ v =>
-              assert(currentBlock.programVariables contains programVariables(v),
-                "SIL block %s (backing chalice block %s) is expected to have version %s in scope."
-                .format(currentBlock.name,chaliceBlock,v))
-            }
-            val ϕAssignment = vi.ϕ
-              .map(sv => fac.makeEqualityExpression(loc, // create expression `tv = sv`
-              fac.makeProgramVariableTerm(loc,programVariables(tv)),
-              fac.makeProgramVariableTerm(loc,programVariables(sv)))) //sv is the source variable of the ϕ assignment
-              .reduce[Expression](fac.makeBinaryExpression(loc,Or()(chaliceBlock.sourceLocation),_,_)) // connect via logical or
-            currentBlock.appendInhale(loc,ϕAssignment)
-          }
-
-          // finally, translate the statements in this Chalice block. Might result in additional SIL blocks being created
+          //translate the statements in this Chalice block. Might result in additional SIL blocks being created
           translateStatements(new MethodCodeTranslator,chaliceBlock.statements)
         })
 
@@ -354,17 +302,6 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     basicBlocks.addExternal(lastBlock) //TODO: assign out variables from SSA form
     lastCodeBlock.addSuccessor(method,lastBlock,TrueExpression()(method),false)
 
-    // Assign out parameters from the respective last versions in the
-    for {
-      outParam <- method.outs
-      outVi = cfg.exitBlock.blockVariableInfo(outParam)
-      tv = programVariables.lookup(outParam.UniqueName)
-      sv = programVariables(outVi.lastVersion)
-    }{
-      lastBlock.addProgramVariableToScope(sv)
-      lastBlock.appendAssignment(method,tv,lastBlock.makeProgramVariableTerm(method,sv))
-    }
-
     val guardTranslator = new MethodCodeTranslator
     // Finally, implement the Chalice CFG by looping over all Chalice blocks and adding
     //  the translated edges to the `silEndBlock` of each Chalice block.
@@ -374,14 +311,14 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
 
       /**
         * Ensures that the `body` is executed in a context where not just `chaliceBlock` but also
-        * the corresponding `silEndBlock` are in scope together with an [[ch.ethz.inf.pm.semper.chalice2sil.translation.ssa.AssignmentInterpretation.atEnd]] interpretation.
+        * the corresponding `silEndBlock` are in scope
         * The body is not allowed to create additional blocks.
         * @param body
         * @tparam T
         * @return
         */
       def withEndBlock[T](body : => T) = {
-        val (v,newEndBlock) = withChaliceBlock(chaliceBlock,AssignmentInterpretation.atEnd(chaliceBlock)){
+        val (v,newEndBlock) = withChaliceBlock(chaliceBlock){
           val block = chaliceBlock.silEndBlock
           blockStack.push(block)
           try{
@@ -404,9 +341,9 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       }
 
       /**
-        * Implements the supplied [[ch.ethz.inf.pm.semper.chalice2sil.translation.ssa.ChaliceEdge]], using
+        * Implements the supplied [[ch.ethz.inf.pm.semper.chalice2sil.translation.cfg.ChaliceEdge]], using
         * an already translated `condition`. Note that the condition is expected to be positive, i.e.,
-        * a SIL-level negation will be added for edges with [[ch.ethz.inf.pm.semper.chalice2sil.translation.ssa.ChaliceEdge.isInverted]] set to `true`.
+        * a SIL-level negation will be added for edges with [[ch.ethz.inf.pm.semper.chalice2sil.translation.cfg.ChaliceEdge.isInverted]] set to `true`.
         * @param edge
         * @param condition
         */
@@ -472,22 +409,21 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
   }
 
   def translateAssignment(codeTranslator : CodeTranslator, lhs : chalice.VariableExpr,  rhs : chalice.RValue){
-    // Watch out: It is important that `rhs` is translated *before* the assignment to `lhs` is registered
-    lazy val targetVersion = programVariables(currentAssignmentInterpretation.registerAssignment(lhs.v))
+    val targetVariable = programVariables(lhs.v)
 
     rhs match {
       //chalice.RValue is (expression ∪ new-obj)
       //NewRhs  is used for both object creation and channel creation (where lower and upper bounds come into play)
       case newObj@chalice.NewRhs(typeId,init,lowerBound,upperBound) =>
-        translateNew(codeTranslator,newObj,targetVersion)
+        translateNew(codeTranslator,newObj,targetVariable)
       case e:chalice.Expression =>
         val rhsTerm = translatePTerm(codeTranslator, e)
-        currentBlock.appendAssignment(lhs,targetVersion,rhsTerm)
+        currentBlock.appendAssignment(lhs,targetVariable,rhsTerm)
     }
 
-    assert(currentBlock.programVariables contains targetVersion,
+    assert(currentBlock.programVariables contains targetVariable,
       "The SIL basic block %s is expected to have the SIL program variable %s in scope. Program variables actually in scope: {%s}"
-        .format(currentBlock.name,targetVersion,currentBlock.programVariables.mkString(", ")))
+        .format(currentBlock.name,targetVariable,currentBlock.programVariables.mkString(", ")))
   }
 
   def translateNew(codeTranslator : CodeTranslator, newObj : chalice.NewRhs, targetVar : ProgramVariable) {
@@ -543,7 +479,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
           withRhsTranslation(currentBlock.appendFieldAssignment(stmt, rcvrVar, fields(location.f), _))
         }
         location.e match {
-          case rcvr:chalice.VariableExpr => assignViaVar(localVariableVersion(rcvr.v))
+          case rcvr:chalice.VariableExpr => assignViaVar(programVariables(rcvr.v))
           case chalice.ImplicitThisExpr() => assignViaVar(methodFactory.thisVar)
           case chalice.ExplicitThisExpr() => assignViaVar(methodFactory.thisVar)
           case rcvr =>
@@ -735,8 +671,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
 
     // Generate call statement
     val receiverTerm = translatePTerm(codeTranslator,receiver)
-    val destinationVars = destinations.map(vExpr =>
-      programVariables(currentAssignmentInterpretation.registerAssignment(vExpr.v)))
+    val destinationVars = destinations.map(vExpr => programVariables(vExpr.v))
     val argTerms = args.map(translatePTerm(codeTranslator, _)) ++ List(readFractionTerm)
     currentBlock.appendCall(
       callNode,
@@ -752,7 +687,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     val calleeFactory = methods(callNode.m)
 
     // `tok := new object`
-    val tokenVersion = programVariables(currentAssignmentInterpretation.registerAssignment(tokenVar.v))
+    val tokenVersion = programVariables(tokenVar.v)
     currentBlock.appendNew(callNode,tokenVersion,referenceType)
 
     //Determine read fraction

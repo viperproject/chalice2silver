@@ -13,8 +13,7 @@ import support.TemporaryVariableBroker
 
 trait MethodEnvironment extends ProgramEnvironment {
   def implementationFactory : ImplementationFactory
-  def programVariables : DerivedFactoryCache[ssa.Version,String, ProgramVariable]
-  def localVariableVersion(variable : chalice.Variable) : ProgramVariable
+  def programVariables : DerivedFactoryCache[chalice.Variable,String, ProgramVariable]
   def basicBlocks : FactoryCache[String,  BasicBlockFactory] with AdjustableCache[BasicBlockFactory]
   def temporaries : TemporaryVariableBroker
   def thisVariable : ProgramVariable

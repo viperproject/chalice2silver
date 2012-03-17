@@ -1,10 +1,10 @@
-package ch.ethz.inf.pm.semper.chalice2sil.translation.ssa
+package ch.ethz.inf.pm.semper.chalice2sil.translation.cfg
 
 /**
   * Represents an edge in a chalice control flow graph, or a transfer of control between [[ch.ethz.inf.pm.semper.chalice2sil.translation.cfg.ChaliceBlock]]s.
   * @author Christian Klauser
   */
-final case class ChaliceEdge private[ssa]
+final case class ChaliceEdge private[cfg]
 ( /**
     * The [[ch.ethz.inf.pm.semper.chalice2sil.translation.cfg.ChaliceBlock]] that this edge transfers control from.
     */

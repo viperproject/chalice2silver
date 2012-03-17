@@ -30,7 +30,7 @@ trait TermTranslator extends MethodEnvironment with TypeTranslator {
       case rvalue@chalice.BoolLiteral(false) =>
         currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.falseLiteral,TermSequence())
       case variableExpr:chalice.VariableExpr =>
-        currentExpressionFactory.makeProgramVariableTerm(variableExpr,(localVariableVersion(variableExpr.v)))
+        currentExpressionFactory.makeProgramVariableTerm(variableExpr,(programVariables(variableExpr.v)))
       case rvalue@chalice.Old(e) => currentExpressionFactory.makeOldTerm(rvalue,translateTerm(e))
       case access@chalice.MemberAccess(rcvr,_) if !access.isPredicate =>
         assert(access.f != null,"Chalice MemberAccess node (%s) is not linked to a field.".format(access))

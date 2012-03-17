@@ -1,4 +1,4 @@
-package ch.ethz.inf.pm.semper.chalice2sil.translation.ssa
+package ch.ethz.inf.pm.semper.chalice2sil.translation.cfg
 
 import scala.collection._;
 
@@ -68,11 +68,4 @@ class ControlFlowSketch(val entryBlock : ChaliceBlock, val exitBlock : ChaliceBl
     * The size of the control flow graph, i.e., the total number of blocks.
     */
   lazy val size = reversePostorder.length
-
-  /**
-    * The set of local variables in the control flow graph. Includes parameters (both in and out) but
-    * excludes variables that are never assigned to.
-    */
-  lazy val localVariables : immutable.Set[chalice.Variable] =
-    reversePostorder.map(_.assignedVariables.toSet).reduce(_ ++ _)
 }
