@@ -103,13 +103,6 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
   //////////////      TRANSLATION                                                     /////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  val cfg : ControlFlowSketch = {
-    val survey = new CfgSurvey(this, nameSequence)
-    val cfg = survey.translateControlFlow(method)
-    
-    cfg
-  }
-
   private[this] def createSignature() = {
     val mf = methodFactory
     method.ins.foreach(i => programVariables.addExternal(mf.addParameter(i, i.UniqueName, translateTypeExpr(i.t))))
