@@ -214,6 +214,41 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
   
   val readFractionVariable = createSignature();
 
+  def dummyTerm(location : SourceLocation) = currentExpressionFactory.makeIntegerLiteralTerm(location,27)
+
+  /**
+    * Runs a translation with the specified block as the currentBlock. Will then ensure that
+    * the block that ends up as the currentBlock at the end of the translation does not have any
+    * outgoing edges already, i.e., is open for additional statements.
+    *
+    * The typical pattern for using `into` is as follows:
+    * {{{
+    * val targetBlockBegin = basicBlocks(getNextName("target_block"))
+    * val (result,targetEndBlock) = into(targetBlockBegin, myTranslation(x))
+    * }}}
+    * At this point `targetBlockBegin` and `targetBlockEnd` might be the same block, or there might be
+    * an arbitrary number of block in between.
+    *
+    * The end block is guaranteed not to have any outgoing edges, so you can safely append statements
+    * that are meant to follow `myTranslation(x)`.
+    */
+  protected def into[T](blockHead : BasicBlockFactory, translation : =>  T) : (T,BasicBlockFactory) = {
+    blockStack push blockHead
+    val result = translation
+    val blockEnd = blockStack.pop()
+    assert(!hasOutgoingEdges(blockEnd),"The block \"%s\" is expected to not have any outgoing edges. %s".format(blockEnd.name, blockEnd.compile()))
+    (result,blockEnd)
+  }
+
+  protected def continueWith(block : BasicBlockFactory) = {
+    require(!blockStack.isEmpty)
+    require(!hasOutgoingEdges(block))
+
+    blockStack.pop()
+    blockStack.push(block)
+  }
+
+  protected def hasOutgoingEdges(block : BasicBlockFactory) : Boolean = !block.compile().successors.isEmpty
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////      CONTROL FLOW GRAPH SKETCH / TRANSLATION TO SSA FORM             /////////////////////////////////
@@ -422,6 +457,20 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     assert(cfg.entryBlock.silBeginBlock != null)
   }
 
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////      TRANSLATE STATEMENTS                                            /////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  class MethodCodeTranslator extends DefaultCodeTranslator(thisMethodTranslator) {
+    override protected def readFraction(location : SourceLocation) =
+      currentExpressionFactory.makeProgramVariableTerm(location, readFractionVariable)
+  }
+
+  type CodeTranslator = ExpressionTranslator with TermTranslator with PermissionTranslator
+
+  def translateStatements(codeTranslator : CodeTranslator, stmts : Traversable[chalice.Statement]){
+    stmts.foreach(translateStatement(codeTranslator, _))
+  }
+
   def translateAssignment(codeTranslator : CodeTranslator, lhs : chalice.VariableExpr,  rhs : chalice.RValue){
     // Watch out: It is important that `rhs` is translated *before* the assignment to `lhs` is registered
     lazy val targetVersion = programVariables(currentAssignmentInterpretation.registerAssignment(lhs.v))
@@ -435,7 +484,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
         val rhsTerm = translatePTerm(codeTranslator, e)
         currentBlock.appendAssignment(lhs,targetVersion,rhsTerm)
     }
-    
+
     assert(currentBlock.programVariables contains targetVersion,
       "The SIL basic block %s is expected to have the SIL program variable %s in scope. Program variables actually in scope: {%s}"
         .format(currentBlock.name,targetVersion,currentBlock.programVariables.mkString(", ")))
@@ -454,56 +503,6 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       val rhsTerm = translatePTerm(codeTranslator,init.e)
       currentBlock.appendFieldAssignment(init,targetVar,fields(init.f),rhsTerm)
     }
-  }
-
-  def dummyTerm(location : SourceLocation) = currentExpressionFactory.makeIntegerLiteralTerm(location,27)
-
-  /**
-    * Runs a translation with the specified block as the currentBlock. Will then ensure that
-    * the block that ends up as the currentBlock at the end of the translation does not have any
-    * outgoing edges already, i.e., is open for additional statements.
-    *
-    * The typical pattern for using `into` is as follows:
-    * {{{
-    * val targetBlockBegin = basicBlocks(getNextName("target_block"))
-    * val (result,targetEndBlock) = into(targetBlockBegin, myTranslation(x))
-    * }}}
-    * At this point `targetBlockBegin` and `targetBlockEnd` might be the same block, or there might be
-    * an arbitrary number of block in between.
-    *
-    * The end block is guaranteed not to have any outgoing edges, so you can safely append statements
-    * that are meant to follow `myTranslation(x)`.
-    */
-  protected def into[T](blockHead : BasicBlockFactory, translation : =>  T) : (T,BasicBlockFactory) = {
-    blockStack push blockHead
-    val result = translation
-    val blockEnd = blockStack.pop()
-    assert(!hasOutgoingEdges(blockEnd),"The block \"%s\" is expected to not have any outgoing edges. %s".format(blockEnd.name, blockEnd.compile()))
-    (result,blockEnd)
-  }
-  
-  protected def continueWith(block : BasicBlockFactory) = {
-    require(!blockStack.isEmpty)
-    require(!hasOutgoingEdges(block))
-    
-    blockStack.pop()
-    blockStack.push(block)
-  }
-  
-  protected def hasOutgoingEdges(block : BasicBlockFactory) : Boolean = !block.compile().successors.isEmpty
-
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  //////////////      TRANSLATE STATEMENTS                                            /////////////////////////////////
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  class MethodCodeTranslator extends DefaultCodeTranslator(thisMethodTranslator) {
-    override protected def readFraction(location : SourceLocation) =
-      currentExpressionFactory.makeProgramVariableTerm(location, readFractionVariable)
-  }
-
-  type CodeTranslator = ExpressionTranslator with TermTranslator with PermissionTranslator
-
-  def translateStatements(codeTranslator : CodeTranslator, stmts : Traversable[chalice.Statement]){
-    stmts.foreach(translateStatement(codeTranslator, _))
   }
 
   def translateStatement(codeTranslator : CodeTranslator, stmt : chalice.Statement) {
@@ -526,7 +525,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       case a@chalice.Assume(assumption) =>
         translateAssume(assumption)
       case chalice.Assign(variableExpr,rhs) => translateAssignment(codeTranslator,variableExpr,rhs)
-      case callNode:chalice.CallAsync => translateMethodFork(callNode)
+
       case chalice.FieldUpdate(location,rhs) =>
         // rhs could be an object creation. withRhsTranslation makes sure that
         //  the temporary variable used to create the object is released.
@@ -554,6 +553,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
               withRhsTranslation(currentBlock.appendFieldAssignment(stmt,rcvrVar,fields(location.f),_))
             }
         }
+      case callNode:chalice.CallAsync => translateMethodFork(callNode)
       case c:chalice.Call if c.m.isInstanceOf[chalice.Method] =>
         translateMethodCall(c)
       case otherStmt => report(messages.UnknownAstNode(otherStmt))
