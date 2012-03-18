@@ -107,19 +107,6 @@ class Basic extends ChaliceSuite with ShouldMatchers {
     
     sig.precondition should have length (3)
     sig.postcondition should have length (1)
-    
-    sig.precondition(1) should be (instanceOf[PermissionExpression])
-    sig.postcondition.head should be (instanceOf[PermissionExpression])
-    
-    val pre = sig.precondition(1).asInstanceOf[PermissionExpression]
-    val post = sig.postcondition.head.asInstanceOf[PermissionExpression]
-    Stream(pre,post).foreach(cond => {
-      cond.permission.getClass should be (classOf[FullPermissionTerm])
-
-      val thisVar = matchCast[ProgramVariableTerm](cond.reference)
-      thisVar.variable.name should be ("this")
-      cond.field.name should be ("Main::f")
-    })    
   }
 
 }

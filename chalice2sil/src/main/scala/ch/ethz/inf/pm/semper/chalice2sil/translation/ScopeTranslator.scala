@@ -340,7 +340,13 @@ trait ScopeTranslator
     val readFractionTerm = determineReadPermissionFraction(codeTranslator, callNode)
 
     // Store state (arguments, old(*) values)
+    val rcvrTerm = translatePTerm(codeTranslator, receiver)
+    currentBlock.appendFieldAssignment(callNode,tokenVersion,calleeFactory.callToken.receiver,rcvrTerm)
 
+    val argTerms = args.map(translatePTerm(codeTranslator,_))
+    argTerms.zip(calleeFactory.callToken.args) foreach { a =>
+      currentBlock.appendFieldAssignment (callNode,tokenVersion,a._2,a._1)
+    }
   }
 
   def translateAssert(expr : chalice.Expression) {

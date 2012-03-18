@@ -9,7 +9,7 @@ import terms._
   * @tparam A type of visit arguments
   * @tparam R type of visit results
   */
-abstract class ExpressionVisitor[A, R] {
+trait ExpressionVisitor[A, R] {
   def visitExpression(expression : Expression, arg : A) : R = expression match {
     case BinaryExpression(op, lhs, rhs) =>
       visitMergeExpressions(arg, lhs, rhs)

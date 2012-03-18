@@ -1,0 +1,11 @@
+class Main {
+    method main(b: bool) {
+      var x: int
+
+      if (!b) {
+        assert x == 1 /* @Error */
+      } else {
+        assert x == 2 /* @Error */
+      }
+    }
+}
