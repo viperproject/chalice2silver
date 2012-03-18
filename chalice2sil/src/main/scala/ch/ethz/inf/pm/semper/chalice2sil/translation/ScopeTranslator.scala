@@ -170,9 +170,13 @@ trait ScopeTranslator
     //Read (fractional) permissions
     val readFractionVar = declareScopedVariable(callNode, getNextName("k"), permissionType) // we won't give it back, ever
     val readFractionTerm = currentExpressionFactory.makeProgramVariableTerm(callNode, readFractionVar)
-    // `inhale 0 < k`
-    currentBlock.appendInhale(callNode,currentExpressionFactory.makeDomainPredicateExpression(callNode,
-      permissionLT,TermSequence(currentExpressionFactory.makeNoPermission(callNode),readFractionTerm)))
+    // `inhale 0 < k ∧ k < full`
+    val kPositive = currentExpressionFactory.makeDomainPredicateExpression(callNode,
+      permissionLT,TermSequence(currentExpressionFactory.makeNoPermission(callNode),readFractionTerm))
+    val kOnlyRead = currentExpressionFactory.makeDomainPredicateExpression(callNode,
+      permissionLT,TermSequence(readFractionTerm,currentExpressionFactory.makeFullPermission(callNode)))
+    currentBlock.appendInhale(callNode,currentExpressionFactory.makeBinaryExpression(callNode,
+      And()(callNode),kPositive,kOnlyRead))
 
     // Permission maps
     // `var m_0 : Map[(ref,int),Permission]`
@@ -342,10 +346,13 @@ trait ScopeTranslator
 
     // Store state (arguments, old(*) values)
     val rcvrTerm = translatePTerm(codeTranslator, receiver)
-    currentBlock.appendFieldAssignment(callNode,tokenVersion,calleeFactory.callToken.receiver,rcvrTerm)
-
-    val argTerms = args.map(translatePTerm(codeTranslator,_))
+    val argTerms = rcvrTerm :: args.map(translatePTerm(codeTranslator,_)) ++ List(readFractionTerm)
     argTerms.zip(calleeFactory.callToken.args) foreach { a =>
+      // `inhale acc(token.field,full);`
+      currentBlock.appendInhale(callNode,currentExpressionFactory.makePermissionExpression(callNode,
+        currentExpressionFactory.makeProgramVariableTerm(callNode,tokenVersion),
+        a._2,currentExpressionFactory.makeFullPermission(callNode)))
+      // `token.field := arg`
       currentBlock.appendFieldAssignment (callNode,tokenVersion,a._2,a._1)
     }
   }

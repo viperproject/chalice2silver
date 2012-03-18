@@ -11,9 +11,9 @@ class TokenStorage(programEnvironment : ProgramEnvironment,
   extends DerivedProgramEnvironment(programEnvironment)
   with Iterable[FieldTranslator] {
 
-  val receiver = programEnvironment.prelude.Token.receiverField
-  val readFraction = programEnvironment.prelude.Token.readFractionField
-  val allFields : List[FieldTranslator] = receiver :: (args ++ (readFraction :: oldTerms.values.toList))
+  val receiver = args.head
+  val readFraction = args.last
+  val allFields : List[FieldTranslator] = args ++ oldTerms.values.toList
 
   def iterator = allFields.iterator
 }

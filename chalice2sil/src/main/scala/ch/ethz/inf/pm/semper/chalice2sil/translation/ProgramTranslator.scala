@@ -38,6 +38,8 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
     }
 
     protected def deriveKey(p : chalice.Field) = fullFieldName(p)
+
+    override protected def deriveKeyFromValue(value : FieldTranslator) = value.field.name
   }
 
   val predicates = new DerivedFactoryCache[chalice.Predicate, String, PredicateFactory] {

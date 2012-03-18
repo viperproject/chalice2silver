@@ -1,0 +1,8 @@
+class Main{
+    method m(x : int, y : int) returns (r : int){
+        r := x + y;
+    }
+    method main(){
+        fork tk := m(1,2);
+    }
+}

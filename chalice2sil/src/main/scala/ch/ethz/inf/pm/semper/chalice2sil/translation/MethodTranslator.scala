@@ -43,7 +43,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       fields.addExternal(ft)
       ft
     }
-    val argFields = methodFactory.parameters.map(p => createField(methodFactory.name + p.name,p.dataType)).toList
+    val argFields = methodFactory.parameters.map(p => createField(methodFactory.name + "::" + p.name,p.dataType)).toList
     val oldFieldEnumerator  = new ExpressionVisitor[Null, immutable.Set[OldNode]] {
       override protected def merge(left : immutable.Set[OldNode], right : immutable.Set[OldNode]) = left union right
       override protected def mergeMany(rs : Traversable[Set[OldNode]]) = rs.flatten.toSet
@@ -62,7 +62,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     val olds : Seq[OldNode] = methodFactory.method.signature.postcondition
       .map(oldFieldEnumerator.visitExpression(_,null)).flatten.toSet.toSeq
 
-    val oldMap = olds.map(o => o -> createField(getNextName("old"),o.dataType))
+    val oldMap = olds.map(o => o -> createField(methodFactory.name + "::" + getNextName("old"),o.dataType))
       .toMap
 
     new TokenStorage(this, argFields, oldMap)
@@ -77,19 +77,6 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
   }
 
   override val thisVariable : ProgramVariable = methodFactory.addParameter(method,"this",referenceType)
-
-  /**
-    * Adds a basic block to the SIL AST. The specified Chalice block is used as a prototype for Chalice-level properties
-    * like local variable scope.
-    * @param name The name of the basic block. Optional.
-    */
-  @deprecated(message = "Add via scope",since = "uri's while loop change")
-  def addBasicBlock(name : String = null) = {
-    val uniqueName = if(name != null) getNextName(name) else getNextName(name)
-    val block = implementationFactory.cfgFactory.addBasicBlock(uniqueName)(noLocation)
-    //return block
-    block
-  }
 
   override val temporaries = new TemporaryVariableBroker(this)
 

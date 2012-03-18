@@ -135,19 +135,6 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
 
   object Token {
     val dataType = referenceType
-    val receiverField = {
-      val f = programEnvironment.programFactory.defineField(loc,"receiver",referenceType)
-      val t = new FieldTranslator(f,programEnvironment.fields.getNextId,programEnvironment)
-      programEnvironment.fields.addExternal(t)
-      t
-    }
-    val readFractionField = {
-      val f = programEnvironment.programFactory.defineField(loc,"k",permissionType)
-      val t = new FieldTranslator(f,programEnvironment.fields.getNextId,programEnvironment)
-      programEnvironment.fields.addExternal(t)
-      t
-    }
-
   }
 
   object Pair {

@@ -28,6 +28,6 @@ trait TypeTranslator extends ProgramEnvironment {
     case c if c == chalice.IntClass => integerType
     case c if c == chalice.BoolClass => prelude.Boolean.dataType
     case x if x.IsPermission => permissionType
-    case x if x.IsNormalClass => referenceType
+    case x if x.IsNormalClass || x.IsToken => referenceType
   }
 }
