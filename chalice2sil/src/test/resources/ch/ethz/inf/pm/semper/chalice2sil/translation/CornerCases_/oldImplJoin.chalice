@@ -4,7 +4,8 @@
     
     method swapF(newF : int) returns(oldF : int) 
         requires acc(f,rd) && (f > 0 ==> (rd(cell) && cell != null && acc(cell.f)))
-        ensures  rd(f) && (f > 0 ==> (rd(cell) && cell != null && acc(cell.f) && oldF == old(cell.f) && cell.f == newF))
+        ensures  rd(f) && (old(f > 0) ==> (rd(cell) && cell != null && acc(cell.f) && oldF == old(cell.f) && cell.f == newF))
+        ensures  old(f <= 0) ==> oldF == newF
     {
         if(f > 0){
             oldF := cell.f;
