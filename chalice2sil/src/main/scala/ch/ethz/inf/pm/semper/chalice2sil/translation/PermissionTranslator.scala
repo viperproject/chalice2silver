@@ -17,6 +17,7 @@ trait PermissionTranslator extends TermTranslator {
   protected def permissionTranslation = matchingPermission {
     case f@chalice.Full => currentExpressionFactory.makeFullPermission(f)
     case k@chalice.Epsilon => readFraction(k)
+    case k@chalice.MethodEpsilon => readFraction(k)
     case permission =>
       report(messages.UnknownAstNode(permission))
       currentExpressionFactory.makeNoPermission(permission)

@@ -6,6 +6,10 @@ import silAST.types.{DataType, DataTypeSequence}
 class OperatorLookup[TOp <: {def signature : {def parameterTypes : DataTypeSequence}; def name : String}] {
   protected def operatorNameCandidates(opName : String) : List[String] = opName :: (opName match {
     case "==" => List("↔","<=>")
+    case "<" => List("LT")
+    case "<=" | "≤" => List("LE")
+    case ">" => List("GT")
+    case ">=" | "≥" => List("GE")
     case _ => Nil
   })
 

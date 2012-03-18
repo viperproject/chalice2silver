@@ -1,0 +1,14 @@
+class Main{
+    var f : int;
+    method m()
+        requires acc(f,rd)
+        ensures acc(f,rd)
+    {}
+    method main()
+        requires acc(f)
+        ensures acc(f)
+    {
+        call m();
+        call m();
+    }
+}

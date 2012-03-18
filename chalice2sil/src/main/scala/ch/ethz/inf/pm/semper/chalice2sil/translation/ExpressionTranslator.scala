@@ -27,6 +27,8 @@ trait ExpressionTranslator extends MethodEnvironment {
   def translateExpression(e : chalice.Expression) : Expression = expressionTranslation(e)
 
   protected def expressionTranslation : PartialFunction[chalice.Expression, Expression] = matchingExpression {
+      case expression@chalice.Old(inner) =>
+        currentExpressionFactory.makeOldExpression(expression,translateExpression(inner))
       case expression@chalice.And(lhs,rhs) =>
         val lhsT = translateExpression(lhs)
         val rhsT = translateExpression(rhs)
@@ -62,7 +64,8 @@ trait ExpressionTranslator extends MethodEnvironment {
         val (lhsType,rhsType,resultType) = (translateClassRef(lhs.typ),translateClassRef(rhs.typ),translateClassRef(binary.ResultType))
 
         domainPredicateLookup.lookup(List(lhsType,rhsType,resultType).map(_.domain))(binary.OpName,List(Some(lhsType),Some(rhsType))) match {
-          case Success(e) => currentExpressionFactory.makeDomainPredicateExpression(binary,e,TermSequence(translateTerm(lhs),translateTerm(rhs)))
+          case Success(e) =>
+            currentExpressionFactory.makeDomainPredicateExpression(binary,e,TermSequence(translateTerm(lhs),translateTerm(rhs)))
           case Ambiguous(ops) =>
             report(messages.OperatorNotFound(binary,lhsType,rhsType,resultType))
             dummyExpr(currentExpressionFactory,binary)

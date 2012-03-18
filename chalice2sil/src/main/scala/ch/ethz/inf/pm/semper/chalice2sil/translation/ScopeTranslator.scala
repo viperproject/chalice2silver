@@ -168,7 +168,7 @@ trait ScopeTranslator
     val calleeFactory = methods(callNode.m.asInstanceOf[chalice.Method])
 
     //Read (fractional) permissions
-    val readFractionVar = declareScopedVariable(callNode, "k", permissionType) // we won't give it back, ever
+    val readFractionVar = declareScopedVariable(callNode, getNextName("k"), permissionType) // we won't give it back, ever
     val readFractionTerm = currentExpressionFactory.makeProgramVariableTerm(callNode, readFractionVar)
     // `inhale 0 < k`
     currentBlock.appendInhale(callNode,currentExpressionFactory.makeDomainPredicateExpression(callNode,
@@ -176,10 +176,10 @@ trait ScopeTranslator
 
     // Permission maps
     // `var m_0 : Map[(ref,int),Permission]`
-    val originalPermMapVar = declareScopedVariable(callNode,"m0",prelude.Map.PermissionMap.dataType)
+    val originalPermMapVar = declareScopedVariable(callNode,getNextName("m0"),prelude.Map.PermissionMap.dataType)
     val originalPermMapTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,originalPermMapVar)
     // `var m : Map[(ref,int),Permission]`
-    val permMapVar = declareScopedVariable(callNode,"m",prelude.Map.PermissionMap.dataType)
+    val permMapVar = declareScopedVariable(callNode,getNextName("m"),prelude.Map.PermissionMap.dataType)
     val permMapTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,permMapVar)
     // `inhale m = m_0`
     currentBlock.appendInhale(callNode,currentExpressionFactory.makeEqualityExpression(callNode,
@@ -191,15 +191,13 @@ trait ScopeTranslator
       translatePTerm (codeTranslator, callNode.obj) ::
         args.map(translatePTerm(codeTranslator,_)) ++
           List(readFractionTerm)
-    val callSubstitution = new ExpressionTransplantation(this) {
-      val argMapping = calleeFactory.parameters.zip(argTerms).map(x => x._1 -> x._2).toMap
-      def translateProgramVariable(variable : ProgramVariable) = argMapping(variable)
-    }
-    def transplantExpression(e : Expression) : Expression = {
-      callSubstitution.transplant(e)
+
+    val callSubstitution = currentExpressionFactory.makePProgramVariableSubstitution(calleeFactory.parameters.zip(argTerms).map(x => x._1 -> x._2).toSet)
+    def transplantExpression(e : PExpression) : PExpression = {
+      e.substitute(callSubstitution)
     }
     def transplantTerm(t : Term) : Term = {
-      callSubstitution.transplant(t)
+      t.substitute(callSubstitution)
     }
 
     // Generate assumptions and conditions on fraction
@@ -219,9 +217,12 @@ trait ScopeTranslator
           report(messages.PermissionNotUnderstood(callNode,pTerm))
           Nil
       }
-      case BinaryExpression(Implication(),lhs,rhs) =>
+      case BinaryExpression(Implication(),lhs:PExpression,rhs) =>
         //use lhs as-is in implications
-        List(ReadImplication(transplantExpression(lhs).asInstanceOf[PExpression],genReadCond(rhs)))
+        List(ReadImplication(transplantExpression(lhs),genReadCond(rhs)))
+      case BinaryExpression(Implication(),_,_) =>
+        report(messages.PermissionNotUnderstood(callNode,expr))
+        Nil
       case BinaryExpression(And(),lhs,rhs) =>
         List(lhs,rhs).map(genReadCond).flatten
       case BinaryExpression(Or(),lhs,rhs) =>
