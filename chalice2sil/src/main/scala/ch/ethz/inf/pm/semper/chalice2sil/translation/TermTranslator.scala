@@ -1,7 +1,6 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import operators.Lookup.{Failure, Ambiguous, Success}
-import silAST.expressions.terms.Term
 import silAST.expressions.util.TermSequence._
 import silAST.source.SourceLocation
 import math.BigInt._
@@ -10,6 +9,7 @@ import silAST.programs.symbols.ProgramVariable
 import ch.ethz.inf.pm.semper.chalice2sil._
 import silAST.types.{nullFunction, referenceType, DataType}
 import silAST.expressions.util.{PTermSequence, TermSequence}
+import silAST.expressions.terms.{PTerm, Term}
 
 /**
   * @author Christian Klauser
@@ -34,7 +34,8 @@ trait TermTranslator extends MethodEnvironment with TypeTranslator {
       case rvalue@chalice.Old(e) => currentExpressionFactory.makeOldTerm(rvalue,translateTerm(e))
       case access@chalice.MemberAccess(rcvr,_) if !access.isPredicate =>
         assert(access.f != null,"Chalice MemberAccess node (%s) is not linked to a field.".format(access))
-        currentExpressionFactory.makeFieldReadTerm(access,translateTerm(rcvr),fields(access.f))
+        val rcvrTerm = translateTerm(rcvr)
+        currentExpressionFactory.makeFieldReadTerm(access,rcvrTerm,fields(access.f))
       case ifThenElse@chalice.IfThenElse(cond,thn,els) =>
         val condTerm = translateTerm(cond)
         val thnTerm = translateTerm(thn)

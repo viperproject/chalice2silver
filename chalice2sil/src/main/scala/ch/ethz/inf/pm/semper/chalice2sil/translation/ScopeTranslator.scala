@@ -334,27 +334,70 @@ trait ScopeTranslator
 
   def translateMethodFork(callNode : chalice.CallAsync) {
     val codeTranslator = new MethodCodeTranslator
-    val chalice.CallAsync(_,tokenVar,receiver,_,args) = callNode
+    val chalice.CallAsync(_,chaliceTokenVariable,receiver,_,args) = callNode
     val calleeFactory = methods(callNode.m)
 
     // `tok := new object`
-    val tokenVersion = programVariables(tokenVar.v)
-    currentBlock.appendNew(callNode,tokenVersion,referenceType)
+    val tokenVar = programVariables(chaliceTokenVariable.v)
+    val token = currentExpressionFactory.makeProgramVariableTerm(callNode, tokenVar)
+    currentBlock.appendNew(callNode,tokenVar,referenceType)
 
     //Determine read fraction
     val readFractionTerm = determineReadPermissionFraction(codeTranslator, callNode)
 
-    // Store state (arguments, old(*) values)
+    // Store state (arguments)
     val rcvrTerm = translatePTerm(codeTranslator, receiver)
     val argTerms = rcvrTerm :: args.map(translatePTerm(codeTranslator,_)) ++ List(readFractionTerm)
+
     argTerms.zip(calleeFactory.callToken.args) foreach { a =>
       // `inhale acc(token.field,full);`
       currentBlock.appendInhale(callNode,currentExpressionFactory.makePermissionExpression(callNode,
-        currentExpressionFactory.makeProgramVariableTerm(callNode,tokenVersion),
+        token,
         a._2,currentExpressionFactory.makeFullPermission(callNode)))
       // `token.field := arg`
-      currentBlock.appendFieldAssignment (callNode,tokenVersion,a._2,a._1)
+      currentBlock.appendFieldAssignment (callNode,tokenVar,a._2,a._1)
     }
+    
+    //Store state (old(*))
+    val callSiteSubstitution = currentExpressionFactory.makePProgramVariableSubstitution(calleeFactory.parameters.zip(argTerms).map(x => x._1 -> x._2).toSet)
+    calleeFactory.callToken.oldTerms foreach { entry =>
+      val oldNode = entry._1
+      val tkField = entry._2
+      val cp = new CombinedPrecondition(this,readFractionTerm)
+      val choice = currentExpressionFactory.makePDomainPredicateExpression(callNode,booleanEvaluate,PTermSequence(
+        currentExpressionFactory.makeProgramVariableTerm(callNode,
+          declareScopedVariable(callNode,getNextName("nondeterministic_choice"),booleanType))
+      ))
+
+      // `inhale acc(tk.field,full);`
+      currentBlock.appendInhale(callNode,currentExpressionFactory.makePermissionExpression(callNode,
+        token,tkField,currentExpressionFactory.makeFullPermission(callNode)))
+
+      // `if(*) { inhale precondition(e); tk.field = e; }`
+      silIf(choice,callNode){
+        oldNode match {
+          case OldTermNode(OldTerm(inner:PTerm)) =>
+            val innerLocal = inner.substitute(callSiteSubstitution)
+            currentBlock.appendInhale(callNode,cp.visitTerm(innerLocal,null))
+            currentBlock.appendFieldAssignment(callNode,tokenVar,tkField,innerLocal)
+          case OldExpressionNode(OldExpression(inner:PExpression)) =>
+            val innerLocal = inner.substitute(callSiteSubstitution)
+            currentBlock.appendInhale(callNode,cp.visitExpression(innerLocal,null))
+            silIf(innerLocal,callNode){
+              currentBlock.appendFieldAssignment(callNode,tokenVar,tkField,
+                  currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,booleanTrue,PTermSequence())
+                )
+            } els {
+              currentBlock.appendFieldAssignment(callNode,tokenVar,tkField,
+                currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,booleanFalse,PTermSequence())
+              )
+            } end()
+          case o => // inner term/expression is not a program term/expression
+            report(messages.ContractNotUnderstood(o.astNode))
+        }
+      } end ()
+    }
+
   }
 
   def translateAssert(expr : chalice.Expression) {
