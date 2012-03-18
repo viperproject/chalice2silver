@@ -134,8 +134,8 @@ trait ScopeTranslator
             }
         }
       case callNode:chalice.CallAsync => translateMethodFork(callNode)
-      case c:chalice.Call if c.m.isInstanceOf[chalice.Method] =>
-        translateMethodCall(c)
+      case c:chalice.Call if c.m.isInstanceOf[chalice.Method] => translateMethodCall(c)
+      case callNode:chalice.JoinAsync => translateMethodJoin(callNode) 
       case otherStmt => report(messages.UnknownAstNode(otherStmt))
     }
 
@@ -398,6 +398,67 @@ trait ScopeTranslator
       } end ()
     }
 
+    // Finally: `exhale precondition(method)`, with parameters substituted
+    if(calleeFactory.method.signature.precondition.size > 0)
+      currentBlock.appendExhale(callNode,
+        calleeFactory.method.signature.precondition
+        .map(_.substitute(callSiteSubstitution))
+        .reduce(currentExpressionFactory.makeBinaryExpression(callNode,And()(callNode),_,_)))
+  }
+  
+  def translateMethodJoin(callNode : chalice.JoinAsync) {
+    val codeTranslator = new MethodCodeTranslator()
+    val tokenTerm = translatePTerm(codeTranslator, callNode.token)
+    val calleeFactory = methods(callNode.m)
+    val tokenStorage = calleeFactory.callToken
+    val resultTargets = callNode.lhs.map(ve => programVariables(ve.v))
+
+    // assign all results to unknown values
+    resultTargets foreach { resultVar =>
+      currentBlock.appendNew(callNode,resultVar,resultVar.dataType) // TODO: How to assign unknown ref?
+    }
+
+    // set up substitution
+    val resultTerms = resultTargets.map(currentExpressionFactory.makeProgramVariableTerm(callNode,_))
+    val argumentTerms = tokenStorage.args.map(currentExpressionFactory.makePFieldReadTerm(callNode,tokenTerm,_))
+    val sig = calleeFactory.methodFactory.method.signature
+    val (parameterVariables,resultVariables) = (sig.parameters,sig.results)
+    val joinSubstitution = currentExpressionFactory.makePProgramVariableSubstitution(
+      (parameterVariables.toList ++ resultVariables)
+                          .zip
+      (      argumentTerms       ++   resultTerms  ).toSet)
+    
+    // replace method parameters (in & out), as well as old(*) expressions with the corresponding terms at the join-site
+    val trans = new ExpressionTransplantation(this) {
+      def translateProgramVariable(variable : ProgramVariable) = joinSubstitution.mapVariable(variable).get
+
+      override def transplant(expression : Expression) = expression match {
+        case o@OldExpression(_) => 
+          // replace `old(*)` with `eval(token.old_*)`
+          val fieldRead = currentExpressionFactory.makePFieldReadTerm(callNode,tokenTerm,tokenStorage.oldTerms(OldExpressionNode(o)))
+          currentExpressionFactory.makePDomainPredicateExpression(callNode,booleanEvaluate,PTermSequence(fieldRead))
+        case _ => super.transplant(expression)
+      }
+
+      override def transplant(term : Term) = term match {
+        case o@OldTerm(_) =>
+          // replace `old(*)` with `token.old_*`
+          currentExpressionFactory.makePFieldReadTerm(callNode,tokenTerm,tokenStorage.oldTerms(OldTermNode(o)))
+        case _ => super.transplant(term)
+      }
+    }
+
+    // inhale postcondition (with old(*) replaced)
+    sig.postcondition foreach { literalPostcondition =>
+      val postcondition = trans.transplant(literalPostcondition)
+      currentBlock.appendInhale(callNode,postcondition)
+    }
+    if(sig.postcondition.size > 0)
+      currentBlock.appendExhale(callNode,
+        sig.postcondition
+          .map(trans.transplant(_))
+          .reduce(currentExpressionFactory.makeBinaryExpression(callNode,And()(callNode),_,_))
+      )
   }
 
   def translateAssert(expr : chalice.Expression) {
