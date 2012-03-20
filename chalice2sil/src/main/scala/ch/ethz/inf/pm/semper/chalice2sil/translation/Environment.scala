@@ -31,7 +31,10 @@ trait Environment {
   /**
    * Returns the globally unique name of a field.
    */
-  def fullFieldName(f : chalice.Field) = f.Parent.id + "::" + f.id
+  def fullFieldName(f : chalice.Field) = f match {
+    case chalice.SpecialField(name,_,_) => name
+    case _ => f.Parent.id + "::" + f.id
+  }
 
   /**
     * Returns the globally unique name of a predicate.

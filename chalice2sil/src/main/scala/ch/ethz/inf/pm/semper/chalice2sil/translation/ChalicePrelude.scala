@@ -135,6 +135,12 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
 
   object Token {
     val dataType = referenceType
+    lazy val joinable : FieldTranslator = {
+      val f = programEnvironment.programFactory.defineField(loc,"joinable",Boolean.dataType)
+      val ft = new FieldTranslator(f,programEnvironment.fields.getNextId,programEnvironment)
+      programEnvironment.fields.addExternal(ft)
+      ft
+    }
   }
 
   object Pair {

@@ -79,6 +79,17 @@ trait ExpressionTranslator extends MethodEnvironment {
               dummyExpr(currentExpressionFactory,binary)
             }
         }
+      case expression@chalice.Access(chalice.MemberAccess(tokenExpr,joinableName), permission)
+        if tokenExpr.typ.IsToken && joinableName == prelude.Token.joinable.name => {
+          // translate `acc(token.joinable,X)` to `(acc(token.joinable,X) && acc(token.args/olds,X)...)`
+          // i.e., make sure that arg/old fields always have the same permissions as token.joinable.
+          val m = methods(tokenExpr.typ.asInstanceOf[chalice.TokenClass].method)
+          val tokenTerm = translateTerm(tokenExpr)
+          val permAmount = translatePermission(permission)
+          m.callToken.allFields
+            .map(currentExpressionFactory.makePermissionExpression(expression,tokenTerm,_,permAmount))
+            .reduce[Expression](currentExpressionFactory.makeBinaryExpression(expression,And()(expression),_,_))
+        }
       case expression@chalice.Access(memberAccess, permission) =>
         currentExpressionFactory.makePermissionExpression(expression,translateTerm(memberAccess.e),fields(memberAccess.f),translatePermission(permission))
       case ma@chalice.MemberAccess(target,_) if ma.isPredicate =>

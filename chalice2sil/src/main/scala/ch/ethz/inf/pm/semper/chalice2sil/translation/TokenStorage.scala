@@ -13,7 +13,7 @@ class TokenStorage(programEnvironment : ProgramEnvironment,
 
   val receiver = args.head
   val readFraction = args.last
-  val allFields : List[FieldTranslator] = args ++ oldTerms.values.toList
+  val allFields : List[FieldTranslator] = prelude.Token.joinable :: (args ++ oldTerms.values.toList)
 
   def iterator = allFields.iterator
 }

@@ -37,6 +37,15 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
       new FieldTranslator(silField,getNextId,programTranslator)
     }
 
+    lazy val specialNameList = List(prelude.Token.joinable.name)
+
+    override def getOrElseUpdate(p : chalice.Field) = p match {
+        //As a side-effect of encountering a special field, create special fields.
+      case chalice.SpecialField(name,_,_) if specialNameList contains name =>
+        super.getOrElseUpdate(p)
+      case _ => super.getOrElseUpdate(p)
+    }
+
     protected def deriveKey(p : chalice.Field) = fullFieldName(p)
 
     override protected def deriveKeyFromValue(value : FieldTranslator) = value.field.name
