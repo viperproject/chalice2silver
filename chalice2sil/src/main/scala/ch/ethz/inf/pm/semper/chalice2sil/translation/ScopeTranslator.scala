@@ -170,151 +170,153 @@ trait ScopeTranslator
     val args = callNode.args;
     val calleeFactory = methods(callNode.m.asInstanceOf[chalice.Method])
 
-    //Read (fractional) permissions
-    val readFractionVar = declareScopedVariable(callNode, getNextName("k"), permissionType) // we won't give it back, ever
-    val readFractionTerm = currentExpressionFactory.makeProgramVariableTerm(callNode, readFractionVar)
-    // `inhale 0 < k ∧ k < full`
-    val kPositive = currentExpressionFactory.makeDomainPredicateExpression(callNode,
-      permissionLT,TermSequence(currentExpressionFactory.makeNoPermission(callNode),readFractionTerm))
-    val kOnlyRead = currentExpressionFactory.makeDomainPredicateExpression(callNode,
-      permissionLT,TermSequence(readFractionTerm,currentExpressionFactory.makeFullPermission(callNode)))
-    currentBlock.appendInhale(callNode,currentExpressionFactory.makeBinaryExpression(callNode,
-      And()(callNode),kPositive,kOnlyRead))
-
-    // Permission maps
-    // `var m_0 : Map[(ref,int),Permission]`
-    val originalPermMapVar = declareScopedVariable(callNode,getNextName("m0"),prelude.Map.PermissionMap.dataType)
-    val originalPermMapTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,originalPermMapVar)
-    // `var m : Map[(ref,int),Permission]`
-    val permMapVar = declareScopedVariable(callNode,getNextName("m"),prelude.Map.PermissionMap.dataType)
-    val permMapTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,permMapVar)
-    // `inhale m = m_0`
-    currentBlock.appendInhale(callNode,currentExpressionFactory.makeEqualityExpression(callNode,
-      permMapTerm,originalPermMapTerm
-    ))
-
-    // Translate arguments and create mapping from parameter variables to these terms
-    val argTerms =
-      translatePTerm (codeTranslator, callNode.obj) ::
-        args.map(translatePTerm(codeTranslator,_)) ++
-          List(readFractionTerm)
-
-    val callSubstitution = currentExpressionFactory.makePProgramVariableSubstitution(calleeFactory.parameters.zip(argTerms).map(x => x._1 -> x._2).toSet)
-    def transplantExpression(e : PExpression) : PExpression = {
-      e.substitute(callSubstitution)
-    }
-    def transplantTerm(t : PTerm) : PTerm = {
-      t.substitute(callSubstitution)
-    }
-
-    // Generate assumptions and conditions on fraction
-    /**
-      * Walks over an [[silAST.expressions.Expression]] and extracts just read permission assertions and implications.
-      * @param expr The expression to analyse.
-      * @return A list of extracted read conditions.
-      */
-    def genReadCond(expr : Expression) : List[ReadCondition] = expr match {
-      case PermissionExpression(_,_,FullPermissionTerm()) => Nil
-      case PermissionExpression(_,_,NoPermissionTerm()) => Nil
-      case p@PermissionExpression(reference:PTerm,field,pTerm) => pTerm match {
-        case ProgramVariableTerm(varRef) if varRef == calleeFactory.parameters.last =>
-          List(ReadField(transplantTerm(reference),fields.lookup(field.name)))
+    languageConstruct(callNode){ ctor =>
+      import ctor._
+    
+      //Read (fractional) permissions
+      val readFractionVar = declareScopedVariable(callNode, getNextName("k"), permissionType) // a unique variable for every method invocation
+      val readFractionTerm : PTerm = readFractionVar
+      // `inhale 0 < k ∧ k < full ∧ k < method_k`
+      val kPositive = permissionLT.apply(noPermission,readFractionTerm)
+      val kOnlyRead = permissionLT.apply(readFractionTerm,fullPermission)
+      val kSubfraction = permissionLT.apply(readFractionTerm,this.readFractionVariable)
+      inhale(List(kPositive,kOnlyRead,kSubfraction))
+  
+      // Permission maps
+      // `var m_0 : Map[(ref,int),Permission]`
+      val originalPermMapVar = declareScopedVariable(callNode,getNextName("m0"),prelude.Map.PermissionMap.dataType)
+      val originalPermMapTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,originalPermMapVar)
+      // `var m : Map[(ref,int),Permission]`
+      val permMapVar = declareScopedVariable(callNode,getNextName("m"),prelude.Map.PermissionMap.dataType)
+      val permMapTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,permMapVar)
+      // `inhale m = m_0`
+      currentBlock.appendInhale(callNode,currentExpressionFactory.makeEqualityExpression(callNode,
+        permMapTerm,originalPermMapTerm
+      ))
+  
+      // Translate arguments and create mapping from parameter variables to these terms
+      val argTerms =
+        translatePTerm (codeTranslator, callNode.obj) ::
+          args.map(translatePTerm(codeTranslator,_)) ++
+            List(readFractionTerm)
+  
+      val callSubstitution = currentExpressionFactory.makePProgramVariableSubstitution(calleeFactory.parameters.zip(argTerms).map(x => x._1 -> x._2).toSet)
+      def transplantExpression(e : PExpression) : PExpression = {
+        e.substitute(callSubstitution)
+      }
+      def transplantTerm(t : PTerm) : PTerm = {
+        t.substitute(callSubstitution)
+      }
+  
+      // Generate assumptions and conditions on fraction
+      /**
+        * Walks over an [[silAST.expressions.Expression]] and extracts just read permission assertions and implications.
+        * @param expr The expression to analyse.
+        * @return A list of extracted read conditions.
+        */
+      def genReadCond(expr : Expression) : List[ReadCondition] = expr match {
+        case PermissionExpression(_,_,FullPermissionTerm()) => Nil
+        case PermissionExpression(_,_,NoPermissionTerm()) => Nil
+        case p@PermissionExpression(reference:PTerm,field,pTerm) => pTerm match {
+          case ProgramVariableTerm(varRef) if varRef == calleeFactory.parameters.last =>
+            List(ReadField(transplantTerm(reference),fields.lookup(field.name)))
+          case _ =>
+            report(messages.PermissionNotUnderstood(callNode,pTerm))
+            Nil
+        }
+        case PermissionExpression(nonReferenceTerm,_,_) =>
+          report(messages.ContractNotUnderstood(expr))
+          Nil
+        case BinaryExpression(Implication(),lhs:PExpression,rhs) =>
+          //use lhs as-is in implications
+          List(ReadImplication(transplantExpression(lhs),genReadCond(rhs)))
+        case BinaryExpression(Implication(),_,_) =>
+          report(messages.PermissionNotUnderstood(callNode,expr))
+          Nil
+        case BinaryExpression(And(),lhs,rhs) =>
+          List(lhs,rhs).map(genReadCond).flatten
+        case BinaryExpression(Or(),lhs,rhs) =>
+          report(messages.PermissionNotUnderstood(callNode,expr))
+          Nil
+        case BinaryExpression(Equivalence(),lhs,rhs) =>
+          // Interpret A ↔ B ≡ (A → B) ∧ (B → A)
+          genReadCond(currentBlock.makeBinaryExpression(
+            callNode,
+            And()(callNode),
+            currentBlock.makeBinaryExpression(callNode,Implication()(callNode),lhs,rhs),
+            currentBlock.makeBinaryExpression(callNode,Implication()(callNode),rhs,lhs)
+          ))
+        case  _:EqualityExpression
+            | _:AtomicExpression
+            | _:UnaryExpression => Nil
         case _ =>
-          report(messages.PermissionNotUnderstood(callNode,pTerm))
+          report(messages.PermissionNotUnderstood(callNode,expr))
           Nil
       }
-      case PermissionExpression(nonReferenceTerm,_,_) =>
-        report(messages.ContractNotUnderstood(expr))
-        Nil
-      case BinaryExpression(Implication(),lhs:PExpression,rhs) =>
-        //use lhs as-is in implications
-        List(ReadImplication(transplantExpression(lhs),genReadCond(rhs)))
-      case BinaryExpression(Implication(),_,_) =>
-        report(messages.PermissionNotUnderstood(callNode,expr))
-        Nil
-      case BinaryExpression(And(),lhs,rhs) =>
-        List(lhs,rhs).map(genReadCond).flatten
-      case BinaryExpression(Or(),lhs,rhs) =>
-        report(messages.PermissionNotUnderstood(callNode,expr))
-        Nil
-      case BinaryExpression(Equivalence(),lhs,rhs) =>
-        // Interpret A ↔ B ≡ (A → B) ∧ (B → A)
-        genReadCond(currentBlock.makeBinaryExpression(
-          callNode,
-          And()(callNode),
-          currentBlock.makeBinaryExpression(callNode,Implication()(callNode),lhs,rhs),
-          currentBlock.makeBinaryExpression(callNode,Implication()(callNode),rhs,lhs)
-        ))
-      case  _:EqualityExpression
-          | _:AtomicExpression
-          | _:UnaryExpression => Nil
-      case _ =>
-        report(messages.PermissionNotUnderstood(callNode,expr))
-        Nil
-    }
-
-    /**
-      * Takes a list of read permission conditions as extracted by {{genReadCon}} and generates
-      * the corresponding conditions on `k`.
-      * @param rs the list of read permission conditions to implement.
-      */
-    def appendCond(rs : List[ReadCondition]){
-      val combined = new CombinedPrecondition(this,currentExpressionFactory.makeProgramVariableTerm(noLocation,this.readFractionVariable))
-      rs foreach {
-        case ReadField(reference,field) =>
-          val originalPermMapTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,originalPermMapVar)
-          val permMapTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,permMapVar)
-          val readFractionTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,readFractionVar)
-
-          val currentActualPermission = currentExpressionFactory.makePermTerm(callNode,reference,field)
-          temporaries.using(prelude.Pair.Location.dataType){ locationVar =>
-            val location = currentExpressionFactory.makeProgramVariableTerm(callNode,locationVar)
-
-            // Assert the precondition of the reference.
-            currentBlock.appendExhale(reference.sourceLocation,combined.visitTerm(reference,null))
-            
-            // `location := (ref,field)`
-            currentBlock.appendAssignment(callNode,locationVar,
-              field.locationLiteral(currentExpressionFactory, reference.asInstanceOf[PTerm]))
-
-            // `inhale  get(m_0,(ref,field)) = perm(ref,field)` where (ref,field) = location
-            currentBlock.appendInhale(callNode,currentExpressionFactory.makeEqualityExpression(callNode,
-              currentExpressionFactory.makeDomainFunctionApplicationTerm(callNode,
-                prelude.Map.PermissionMap.get,TermSequence(originalPermMapTerm,location)),
-              // ==
-              currentActualPermission))
-
-            // `exhale 0 < get(m,(ref,field))`
-            val currentVirtualPermission = currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,
-              prelude.Map.PermissionMap.get,PTermSequence(permMapTerm,location))
-            currentBlock.appendExhale(callNode,currentExpressionFactory.makeDomainPredicateExpression(callNode,
-              permissionLT,TermSequence(currentExpressionFactory.makeNoPermission(callNode),currentVirtualPermission)))
-
-            // `inhale k < get(m,(ref,field))`
-            currentBlock.appendInhale(callNode,currentExpressionFactory.makeDomainPredicateExpression(callNode,
-              permissionLT,TermSequence(readFractionTerm,currentVirtualPermission)))
-
-            // `m := set(m,(ref,field),get(m,(ref,field)) - k)`
-            val nextVirtualPermission = currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,
-              permissionSubtraction,PTermSequence(currentVirtualPermission,readFractionTerm))
-            currentBlock.appendAssignment(callNode,permMapVar,currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,
-              prelude.Map.PermissionMap.update,PTermSequence(permMapTerm,location,nextVirtualPermission)))
-          }
-        case _ =>
+  
+      /**
+        * Takes a list of read permission conditions as extracted by {{genReadCon}} and generates
+        * the corresponding conditions on `k`.
+        * @param rs the list of read permission conditions to implement.
+        */
+      def appendCond(rs : List[ReadCondition]){
+        val combined = new CombinedPrecondition(this,currentExpressionFactory.makeProgramVariableTerm(noLocation,this.readFractionVariable))
+        rs foreach {
+          case ReadField(reference,field) =>
+            val originalPermMapTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,originalPermMapVar)
+            val permMapTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,permMapVar)
+            val readFractionTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,readFractionVar)
+  
+            val currentActualPermission = currentExpressionFactory.makePermTerm(callNode,reference,field)
+            temporaries.using(prelude.Pair.Location.dataType){ locationVar =>
+              val location = currentExpressionFactory.makeProgramVariableTerm(callNode,locationVar)
+  
+              // Assert the precondition of the reference.
+              currentBlock.appendExhale(reference.sourceLocation,combined.visitTerm(reference,null))
+              
+              // `location := (ref,field)`
+              currentBlock.appendAssignment(callNode,locationVar,
+                field.locationLiteral(currentExpressionFactory, reference.asInstanceOf[PTerm]))
+  
+              // `inhale  get(m_0,(ref,field)) = perm(ref,field)` where (ref,field) = location
+              currentBlock.appendInhale(callNode,currentExpressionFactory.makeEqualityExpression(callNode,
+                currentExpressionFactory.makeDomainFunctionApplicationTerm(callNode,
+                  prelude.Map.PermissionMap.get,TermSequence(originalPermMapTerm,location)),
+                // ==
+                currentActualPermission))
+  
+              // `exhale 0 < get(m,(ref,field))`
+              val currentVirtualPermission = currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,
+                prelude.Map.PermissionMap.get,PTermSequence(permMapTerm,location))
+              currentBlock.appendExhale(callNode,currentExpressionFactory.makeDomainPredicateExpression(callNode,
+                permissionLT,TermSequence(currentExpressionFactory.makeNoPermission(callNode),currentVirtualPermission)))
+  
+              // `inhale k < get(m,(ref,field))`
+              currentBlock.appendInhale(callNode,currentExpressionFactory.makeDomainPredicateExpression(callNode,
+                permissionLT,TermSequence(readFractionTerm,currentVirtualPermission)))
+  
+              // `m := set(m,(ref,field),get(m,(ref,field)) - k)`
+              val nextVirtualPermission = currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,
+                permissionSubtraction,PTermSequence(currentVirtualPermission,readFractionTerm))
+              currentBlock.appendAssignment(callNode,permMapVar,currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,
+                prelude.Map.PermissionMap.update,PTermSequence(permMapTerm,location,nextVirtualPermission)))
+            }
+          case _ =>
+        }
+  
+        rs collect { case a@ReadImplication(_,_) => a } groupBy (_.lhs) foreach { i =>
+          silIf(i._1){
+            appendCond(i._2.map(_.rhs).flatten)
+          } end()
+        }
       }
-
-      rs collect { case a@ReadImplication(_,_) => a } groupBy (_.lhs) foreach { i =>
-        silIf(i._1){
-          appendCond(i._2.map(_.rhs).flatten)
-        } end()
-      }
+  
+      calleeFactory.methodFactory.method.signature.precondition
+        .map(genReadCond _)
+        .foreach(appendCond _)
+  
+      readFractionTerm
     }
-
-    calleeFactory.methodFactory.method.signature.precondition
-      .map(genReadCond _)
-      .foreach(appendCond _)
-
-    readFractionTerm
   }
 
   /**

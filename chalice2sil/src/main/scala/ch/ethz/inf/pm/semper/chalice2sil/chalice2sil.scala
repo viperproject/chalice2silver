@@ -4,7 +4,7 @@ package ch.ethz.inf.pm.semper {
 import chalice.ASTNode
 import chalice2sil.translation.{PredicateTranslator, MethodTranslator, FieldTranslator}
 import silAST.source.SourceLocation
-import util.parsing.input.{Positional}
+import scala.util.parsing.input.Positional
 import collection.GenTraversableLike
 import silAST.methods.MethodFactory
 import silAST.programs.symbols.{PredicateFactory, Field}
