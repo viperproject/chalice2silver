@@ -2,7 +2,7 @@ class Main{
     var f : int;
     method work(x : int) returns (y : int)
         requires rd(f)
-        ensures rd(f)
+        ensures rd(f) && y == x + f
     {
         y := x + f;
     }

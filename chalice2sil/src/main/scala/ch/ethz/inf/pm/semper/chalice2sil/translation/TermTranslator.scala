@@ -14,7 +14,7 @@ import silAST.expressions.terms.{PTerm, Term}
 /**
   * @author Christian Klauser
   */
-trait TermTranslator extends MethodEnvironment with TypeTranslator {
+trait TermTranslator extends MemberEnvironment with TypeTranslator {
 
   def translateTerm(expression : chalice.Expression) : Term = termTranslation(expression)
 

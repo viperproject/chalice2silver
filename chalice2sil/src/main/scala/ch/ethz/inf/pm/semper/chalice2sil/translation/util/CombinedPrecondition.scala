@@ -13,8 +13,8 @@ import silAST.types._
 /**
   * @author Christian Klauser
   */
-class CombinedPrecondition(environment : MethodEnvironment, val readFractionTerm : Term)
-  extends DerivedMethodEnvironment(environment)
+class CombinedPrecondition(environment : MemberEnvironment, val readFractionTerm : Term)
+  extends DerivedMemberEnvironment(environment)
   with ExpressionVisitor[Null, Expression] {
 
   protected def merge(left : Expression, right : Expression) =

@@ -35,16 +35,6 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     }
     protected def not(operand : DExpression) : DExpression =
       factory.makeDUnaryExpression(loc,silAST.symbols.logical.Not()(loc),operand)
-    protected def and(lhs : DExpression, rhs : DExpression) : DExpression =
-      factory.makeDBinaryExpression(loc,silAST.symbols.logical.And()(loc),lhs,rhs)
-    protected def or(lhs : DExpression, rhs : DExpression) : DExpression =
-      factory.makeDBinaryExpression(loc,silAST.symbols.logical.Or()(loc),lhs,rhs)
-    protected def equiv(lhs : DExpression,  rhs : DExpression) : DExpression =
-      factory.makeDBinaryExpression(loc,silAST.symbols.logical.Equivalence()(loc),lhs,rhs)
-    protected def imply(lhs : DExpression,rhs:DExpression) : DExpression =
-      factory.makeDBinaryExpression(loc,silAST.symbols.logical.Implication()(loc),lhs,rhs)
-    protected def equality(lhs : DTerm, rhs : DTerm) =
-      factory.makeDEqualityExpression(loc,lhs,rhs)
     protected def ∀(aType : DataType, expr : LogicalVariable => DExpression) : DExpression = {
       val a = factory.makeBoundVariable(loc,names.nextName,aType)
       factory.makeDQuantifierExpression(loc,Forall()(loc),a,expr(a))
@@ -85,6 +75,29 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     }
     implicit protected def directlyApplyDomainPredicate(dp : DomainPredicate) = new {
       def apply(args : DTerm*) = pApp(dp,args:_*)
+    }
+
+    implicit protected def termOps(lhs : DTerm) = new {
+      def ≡(rhs : DTerm) =
+        factory.makeDEqualityExpression(loc,lhs,rhs)
+      def ≠(rhs : DTerm) = not(≡(rhs))
+    }
+    implicit protected def logicalVariableOps(v : LogicalVariable) = new {
+      protected def lhs : DTerm = v
+      def ≡(rhs : DTerm) =
+        factory.makeDEqualityExpression(loc,lhs,rhs)
+      def ≠(rhs : DTerm) = not(lhs ≡ rhs)
+    }
+    implicit protected def exprOps(lhs : DExpression) = new {
+      // don't use ∧ or ∨ for and/or to take advantage of Scala operator precedence rules.
+      def and(rhs : DExpression) : DExpression =
+        factory.makeDBinaryExpression(loc,silAST.symbols.logical.And()(loc),lhs,rhs)
+      def or(rhs : DExpression) : DExpression =
+        factory.makeDBinaryExpression(loc,silAST.symbols.logical.Or()(loc),lhs,rhs)
+      def ↔(rhs : DExpression) : DExpression =
+        factory.makeDBinaryExpression(loc,silAST.symbols.logical.Equivalence()(loc),lhs,rhs)
+      def →(rhs:DExpression) : DExpression =
+        factory.makeDBinaryExpression(loc,silAST.symbols.logical.Implication()(loc),lhs,rhs)
     }
   } 
   
@@ -142,6 +155,43 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
       ft
     }
   }
+  
+  object Predicate extends DomainEnvironment("Predicate",Seq()) {
+    val dataType = factory.makeNonReferenceDataType(loc,factory,DataTypeSequence())
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Constructors
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    val create = factory.defineDomainFunction(loc,"create",DataTypeSequence(integerType),dataType)
+    factory.addDomainAxiom(loc,"create_is_ctor",
+        ∀(integerType,integerType,(a,b) =>
+          create(a) ≡ create(b) ↔ (a ≡ b)
+      ))
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Read Fraction
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    val globalReadFraction = factory.defineDomainFunction(loc,"globalReadFraction",DataTypeSequence(),permissionType)
+
+    val readFraction = factory.defineDomainFunction(loc,"readFraction",DataTypeSequence(dataType, referenceType),permissionType)
+    factory.addDomainAxiom(loc,"globalReadFraction",
+      ∀(dataType,referenceType, (pred,ref) => readFraction(pred,ref) ≡ globalReadFraction())
+    )
+  }
+
+  object Monitor extends DomainEnvironment("Monitor",Seq()) {
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Read Fraction
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    val globalReadFraction = factory.defineDomainFunction(loc,"globalReadFraction",DataTypeSequence(),permissionType)
+    factory.addDomainAxiom(loc,"monitors_and_predicates_are_the_same",
+      Predicate.globalReadFraction() ≡ Monitor.globalReadFraction())
+
+    val readFraction = factory.defineDomainFunction(loc,"readFraction",DataTypeSequence(referenceType),permissionType)
+    factory.addDomainAxiom(loc,"globalReadFraction",
+      ∀(referenceType, (ref) => readFraction(ref) ≡ globalReadFraction())
+    )
+  }
 
   object Pair {
     object Template extends DomainEnvironment("Pair",Seq((loc,"A"),(loc,"B"))){
@@ -159,19 +209,18 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       val getFirst =  factory.defineDomainFunction(loc,"getFirst",DataTypeSequence(dataType),firstType)
       factory.addDomainAxiom(loc,"getFirst",
-        ∀(firstType,secondType,(a,b) => equality(getFirst(create(a,b)),a)))
+        ∀(firstType,secondType,(a,b) => getFirst(create(a,b)) ≡ a))
 
       val getSecond = factory.defineDomainFunction(loc,"getSecond",DataTypeSequence(dataType),secondType)
       factory.addDomainAxiom(loc,"getSecond",
-        ∀(firstType,secondType,(a,b) => equality(getSecond(create(a,b)),b)))
+        ∀(firstType,secondType,(a,b) => getSecond(create(a,b)) ≡ b))
 
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       // Axioms
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       factory.addDomainAxiom(loc,"equality",∀(firstType,secondType,firstType,secondType,
-        (a,b,x,y) => equiv(
-          equality(create(a,b),create(x,y)),
-          and(equality(a,x),equality(b,y))
+        (a,b,x,y) => (
+          (create(a,b) ≡ create(x,y)) ↔ (a ≡ x and (b ≡ y))
         )))
 
       lazy val domain = factory.compile()
@@ -208,11 +257,11 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
       // Operations
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       val get = factory.defineDomainFunction(loc,"get",DataTypeSequence(dataType,keyType),valueType)
-      // ∀ m : Map[K,V], k1,k2 : K, v : V . (k1 ≠ k2 → Get(Update(m,k1,v),k2) = Get(m,k2)) ∧ ((k1 = k2) → Get(Update(m,k1,v),k2) = v)
+      // ∀ m : Map[K,V], k1,k2 : K, v : V . (k1 ≠ k2 → Get(Update(m,k1,v),k2) = Get(m,k2)) and ((k1 = k2) → Get(Update(m,k1,v),k2) = v)
       factory.addDomainAxiom(loc,"get_update",∀(dataType,keyType,keyType,valueType,(m,k1,k2,v) =>
-        and(
-          imply(not(equality(k1,k2)), equality(get(update(m,k1,v),k2), get(m,k2))),
-          imply(    equality(k1,k2) , equality(get(update(m,k1,v),k2), v))
+        (
+          (not((k1 ≡ k2)) → (get(update(m,k1,v),k2) ≡ get(m,k2))) and
+          (    (k1 ≡ k2)  → (get(update(m,k1,v),k2) ≡ v))
         )
       ))
 
@@ -222,11 +271,10 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
       val has = factory.defineDomainPredicate(loc,"has",DataTypeSequence(dataType,keyType))
       // ∀ k : K . ¬Has(Empty(),k)
       factory.addDomainAxiom(loc,"empty_has_no_entries",∀(keyType,k => not(has(empty(),k))))
-      // ∀ m : Map[K,V], k1,k2 : K, v : V  . Has(Update(m,k1,v),k2) ↔ (k1 = k2 ∨ (k1≠k2 ∧ Has(m,k2))
+      // ∀ m : Map[K,V], k1,k2 : K, v : V  . Has(Update(m,k1,v),k2) ↔ (k1 = k2 or (k1≠k2 and Has(m,k2))
       factory.addDomainAxiom(loc,"has_update",∀(dataType,keyType,keyType,valueType,(m,k1,k2,v) =>
-        equiv(  has(update(m,k1,v),k2),
-          or( equality(k1,k2), and(not(equality(k1,k2)), has(m,k2)))
-        )))
+          has(update(m,k1,v),k2) ↔ (k1 ≡ k2 or (not(k1 ≡ k2) and has(m,k2)))
+        ))
     }
     
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

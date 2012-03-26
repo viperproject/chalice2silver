@@ -7,8 +7,8 @@ import silAST.expressions.Expression
   * @author Christian Klauser
   */
 class DefaultCodeTranslator
-    (methodEnvironment : MethodEnvironment)
-  extends DerivedMethodEnvironment(methodEnvironment)
+    (methodEnvironment : MemberEnvironment)
+  extends DerivedMemberEnvironment(methodEnvironment)
   with ExpressionTranslator
   with TermTranslator
   with PermissionTranslator

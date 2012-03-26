@@ -9,7 +9,7 @@ import silAST.methods.implementations.{LoopBlockFactory, BasicBlockFactory}
   * @author Christian Klauser
   */
 class LoopBodyTranslator(environment : ScopeTranslator, protected val loopBlockFactory : LoopBlockFactory)
-  extends DerivedMethodEnvironment(environment)
+  extends DerivedMemberEnvironment(environment)
   with ScopeTranslator {
 
   def cfgFactory = loopBlockFactory.bodyFactory

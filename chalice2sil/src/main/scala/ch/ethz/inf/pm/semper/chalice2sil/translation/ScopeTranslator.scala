@@ -21,7 +21,7 @@ import chalice.Variable
   * @author Christian Klauser
   */
 trait ScopeTranslator
-  extends MethodEnvironment
+  extends MemberEnvironment
   with TypeTranslator
 { thisScopeTranslator =>
   def cfgFactory : CFGFactory
@@ -39,10 +39,13 @@ trait ScopeTranslator
     override protected def deriveKeyFromValue(value : ProgramVariable) = value.name
   }
 
+  def languageConstruct[T](sourceLocation : SourceLocation)(action : LanguageConstruct => T) =
+    action(new LanguageConstruct(this,sourceLocation))
+
   def translateBody[T](body : CodeTranslator => T) {
     val methodEntry = basicBlocks("entry");
     blockStack.push(methodEntry)
-    body(new MethodCodeTranslator)
+    body(new MemberCodeTranslator)
     assert(blockStack.size > 0,"No block on top of the block stack after translation of body.")
     val methodExit = blockStack.pop()
 
@@ -320,7 +323,7 @@ trait ScopeTranslator
     * to remain the same, but the top element might change.
     */
   def translateMethodCall(callNode : chalice.Call) {
-    val codeTranslator = new MethodCodeTranslator
+    val codeTranslator = new MemberCodeTranslator
     val chalice.Call(_,destinations,receiver,_,args) = callNode
     val calleeFactory = methods(callNode.m.asInstanceOf[chalice.Method])
 
@@ -339,174 +342,159 @@ trait ScopeTranslator
   }
 
   def translateMethodFork(callNode : chalice.CallAsync) {
-    val codeTranslator = new MethodCodeTranslator
+    val codeTranslator = new MemberCodeTranslator
     val chalice.CallAsync(_,chaliceTokenVariable,receiver,_,args) = callNode
     val calleeFactory = methods(callNode.m)
 
-    // `token := new object`
-    val tokenVar = programVariables(chaliceTokenVariable.v)
-    val token = currentExpressionFactory.makeProgramVariableTerm(callNode, tokenVar)
-    currentBlock.appendNew(callNode,tokenVar,referenceType)
+    languageConstruct(callNode){ ctor =>
+      import ctor._
 
-    // `inhale acc(token.joinable,write)`
-    currentBlock.appendInhale(callNode,currentExpressionFactory.makePermissionExpression(callNode,
-      token,prelude.Token.joinable,currentExpressionFactory.makeFullPermission(callNode)))
+      // `token := new object`
+      val tokenVar = programVariables(chaliceTokenVariable.v)
+      val token : ProgramVariableTerm = tokenVar
+      tokenVar <-- NewRef()
 
-    // `token.joinable := true`
-    currentBlock.appendFieldAssignment(callNode,tokenVar,prelude.Token.joinable,
-        currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,booleanTrue,PTermSequence())
-      )
+      // `inhale acc(token.joinable,write)`
+      inhale(acc(token,prelude.Token.joinable,fullPermission))
 
-    //Determine read fraction
-    val readFractionTerm = determineReadPermissionFraction(codeTranslator, callNode)
+      // `token.joinable := true`
+      (tokenVar!prelude.Token.joinable) <-- booleanTrue.p()
 
-    // Store state (arguments)
-    val rcvrTerm = translatePTerm(codeTranslator, receiver)
-    val argTerms = rcvrTerm :: args.map(translatePTerm(codeTranslator,_)) ++ List(readFractionTerm)
+      //Determine read fraction
+      val readFractionTerm = determineReadPermissionFraction(codeTranslator, callNode)
 
-    argTerms.zip(calleeFactory.callToken.args) foreach { a =>
-      // `inhale acc(token.field,full);`
-      currentBlock.appendInhale(callNode,currentExpressionFactory.makePermissionExpression(callNode,
-        token,
-        a._2,currentExpressionFactory.makeFullPermission(callNode)))
-      // `token.field := arg`
-      currentBlock.appendFieldAssignment (callNode,tokenVar,a._2,a._1)
+      // Store state (arguments)
+      val rcvrTerm = translatePTerm(codeTranslator, receiver)
+      val argTerms = rcvrTerm :: args.map(translatePTerm(codeTranslator,_)) ++ List(readFractionTerm)
+
+      argTerms.zip(calleeFactory.callToken.args) foreach { a =>
+        // `inhale acc(token.field,full);`
+        inhale(acc(token,a._2,fullPermission))
+        // `token.field := arg`
+        (tokenVar!a._2) <-- a._1
+      }
+
+      //Store state (old(*))
+      val callSiteSubstitution = currentExpressionFactory.makePProgramVariableSubstitution(calleeFactory.parameters.zip(argTerms).map(x => x._1 -> x._2).toSet)
+      calleeFactory.callToken.oldTerms foreach { entry =>
+        val oldNode = entry._1
+        val tkField = entry._2
+        val cp = new CombinedPrecondition(this,readFractionTerm)
+        val choice = currentExpressionFactory.makePDomainPredicateExpression(callNode,booleanEvaluate,PTermSequence(
+          currentExpressionFactory.makeProgramVariableTerm(callNode,
+            declareScopedVariable(callNode,getNextName("nondeterministic_choice"),booleanType))
+        ))
+
+        // `inhale acc(tk.field,full);`
+        inhale(acc(tokenVar,tkField,fullPermission))
+
+        // `if(*) { inhale precondition(e); tk.field = e; }`
+        silIf(choice,callNode){
+          oldNode match {
+            case OldTermNode(OldTerm(inner:PTerm)) =>
+              val innerLocal = inner.substitute(callSiteSubstitution)
+              inhale(cp.visitTerm(innerLocal,null))
+              (tokenVar!tkField) <-- innerLocal
+            case OldExpressionNode(OldExpression(inner:PExpression)) =>
+              val innerLocal = inner.substitute(callSiteSubstitution)
+              inhale(cp.visitExpression(innerLocal,null))
+              silIf(innerLocal,callNode){
+                (tokenVar!tkField) <-- booleanTrue.p()
+              } els {
+                (tokenVar!tkField) <-- booleanFalse.p ()
+              } end()
+            case o => // inner term/expression is not a program term/expression
+              report(messages.ContractNotUnderstood(o.astNode))
+          }
+        } end ()
+      }
+
+      // Finally: `exhale precondition(method)`, with parameters substituted
+      if(calleeFactory.method.signature.precondition.size > 0)
+        exhale(calleeFactory.method.signature.precondition
+          .map(_.substitute(callSiteSubstitution)))
     }
-    
-    //Store state (old(*))
-    val callSiteSubstitution = currentExpressionFactory.makePProgramVariableSubstitution(calleeFactory.parameters.zip(argTerms).map(x => x._1 -> x._2).toSet)
-    calleeFactory.callToken.oldTerms foreach { entry =>
-      val oldNode = entry._1
-      val tkField = entry._2
-      val cp = new CombinedPrecondition(this,readFractionTerm)
-      val choice = currentExpressionFactory.makePDomainPredicateExpression(callNode,booleanEvaluate,PTermSequence(
-        currentExpressionFactory.makeProgramVariableTerm(callNode,
-          declareScopedVariable(callNode,getNextName("nondeterministic_choice"),booleanType))
-      ))
-
-      // `inhale acc(tk.field,full);`
-      currentBlock.appendInhale(callNode,currentExpressionFactory.makePermissionExpression(callNode,
-        token,tkField,currentExpressionFactory.makeFullPermission(callNode)))
-
-      // `if(*) { inhale precondition(e); tk.field = e; }`
-      silIf(choice,callNode){
-        oldNode match {
-          case OldTermNode(OldTerm(inner:PTerm)) =>
-            val innerLocal = inner.substitute(callSiteSubstitution)
-            currentBlock.appendInhale(callNode,cp.visitTerm(innerLocal,null))
-            currentBlock.appendFieldAssignment(callNode,tokenVar,tkField,innerLocal)
-          case OldExpressionNode(OldExpression(inner:PExpression)) =>
-            val innerLocal = inner.substitute(callSiteSubstitution)
-            currentBlock.appendInhale(callNode,cp.visitExpression(innerLocal,null))
-            silIf(innerLocal,callNode){
-              currentBlock.appendFieldAssignment(callNode,tokenVar,tkField,
-                  currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,booleanTrue,PTermSequence())
-                )
-            } els {
-              currentBlock.appendFieldAssignment(callNode,tokenVar,tkField,
-                currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,booleanFalse,PTermSequence())
-              )
-            } end()
-          case o => // inner term/expression is not a program term/expression
-            report(messages.ContractNotUnderstood(o.astNode))
-        }
-      } end ()
-    }
-
-    // Finally: `exhale precondition(method)`, with parameters substituted
-    if(calleeFactory.method.signature.precondition.size > 0)
-      currentBlock.appendExhale(callNode,
-        calleeFactory.method.signature.precondition
-        .map(_.substitute(callSiteSubstitution))
-        .reduce(currentExpressionFactory.makeBinaryExpression(callNode,And()(callNode),_,_)))
   }
   
   def translateMethodJoin(callNode : chalice.JoinAsync) {
-    val codeTranslator = new MethodCodeTranslator()
-    val (tokenVar,allocatedTemp) = { 
-      translatePTerm(codeTranslator, callNode.token) match {
+    val codeTranslator = new MemberCodeTranslator()
+    languageConstruct(callNode){ ctor =>
+      import ctor._
+
+      val (tokenVar,allocatedTemp) = translatePTerm(codeTranslator, callNode.token) match {
         case ProgramVariableTerm(v) => (v,false)
-        case t => 
-          val v = temporaries.acquire(referenceType)
-          currentBlock.appendAssignment(callNode,v,t)
-          (v,true)
+      case t =>
+        val v = temporaries.acquire(referenceType)
+        v <-- t
+        (v,true)
+    }
+
+      val tokenTerm : PTerm = tokenVar
+      val calleeFactory = methods(callNode.m)
+      val tokenStorage = calleeFactory.callToken
+      val resultTargets = callNode.lhs.map(ve => programVariables(ve.v))
+
+      // `exhale eval(token.joinable)`
+      exhale(booleanEvaluate.apply(tokenTerm!prelude.Token.joinable))
+
+      // set up substitution
+      val resultTerms = tokenStorage.results.map(tokenTerm!_)
+      val argumentTerms = tokenStorage.args.map(tokenTerm!_)
+      val sig = calleeFactory.methodFactory.method.signature
+      val (parameterVariables,resultVariables) = (sig.parameters,sig.results)
+      val joinSubstitution = currentExpressionFactory.makePProgramVariableSubstitution(
+        (parameterVariables.toList ++ resultVariables)
+                            .zip
+        (      argumentTerms       ++   resultTerms  ).toSet)
+
+      // replace method parameters (in & out), as well as old(*) expressions with the corresponding terms at the join-site
+      val trans = new ExpressionTransplantation(this) {
+        def translateProgramVariable(variable : ProgramVariable) = joinSubstitution.mapVariable(variable).get
+
+        override def transplant(expression : Expression) = expression match {
+          case o@OldExpression(_) =>
+            // replace `old(*)` with `eval(token.old_*)`
+            val fieldRead = tokenTerm!tokenStorage.oldTerms(OldExpressionNode(o))
+            booleanEvaluate.apply(fieldRead)
+          case _ => super.transplant(expression)
+        }
+
+        override def transplant(term : Term) = term match {
+          case o@OldTerm(_) =>
+            // replace `old(*)` with `token.old_*`
+            tokenTerm!tokenStorage.oldTerms(OldTermNode(o))
+          case _ => super.transplant(term)
+        }
       }
-    }
-    val tokenTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,tokenVar)
-    val calleeFactory = methods(callNode.m)
-    val tokenStorage = calleeFactory.callToken
-    val resultTargets = callNode.lhs.map(ve => programVariables(ve.v))
 
-    // `exhale write ≤ perm(token.joinable)`
-    currentBlock.appendExhale(callNode,currentExpressionFactory.makeDomainPredicateExpression(callNode,
-      permissionLE,TermSequence( // ≤
-        currentExpressionFactory.makeFullPermission(callNode), // write
-        currentExpressionFactory.makePermTerm(callNode,tokenTerm,prelude.Token.joinable)))) // token.joinable
-
-    // assign all results to unknown values
-    resultTargets foreach { resultVar =>
-      currentBlock.appendNew(callNode,resultVar,resultVar.dataType) // TODO: How to assign unknown ref?
-    }
-
-    // set up substitution
-    val resultTerms = resultTargets.map(currentExpressionFactory.makeProgramVariableTerm(callNode,_))
-    val argumentTerms = tokenStorage.args.map(currentExpressionFactory.makePFieldReadTerm(callNode,tokenTerm,_))
-    val sig = calleeFactory.methodFactory.method.signature
-    val (parameterVariables,resultVariables) = (sig.parameters,sig.results)
-    val joinSubstitution = currentExpressionFactory.makePProgramVariableSubstitution(
-      (parameterVariables.toList ++ resultVariables)
-                          .zip
-      (      argumentTerms       ++   resultTerms  ).toSet)
-    
-    // replace method parameters (in & out), as well as old(*) expressions with the corresponding terms at the join-site
-    val trans = new ExpressionTransplantation(this) {
-      def translateProgramVariable(variable : ProgramVariable) = joinSubstitution.mapVariable(variable).get
-
-      override def transplant(expression : Expression) = expression match {
-        case o@OldExpression(_) => 
-          // replace `old(*)` with `eval(token.old_*)`
-          val fieldRead = currentExpressionFactory.makePFieldReadTerm(callNode,tokenTerm,tokenStorage.oldTerms(OldExpressionNode(o)))
-          currentExpressionFactory.makePDomainPredicateExpression(callNode,booleanEvaluate,PTermSequence(fieldRead))
-        case _ => super.transplant(expression)
-      }
-
-      override def transplant(term : Term) = term match {
-        case o@OldTerm(_) =>
-          // replace `old(*)` with `token.old_*`
-          currentExpressionFactory.makePFieldReadTerm(callNode,tokenTerm,tokenStorage.oldTerms(OldTermNode(o)))
-        case _ => super.transplant(term)
-      }
-    }
-
-    // inhale postcondition (with old(*) replaced)
-    sig.postcondition foreach { literalPostcondition =>
-      val postcondition = trans.transplant(literalPostcondition)
-      currentBlock.appendInhale(callNode,postcondition)
-    }
-    if(sig.postcondition.size > 0)
-      currentBlock.appendExhale(callNode,
-        sig.postcondition
+      // inhale postcondition (with old(*) replaced)
+        val methodPostcondition = sig.postcondition
           .map(trans.transplant(_))
-          .reduce(currentExpressionFactory.makeBinaryExpression(callNode,And()(callNode),_,_))
-      )
-    
-    // finally set `token.joinable := false`
-    currentBlock.appendFieldAssignment(callNode,tokenVar,prelude.Token.joinable,
-        currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,booleanFalse,PTermSequence())
-      )
-    
-    if(allocatedTemp){
-      temporaries.release(tokenVar)
+        val resultAccess = tokenStorage.results
+          .map(acc(tokenTerm,_,fullPermission))
+        inhale(resultAccess,methodPostcondition)
+
+      // assign all result fields to result variables
+      if(tokenStorage.results.size > 0){
+        resultTargets.zip(resultTerms).foreach(t => t._1 <-- t._2)
+      }
+
+      // finally set `token.joinable := false`
+      (tokenVar!prelude.Token.joinable) <-- booleanFalse.p()
+
+      if(allocatedTemp){
+        temporaries.release(tokenVar)
+      }
     }
   }
 
   def translateAssert(expr : chalice.Expression) {
-    val translator = new MethodCodeTranslator with AssertionTranslator
+    val translator = new MemberCodeTranslator with AssertionTranslator
     currentBlock.appendExhale(expr,translator.translateExpression(expr))
   }
 
   def translateAssume(expr : chalice.Expression) {
-    val translator = new MethodCodeTranslator with AssertionTranslator
+    val translator = new MemberCodeTranslator with AssertionTranslator
     currentBlock.appendInhale(expr,translator.translateExpression(expr))
   }
 
@@ -561,7 +549,7 @@ trait ScopeTranslator
     }
   }
 
-  class MethodCodeTranslator extends DefaultCodeTranslator(thisScopeTranslator) {
+  class MemberCodeTranslator extends DefaultCodeTranslator(thisScopeTranslator) {
     override protected def readFraction(location : SourceLocation) =
       currentExpressionFactory.makeProgramVariableTerm(location, readFractionVariable)
   }

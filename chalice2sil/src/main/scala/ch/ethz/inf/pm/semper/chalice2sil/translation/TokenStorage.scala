@@ -7,7 +7,8 @@ import silAST.expressions.OldExpression
   */
 class TokenStorage(programEnvironment : ProgramEnvironment,
                     val args : List[FieldTranslator],
-                   val oldTerms : Map[OldNode,FieldTranslator])
+                    val results : List[FieldTranslator],
+                    val oldTerms : Map[OldNode,FieldTranslator])
   extends DerivedProgramEnvironment(programEnvironment)
   with Iterable[FieldTranslator] {
 

@@ -7,14 +7,14 @@ import silAST.expressions._
 import ch.ethz.inf.pm.semper.chalice2sil
 import chalice2sil._
 import terms._
-import translation.{MethodEnvironment, DerivedMethodEnvironment, ProgramEnvironment}
+import translation.{MemberEnvironment, DerivedMemberEnvironment, ProgramEnvironment}
 import util.TermSequence
 
 /**
   * @author Christian Klauser
   */
-abstract class ExpressionTransplantation(methodEnvironment : MethodEnvironment)
-  extends DerivedMethodEnvironment(methodEnvironment) {
+abstract class ExpressionTransplantation(methodEnvironment : MemberEnvironment)
+  extends DerivedMemberEnvironment(methodEnvironment) {
   implicit def extractSourceLocation(node : ASTNode) : SourceLocation = node.sourceLocation
 
   def translateProgramVariable(variable : ProgramVariable) : PTerm

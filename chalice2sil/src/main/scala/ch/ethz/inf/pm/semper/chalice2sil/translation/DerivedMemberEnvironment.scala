@@ -3,16 +3,16 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
 /**
   * @author Christian Klauser
   */
-class DerivedMethodEnvironment(methodEnvironment : MethodEnvironment)
+class DerivedMemberEnvironment(methodEnvironment : MemberEnvironment)
   extends DerivedProgramEnvironment(methodEnvironment)
-  with MethodEnvironment {
+  with MemberEnvironment {
 
-  private val parentEnvironment : MethodEnvironment = methodEnvironment match {
-    case derived:DerivedMethodEnvironment => derived.parentEnvironment
+  private val parentEnvironment : MemberEnvironment = methodEnvironment match {
+    case derived:DerivedMemberEnvironment => derived.parentEnvironment
     case other => other
   }
   
-  assert(!parentEnvironment.isInstanceOf[DerivedMethodEnvironment])
+  assert(!parentEnvironment.isInstanceOf[DerivedMemberEnvironment])
 
   override def readFractionVariable = parentEnvironment.readFractionVariable
 

@@ -17,7 +17,7 @@ import silAST.symbols.logical.{Not, And, Or, Implication}
 /**
   * @author Christian Klauser
   */
-trait ExpressionTranslator extends MethodEnvironment {
+trait ExpressionTranslator extends MemberEnvironment {
   protected def translateTerm(exprNode :  chalice.Expression ) : Term
   protected def translateClassRef(classRef : chalice.Class) : DataType
   protected def translatePermission(permission : chalice.Permission) : Term

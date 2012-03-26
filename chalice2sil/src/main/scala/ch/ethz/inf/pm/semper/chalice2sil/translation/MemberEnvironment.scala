@@ -3,13 +3,14 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
 import silAST.programs.symbols.ProgramVariable
 import silAST.methods.MethodFactory
 import silAST.methods.implementations.{ImplementationFactory, BasicBlockFactory}
-import silAST.expressions.ExpressionFactory
 import util._
+import silAST.expressions.{Expression, ExpressionFactory}
+import silAST.source.SourceLocation
 
 /**
   *
   */
-trait MethodEnvironment extends ProgramEnvironment {
+trait MemberEnvironment extends ProgramEnvironment {
   def programVariables : DerivedFactoryCache[chalice.Variable,String, ProgramVariable]
   def thisVariable : ProgramVariable
   def readFractionVariable : ProgramVariable
@@ -21,4 +22,7 @@ trait MethodEnvironment extends ProgramEnvironment {
     case null | "" => nameSequence.nextName
     case p  => p + "_" + nameSequence.nextName
   }
+
+  def pureLanguageConstruct[T](sourceLocation : SourceLocation)(action : PureLanguageConstruct => T) =
+    action(new PureLanguageConstruct(this,sourceLocation))
 }

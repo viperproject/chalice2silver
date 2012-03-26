@@ -41,6 +41,7 @@
     <orderEntry type="library" scope="TEST" name="org.hamcrest_hamcrest-core_1.1" level="project" />
     <orderEntry type="library" name="chalice.jar" level="project" />
     <orderEntry type="library" name="silast.jar" level="project" />
+    <orderEntry type="library" name="silicon" level="project" />
   </component>
 </module>
 
