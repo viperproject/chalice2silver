@@ -92,8 +92,10 @@ class LanguageConstructBase(val environment : MemberEnvironment, val sourceLocat
     def !(f : FieldTranslator) : PFieldReadTerm = this.!(f.field)
   }
 
-  final implicit def programVariableToTerm(variable : ProgramVariable) : ProgramVariableTerm =
+  final implicit def programVariableToTerm(variable : ProgramVariable) : ProgramVariableTerm = {
+    assert(variable != null)
     currentExpressionFactory.makeProgramVariableTerm(sourceLocation, variable)
+  }
 
   implicit def termOps(term : Term) = new {
     def !(p : PredicateFactory) : PredicateExpression = currentExpressionFactory.makePredicateExpression(sourceLocation, term, p)

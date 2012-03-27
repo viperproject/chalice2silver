@@ -1,14 +1,14 @@
 class Main {
   var x : int;
-  var ä : int;
+  var y : int;
     
   method disposex(z : int)
     requires rd(x)
   {}
 
   method test03()
-    requires acc(x) && rd(ä)
-    ensures rd(x) && rd(ä)
+    requires acc(x) && rd(y)
+    ensures rd(x) && rd(y)
   {
     call disposex(1);
     call disposex(2);

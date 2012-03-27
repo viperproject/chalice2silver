@@ -5,7 +5,6 @@ import silAST.symbols.logical.And._
 import silAST.symbols.logical.Or._
 import silAST.symbols.logical.Implication._
 import silAST.domains.{DomainPredicate, Domain}
-import silAST.types.DataType
 import silAST.expressions.util.TermSequence._
 import silAST.expressions.{ExpressionFactory, Expression}
 import silAST.expressions.util.TermSequence
@@ -13,6 +12,9 @@ import silAST.expressions.terms.Term
 import silAST.ASTNode
 import ch.ethz.inf.pm.semper.chalice2sil._
 import silAST.symbols.logical.{Not, And, Or, Implication}
+import util.PureLanguageConstruct
+import silAST.symbols.logical.quantification.Exists
+import silAST.types.{permissionLT, permissionType, DataType}
 
 /**
   * @author Christian Klauser
@@ -85,13 +87,14 @@ trait ExpressionTranslator extends MemberEnvironment {
           // i.e., make sure that arg/old fields always have the same permissions as token.joinable.
           val m = methods(tokenExpr.typ.asInstanceOf[chalice.TokenClass].method)
           val tokenTerm = translateTerm(tokenExpr)
-          val permAmount = translatePermission(permission)
-          m.callToken.allFields
-            .map(currentExpressionFactory.makePermissionExpression(expression,tokenTerm,_,permAmount))
-            .reduce[Expression](currentExpressionFactory.makeBinaryExpression(expression,And()(expression),_,_))
+          translateAccessExpression(permission){ permAmount =>
+            m.callToken.allFields
+              .map(currentExpressionFactory.makePermissionExpression(expression,tokenTerm,_,permAmount))
+              .reduce[Expression](currentExpressionFactory.makeBinaryExpression(expression,And()(expression),_,_))
+          }
         }
-      case expression@chalice.Access(memberAccess, permission) =>
-        currentExpressionFactory.makePermissionExpression(expression,translateTerm(memberAccess.e),fields(memberAccess.f),translatePermission(permission))
+      case expression@chalice.Access(memberAccess, permission) => translateAccessExpression(permission)(
+          currentExpressionFactory.makePermissionExpression(expression,translateTerm(memberAccess.e),fields(memberAccess.f),_))
       case ma@chalice.MemberAccess(target,_) if ma.isPredicate =>
         report(messages.UnknownAstNode(ma))
         dummyExpr(currentExpressionFactory,ma)
@@ -100,6 +103,20 @@ trait ExpressionTranslator extends MemberEnvironment {
         currentExpressionFactory.makeDomainPredicateExpression(boolExpr,prelude.Boolean.eval,TermSequence(boolTerm))
 
   } orElse missingTranslation
+  
+  protected def translateAccessExpression(permission : chalice.Permission)(body : Term => Expression) : Expression = permission match {
+    case s@chalice.Star =>
+      val ctor = new PureLanguageConstruct(this,s)
+      import ctor._
+      val readFractionVar = currentExpressionFactory.makeBoundVariable(s,getNextName("kstar"),permissionType)
+      val readFractionTerm = currentExpressionFactory.makeBoundVariableTerm(s,readFractionVar)
+      currentExpressionFactory.makeQuantifierExpression(s,Exists()(s),readFractionVar, conjunction(List(
+        permissionLT.apply(noPermission, readFractionTerm),   // 0 < k 
+        permissionLT.apply(readFractionTerm, fullPermission), // k < write
+        permissionLT.apply(readFractionTerm, readFractionVariable), // k < k_method
+        body(readFractionTerm))))                             // body(k)
+    case amount => body(translatePermission(amount))
+  }
 
   protected def missingTranslation[E] = new PartialFunction[chalice.Expression,E] {
     def isDefinedAt(e : chalice.Expression) = false

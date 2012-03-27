@@ -116,26 +116,31 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       )
     )
 
+    k
+  }
+  
+  val readFractionVariable = createSignature();
+  
+  private[this] def createContracts() {
+    val kTerm = currentExpressionFactory.makeProgramVariableTerm(method,readFractionVariable)
     val contractTranslator = new DefaultCodeTranslator(this){
       override protected def readFraction(location : SourceLocation) = kTerm
     }
 
     method.spec.foreach(spec => spec match {
       case chalice.Precondition(e) =>
-          val precondition = contractTranslator.translateExpression(e)
-          mf.addPrecondition(spec,precondition)
+        val precondition = contractTranslator.translateExpression(e)
+        methodFactory.addPrecondition(spec,precondition)
       case chalice.Postcondition(e) =>
-          val postcondition = contractTranslator.translateExpression(e)
-          mf.addPostcondition(spec,postcondition)
+        val postcondition = contractTranslator.translateExpression(e)
+        methodFactory.addPostcondition(spec,postcondition)
       case otherSpec => report(messages.UnknownAstNode(otherSpec))
     })
 
     methodFactory.finalizeSignature()
-
-    k
   }
-  
-  val readFractionVariable = createSignature();
+
+  createContracts();
 
   def translate(){
     translateBody(translateStatements(_,method.body))

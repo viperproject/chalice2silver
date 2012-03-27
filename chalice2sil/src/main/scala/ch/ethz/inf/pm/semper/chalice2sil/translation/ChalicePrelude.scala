@@ -222,8 +222,6 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
         (a,b,x,y) => (
           (create(a,b) ≡ create(x,y)) ↔ (a ≡ x and (b ≡ y))
         )))
-
-      lazy val domain = factory.compile()
     }
     case class PreludeDomainInfo protected[Pair] (firstType : DataType, secondType : DataType) {
       val domain = programEnvironment.programFactory.makeDomainInstance(Template.factory,DataTypeSequence(firstType,secondType))
