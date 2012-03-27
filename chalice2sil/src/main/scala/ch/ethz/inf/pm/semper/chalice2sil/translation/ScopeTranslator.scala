@@ -272,11 +272,13 @@ trait ScopeTranslator
               val location = currentExpressionFactory.makeProgramVariableTerm(callNode,locationVar)
   
               // Assert the precondition of the reference.
-              currentBlock.appendExhale(reference.sourceLocation,combined.visitTerm(reference,null))
+              combined.visitTerm(reference,null) match {
+                case TrueExpression() => // `exhale true` only confuses
+                case definedness => exhale(removeSideEffects(definedness))
+              }
               
               // `location := (ref,field)`
-              currentBlock.appendAssignment(callNode,locationVar,
-                field.locationLiteral(currentExpressionFactory, reference.asInstanceOf[PTerm]))
+              locationVar <-- field.locationLiteral(currentExpressionFactory, reference.asInstanceOf[PTerm])
   
               // `inhale  get(m_0,(ref,field)) = perm(ref,field)` where (ref,field) = location
               currentBlock.appendInhale(callNode,currentExpressionFactory.makeEqualityExpression(callNode,
@@ -488,6 +490,24 @@ trait ScopeTranslator
         temporaries.release(tokenVar)
       }
     }
+  }
+
+  def removeSideEffects(expr : Expression) : Expression = {
+    val remover = new ExpressionTransplantation(this) {
+      def translateProgramVariable(variable : ProgramVariable) = 
+        currentExpressionFactory.makeProgramVariableTerm(variable.sourceLocation,variable)
+
+      override def transplant(expression : Expression) = expression match {
+        case PermissionExpression(ref,field,amount) =>
+          // `amount ≤ perm(ref,field)`
+          currentExpressionFactory.makeDomainPredicateExpression(expression,
+            permissionLE,TermSequence(amount,
+              currentExpressionFactory.makePermTerm(expression,ref,field)
+          ))
+        case _ => super.transplant(expression)
+      }
+    }
+    remover.transplant(expr)
   }
 
   def translateAssert(expr : chalice.Expression) {

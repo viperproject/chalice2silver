@@ -38,8 +38,7 @@ abstract class NameSequence {
 
   def allNames : Stream[String] =
     Stream.from(1)
-      .flatMap(length => Stream.range(0, intPower(N, length)).map((length, _)))
-      .map(t => genWord(t._1, t._2))
+      .flatMap(length => Stream.range(0, intPower(N, length)).map(genWord(length, _)))
 
   protected var currentName : Option[Stream[String]] = None
 

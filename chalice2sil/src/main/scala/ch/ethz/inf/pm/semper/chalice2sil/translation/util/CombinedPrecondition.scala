@@ -17,8 +17,12 @@ class CombinedPrecondition(environment : MemberEnvironment, val readFractionTerm
   extends DerivedMemberEnvironment(environment)
   with ExpressionVisitor[Null, Expression] {
 
-  protected def merge(left : Expression, right : Expression) =
-    currentExpressionFactory.makeBinaryExpression(left.sourceLocation,And()(left.sourceLocation),left,right)
+  protected def merge(left : Expression, right : Expression) = (left,right) match {
+    case (TrueExpression(),rhs) => rhs
+    case (lhs,TrueExpression()) => lhs
+    case (lhs,rhs) =>
+      currentExpressionFactory.makeBinaryExpression(lhs.sourceLocation,And()(lhs.sourceLocation),lhs,rhs)
+  }
 
   protected def zero = TrueExpression()(noLocation)
   override def visitExpression(expression : Expression, arg : Null) : Expression = expression match {
@@ -36,20 +40,16 @@ class CombinedPrecondition(environment : MemberEnvironment, val readFractionTerm
   }
 
   override def visitTerm(term : Term, arg : Null) : Expression = term match {
-      // TODO: add precondition for functions
     case FieldReadTerm(location,field) =>
-      // A field access `x.f` requires `x != null ∧ k ≤ perm(x.f)`, k is the current read permission fraction
-      // `perm(x.f)`
-      val currentPermission = currentExpressionFactory.makePermTerm(term.sourceLocation,location,field)
-      // `k ≤ perm(x.f)`
-      val hasReadAccess = currentExpressionFactory.makeDomainPredicateExpression(term.sourceLocation,
-        permissionLE,TermSequence(readFractionTerm,currentPermission))
+      // A field access `x.f` requires `x != null ∧ acc(x.f,k)`, k is the current read permission fraction
+      // `acc(x.f,k)`
+      val hasReadAccess = currentExpressionFactory.makePermissionExpression(term.sourceLocation,location,field,readFractionTerm)
       // `x == null`
       val eqNull = currentExpressionFactory.makeEqualityExpression(term.sourceLocation,location,
         currentExpressionFactory.makeDomainFunctionApplicationTerm(term.sourceLocation,nullFunction,TermSequence()))
       // `¬(x == null)`
       val notNull = currentExpressionFactory.makeUnaryExpression(term.sourceLocation,Not()(term.sourceLocation),eqNull)
-      // `¬(x == null) ∧ k ≤ perm(x.f)`
+      // `¬(x == null) ∧ acc(x.f,k)`
       currentExpressionFactory.makeBinaryExpression(term.sourceLocation,And()(term.sourceLocation),notNull,hasReadAccess)
     case DomainFunctionApplicationTerm(f,ts) if ts.size == 2 && f == booleanImplication =>
       val lhsTerm = ts(0)

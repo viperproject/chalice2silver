@@ -8,7 +8,9 @@ import ch.ethz.inf.pm.semper.chalice2sil
 import chalice2sil._
 import terms._
 import translation.{MemberEnvironment, DerivedMemberEnvironment, ProgramEnvironment}
-import util.TermSequence
+import silAST.expressions.util.TermSequence
+import collection.immutable
+import silAST.symbols.logical.quantification.LogicalVariable
 
 /**
   * @author Christian Klauser
@@ -18,6 +20,8 @@ abstract class ExpressionTransplantation(methodEnvironment : MemberEnvironment)
   implicit def extractSourceLocation(node : ASTNode) : SourceLocation = node.sourceLocation
 
   def translateProgramVariable(variable : ProgramVariable) : PTerm
+
+  var translateLogicalVariable : immutable.Map[LogicalVariable,LogicalVariable] = Map()
 
   def transplant(expression : Expression) : Expression = expression match {
     case BinaryExpression(op, lhs, rhs) =>
@@ -34,6 +38,13 @@ abstract class ExpressionTransplantation(methodEnvironment : MemberEnvironment)
       currentExpressionFactory.makeUnfoldingExpression(expression, transplantPredicateExpression(p), transplant(expr))
     case PredicateExpression(receiver, predicate) =>
       currentExpressionFactory.makePredicateExpression(expression, transplant(receiver), predicates.lookup(predicate.name))
+    case QuantifierExpression(q,v,inner) =>
+      val logical = currentExpressionFactory.makeBoundVariable(expression,v.name,v.dataType)
+      val old = translateLogicalVariable
+      translateLogicalVariable += v -> logical
+      val r = currentExpressionFactory.makeQuantifierExpression(expression,q,logical, transplant(inner))
+      translateLogicalVariable = old
+      r
     case t@TrueExpression() => t
     case t@FalseExpression() => t
     case _ =>
@@ -60,6 +71,9 @@ abstract class ExpressionTransplantation(methodEnvironment : MemberEnvironment)
     case UnfoldingTerm(receiver, p, body) => currentExpressionFactory.makeUnfoldingTerm(term, transplant(receiver), predicates.lookup(p.name), transplant(body))
     case PermTerm(location, field) => currentExpressionFactory.makePermTerm(term, transplant(location), field)
     case ProgramVariableTerm(v) => translateProgramVariable(v)
+    case LogicalVariableTerm(v) =>
+      val v2 = translateLogicalVariable(v)
+      currentExpressionFactory.makeBoundVariableTerm(term.sourceLocation,v2)
     case i : IntegerLiteralTerm => currentExpressionFactory.makeIntegerLiteralTerm(term, i.value)
     case _ =>
       report(messages.ContractNotUnderstood(term))

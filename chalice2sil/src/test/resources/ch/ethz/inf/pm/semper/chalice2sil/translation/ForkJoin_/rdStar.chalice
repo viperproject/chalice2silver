@@ -1,0 +1,39 @@
+class Main {
+    var f : int;
+    var g : int;
+    var h : int;
+
+    method work(w : bool) returns (s : int)
+        requires (w ==> acc(f)) && (!w ==> rd(f)) && rd(g)
+        ensures s == old(f + g)
+        ensures rd*(f) && rd*(g)
+        ensures (w ==> f == g)
+    {
+        s := f + g;
+        if(w){
+            f := g;
+        }
+    }
+
+    method main()
+        requires acc(f) && acc(g) && acc(h)
+        ensures rd*(f) && rd*(g)
+    {
+        var s : int;
+        f := 3;
+        g := 4;
+        fork writer := work(true);
+        h := 6;
+        join s := writer;
+        assert f == g
+        assert s == 3+4;
+
+        fork reader1 := work(false);
+        fork reader2 := work(false);
+
+        join s := reader1;
+        assert s == 4+4;
+        join s := reader2;
+        assert s == 4+4;
+    }
+}

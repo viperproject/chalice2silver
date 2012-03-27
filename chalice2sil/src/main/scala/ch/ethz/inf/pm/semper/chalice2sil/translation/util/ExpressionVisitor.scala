@@ -44,6 +44,7 @@ trait ExpressionVisitor[A, R] {
     case ProgramVariableTerm(v) => zero
     case i : IntegerLiteralTerm => zero
     case IfThenElseTerm(cond, then, otherwise) => visitMergeTerms(arg, cond, then, otherwise)
+    case LogicalVariableTerm(v) => zero
   }
 
   private def visitMergeExpressions(arg : A, xs : Expression*) : R = mergeMany(xs.map(visitExpression(_, arg)))
