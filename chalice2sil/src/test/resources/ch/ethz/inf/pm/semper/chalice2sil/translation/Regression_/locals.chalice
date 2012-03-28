@@ -1,0 +1,73 @@
+class Test01 {
+  method test02() returns (a: int, b: int, c: int, d: int, e: int, f: int)
+    ensures a == 0
+    ensures b != 0
+    ensures c > 1
+    ensures d >= 2
+    ensures e < 5
+    ensures f <= 2 /* @Error 310 */
+  {
+    a := 0
+    b := -1
+    c := 2
+    d := c
+    e := 4
+    f := e
+  }
+
+  method test01() {
+    var a: int
+    
+    a := 0
+    assert a == 0
+    
+    a := 1
+    assert a == 1
+    
+    a := 2
+    assert a > 2 /* @Error 410 */
+  }
+  
+  method test03() returns (a: int, b: int, c: int, d: int, e: int, f: int)
+    ensures a == 3
+    ensures a == b
+    ensures c == 0 - b
+    ensures c == f
+    ensures d == a
+    ensures e != 0 /* @Error 310 */
+  {
+    a := 1 + 2
+    b := 5 - 2
+    c := a * -1
+    d := a / 1
+    e := 3 % 3
+    f := -b
+  }
+  
+  method test04() returns (a: bool, b: bool)
+    ensures a != b
+    ensures a == !b
+    ensures b ==> a
+    ensures (a && b) <==> false
+    ensures (a || b) <==> true
+    ensures a ==> b /* @Error 310 */
+  {
+    a := true
+    b := false
+  }
+
+	var x: int
+	
+	method mm()
+		requires acc(x)
+		ensures x == 1
+	{
+		x := 0
+		
+		if (1 == 1) {
+			x := 1
+		} else {
+			x := 2
+		}
+	}
+}

@@ -7,6 +7,7 @@ import java.nio.file.{Files, Paths}
 import org.scalatest._
 import translation.ProgramEnvironment
 import ch.ethz.inf.pm.silicon.{Silicon, Config}
+import io.Source
 
 /**
   * Author: Christian Klauser
@@ -116,13 +117,13 @@ abstract class ChaliceSuite extends FunSuite { //
 
             Console.out.println("Passing SIL program to Silicon")
             val siliconResults = {
+              // TODO: properly configure Silicon to use embedded preamble (wait for Malte to support that)
               val config = new Config(z3exe = TestConfig.z3path.toAbsolutePath.toString,
-                preamble = classOf[Silicon].getClassLoader.getResource("preamble.smt2").toString)
+                preamble = "C:\\Users\\Christian\\ETH\\Semester\\Bachelor\\Chalice2SIL\\Silicon\\src\\main\\resources\\preamble.smt2")
 
               val silicon = new Silicon(config)
 
               silicon.execute(silProgram)
-              List[ch.ethz.inf.pm.silicon.interfaces.VerificationResult]()
             }
             // results have already been printed
 

@@ -4,10 +4,12 @@ class Main{
     method main()
         requires acc(f)
         requires acc(obj)
+        requires acc(obj.f)
     {
       f := 5;
       this.f := 6;
       var m : Main := obj;
+      assert obj != null;
       m.f := 7;
     }
 }

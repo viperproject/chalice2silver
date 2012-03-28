@@ -1,0 +1,17 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Ssa" type="ScalaTestRunConfiguration" factoryName="ScalaTest">
+    <module name="chalice2sil" />
+    <setting name="path" value="ch.ethz.inf.pm.semper.chalice2sil.translation.Ssa" />
+    <setting name="package" value="" />
+    <setting name="vmparams" value="" />
+    <setting name="params" value="" />
+    <setting name="workingDirectory" value="file://$PROJECT_DIR$" />
+    <setting name="searchForTest" value="Across module dependencies" />
+    <setting name="testName" value="ifDiamondVar.chalice" />
+    <setting name="testKind" value="Class" />
+    <method>
+      <option name="Make" enabled="false" />
+      <option name="SBT.BeforeRunTask" enabled="true" action="test:compile" runInCurrentModule="false" />
+    </method>
+  </configuration>
+</component>

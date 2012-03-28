@@ -1,0 +1,183 @@
+class IfStmt {
+  var x: int
+  var t: IfStmt
+  
+  method test1(b: bool) {
+    var x: int
+    
+    if (b) {
+      x := 1
+    } else {
+      x := 2
+    }
+    
+    if (!b) {
+      assert x == 2
+    } else {
+      assert x == 1
+    }
+    
+    assert x > 0
+  }
+  
+  method test2(b: bool) {
+    var x: int
+    
+    if (b) {
+      x := 1
+    } else {
+      x := 2
+    }
+    
+    assert x > 0
+    
+    if (!b) {
+      assert x == 2
+    }
+    
+    if (b) {
+      assert x == 2 /* @Error 410 */
+    }
+  }
+  
+  method test3(b: bool) returns (a: int)
+    requires rd(t) && t != null
+    requires b ==> acc(t.x)
+    ensures rd(t)
+    ensures b ? (acc(t.x) && t.x == a) : a < 0
+  {
+    if (b) {
+      a := t.x
+    } else {
+      a := -1
+    }
+  }
+}
+
+class Calls {
+  var x: int
+
+  method reqx(y: int)
+    requires acc(x) && x != y
+    ensures acc(x) && x == y
+  {
+    x := y
+  }
+  
+  method m01(x: int)
+    requires x > 0
+  {}
+  
+  method m02(x: int) returns (y: int)
+    ensures y < x
+  {
+    y := x - 1
+  }
+  
+  method disposex()
+    requires rd(x)
+  {}
+  
+  method test01() {
+    call m01(1)
+    call m01(0) /* @Error 210 */
+  }
+  
+  method test02() {
+    call a := m02(10)
+    assert a < 10
+    call b := m02(a)
+    assert b < 10
+  }
+  
+  method test03()
+    requires acc(x)
+    ensures rd(x)
+  {
+    call disposex()
+    assert rd(x)
+    call disposex()
+  }
+  
+  method test04()
+    requires acc(x)
+    ensures acc(x) /* @Error 330 */
+  {
+    call disposex()
+  }
+  
+  method test10()
+    requires acc(x)
+  {
+    x := 0
+    call reqx(1)
+    assert x == 1
+    assert acc(x)
+    call reqx(1) /* @Error 210 */
+  }
+}
+
+class Loops {
+  method test01() {
+    var b: bool
+
+    while (true)
+      invariant b == true /* @Error 1910 */
+    { b := false }
+  }
+  
+  method test02() {
+    var b: bool
+
+    while (true)
+      invariant b == true /* @Error 2010 */
+    {}
+  }
+  
+  method test03() {
+    while (true)
+      invariant true
+    {
+      var x: int
+      x := x + 1
+    }
+  }
+  
+  method test04(b: bool) {
+    var g: bool := b
+    var x: int := 1
+    var y: int := 1
+    
+    while (g)
+      invariant true
+    {
+      g := false
+      y := 99
+    }
+    
+    assert x == 1 /* Should hold */
+    assert y == 1
+  }
+  
+  method test10(x: int) returns (y: int)
+    requires x > 0
+    ensures x == 0
+  {
+    y := x
+
+    while (y != 0)
+      invariant y > 0 /* @Error 1910 */
+    { y := y - 1 }
+  }
+  
+  method test11(x: int) returns (y: int)
+    requires x > 0
+    ensures x == 0
+  {
+    y := x
+
+    while (y != 0)
+      invariant y >= 0
+    { y := y - 1 }
+  }
+}
