@@ -86,6 +86,8 @@ trait ScopeTranslator
             loopNode.Invs
               .map(translatePExpression(codeTranslator,_))
               .reduce(currentExpressionFactory.makePBinaryExpression(loopNode,And()(loopNode),_,_)))
+        } else {
+          loop.setInvariant(TrueExpression()(loopNode))
         }
         val loopTranslator = new LoopBodyTranslator(this,loop)
         loopTranslator.translateBody(loopTranslator.translateStatement(_,body))
