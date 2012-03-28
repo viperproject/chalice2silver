@@ -1,0 +1,9 @@
+  class ó {
+    var ê: int
+
+    method test()
+      requires rd(ê)
+    {
+      ê := ê + 1
+    }
+  }

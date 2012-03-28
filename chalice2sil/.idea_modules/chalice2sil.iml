@@ -42,6 +42,10 @@
     <orderEntry type="library" name="chalice.jar" level="project" />
     <orderEntry type="library" name="silast.jar" level="project" />
     <orderEntry type="library" name="silicon" level="project" />
+    <orderEntry type="library" name="slf4s_2.9.1-1.0.7" level="project" />
+    <orderEntry type="library" name="slf4j-log4j12-1.6.4" level="project" />
+    <orderEntry type="library" name="log4j-1.2.16" level="project" />
+    <orderEntry type="library" name="slf4j-api-1.6.4" level="project" />
   </component>
 </module>
 
