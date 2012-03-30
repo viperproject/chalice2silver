@@ -1,13 +1,13 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Basic" type="ScalaTestRunConfiguration" factoryName="ScalaTest">
+  <configuration default="false" name="UnicodeManglerTests" type="ScalaTestRunConfiguration" factoryName="ScalaTest">
     <module name="chalice2sil" />
-    <setting name="path" value="ch.ethz.inf.pm.semper.chalice2sil.translation.Basic" />
+    <setting name="path" value="ch.ethz.inf.pm.semper.chalice2sil.util.UnicodeManglerTests" />
     <setting name="package" value="" />
     <setting name="vmparams" value="" />
     <setting name="params" value="" />
     <setting name="workingDirectory" value="file://$PROJECT_DIR$" />
     <setting name="searchForTest" value="Across module dependencies" />
-    <setting name="testName" value="simpleCall.chalice" />
+    <setting name="testName" value="" />
     <setting name="testKind" value="Class" />
     <RunnerSettings RunnerId="Debug">
       <option name="DEBUG_PORT" value="" />

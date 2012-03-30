@@ -7,7 +7,7 @@ import ch.ethz.inf.pm.semper.chalice2sil._
 import silAST.expressions._
 import silAST.expressions.PExpression
 import terms._
-import util.{GTermSequence, PTermSequence, TermSequence}
+import silAST.expressions.util.{GTermSequence, PTermSequence, TermSequence}
 import silAST.domains.{DomainFunction, DomainPredicate}
 import silAST.symbols.logical.{UnaryConnective, BinaryConnective, And}
 

@@ -14,7 +14,7 @@ class TemporaryVariableBroker(environment : ScopeTranslator) {
   private val freeTemporaryVariables = collection.mutable.Map[DataType, List[ProgramVariable]]()
 
   protected def allocate(dataType : DataType) : ProgramVariable = {
-    val temporary = environment.declareScopedVariable(noLocation, environment.getNextName("τ"),dataType)
+    val temporary = environment.declareScopedVariable(noLocation, environment.getNextName("t"),dataType)
     knownTemporaryVariables += temporary
     temporary
   }

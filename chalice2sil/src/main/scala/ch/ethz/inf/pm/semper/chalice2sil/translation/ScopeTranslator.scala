@@ -50,8 +50,8 @@ trait ScopeTranslator
     val methodExit = blockStack.pop()
 
     cfgFactory.setStartNode(methodEntry)
-    cfgFactory.setEndNode(methodExit)
     methodExit.setHalt()(noLocation)
+    cfgFactory.setEndNode(methodExit)
   }
 
   protected def translateStatements(codeTranslator : CodeTranslator, stmts : Traversable[chalice.Statement]){
@@ -176,12 +176,12 @@ trait ScopeTranslator
       import ctor._
     
       //Read (fractional) permissions
-      val readFractionVar = declareScopedVariable(callNode, getNextName("k"), permissionType) // a unique variable for every method invocation
-      val readFractionTerm : PTerm = readFractionVar
+      val callReadFractionVariable = declareScopedVariable(callNode, getNextName("k"), permissionType) // a unique variable for every method invocation
+      val callReadFractionTerm : PTerm = callReadFractionVariable
       // `inhale 0 < k ∧ k < full ∧ k < method_k`
-      val kPositive = permissionLT.apply(noPermission,readFractionTerm)
-      val kOnlyRead = permissionLT.apply(readFractionTerm,fullPermission)
-      val kSubfraction = permissionLT.apply(readFractionTerm,this.readFractionVariable)
+      val kPositive = permissionLT.apply(noPermission,callReadFractionTerm)
+      val kOnlyRead = permissionLT.apply(callReadFractionTerm,fullPermission)
+      val kSubfraction = permissionLT.apply(callReadFractionTerm,this.readFractionVariable)
       inhale(List(kPositive,kOnlyRead,kSubfraction))
   
       // Permission maps
@@ -200,7 +200,7 @@ trait ScopeTranslator
       val argTerms =
         translatePTerm (codeTranslator, callNode.obj) ::
           args.map(translatePTerm(codeTranslator,_)) ++
-            List(readFractionTerm)
+            List(callReadFractionTerm)
   
       val callSubstitution = currentExpressionFactory.makePProgramVariableSubstitution(calleeFactory.parameters.zip(argTerms).map(x => x._1 -> x._2).toSet)
       def transplantExpression(e : PExpression) : PExpression = {
@@ -267,7 +267,6 @@ trait ScopeTranslator
           case ReadField(reference,field) =>
             val originalPermMapTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,originalPermMapVar)
             val permMapTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,permMapVar)
-            val readFractionTerm = currentExpressionFactory.makeProgramVariableTerm(callNode,readFractionVar)
   
             val currentActualPermission = currentExpressionFactory.makePermTerm(callNode,reference,field)
             temporaries.using(prelude.Pair.Location.dataType){ locationVar =>
@@ -289,19 +288,16 @@ trait ScopeTranslator
                 // ==
                 currentActualPermission))
   
-              // `exhale 0 < get(m,(ref,field))`
-              val currentVirtualPermission = currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,
-                prelude.Map.PermissionMap.get,PTermSequence(permMapTerm,location))
-              currentBlock.appendExhale(callNode,currentExpressionFactory.makeDomainPredicateExpression(callNode,
-                permissionLT,TermSequence(currentExpressionFactory.makeNoPermission(callNode),currentVirtualPermission)))
+              // `exhale k_method < get(m,(ref,field))`
+              val currentVirtualPermission = prelude.Map.PermissionMap.get.p(permMapTerm,location)
+              exhale(permissionLT.apply(readFractionVariable,currentVirtualPermission))
   
-              // `inhale k < get(m,(ref,field))`
-              currentBlock.appendInhale(callNode,currentExpressionFactory.makeDomainPredicateExpression(callNode,
-                permissionLT,TermSequence(readFractionTerm,currentVirtualPermission)))
+              // `inhale k < (get(m,(ref,field)) - k_method)`
+              inhale(permissionLT.apply(callReadFractionTerm,permissionSubtraction.apply(currentVirtualPermission,readFractionVariable)))
   
               // `m := set(m,(ref,field),get(m,(ref,field)) - k)`
               val nextVirtualPermission = currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,
-                permissionSubtraction,PTermSequence(currentVirtualPermission,readFractionTerm))
+                permissionSubtraction,PTermSequence(currentVirtualPermission,callReadFractionTerm))
               currentBlock.appendAssignment(callNode,permMapVar,currentExpressionFactory.makePDomainFunctionApplicationTerm(callNode,
                 prelude.Map.PermissionMap.update,PTermSequence(permMapTerm,location,nextVirtualPermission)))
             }
@@ -319,7 +315,7 @@ trait ScopeTranslator
         .map(genReadCond _)
         .foreach(appendCond _)
   
-      readFractionTerm
+      callReadFractionTerm
     }
   }
 

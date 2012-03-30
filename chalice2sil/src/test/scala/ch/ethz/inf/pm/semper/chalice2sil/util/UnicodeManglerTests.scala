@@ -1,4 +1,4 @@
-package ch.ethz.inf.pm.semper.chalice2sil.utill
+package ch.ethz.inf.pm.semper.chalice2sil.util
 
 import ch.ethz.inf.pm.semper.chalice2sil.ChaliceSuite
 import org.scalatest.junit.JUnitRunner

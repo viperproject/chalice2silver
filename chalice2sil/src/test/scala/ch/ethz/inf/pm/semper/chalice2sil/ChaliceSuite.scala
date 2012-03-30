@@ -3,11 +3,12 @@ package ch.ethz.inf.pm.semper.chalice2sil
 import silAST.programs.{Program => SilProgram}
 import ch.ethz.inf.pm.semper.chalice2sil.{Program => Chalice2Sil}
 import scala.collection.JavaConversions._
-import java.nio.file.{Files, Paths}
 import org.scalatest._
 import translation.ProgramEnvironment
 import ch.ethz.inf.pm.silicon.{Silicon, Config}
 import io.Source
+import java.nio.file.{Path, Files, Paths}
+import ch.ethz.inf.pm.silicon.interfaces.ResultWithMessage
 
 /**
   * Author: Christian Klauser
@@ -68,8 +69,7 @@ abstract class ChaliceSuite extends FunSuite { //
     */
   var messages : Seq[Message] = null
   
-  val expectedResults : collection.mutable.Set[ch.ethz.inf.pm.silicon.interfaces.VerificationResult] = 
-    collection.mutable.Set()
+  val expectedResults : collection.mutable.Set[ExpectedSiliconMessage] = collection.mutable.Set()
 
   /**
     * The list of results returned by Silicon
@@ -95,7 +95,8 @@ abstract class ChaliceSuite extends FunSuite { //
       val fileName = symbol.name + ".chalice"
       test(fileName){
         val opts = new ProgramOptions
-        opts.chaliceFiles += absoluteDirectoryPath.resolve(fileName).toString
+        val filePath = absoluteDirectoryPath.resolve(fileName)
+        opts.chaliceFiles += filePath.toString
         opts.printSil = true
 
         Chalice2Sil.invokeChalice(opts) match {
@@ -126,12 +127,15 @@ abstract class ChaliceSuite extends FunSuite { //
               silicon.execute(silProgram)
             }
             // results have already been printed
-
+            
             program = silProgram
             messages = silMessages  
             environment = translator
             results = siliconResults
             expectedResults.clear()
+
+            expectedResultsFromSource(filePath)
+
             try{              
               t
             } finally {
@@ -140,11 +144,26 @@ abstract class ChaliceSuite extends FunSuite { //
               environment = null
               results = null
             }
-            
-            siliconResults.filterNot(expectedResults.contains(_)).filter(r => r.isFatal) foreach { r =>
+
+            //TODO: filter out expected errors
+            siliconResults foreach { r =>
                 fail("Detected fatal result from Silicon: %s".format(r))
             }
         }
+      }
+    }
+
+    def expectedResultsFromSource(path : Path) {
+      import java.util.regex._  
+      val pat = Pattern.compile("@Error (\\d+)")
+      var lineNum = 1
+      for(line <- Source.fromFile(path.toUri,scala.io.Codec.UTF8.name).getLines()){
+        val mat = pat.matcher(line)
+        while(mat.find()){
+          val code = Integer.parseInt(mat.group(2))
+          expectedResults += ExpectedSiliconMessage(lineNum, code)
+        }
+        lineNum += 1
       }
     }
   }

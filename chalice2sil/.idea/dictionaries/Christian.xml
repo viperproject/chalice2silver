@@ -20,6 +20,7 @@
       <w>recurse</w>
       <w>stmts</w>
       <w>tparam</w>
+      <w>trie</w>
       <w>unary</w>
     </words>
   </dictionary>
