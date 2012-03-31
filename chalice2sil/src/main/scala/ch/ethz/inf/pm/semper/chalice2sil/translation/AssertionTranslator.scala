@@ -2,10 +2,8 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import ch.ethz.inf.pm.semper.chalice2sil._
 
-import silAST.expressions.Expression
 import silAST.expressions.util.TermSequence
-import silAST.types.{permissionGT, permissionLE, permissionLT}
-import silAST.symbols.logical.And
+import silAST.types.{permissionLE, permissionLT}
 
 /**
   * Using the assertion translator, any chalice expression can be `assert` ed or `assume` ed via
@@ -17,18 +15,18 @@ trait AssertionTranslator extends ExpressionTranslator {
     case a@chalice.Access(ma@chalice.MemberAccess(location,_),permission) =>
       val locationTerm = translateTerm(location)
       val field = fields(ma.f)
-      val currentPermission = currentExpressionFactory.makePermTerm(a, locationTerm, field)
+      val currentPermission = currentExpressionFactory.makePermTerm(locationTerm, field)(a)
       permission match {
         case chalice.Epsilon =>
           // 0 < perm(location,field)
-          val noPermission = currentExpressionFactory.makeNoPermission(a)
-          currentExpressionFactory.makeDomainPredicateExpression(a,
-            permissionLT,TermSequence(noPermission,currentPermission))
+          val noPermission = currentExpressionFactory.makeNoPermission()(a)
+          currentExpressionFactory.makeDomainPredicateExpression(
+            permissionLT,TermSequence(noPermission,currentPermission))(a)
         case _ =>
           // $REQUIRED$ ≤ perm(objRef,field)
           val requiredPermission = translatePermission(permission)
-          currentExpressionFactory.makeDomainPredicateExpression(a,
-            permissionLE,TermSequence(requiredPermission,currentPermission))
+          currentExpressionFactory.makeDomainPredicateExpression(
+            permissionLE,TermSequence(requiredPermission,currentPermission))(a)
       }
   } orElse super.expressionTranslation
 }

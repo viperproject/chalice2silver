@@ -1,20 +1,14 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import operators.Lookup._
-import silAST.symbols.logical.And._
-import silAST.symbols.logical.Or._
-import silAST.symbols.logical.Implication._
-import silAST.domains.{DomainPredicate, Domain}
-import silAST.expressions.util.TermSequence._
-import silAST.expressions.{ExpressionFactory, Expression}
+import silAST.expressions.Expression
 import silAST.expressions.util.TermSequence
 import silAST.expressions.terms.Term
-import silAST.ASTNode
-import ch.ethz.inf.pm.semper.chalice2sil._
 import silAST.symbols.logical.{Not, And, Or, Implication}
-import util.PureLanguageConstruct
+import ch.ethz.inf.pm.semper.chalice2sil.translation.util.PureLanguageConstruct
 import silAST.symbols.logical.quantification.Exists
 import silAST.types.{permissionLT, permissionType, DataType}
+import ch.ethz.inf.pm.semper.chalice2sil._
 
 /**
   * @author Christian Klauser
@@ -30,36 +24,36 @@ trait ExpressionTranslator extends MemberEnvironment {
 
   protected def expressionTranslation : PartialFunction[chalice.Expression, Expression] = matchingExpression {
       case expression@chalice.Old(inner) =>
-        currentExpressionFactory.makeOldExpression(expression,translateExpression(inner))
+        currentExpressionFactory.makeOldExpression(translateExpression(inner))(expression)
       case expression@chalice.And(lhs,rhs) =>
         val lhsT = translateExpression(lhs)
         val rhsT = translateExpression(rhs)
-        currentExpressionFactory.makeBinaryExpression(expression,And()(expression),lhsT,rhsT)
+        currentExpressionFactory.makeBinaryExpression(And()(expression),lhsT,rhsT)(expression)
       case expression@chalice.Or(lhs,rhs) =>
         val lhsT = translateExpression(lhs)
         val rhsT = translateExpression(rhs)
-        currentExpressionFactory.makeBinaryExpression(expression,Or()(expression),lhsT,rhsT)
+        currentExpressionFactory.makeBinaryExpression(Or()(expression),lhsT,rhsT)(expression)
       case expression@chalice.Implies(lhs,rhs) =>
         val lhsT = translateExpression(lhs)
         val rhsT = translateExpression(rhs)
-        currentExpressionFactory.makeBinaryExpression(expression,Implication()(expression),lhsT,rhsT)
+        currentExpressionFactory.makeBinaryExpression(Implication()(expression),lhsT,rhsT)(expression)
       case equality@chalice.Eq(lhs,rhs) => 
         val lhsTerm = translateTerm(lhs)
         val rhsTerm = translateTerm(rhs)
-        currentExpressionFactory.makeEqualityExpression(equality,lhsTerm,rhsTerm)
+        currentExpressionFactory.makeEqualityExpression(lhsTerm,rhsTerm)(equality)
       case inequality@chalice.Neq(lhs,rhs) =>
         val lhsTerm = translateTerm(lhs)
         val rhsTerm = translateTerm(rhs)
-        val eq = currentExpressionFactory.makeEqualityExpression(inequality,lhsTerm,rhsTerm)
-        currentExpressionFactory.makeUnaryExpression(inequality,Not()(inequality),eq)
+        val eq = currentExpressionFactory.makeEqualityExpression(lhsTerm,rhsTerm)(inequality)
+        currentExpressionFactory.makeUnaryExpression(Not()(inequality),eq)(inequality)
       case ifThenElse@chalice.IfThenElse(cond,thn,els) =>
         val condExpr = translateExpression(cond)
         val thnExpr = translateExpression(thn)
         val elsExpr = translateExpression(els)
-        val pos = currentExpressionFactory.makeBinaryExpression(ifThenElse,Implication()(ifThenElse),condExpr,thnExpr)
-        val negCondExpr = currentExpressionFactory.makeUnaryExpression(ifThenElse,Not()(ifThenElse),condExpr)
-        val neg = currentExpressionFactory.makeBinaryExpression(ifThenElse,Implication()(ifThenElse),negCondExpr,elsExpr)
-        currentExpressionFactory.makeBinaryExpression(ifThenElse,And()(ifThenElse),pos,neg)
+        val pos = currentExpressionFactory.makeBinaryExpression(Implication()(ifThenElse),condExpr,thnExpr)(ifThenElse)
+        val negCondExpr = currentExpressionFactory.makeUnaryExpression(Not()(ifThenElse),condExpr)(ifThenElse)
+        val neg = currentExpressionFactory.makeBinaryExpression(Implication()(ifThenElse),negCondExpr,elsExpr)(ifThenElse)
+        currentExpressionFactory.makeBinaryExpression(And()(ifThenElse),pos,neg)(ifThenElse)
       case binary:chalice.BinaryExpr =>
         val (lhs,rhs) = (binary.E0,binary.E1)
         // binary.ExpectedXhsType is often null, use the "inferred" types for the operands instead
@@ -67,7 +61,7 @@ trait ExpressionTranslator extends MemberEnvironment {
 
         domainPredicateLookup.lookup(List(lhsType,rhsType,resultType).map(_.domain))(binary.OpName,List(Some(lhsType),Some(rhsType))) match {
           case Success(e) =>
-            currentExpressionFactory.makeDomainPredicateExpression(binary,e,TermSequence(translateTerm(lhs),translateTerm(rhs)))
+            currentExpressionFactory.makeDomainPredicateExpression(e,TermSequence(translateTerm(lhs),translateTerm(rhs)))(binary)
           case Ambiguous(ops) =>
             report(messages.OperatorNotFound(binary,lhsType,rhsType,resultType))
             dummyExpr(currentExpressionFactory,binary)
@@ -75,7 +69,7 @@ trait ExpressionTranslator extends MemberEnvironment {
             //Fall back to translating a boolean term and use Boolean.Eval
             val term = translateTerm(binary)
             if(term.dataType.isCompatible(prelude.Boolean.dataType)) {
-              currentExpressionFactory.makeDomainPredicateExpression(binary,prelude.Boolean.eval,TermSequence(term))
+              currentExpressionFactory.makeDomainPredicateExpression(prelude.Boolean.eval,TermSequence(term))(binary)
             } else {
               report(messages.TermInExpressionPosition(binary,term.dataType))
               dummyExpr(currentExpressionFactory,binary)
@@ -89,18 +83,18 @@ trait ExpressionTranslator extends MemberEnvironment {
           val tokenTerm = translateTerm(tokenExpr)
           translateAccessExpression(permission){ permAmount =>
             m.callToken.allFields
-              .map(currentExpressionFactory.makePermissionExpression(expression,tokenTerm,_,permAmount))
-              .reduce[Expression](currentExpressionFactory.makeBinaryExpression(expression,And()(expression),_,_))
+              .map(currentExpressionFactory.makePermissionExpression(tokenTerm,_,permAmount)(expression))
+              .reduce[Expression](currentExpressionFactory.makeBinaryExpression(And()(expression),_,_)(expression))
           }
         }
       case expression@chalice.Access(memberAccess, permission) => translateAccessExpression(permission)(
-          currentExpressionFactory.makePermissionExpression(expression,translateTerm(memberAccess.e),fields(memberAccess.f),_))
+          currentExpressionFactory.makePermissionExpression(translateTerm(memberAccess.e),fields(memberAccess.f),_)(expression))
       case ma@chalice.MemberAccess(target,_) if ma.isPredicate =>
         report(messages.UnknownAstNode(ma))
         dummyExpr(currentExpressionFactory,ma)
       case boolExpr if boolExpr.typ == chalice.BoolClass =>
         val boolTerm = translateTerm(boolExpr)
-        currentExpressionFactory.makeDomainPredicateExpression(boolExpr,prelude.Boolean.eval,TermSequence(boolTerm))
+        currentExpressionFactory.makeDomainPredicateExpression(prelude.Boolean.eval,TermSequence(boolTerm))(boolExpr)
 
   } orElse missingTranslation
   
@@ -108,13 +102,13 @@ trait ExpressionTranslator extends MemberEnvironment {
     case s@chalice.Star =>
       val ctor = new PureLanguageConstruct(this,s)
       import ctor._
-      val readFractionVar = currentExpressionFactory.makeBoundVariable(s,getNextName("kstar"),permissionType)
-      val readFractionTerm = currentExpressionFactory.makeBoundVariableTerm(s,readFractionVar)
-      currentExpressionFactory.makeQuantifierExpression(s,Exists()(s),readFractionVar, conjunction(List(
+      val readFractionVar = currentExpressionFactory.makeBoundVariable(getNextName("kstar"),permissionType)(s)
+      val readFractionTerm = currentExpressionFactory.makeBoundVariableTerm(readFractionVar)(s)
+      currentExpressionFactory.makeQuantifierExpression(Exists()(s),readFractionVar, conjunction(List(
         permissionLT.apply(noPermission, readFractionTerm),   // 0 < k 
         permissionLT.apply(readFractionTerm, fullPermission), // k < write
         permissionLT.apply(readFractionTerm, readFractionVariable), // k < k_method
-        body(readFractionTerm))))                             // body(k)
+        body(readFractionTerm))))(s)// body(k)
     case amount => body(translatePermission(amount))
   }
 

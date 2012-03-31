@@ -15,16 +15,16 @@ trait PermissionTranslator extends TermTranslator {
   protected def matchingPermission(partialFunction : PartialFunction[chalice.Permission, Term]) = partialFunction
 
   protected def permissionTranslation = matchingPermission {
-    case f@chalice.Full => currentExpressionFactory.makeFullPermission(f)
+    case f@chalice.Full => currentExpressionFactory.makeFullPermission()(f)
     case k@chalice.Epsilon => readFraction(k)
     case k@chalice.MethodEpsilon => readFraction(k)
     case permission =>
       report(messages.UnknownAstNode(permission))
-      currentExpressionFactory.makeNoPermission(permission)
+      currentExpressionFactory.makeNoPermission()(permission)
   }
 
   protected def readFraction(location : SourceLocation) : Term = {
     report(messages.NoContextForReadPermission(location))
-    currentExpressionFactory.makeNoPermission(location)
+    currentExpressionFactory.makeNoPermission()(location)
   }
 }

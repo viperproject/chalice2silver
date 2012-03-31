@@ -19,5 +19,5 @@ class LoopBodyTranslator(environment : ScopeTranslator, protected val loopBlockF
   def temporaries = environment.temporaries
 
   def declareScopedVariable(sourceLocation : SourceLocation, uniqueName : String, dataType : DataType) =
-    loopBlockFactory.addProgramVariable(sourceLocation, uniqueName,dataType)
+    loopBlockFactory.addProgramVariable(uniqueName,dataType)(sourceLocation)
 }

@@ -1,17 +1,13 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import collection.mutable.{ArrayBuffer, Buffer, LinkedHashSet, SynchronizedSet}
-import silAST.methods.MethodFactory
 import ch.ethz.inf.pm.semper.chalice2sil
 import chalice2sil._
 import silAST.programs.Program
-import silAST.source.{noLocation, SourceLocation}
+import silAST.source.SourceLocation
 import java.lang.String
-import silAST.expressions.util.DTermSequence
-import silAST.symbols.logical.Not
-import silAST.programs.symbols.{FunctionFactory, PredicateFactory, Predicate, Field}
-import silAST.types.{DataType, DataTypeSequence, NonReferenceDataType, referenceType}
-import java.util.concurrent.atomic.AtomicInteger
+import silAST.programs.symbols.{FunctionFactory, PredicateFactory}
+import silAST.types.DataType
 import util.{DerivedFactoryCache, FactoryHashCache}
 
 /**
@@ -26,14 +22,14 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
    */
   var onNewMessage : Buffer[Message => Unit] = new ArrayBuffer
   val pastMessages = new LinkedHashSet[Message] with SynchronizedSet[Message]
-  val programFactory = Program.getFactory(programLocation,programName)
+  val programFactory = Program.getFactory(programName)(programLocation)
   val methods = new FactoryHashCache[chalice.Method, MethodTranslator]{
     def construct(m : chalice.Method) = new MethodTranslator(programTranslator, m)
   }
 
   val fields = new DerivedFactoryCache[chalice.Field, String,  FieldTranslator]{
     def construct(field : chalice.Field) = {
-      val silField = programFactory.defineField(noLocation,fullFieldName(field),translateTypeExpr(field.typ))
+      val silField = programFactory.defineField(fullFieldName(field),translateTypeExpr(field.typ))(programLocation)
       new FieldTranslator(silField,getNextId,programTranslator)
     }
 
@@ -54,7 +50,7 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
   val predicates = new DerivedFactoryCache[chalice.Predicate, String, PredicateFactory] {
     protected def deriveKey(p : chalice.Predicate) = fullPredicateName(p)
 
-    protected def construct(p : chalice.Predicate) = programFactory.getPredicateFactory(p,fullPredicateName(p))
+    protected def construct(p : chalice.Predicate) = programFactory.getPredicateFactory(fullPredicateName(p))(p)
   }
   
   val functions = new DerivedFactoryCache[chalice.Function,  String,  FunctionFactory] {
@@ -63,7 +59,7 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
     protected def construct(f : chalice.Function) = {
       val params = f.ins.map[(SourceLocation,String, DataType),Seq[(SourceLocation,String, DataType)]](
         v => (v,v.id,translateTypeExpr(v.t)))
-      programFactory.getFunctionFactory(f,fullFunctionName(f),params,translateTypeExpr(f.out))
+      programFactory.getFunctionFactory(fullFunctionName(f),params,translateTypeExpr(f.out))(f)
     }
   }
 

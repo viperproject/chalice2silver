@@ -7,8 +7,8 @@ import collection.TraversableOnce
 import silAST.expressions.util.PTermSequence
 import silAST.methods.{MethodFactory, Method}
 
-import silAST.programs.symbols.{PredicateFactory, ProgramVariable, Field}
-import silAST.expressions.terms.{Term, PTerm}
+import silAST.programs.symbols.{ProgramVariable, Field}
+import silAST.expressions.terms.PTerm
 import silAST.types.referenceType
 import silAST.expressions.{Expression, PredicateExpression}
 import silAST.symbols.logical.And
@@ -22,7 +22,7 @@ class LanguageConstruct(environment : ScopeTranslator, sourceLocation_ : SourceL
   import environment._
 
   protected class ImpureHeapLocationOps protected[LanguageConstruct](variable : ProgramVariable, field : Field) extends PureHeapLocationOps(variable,field) {
-    def <--(rhs : PTerm) { environment.currentBlock.appendFieldAssignment(sourceLocation,variable,field,rhs) }
+    def <--(rhs : PTerm) { environment.currentBlock.appendFieldAssignment(variable,field,rhs)(sourceLocation) }
   }
 
   final implicit def heapLocationOps(location : (ProgramVariable,Field)) : ImpureHeapLocationOps = new ImpureHeapLocationOps(location._1,location._2)
@@ -32,22 +32,22 @@ class LanguageConstruct(environment : ScopeTranslator, sourceLocation_ : SourceL
 
   final implicit def programVariableSeqOps(vars : Seq[ProgramVariable]) = new {
     def <--(call : MethodCallSpec) {
-      environment.currentBlock.appendCall(sourceLocation,
-        currentExpressionFactory.makeProgramVariableSequence(sourceLocation, vars),
+      environment.currentBlock.appendCall(
+        currentExpressionFactory.makeProgramVariableSequence(vars)(sourceLocation),
         call._1,
         call._2,
-        PTermSequence(call._3:_*))
+        PTermSequence(call._3:_*))(sourceLocation)
     }
     def <--(rhss : Iterable[PTerm]) {
-      vars.zip(rhss).foreach(t => environment.currentBlock.appendAssignment(sourceLocation, t._1,t._2))
+      vars.zip(rhss).foreach(t => environment.currentBlock.appendAssignment(t._1,t._2)(sourceLocation))
     }
   }
 
   protected class ImpureProgramVariableOps protected[LanguageConstruct](variable : ProgramVariable)
     extends PureProgramVariableOps(variable) {
-    def <--(rhs : PTerm) { environment.currentBlock.appendAssignment(sourceLocation, variable,rhs) }
+    def <--(rhs : PTerm) { environment.currentBlock.appendAssignment(variable,rhs)(sourceLocation) }
     def <--(call : MethodCallSpec) { Seq(variable) <-- call }
-    def <--(newReferenceTag : NewRef) { environment.currentBlock.appendNew(sourceLocation,variable,referenceType) }
+    def <--(newReferenceTag : NewRef) { environment.currentBlock.appendNew(variable,referenceType)(sourceLocation) }
   }
 
   final implicit def programVariableOps(variable : ProgramVariable) : ImpureProgramVariableOps = new ImpureProgramVariableOps(variable)
@@ -68,30 +68,30 @@ class LanguageConstruct(environment : ScopeTranslator, sourceLocation_ : SourceL
   final implicit def methodOpsT(method : MethodTranslator) = new MethodOps(method.methodFactory)
 
   final def fold(spec : PredicateExpression) {
-    environment.currentBlock.appendFold(sourceLocation,spec)
+    environment.currentBlock.appendFold(spec)(sourceLocation)
   }
 
   final def unfold(spec : PredicateExpression) {
-    environment.currentBlock.appendUnfold(sourceLocation, spec)
+    environment.currentBlock.appendUnfold(spec)(sourceLocation)
   }
 
   final def inhale(expr : Expression) {
-    environment.currentBlock.appendInhale(sourceLocation, expr)
+    environment.currentBlock.appendInhale(expr)(sourceLocation)
   }
   
   final def inhale(es : TraversableOnce[Expression]*) {
-    es.flatten.reduceOption(currentExpressionFactory.makeBinaryExpression(sourceLocation, And()(sourceLocation),_,_)) match {
+    es.flatten.reduceOption(currentExpressionFactory.makeBinaryExpression(And()(sourceLocation),_,_)(sourceLocation)) match {
       case Some(e) => inhale(e)
       case None => // don't append inhale
     }
   }
 
   final def exhale(expr : Expression) {
-    environment.currentBlock.appendExhale(sourceLocation, expr)
+    environment.currentBlock.appendExhale(expr)(sourceLocation)
   }
 
   final def exhale(es : TraversableOnce[Expression]*) {
-    es.flatten.reduceOption(currentExpressionFactory.makeBinaryExpression(sourceLocation, And()(sourceLocation),_,_)) match {
+    es.flatten.reduceOption(currentExpressionFactory.makeBinaryExpression(And()(sourceLocation),_,_)(sourceLocation)) match {
       case Some(e) => exhale(e)
       case None => // don't append inhale
     }

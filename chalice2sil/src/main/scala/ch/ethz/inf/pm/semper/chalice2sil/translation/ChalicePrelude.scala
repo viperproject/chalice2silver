@@ -28,31 +28,31 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     val factory = programFactory.getDomainFactory(domainName, typeVariableNames)(loc)
 
     protected def fApp(domainFunction : DomainFunction, args : DTerm*) = {
-      factory.makeDDomainFunctionApplicationTerm(loc,domainFunction,DTermSequence(args:_*))
+      factory.makeDDomainFunctionApplicationTerm(domainFunction,DTermSequence(args:_*))(loc)
     }
     protected def pApp(domainPredicate : DomainPredicate, args : DTerm*) = {
-      factory.makeDDomainPredicateExpression(loc,domainPredicate,DTermSequence(args:_*))
+      factory.makeDDomainPredicateExpression(domainPredicate,DTermSequence(args:_*))(loc)
     }
     protected def not(operand : DExpression) : DExpression =
-      factory.makeDUnaryExpression(loc,silAST.symbols.logical.Not()(loc),operand)
+      factory.makeDUnaryExpression(silAST.symbols.logical.Not()(loc),operand)(loc)
     protected def ∀(aType : DataType, expr : LogicalVariable => DExpression) : DExpression = {
-      val a = factory.makeBoundVariable(loc,names.nextName,aType)
-      factory.makeDQuantifierExpression(loc,Forall()(loc),a,expr(a))
+      val a = factory.makeBoundVariable(names.nextName,aType)(loc)
+      factory.makeDQuantifierExpression(Forall()(loc),a,expr(a))(loc)
     }
     protected def ∀(aType : DataType,  bType : DataType,  expr : (LogicalVariable,LogicalVariable) => DExpression) : DExpression = {
-      val a = factory.makeBoundVariable(loc,names.nextName,aType)
-      val b = factory.makeBoundVariable(loc,names.nextName,bType)
-      factory.makeDQuantifierExpression(loc,Forall()(loc),a,
-        factory.makeDQuantifierExpression(loc,Forall()(loc),b,expr(a,b))
-      )
+      val a = factory.makeBoundVariable(names.nextName,aType)(loc)
+      val b = factory.makeBoundVariable(names.nextName,bType)(loc)
+      factory.makeDQuantifierExpression(Forall()(loc),a,
+        factory.makeDQuantifierExpression(Forall()(loc),b,expr(a,b))(loc)
+      )(loc)
     }
     protected def ∀(aType : DataType,  bType : DataType, cType : DataType,  expr : (LogicalVariable,LogicalVariable, LogicalVariable) => DExpression) : DExpression = {
-      val a = factory.makeBoundVariable(loc,names.nextName,aType)
-      val b = factory.makeBoundVariable(loc,names.nextName,bType)
-      val c = factory.makeBoundVariable(loc,names.nextName,cType)
-      factory.makeDQuantifierExpression(loc,Forall()(loc),a,
-        factory.makeDQuantifierExpression(loc,Forall()(loc),b,
-          factory.makeDQuantifierExpression(loc,Forall()(loc),c,expr(a,b,c))))
+      val a = factory.makeBoundVariable(names.nextName,aType)(loc)
+      val b = factory.makeBoundVariable(names.nextName,bType)(loc)
+      val c = factory.makeBoundVariable(names.nextName,cType)(loc)
+      factory.makeDQuantifierExpression(Forall()(loc),a,
+        factory.makeDQuantifierExpression(Forall()(loc),b,
+          factory.makeDQuantifierExpression(Forall()(loc),c,expr(a,b,c))(loc))(loc))(loc)
     }
     protected def ∀(
                      aType : DataType,  
@@ -60,16 +60,16 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
                      cType : DataType, 
                      dType : DataType,  
                      expr : (LogicalVariable,LogicalVariable, LogicalVariable,LogicalVariable) => DExpression) : DExpression = {
-      val a = factory.makeBoundVariable(loc,names.nextName,aType)
-      val b = factory.makeBoundVariable(loc,names.nextName,bType)
-      val c = factory.makeBoundVariable(loc,names.nextName,cType)
-      val d = factory.makeBoundVariable(loc,names.nextName,dType)
-      factory.makeDQuantifierExpression(loc,Forall()(loc),a,
-        factory.makeDQuantifierExpression(loc,Forall()(loc),b,
-          factory.makeDQuantifierExpression(loc,Forall()(loc),c,
-            factory.makeDQuantifierExpression(loc,Forall()(loc),d,expr(a,b,c,d)))))
+      val a = factory.makeBoundVariable(names.nextName,aType)(loc)
+      val b = factory.makeBoundVariable(names.nextName,bType)(loc)
+      val c = factory.makeBoundVariable(names.nextName,cType)(loc)
+      val d = factory.makeBoundVariable(names.nextName,dType)(loc)
+      factory.makeDQuantifierExpression(Forall()(loc),a,
+        factory.makeDQuantifierExpression(Forall()(loc),b,
+          factory.makeDQuantifierExpression(Forall()(loc),c,
+            factory.makeDQuantifierExpression(Forall()(loc),d,expr(a,b,c,d))(loc))(loc))(loc))(loc)
     }
-    implicit protected def boundVariableAsTerm(v : LogicalVariable) : DTerm = factory.makeBoundVariableTerm(loc,v)
+    implicit protected def boundVariableAsTerm(v : LogicalVariable) : DTerm = factory.makeBoundVariableTerm(v)(loc)
     implicit protected def directlyApplyDomainFunction(df : DomainFunction) = new {
       def apply(args : DTerm*) = fApp(df,args:_*)
     }
@@ -79,25 +79,25 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
 
     implicit protected def termOps(lhs : DTerm) = new {
       def ≡(rhs : DTerm) =
-        factory.makeDEqualityExpression(loc,lhs,rhs)
+        factory.makeDEqualityExpression(lhs,rhs)(loc)
       def ≠(rhs : DTerm) = not(≡(rhs))
     }
     implicit protected def logicalVariableOps(v : LogicalVariable) = new {
       protected def lhs : DTerm = v
       def ≡(rhs : DTerm) =
-        factory.makeDEqualityExpression(loc,lhs,rhs)
+        factory.makeDEqualityExpression(lhs,rhs)(loc)
       def ≠(rhs : DTerm) = not(lhs ≡ rhs)
     }
     implicit protected def exprOps(lhs : DExpression) = new {
       // don't use ∧ or ∨ for and/or to take advantage of Scala operator precedence rules.
       def and(rhs : DExpression) : DExpression =
-        factory.makeDBinaryExpression(loc,silAST.symbols.logical.And()(loc),lhs,rhs)
+        factory.makeDBinaryExpression(silAST.symbols.logical.And()(loc),lhs,rhs)(loc)
       def or(rhs : DExpression) : DExpression =
-        factory.makeDBinaryExpression(loc,silAST.symbols.logical.Or()(loc),lhs,rhs)
+        factory.makeDBinaryExpression(silAST.symbols.logical.Or()(loc),lhs,rhs)(loc)
       def ↔(rhs : DExpression) : DExpression =
-        factory.makeDBinaryExpression(loc,silAST.symbols.logical.Equivalence()(loc),lhs,rhs)
+        factory.makeDBinaryExpression(silAST.symbols.logical.Equivalence()(loc),lhs,rhs)(loc)
       def →(rhs:DExpression) : DExpression =
-        factory.makeDBinaryExpression(loc,silAST.symbols.logical.Implication()(loc),lhs,rhs)
+        factory.makeDBinaryExpression(silAST.symbols.logical.Implication()(loc),lhs,rhs)(loc)
     }
   } 
   
@@ -149,7 +149,7 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
   object Token {
     val dataType = referenceType
     lazy val joinable : FieldTranslator = {
-      val f = programEnvironment.programFactory.defineField(loc,"joinable",Boolean.dataType)
+      val f = programEnvironment.programFactory.defineField("joinable",Boolean.dataType)(loc)
       val ft = new FieldTranslator(f,programEnvironment.fields.getNextId,programEnvironment)
       programEnvironment.fields.addExternal(ft)
       ft
@@ -157,75 +157,75 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
   }
   
   object Predicate extends DomainEnvironment("Predicate",Seq()) {
-    val dataType = factory.makeNonReferenceDataType(loc,factory,DataTypeSequence())
+    val dataType = factory.makeNonReferenceDataType(factory,DataTypeSequence())(loc)
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Constructors
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val create = factory.defineDomainFunction(loc,"create",DataTypeSequence(integerType),dataType)
-    factory.addDomainAxiom(loc,"create_is_ctor",
+    val create = factory.defineDomainFunction("create",DataTypeSequence(integerType),dataType)(loc)
+    factory.addDomainAxiom("create_is_ctor",
         ∀(integerType,integerType,(a,b) =>
           create(a) ≡ create(b) ↔ (a ≡ b)
-      ))
+      ))(loc)
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Read Fraction
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val globalReadFraction = factory.defineDomainFunction(loc,"globalReadFraction",DataTypeSequence(),permissionType)
+    val globalReadFraction = factory.defineDomainFunction("globalReadFraction",DataTypeSequence(),permissionType)(loc)
 
-    val readFraction = factory.defineDomainFunction(loc,"readFraction",DataTypeSequence(dataType, referenceType),permissionType)
-    factory.addDomainAxiom(loc,"globalReadFraction",
+    val readFraction = factory.defineDomainFunction("readFraction",DataTypeSequence(dataType, referenceType),permissionType)(loc)
+    factory.addDomainAxiom("globalReadFraction",
       ∀(dataType,referenceType, (pred,ref) => readFraction(pred,ref) ≡ globalReadFraction())
-    )
+    )(loc)
   }
 
   object Monitor extends DomainEnvironment("Monitor",Seq()) {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Read Fraction
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val globalReadFraction = factory.defineDomainFunction(loc,"globalReadFraction",DataTypeSequence(),permissionType)
-    factory.addDomainAxiom(loc,"monitors_and_predicates_are_the_same",
-      Predicate.globalReadFraction() ≡ Monitor.globalReadFraction())
+    val globalReadFraction = factory.defineDomainFunction("globalReadFraction",DataTypeSequence(),permissionType)(loc)
+    factory.addDomainAxiom("monitors_and_predicates_are_the_same",
+      Predicate.globalReadFraction() ≡ Monitor.globalReadFraction())(loc)
 
-    val readFraction = factory.defineDomainFunction(loc,"readFraction",DataTypeSequence(referenceType),permissionType)
-    factory.addDomainAxiom(loc,"globalReadFraction",
+    val readFraction = factory.defineDomainFunction("readFraction",DataTypeSequence(referenceType),permissionType)(loc)
+    factory.addDomainAxiom("globalReadFraction",
       ∀(referenceType, (ref) => readFraction(ref) ≡ globalReadFraction())
-    )
+    )(loc)
   }
 
   object Pair {
     object Template extends DomainEnvironment("Pair",Seq((loc,"A"),(loc,"B"))){
-      val firstType = factory.makeVariableType(loc,factory.typeVariables.find(_.name ==  "A").get)
-      var secondType = factory.makeVariableType(loc,factory.typeVariables.find(_.name == "B").get)
-      val dataType = factory.makeNonReferenceDataType(loc,factory,DataTypeSequence(firstType,secondType))
+      val firstType = factory.makeVariableType(factory.typeVariables.find(_.name ==  "A").get)(loc)
+      var secondType = factory.makeVariableType(factory.typeVariables.find(_.name == "B").get)(loc)
+      val dataType = factory.makeNonReferenceDataType(factory,DataTypeSequence(firstType,secondType))(loc)
 
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       // Constructors
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-      val create = factory.defineDomainFunction(loc,"create",DataTypeSequence(firstType,secondType),dataType)
+      val create = factory.defineDomainFunction("create",DataTypeSequence(firstType,secondType),dataType)(loc)
 
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       // Operations
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-      val getFirst =  factory.defineDomainFunction(loc,"getFirst",DataTypeSequence(dataType),firstType)
-      factory.addDomainAxiom(loc,"getFirst",
-        ∀(firstType,secondType,(a,b) => getFirst(create(a,b)) ≡ a))
+      val getFirst =  factory.defineDomainFunction("getFirst",DataTypeSequence(dataType),firstType)(loc)
+      factory.addDomainAxiom("getFirst",
+        ∀(firstType,secondType,(a,b) => getFirst(create(a,b)) ≡ a))(loc)
 
-      val getSecond = factory.defineDomainFunction(loc,"getSecond",DataTypeSequence(dataType),secondType)
-      factory.addDomainAxiom(loc,"getSecond",
-        ∀(firstType,secondType,(a,b) => getSecond(create(a,b)) ≡ b))
+      val getSecond = factory.defineDomainFunction("getSecond",DataTypeSequence(dataType),secondType)(loc)
+      factory.addDomainAxiom("getSecond",
+        ∀(firstType,secondType,(a,b) => getSecond(create(a,b)) ≡ b))(loc)
 
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       // Axioms
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-      factory.addDomainAxiom(loc,"equality",∀(firstType,secondType,firstType,secondType,
+      factory.addDomainAxiom("equality",∀(firstType,secondType,firstType,secondType,
         (a,b,x,y) => (
           (create(a,b) ≡ create(x,y)) ↔ (a ≡ x and (b ≡ y))
-        )))
+        )))(loc)
     }
     case class PreludeDomainInfo protected[Pair] (firstType : DataType, secondType : DataType) {
       val domain = programEnvironment.programFactory.makeDomainInstance(Template.factory,DataTypeSequence(firstType,secondType))
-      val dataType = programEnvironment.programFactory.makeNonReferenceDataType(loc,Template.factory,DataTypeSequence(firstType,secondType))
+      val dataType = programEnvironment.programFactory.makeNonReferenceDataType(Template.factory,DataTypeSequence(firstType,secondType))(loc)
 
       val create = domain.functions.find(_.name == "create").get
       val getFirst = domain.functions.find(_.name == "getFirst").get
@@ -240,39 +240,39 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
   
   object Map {
     object Template extends DomainEnvironment("Map",Seq((loc,"K"),(loc,"V")))  {
-      val keyType = factory.makeVariableType(loc,factory.typeVariables.find(_.name == "K").get)
-      val valueType = factory.makeVariableType(loc,factory.typeVariables.find(_.name == "V").get)
-      val dataType = factory.makeNonReferenceDataType(loc,factory,DataTypeSequence(keyType, valueType))
+      val keyType = factory.makeVariableType(factory.typeVariables.find(_.name == "K").get)(loc)
+      val valueType = factory.makeVariableType(factory.typeVariables.find(_.name == "V").get)(loc)
+      val dataType = factory.makeNonReferenceDataType(factory,DataTypeSequence(keyType, valueType))(loc)
       
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       // Constructors
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-      val empty = factory.defineDomainFunction(loc,"empty",DataTypeSequence(),dataType)
-      val update = factory.defineDomainFunction(loc,"update",DataTypeSequence(dataType,keyType,valueType),dataType)
+      val empty = factory.defineDomainFunction("empty",DataTypeSequence(),dataType)(loc)
+      val update = factory.defineDomainFunction("update",DataTypeSequence(dataType,keyType,valueType),dataType)(loc)
       
 
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       // Operations
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-      val get = factory.defineDomainFunction(loc,"get",DataTypeSequence(dataType,keyType),valueType)
+      val get = factory.defineDomainFunction("get",DataTypeSequence(dataType,keyType),valueType)(loc)
       // ∀ m : Map[K,V], k1,k2 : K, v : V . (k1 ≠ k2 → Get(Update(m,k1,v),k2) = Get(m,k2)) and ((k1 = k2) → Get(Update(m,k1,v),k2) = v)
-      factory.addDomainAxiom(loc,"get_update",∀(dataType,keyType,keyType,valueType,(m,k1,k2,v) =>
+      factory.addDomainAxiom("get_update",∀(dataType,keyType,keyType,valueType,(m,k1,k2,v) =>
         (
           (not((k1 ≡ k2)) → (get(update(m,k1,v),k2) ≡ get(m,k2))) and
           (    (k1 ≡ k2)  → (get(update(m,k1,v),k2) ≡ v))
         )
-      ))
+      ))(loc)
 
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       // Predicates
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-      val has = factory.defineDomainPredicate(loc,"has",DataTypeSequence(dataType,keyType))
+      val has = factory.defineDomainPredicate("has",DataTypeSequence(dataType,keyType))(loc)
       // ∀ k : K . ¬Has(Empty(),k)
-      factory.addDomainAxiom(loc,"empty_has_no_entries",∀(keyType,k => not(has(empty(),k))))
+      factory.addDomainAxiom("empty_has_no_entries",∀(keyType,k => not(has(empty(),k))))(loc)
       // ∀ m : Map[K,V], k1,k2 : K, v : V  . Has(Update(m,k1,v),k2) ↔ (k1 = k2 or (k1≠k2 and Has(m,k2))
-      factory.addDomainAxiom(loc,"has_update",∀(dataType,keyType,keyType,valueType,(m,k1,k2,v) =>
+      factory.addDomainAxiom("has_update",∀(dataType,keyType,keyType,valueType,(m,k1,k2,v) =>
           has(update(m,k1,v),k2) ↔ (k1 ≡ k2 or (not(k1 ≡ k2) and has(m,k2)))
-        ))
+        ))(loc)
     }
     
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -280,7 +280,7 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     case class PreludeDomainInfo protected[Map] (keyType : DataType, valueType : DataType) {
       val domain = programEnvironment.programFactory.makeDomainInstance(Template.factory,DataTypeSequence(keyType,valueType))
-      val dataType = programEnvironment.programFactory.makeNonReferenceDataType(loc,Template.factory,DataTypeSequence(keyType,valueType))
+      val dataType = programEnvironment.programFactory.makeNonReferenceDataType(Template.factory,DataTypeSequence(keyType,valueType))(loc)
 
       val empty = domain.functions.find(_.name == "empty").get
       val update = domain.functions.find(_.name == "update").get

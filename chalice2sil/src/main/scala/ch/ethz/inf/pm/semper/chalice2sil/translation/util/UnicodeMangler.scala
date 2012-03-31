@@ -74,6 +74,8 @@ class UnicodeMangler(val escapeChar : Char) {
               val codePoint = Integer.parseInt(mangledText.substring(offset+1,4),16)
               builder.append(codePoint.toChar)
               skip = 4
+            case _ =>
+              throw new MangleException("Cannot decode escape sequence \"%s\".".format(mangledText.substring(offset,length)),mangledText)
           }
         } else {
           builder.append(mangledText(offset))

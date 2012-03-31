@@ -1,15 +1,12 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
-import operators.Lookup.{Failure, Ambiguous, Success}
-import silAST.expressions.util.TermSequence._
+import operators.Lookup.Success
 import silAST.source.SourceLocation
 import math.BigInt._
-import silAST.expressions.ExpressionFactory
-import silAST.programs.symbols.ProgramVariable
 import ch.ethz.inf.pm.semper.chalice2sil._
-import silAST.types.{nullFunction, referenceType, DataType}
+import silAST.types.nullFunction
 import silAST.expressions.util.{PTermSequence, TermSequence}
-import silAST.expressions.terms.{PTerm, Term}
+import silAST.expressions.terms.Term
 
 /**
   * @author Christian Klauser
@@ -20,52 +17,52 @@ trait TermTranslator extends MemberEnvironment with TypeTranslator {
 
   protected def matchingTerm(partialFunction : PartialFunction[chalice.Expression, Term]) = partialFunction
   
-  def dummyTerm(location : SourceLocation) = currentExpressionFactory.makeIntegerLiteralTerm(location,27)
+  def dummyTerm(location : SourceLocation) = currentExpressionFactory.makeIntegerLiteralTerm(27)(location)
   
   protected def termTranslation : PartialFunction[chalice.Expression,Term] = matchingTerm {
       case rvalue@chalice.IntLiteral(i) =>
-        currentExpressionFactory.makeIntegerLiteralTerm(rvalue, i)
+        currentExpressionFactory.makeIntegerLiteralTerm(i)(rvalue)
       case rvalue@chalice.BoolLiteral(true) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.trueLiteral,TermSequence())
+        currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.trueLiteral,TermSequence())(rvalue)
       case rvalue@chalice.BoolLiteral(false) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.falseLiteral,TermSequence())
+        currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.falseLiteral,TermSequence())(rvalue)
       case variableExpr:chalice.VariableExpr =>
-        currentExpressionFactory.makeProgramVariableTerm(variableExpr,(programVariables(variableExpr.v)))
-      case rvalue@chalice.Old(e) => currentExpressionFactory.makeOldTerm(rvalue,translateTerm(e))
+        currentExpressionFactory.makeProgramVariableTerm((programVariables(variableExpr.v)))(variableExpr)
+      case rvalue@chalice.Old(e) => currentExpressionFactory.makeOldTerm(translateTerm(e))(rvalue)
       case access@chalice.MemberAccess(rcvr,_) if !access.isPredicate =>
         assert(access.f != null,"Chalice MemberAccess node (%s) is not linked to a field.".format(access))
         val rcvrTerm = translateTerm(rcvr)
-        currentExpressionFactory.makeFieldReadTerm(access,rcvrTerm,fields(access.f))
+        currentExpressionFactory.makeFieldReadTerm(rcvrTerm,fields(access.f))(access)
       case ifThenElse@chalice.IfThenElse(cond,thn,els) =>
         val condTerm = translateTerm(cond)
         val thnTerm = translateTerm(thn)
         val elsTerm = translateTerm(els)
-        currentExpressionFactory.makeIfThenElseTerm(ifThenElse,condTerm,thnTerm,elsTerm)
+        currentExpressionFactory.makeIfThenElseTerm(condTerm,thnTerm,elsTerm)(ifThenElse)
       case th@chalice.ImplicitThisExpr() =>
-        currentExpressionFactory.makeProgramVariableTerm(th,thisVariable)
+        currentExpressionFactory.makeProgramVariableTerm(thisVariable)(th)
       case th@chalice.ExplicitThisExpr() =>
-        currentExpressionFactory.makeProgramVariableTerm(th,thisVariable)
+        currentExpressionFactory.makeProgramVariableTerm(thisVariable)(th)
       case rvalue@chalice.And(lhs,rhs) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.logicalAnd,TermSequence(
+        currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.logicalAnd,TermSequence(
           translateTerm(lhs),
           translateTerm(rhs)
-        ))
+        ))(rvalue)
       case rvalue@chalice.Or(lhs,rhs) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.logicalOr,TermSequence(
+        currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.logicalOr,TermSequence(
           translateTerm(lhs),
           translateTerm(rhs)
-        ))
+        ))(rvalue)
       case rvalue@chalice.Implies(lhs,rhs) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.implication,TermSequence(
+        currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.implication,TermSequence(
           translateTerm(lhs),
           translateTerm(rhs)
-        ))
+        ))(rvalue)
       case rvalue@chalice.Not(op) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(rvalue,prelude.Boolean.not,TermSequence(
+        currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.not,TermSequence(
           translateTerm(op)
-        ))
+        ))(rvalue)
       case literal@chalice.NullLiteral() =>
-        currentExpressionFactory.makePDomainFunctionApplicationTerm(literal,nullFunction,PTermSequence())
+        currentExpressionFactory.makePDomainFunctionApplicationTerm(nullFunction,PTermSequence())(literal)
       case binary:chalice.BinaryExpr => translateBinaryExpression(binary)
   }
 
@@ -75,7 +72,7 @@ trait TermTranslator extends MemberEnvironment with TypeTranslator {
     val (lhsType,rhsType,resultType) = (translateClassRef(lhs.typ),translateClassRef(rhs.typ),translateClassRef(binary.ResultType))
 
     domainFunctionLookup.lookup(List(lhsType,rhsType,resultType).map(_.domain))(binary.OpName,List(Some(lhsType),Some(rhsType))) match {
-      case Success(e) => currentExpressionFactory.makeDomainFunctionApplicationTerm(binary,e,TermSequence(translateTerm(lhs),translateTerm(rhs)))
+      case Success(e) => currentExpressionFactory.makeDomainFunctionApplicationTerm(e,TermSequence(translateTerm(lhs),translateTerm(rhs)))(binary)
       case _ if binary.OpName == "!=" => // If no NEQ operator exists, translate as ¬(_ == _)
         val eq = chalice.Eq(binary.E0,binary.E1)
         eq.typ = binary.ResultType

@@ -4,7 +4,7 @@ import silAST.expressions.ExpressionFactory
 import silAST.source.SourceLocation
 import math.BigInt._
 import ch.ethz.inf.pm.semper.chalice2sil.{Message, ProgramOptions}
-import collection.mutable.{SynchronizedSet, LinkedHashSet, Buffer}
+import collection.mutable.{SynchronizedSet, Buffer}
 
 trait Environment {
   def programOptions : ProgramOptions
@@ -20,7 +20,7 @@ trait Environment {
   }
 
   def dummyExpr(ef:ExpressionFactory, location : SourceLocation):silAST.expressions.Expression = {
-    ef.makeEqualityExpression(location, ef.makeIntegerLiteralTerm(location,13),ef.makeIntegerLiteralTerm(location,37))
+    ef.makeEqualityExpression(ef.makeIntegerLiteralTerm(13)(location),ef.makeIntegerLiteralTerm(37)(location))(location)
   }
 
   /**

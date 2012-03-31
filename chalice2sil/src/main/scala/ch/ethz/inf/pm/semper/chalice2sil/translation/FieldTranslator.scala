@@ -1,9 +1,8 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
-import silAST.source.noLocation
 import silAST.expressions.ExpressionFactory
-import silAST.expressions.terms.{PTerm, Term}
-import silAST.expressions.util.{PTermSequence, TermSequence}
+import silAST.expressions.terms.PTerm
+import silAST.expressions.util.PTermSequence
 import silAST.programs.symbols.Field
 
 /**
@@ -24,8 +23,8 @@ class FieldTranslator(
   with TypeTranslator {
   
   def locationLiteral(expressionFactory : ExpressionFactory, reference : PTerm) : PTerm = {
-    val fieldLiteral = expressionFactory.makeIntegerLiteralTerm(reference.sourceLocation, id)
-    expressionFactory.makePDomainFunctionApplicationTerm(reference.sourceLocation,
-      prelude.Pair.Location.create,PTermSequence(reference,fieldLiteral))
+    val fieldLiteral = expressionFactory.makeIntegerLiteralTerm(id)(reference.sourceLocation)
+    expressionFactory.makePDomainFunctionApplicationTerm(
+      prelude.Pair.Location.create,PTermSequence(reference,fieldLiteral))(reference.sourceLocation)
   }
 }

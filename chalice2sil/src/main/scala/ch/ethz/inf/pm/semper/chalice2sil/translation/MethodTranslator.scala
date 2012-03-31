@@ -4,17 +4,14 @@ import ch.ethz.inf.pm.semper.chalice2sil
 import chalice2sil._
 import collection.mutable.Stack
 import silAST.methods.implementations.BasicBlockFactory
-import silAST.source.{SourceLocation, noLocation}
+import silAST.source.SourceLocation
 import silAST.types._
-import silAST.expressions.util.{ExpressionSequence, PTermSequence, TermSequence}
-import silAST.programs.symbols.{Field, ProgramVariable}
+import silAST.programs.symbols.ProgramVariable
 import silAST.expressions.terms._
 import silAST.expressions._
 import silAST.symbols.logical._
-import silAST.domains.{DomainInstance, DomainPredicate, Domain, DomainFunction}
 import collection.immutable
 import immutable.Set
-import silAST.methods.{Method, MethodFactory}
 import util._
 
 class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
@@ -23,22 +20,22 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     with ScopeTranslator
     with TypeTranslator { thisMethodTranslator =>
 
-  val methodFactory = programFactory.getMethodFactory(method,fullMethodName(method))
+  val methodFactory = programFactory.getMethodFactory(fullMethodName(method))(method)
   protected lazy val implementationFactory = {
-    methodFactory.addImplementation(method.body.map(astNodeToSourceLocation).headOption.getOrElse(method))
+    methodFactory.addImplementation()(method.body.map(astNodeToSourceLocation).headOption.getOrElse(method))
   }
 
   def cfgFactory = implementationFactory.cfgFactory
 
   def declareScopedVariable(sourceLocation : SourceLocation, uniqueName : String, dataType : DataType) = {
-    implementationFactory.addProgramVariable(sourceLocation, uniqueName,dataType)
+    implementationFactory.addProgramVariable(uniqueName,dataType)(sourceLocation)
   }
 
   val nameSequence = NameSequence()
 
   lazy val callToken : TokenStorage = {
     def createField(baseName : String, dataType : DataType) : FieldTranslator = {
-      val f = programFactory.defineField(method,baseName,dataType)
+      val f = programFactory.defineField(baseName,dataType)(method)
       val ft = new FieldTranslator(f,fields.getNextId,this)
       fields.addExternal(ft)
       ft
@@ -75,10 +72,10 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
 
     override protected def deriveKeyFromValue(value : ProgramVariable) = value.name
 
-    override protected def construct(p : chalice.Variable) = implementationFactory.addProgramVariable(p,deriveKey(p),translateTypeExpr(p.t))
+    override protected def construct(p : chalice.Variable) = implementationFactory.addProgramVariable(deriveKey(p),translateTypeExpr(p.t))(p)
   }
 
-  override val thisVariable : ProgramVariable = methodFactory.addParameter(method,"this",referenceType)
+  override val thisVariable : ProgramVariable = methodFactory.addParameter("this",referenceType)(method)
 
   override val temporaries = new TemporaryVariableBroker(this)
 
@@ -91,38 +88,34 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
 
   private[this] def createSignature() = {
     val mf = methodFactory
-    method.ins.foreach(i => programVariables.addExternal(mf.addParameter(i, i.UniqueName, translateTypeExpr(i.t))))
-    method.outs.foreach(o => programVariables.addExternal(mf.addResult(o,o.UniqueName,translateTypeExpr(o.t))))
+    method.ins.foreach(i => programVariables.addExternal(mf.addParameter(i.UniqueName, translateTypeExpr(i.t))(i)))
+    method.outs.foreach(o => programVariables.addExternal(mf.addResult(o.UniqueName,translateTypeExpr(o.t))(o)))
 
-    // this pointer
-    mf.addPrecondition(method,
-      mf.makeUnaryExpression(method,Not()(method),          // ¬
-        mf.makeEqualityExpression(method,                   // ==
-          mf.makeProgramVariableTerm(method,thisVariable),  // this
-          mf.makePDomainFunctionApplicationTerm(method,nullFunction,PTermSequence())))) // null
+    pureLanguageConstruct(method){ ctor=>
+      import ctor._
 
-    // read fraction
-    val k = mf.addParameter(method,getNextName("k"),permissionType)
-    programVariables.addExternal(k)
+      // this pointer
+      mf.addPrecondition(Not()(method).t((thisVariable:Term) === nullFunction.apply()))(method)
 
-    val kTerm = mf.makeProgramVariableTerm(method,k)
-    // requires (noPermission < k ∧ k < fullPermission)
-    mf.addPrecondition(method,
-      mf.makeBinaryExpression (method,And()(method),
-        mf.makeDomainPredicateExpression(method,permissionLT,
-          TermSequence(currentExpressionFactory.makeNoPermission(method),kTerm)), // noPermission < k
-        mf.makeDomainPredicateExpression(method,permissionLT,
-          TermSequence(kTerm,currentExpressionFactory.makeFullPermission(method))) // k < writePermission
-      )
-    )
+      // read fraction
+      val k = mf.addParameter(getNextName("k"),permissionType)(method)
+      programVariables.addExternal(k)
 
-    k
+      val kTerm = mf.makeProgramVariableTerm(k)(method)
+      // requires (noPermission < k ∧ k < fullPermission)
+      mf.addPrecondition(conjunction(List(
+        permissionLT.apply(noPermission,kTerm),
+        permissionLT.apply(kTerm,fullPermission)
+      )))(method)
+
+      k
+    }
   }
   
   val readFractionVariable = createSignature();
   
   private[this] def createContracts() {
-    val kTerm = currentExpressionFactory.makeProgramVariableTerm(method,readFractionVariable)
+    val kTerm = currentExpressionFactory.makeProgramVariableTerm(readFractionVariable)(method)
     val contractTranslator = new DefaultCodeTranslator(this){
       override protected def readFraction(location : SourceLocation) = kTerm
     }
@@ -130,10 +123,10 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     method.spec.foreach(spec => spec match {
       case chalice.Precondition(e) =>
         val precondition = contractTranslator.translateExpression(e)
-        methodFactory.addPrecondition(spec,precondition)
+        methodFactory.addPrecondition(precondition)(spec)
       case chalice.Postcondition(e) =>
         val postcondition = contractTranslator.translateExpression(e)
-        methodFactory.addPostcondition(spec,postcondition)
+        methodFactory.addPostcondition(postcondition)(spec)
       case otherSpec => report(messages.UnknownAstNode(otherSpec))
     })
 

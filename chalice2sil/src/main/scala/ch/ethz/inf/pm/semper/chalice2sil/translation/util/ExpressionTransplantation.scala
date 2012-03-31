@@ -7,7 +7,7 @@ import silAST.expressions._
 import ch.ethz.inf.pm.semper.chalice2sil
 import chalice2sil._
 import terms._
-import translation.{MemberEnvironment, DerivedMemberEnvironment, ProgramEnvironment}
+import translation.{MemberEnvironment, DerivedMemberEnvironment}
 import silAST.expressions.util.TermSequence
 import collection.immutable
 import silAST.symbols.logical.quantification.LogicalVariable
@@ -25,24 +25,24 @@ abstract class ExpressionTransplantation(methodEnvironment : MemberEnvironment)
 
   def transplant(expression : Expression) : Expression = expression match {
     case BinaryExpression(op, lhs, rhs) =>
-      currentExpressionFactory.makeBinaryExpression(expression, op, transplant(lhs), transplant(rhs))
+      currentExpressionFactory.makeBinaryExpression(op, transplant(lhs), transplant(rhs))(expression)
     case UnaryExpression(op, expr) =>
-      currentExpressionFactory.makeUnaryExpression(expression, op, transplant(expr))
+      currentExpressionFactory.makeUnaryExpression(op, transplant(expr))(expression)
     case EqualityExpression(lhs, rhs) =>
-      currentExpressionFactory.makeEqualityExpression(expression, transplant(lhs), transplant(rhs))
+      currentExpressionFactory.makeEqualityExpression(transplant(lhs), transplant(rhs))(expression)
     case DomainPredicateExpression(p, args) =>
-      currentExpressionFactory.makeDomainPredicateExpression(expression, p, transplant(args))
+      currentExpressionFactory.makeDomainPredicateExpression(p, transplant(args))(expression)
     case PermissionExpression(ref, field, perm) =>
-      currentExpressionFactory.makePermissionExpression(expression, transplant(ref), field, transplant(perm))
+      currentExpressionFactory.makePermissionExpression(transplant(ref), field, transplant(perm))(expression)
     case UnfoldingExpression(p, expr) =>
-      currentExpressionFactory.makeUnfoldingExpression(expression, transplantPredicateExpression(p), transplant(expr))
+      currentExpressionFactory.makeUnfoldingExpression(transplantPredicateExpression(p), transplant(expr))(expression)
     case PredicateExpression(receiver, predicate) =>
-      currentExpressionFactory.makePredicateExpression(expression, transplant(receiver), predicates.lookup(predicate.name))
+      currentExpressionFactory.makePredicateExpression(transplant(receiver), predicates.lookup(predicate.name))(expression)
     case QuantifierExpression(q,v,inner) =>
-      val logical = currentExpressionFactory.makeBoundVariable(expression,v.name,v.dataType)
+      val logical = currentExpressionFactory.makeBoundVariable(v.name,v.dataType)(expression)
       val old = translateLogicalVariable
       translateLogicalVariable += v -> logical
-      val r = currentExpressionFactory.makeQuantifierExpression(expression,q,logical, transplant(inner))
+      val r = currentExpressionFactory.makeQuantifierExpression(q,logical, transplant(inner))(expression)
       translateLogicalVariable = old
       r
     case t@TrueExpression() => t
@@ -54,30 +54,29 @@ abstract class ExpressionTransplantation(methodEnvironment : MemberEnvironment)
 
   protected def transplantPredicateExpression(predicateExpression : PredicateExpression) : PredicateExpression = {
     currentExpressionFactory.makePredicateExpression(
-      predicateExpression,
       transplant(predicateExpression.receiver),
-      predicates.lookup(predicateExpression.predicate.name))
+      predicates.lookup(predicateExpression.predicate.name))(predicateExpression)
   }
 
   def transplant(term : Term) : Term = term match {
-    case CastTerm(operand, newType) => currentExpressionFactory.makeCastTerm(term, transplant(operand), newType)
-    case FieldReadTerm(location, field) => currentExpressionFactory.makeFieldReadTerm(term, transplant(location), field)
-    case DomainFunctionApplicationTerm(f, args) => currentExpressionFactory.makeDomainFunctionApplicationTerm(term, f, transplant(args))
-    case EpsilonPermissionTerm() => currentExpressionFactory.makeEpsilonPermission(term)
-    case FullPermissionTerm() => currentExpressionFactory.makeFullPermission(term)
-    case FunctionApplicationTerm(receiver, f, args) => currentExpressionFactory.makeFunctionApplicationTerm(term, transplant(receiver),
-      functions.lookup(f.name), transplant(args))
-    case NoPermissionTerm() => currentExpressionFactory.makeNoPermission(term)
-    case UnfoldingTerm(receiver, p, body) => currentExpressionFactory.makeUnfoldingTerm(term, transplant(receiver), predicates.lookup(p.name), transplant(body))
-    case PermTerm(location, field) => currentExpressionFactory.makePermTerm(term, transplant(location), field)
+    case CastTerm(operand, newType) => currentExpressionFactory.makeCastTerm(transplant(operand), newType)(term)
+    case FieldReadTerm(location, field) => currentExpressionFactory.makeFieldReadTerm(transplant(location), field)(term)
+    case DomainFunctionApplicationTerm(f, args) => currentExpressionFactory.makeDomainFunctionApplicationTerm(f, transplant(args))(term)
+    case EpsilonPermissionTerm() => currentExpressionFactory.makeEpsilonPermission()(term)
+    case FullPermissionTerm() => currentExpressionFactory.makeFullPermission()(term)
+    case FunctionApplicationTerm(receiver, f, args) => currentExpressionFactory.makeFunctionApplicationTerm(transplant(receiver),
+      functions.lookup(f.name), transplant(args))(term)
+    case NoPermissionTerm() => currentExpressionFactory.makeNoPermission()(term)
+    case UnfoldingTerm(receiver, p, body) => currentExpressionFactory.makeUnfoldingTerm(transplant(receiver), predicates.lookup(p.name), transplant(body))(term)
+    case PermTerm(location, field) => currentExpressionFactory.makePermTerm(transplant(location), field)(term)
     case ProgramVariableTerm(v) => translateProgramVariable(v)
     case LogicalVariableTerm(v) =>
       val v2 = translateLogicalVariable(v)
-      currentExpressionFactory.makeBoundVariableTerm(term.sourceLocation,v2)
-    case i : IntegerLiteralTerm => currentExpressionFactory.makeIntegerLiteralTerm(term, i.value)
+      currentExpressionFactory.makeBoundVariableTerm(v2)(term.sourceLocation)
+    case i : IntegerLiteralTerm => currentExpressionFactory.makeIntegerLiteralTerm(i.value)(term)
     case _ =>
       report(messages.ContractNotUnderstood(term))
-      currentExpressionFactory.makeIntegerLiteralTerm(term, 67)
+      currentExpressionFactory.makeIntegerLiteralTerm(67)(term)
   }
 
   def transplant(terms : TermSequence) : TermSequence = TermSequence(terms.map(transplant(_)) : _*)
