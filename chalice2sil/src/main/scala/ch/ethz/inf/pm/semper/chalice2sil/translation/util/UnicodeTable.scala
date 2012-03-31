@@ -37,7 +37,7 @@ object UnicodeTable {
     "psi" -> 'ψ',
     "omega" -> 'ω',
 
-    "Alpha" -> 'α',
+    "Alpha" -> 'Α',
     "Beta" -> 'Β',
     "Gamma" -> 'Γ',
     "Delta" -> 'Δ',
@@ -66,15 +66,15 @@ object UnicodeTable {
     "leq" -> '≤',
     "geq" -> '≥',
     "ne" -> '≠',
-    "in" -> '∈',
+    "elem" -> '∈',
     "ni" -> '∋',
     "owns" -> '∋',
     "approx" -> '≈',
     "equiv" -> '≡',
     "subset" -> '⊂',
-    "subseteq" -> '⊆',
+    "eqsubset" -> '⊆',
     "superset" -> '⊃',
-    "superseteq" -> '⊇',
+    "eqsuperset" -> '⊇',
     "cup" -> '∪',
     "cap" -> '∩',
     "land" -> '∧',
@@ -91,5 +91,12 @@ object UnicodeTable {
     "leftrightarrow" -> '↔')
   val forward : immutable.Map[Char,String] = backward.map(t => t._2 -> t._1)
 
-  lazy val backwardTrie = Trie.create[WrappedString, Char, Char](backward.map(t => ((t._1 : WrappedString),t._2)))
+  lazy val backwardTrie = {
+    val trie = Trie.create[WrappedString, Char, Char](backward.map(t => ((t._1 : WrappedString),t._2)))
+    assert(!trie.allowsShortestMatch.isDefined,{
+      val t = trie.allowsShortestMatch.get
+      "Cannot form Trie that supports unambiguous shortest match. Have a look at entry for %s around character %s.".format(t.value.get, t.element)
+    })
+    trie
+  }
 }

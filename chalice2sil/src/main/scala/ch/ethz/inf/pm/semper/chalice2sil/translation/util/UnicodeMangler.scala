@@ -54,22 +54,29 @@ class UnicodeMangler(val escapeChar : Char) {
   }
   
   def unmangle(mangledText : String) : String = {
-    //TODO: consider manual implementation of sliding to avoid creating O(n) String copies
     val builder = new StringBuilder()
     var skip = 0
-    for(window <- mangledText.sliding(windowSize)){
+    val mangledTextLength = mangledText.length
+    for(offset <- 0.to(mangledText.length-1)){
       if(skip > 0){
         skip -= 1
       } else {
-        if (window.startsWith(doubleEscapeSequence)){
+        val length = windowSize min (mangledTextLength-offset)
+        if (mangledText.startsWith(doubleEscapeSequence,offset)){
           skip = 1
           builder.append(escapeChar)
-        } else if(window.startsWith(escapeSequence) && window.length() >= 5) {
-          val codePoint = Integer.parseInt(window.substring(1,4),16)
-          builder.append(codePoint.toChar)
-          skip = 4
+        } else if(mangledText.startsWith(escapeSequence,offset)){
+          backwardTrie.shortestMatch(mangledText.view(offset+1,offset+length)) match {
+            case Some(c) =>
+              builder.append(c)
+              skip = forward(c).length
+            case _ if length >= 5 =>
+              val codePoint = Integer.parseInt(mangledText.substring(offset+1,4),16)
+              builder.append(codePoint.toChar)
+              skip = 4
+          }
         } else {
-          builder.append(window(0))
+          builder.append(mangledText(offset))
           skip = 0
         }
       }

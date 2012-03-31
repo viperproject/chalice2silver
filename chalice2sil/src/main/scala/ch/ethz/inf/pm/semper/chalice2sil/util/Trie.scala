@@ -34,7 +34,7 @@ class Trie[K <: Seq[E], E, V] private(val emptyValue : Option[V], val firstLevel
     }
   }
 
-  def allowsShortestMatch : Boolean = forall(t => (!t.value.isDefined) || (t.children.isEmpty))
+  def allowsShortestMatch : Option[TrieNode[E,V]] = find(t => (t.value.isDefined) && (!t.children.isEmpty))
 }
 
 object Trie {
