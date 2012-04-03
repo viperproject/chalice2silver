@@ -1,0 +1,289 @@
+% !TEX TS-program = xelatex
+% !TEX encoding = UTF-8
+
+\documentclass[11pt]{article} % use larger type; default would be 10pt
+
+\usepackage[fleqn]{amsmath}
+\usepackage{amsthm,amsfonts}
+\usepackage{amssymb} % Must be included BEFORE unicode!!!
+\usepackage{fontspec} % Font selection for XeLaTeX; see fontspec.pdf for documentation
+\defaultfontfeatures{Mapping=tex-text} % to support TeX conventions like ``---''
+\usepackage{xunicode} % Unicode support for LaTeX character names (accents, European chars, etc)
+\usepackage{xltxtra} % Extra customizations for XeLaTeX
+\usepackage[math-style=ISO]{unicode-math}
+%\usepackage{multicol}
+
+
+\setmainfont{Cambria} % set the main body font (\textrm), assumes Charis SIL is installed
+\setsansfont{Calibri}
+\setmonofont{Consolas}
+\setmathfont{Cambria Math}
+
+% other LaTeX packages.....
+\usepackage{savetrees}
+\usepackage{fullpage}
+%\usepackage{bussproofs}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{syntax}
+\usepackage{color}
+\usepackage{float}
+\newfloat{grammarListingFloat}{hbpt}{gl.aux}
+\floatname{grammarListingFloat}{Listing}
+\newenvironment{grammarListing}{\begin{grammarListingFloat}\synshorts}{\synshortsoff\end{grammarListingFloat}}
+
+% =====================================================
+% ===== META INFORMATION ==============================
+% =====================================================
+
+\newcommand{\metaSemester}{HS11}
+\newcommand{\metaCourseFull}{Translating Chalice into SIL}
+\newcommand{\metaCourseShort}{Chalice2SIL}
+\newcommand{\metaCourse}{\metaCourseFull{} (\metaCourseShort)}
+\newcommand{\metaSectionPrefix}{}
+\newcommand{\metaAuthor}{Christian Klauser}
+\newcommand{\metaAuthorNethz}{klauserc}
+\newcommand{\metaAuthorLegi}{08-919-490}
+
+\newcommand{\metaTitle}{Translation Sketch}
+
+% =====================================================
+% =====================================================
+
+\pagestyle{fancy}%
+\renewcommand{\headrulewidth}{1pt}%
+\renewcommand{\footrulewidth}{0pt}%
+%\setlength{\headheight}{7pt}%
+\setlength{\headsep}{28pt}
+\setlength{\footskip}{10pt}%
+\fancyhead[L]{\metaCourse}%
+\fancyhead[R]{\metaAuthor,\ \ \today}%
+\fancyfoot[C]{\thepage}%
+
+\usepackage{graphicx} % support the \includegraphics command and options
+%\usepackage{pdflscape}
+
+%=========================================
+
+\newcommand{\abs}[1]{{\left\lvert#1\right\rvert}}
+\newcommand{\norm}[1]{{\left\lVert#1\right\rVert}}
+\newcommand{\setw}[2]{\ensuremath{\left\{#1\:\middle|\:#2\right\}}}
+\newcommand{\albool}{\ensuremath{\{0,1\}}}
+\newcommand{\alab}{\ensuremath{\{a,b\}}}
+\newcommand{\NN}{\ensuremath{\mathbb{N}}}
+\newcommand{\RR}{\ensuremath{\mathbb{R}}}
+\newcommand{\ZZ}{\ensuremath{\mathbb{Z}}}
+\newcommand{\QQ}{\ensuremath{\mathbb{Q}}}
+\newcommand{\CC}{\ensuremath{\mathbb{C}}}
+\newcommand{\KK}{\ensuremath{\mathbb{K}}}
+\newcommand{\MM}{\ensuremath{\mathbb{M}}}
+\newcommand{\E}[1]{\ensuremath{\mathbf{E}\left[#1\right]}}
+\newcommand{\ECond}[2]{\ensuremath{\mathbf{E}\left[#1\:\middle|\:#2\right]}}
+\renewcommand{\Pr}[1]{\ensuremath{\mathbf{Pr}\left[#1\right]}}
+\newcommand{\Prs}[2]{\ensuremath{\mathbf{Pr}_{#2}\left[#1\right]}}
+\newcommand{\PrCond}[2]{\ensuremath{\mathbf{Pr}\left[#1\:\middle|\:#2\right]}}
+
+\newcommand{\entails}{\ensuremath{\vdash\ }}
+\renewcommand{\implies}{\ensuremath{\ \rightarrow\ }}
+
+%=========================================
+%		Document-specific commands
+
+\newcommand{\ldbrack}{⟦}
+\newcommand{\rdbrack}{⟧}
+\newcommand{\ch}[1]{\left\ldbrack{}#1\right\rdbrack_\text{Ch}}
+\newcommand{\sil}[1]{\left\ldbrack{}#1\right\rdbrack_\text{SIL}}
+
+\newcommand{\Chalice}{Chalice}
+\newcommand{\SIL}{SIL}
+\newcommand{\ct}[1]{\ensuremath{\text{\texttt{#1}}\ \ }}
+\newcommand{\ctw}[1]{\ensuremath{\ \ \text{\texttt{#1}}\ \ }}
+\newcommand{\ctn}[1]{\ensuremath{\text{\texttt{#1}}}}
+\newcommand{\bt}{\lstinline!::!}
+\newcommand{\acc}[2]{\ctn{acc}\left(#1,\; #2\right)}
+\newcommand{\transE}[1]{\ensuremath{E\left(#1\right)}}
+\newcommand{\exhale}[1]{\ensuremath{\ctn{exhale}\!\left\ldbrack#1\right\rdbrack}}
+\newcommand{\inhale}[1]{\ensuremath{\ctn{inhale}\!\left\ldbrack#1\right\rdbrack}}
+
+%=========================================
+
+\usepackage[parfill]{parskip} 
+\usepackage{titlesec}
+%\titleformat{\section}[display]{\normalfont\Large\bfseries}{Problem \thesection:}{1em}{}
+\titleformat{\section}{\normalfont\Large\bfseries\sffamily}{\metaSectionPrefix \thesection\ }{0.5em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries\sffamily}{\thesection{}.\thesubsection}{0.5em}{}
+\titleformat{\subsubsection}{\normalfont\bfseries\sffamily}{\thesection{}.\thesubsection{}.\thesubsubsection}{0.4em}{}
+\renewcommand{\thesection}{\arabic{section}} %arabic
+\renewcommand{\thesubsection}{\arabic{subsection}} %alph
+\renewcommand{\thesubsubsection}{\arabic{subsubsection}} %roman
+
+%=========================================
+
+\title{\metaTitle}
+\author{\metaAuthor}
+%\date{} % Activate to display a given date or no date (if empty),
+         % otherwise the current date is printed 
+
+\begin{document}
+{\LARGE \bf\sffamily \metaTitle}
+
+\section{Expressions}
+$E$ translates a \Chalice{} expression into an equivalent \SIL{} expression. Given an scoped identifier $i$, $ρ(i)$ denotes a globally unique identifier. E.g., $ρ(\ctn{someField}) = \ct{SomeClass\bt{}someField}$
+
+\begin{align}
+	E\ch{e_1 \ct{?} e_2 \ct{:} e_3} &= \sil{\ct{if}\ E\left(e_1\right) \ctw{then} E\left(e_2\right) \ctw{else} E\left(e_3\right)} \\
+	E\ch{e_1 \ct{==} e_2} &= \sil{\ctn{==}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ct{!=} e_2} &= \sil{\ctn{!=}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ct{<} e_2} &= \sil{\ctn{<}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ct{<=} e_2} &= \sil{\ctn{<=}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ct{>=} e_2} &= \sil{\ctn{>=}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ct{>} e_2} &= \sil{\ctn{>}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ctw{in} e_2} &= \sil{\ctn{in}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ctw{!in} e_2} &= E\ch{\ctn{!}\left(e_1 \ctw{in} e_2\right)} \\
+	E\ch{e_1 \ct{+} e_2} &= \sil{\ctn{+}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ct{-} e_2} &= \sil{\ctn{-}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ct{*} e_2} &= \sil{\ctn{*}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ct{/} e_2} &= \sil{\ctn{/}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1 \ct{\%} e_2} &= \sil{\ctn{\%}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{\ct{!} e} &= \sil{\ctn{!}\left(E\left(e\right)\right)} \\
+	E\ch{\ct{-} e} &= \sil{\ctn{-}\left(E\left(e\right)\right)} \\
+	E\ch{e_1\ct{[}e_2\ct{]}} &= \sil{\ctn{at}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1\ct{[}e_2\ct{..]}} &= \sil{\ctn{drop}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1\ct{[..}e_2\ct{]}} &= \sil{\ctn{take}\left(E\left(e_1\right), E\left(e_2\right)\right)} \\
+	E\ch{e_1\ctn{.}id} &= \sil{E\left(e_1\right)\ctn{.}id} \quad\text{Also assert that $e_1$ is not null}\\
+	E\ch{e_1\ctn{.}id\ctn{(}e\ldots\ctn{)}} &= \sil{ρ\!\left(id\right)\!\left(E\left(e_1\right), E\left(e\ldots\right)\right)}  
+ 		 \quad\text{Also assert that $e_1$ is not null} \\
+	%E\ch{e_1\ctn{.acquire} e_2} &= \ct{/* Eval(AcquireState(e_1), e_2) */} \\
+	%E\ch{e_1\ctn{.release} e_2} &= \ct{/* Eval(ReleaseState(e_1), e_2) */} \\
+	%E\ch{e_1\ct{.fork}\ \ {id}_1\ctn{.}{id}_2\ldots\ctn{.}{id}_n(e\ldots)\ \ e_2} &= \ct{/* Parser.scala 466 */}
+	E\ch{\ctn{true}} &= \sil{\ctn{true}} \\
+	E\ch{\ctn{false}} &= \sil{\ctn{false}} \\
+	E\ch{\ctn{null}} &= \sil{\ctn{null}} \\
+	E\ch{\ctn{this}} &= \text{First method argument} \\
+	E\ch{x} &= \sil{x}\qquad\text{where $x$ is a numeric literal}
+\end{align}
+
+\newpage
+\section{Statements}
+$S$ translates \Chalice{} statements into equivalent \SIL{} statements/expressions. $τ_1, τ_2, \ldots$ are temporary variables unique to each rule instantiation. Similarly, $η_1, η_2, \ldots$ are labels unique to each rule instantiation.
+
+\begin{align}
+	S\ch{\ctn{assert}\ \ e_1} &= \sil{\ctn{assert}\ \ E\left(e_1\right)} \\
+	S\ch{\ctn{assume}\ \ e_1} &= \sil{\ctn{assume}\ \ E\left(e_1\right)} \\
+	S\ch{\ctn{\{}s\ldots\ctn{\}}} &= \sil{S\left(s\ldots\right)}
+\end{align}
+Need to flatten nested stmt blocks, since SIL doesn't have local variable scoping.
+\begin{align}
+	S\ch{\ctw{var} id \ctw{:=} e_1} &= \sil{id \ctw{:=} E\left(e_1\right)} \quad\text{Keep \ctw{const} and \ctw{ghost} attributes}\\
+	S\ch{\ctw{call} v\ldots \ctw{:=} r\ctn{.}m_1\!\left(e\ldots\right) } &= \sil{
+ 		\ct{call}\ v\ldots \ctw{:=} \rho\left(m_1\right)\left(E\left(r\right), E\left(e\ldots\right)\right) }
+\end{align}
+%If SIL doesn't support multiple return values, the method will have to return a tuple containing the actual return values.
+%\begin{align}
+%	S\ch{\ctw{call} v_1, v_2, \ldots, v_n \ctw{:=} r\ctn{.}m_1\!\left(e\ldots\right) } &= \ldbrack{}
+% 		 \ctw{assert} E\left(r\right)\!\ctw{\neq\ null;} \\&\quad\quad
+%		\ct{call}\ τ_1 \ctw{:=} E\left(r\right)\ctn{.}m_1\!\left(E\left(e\ldots\right)\right) \ctw{;} \\&\quad\quad
+%		S\left(v_1 \ctw{:=} τ_1\ctn{.}elem_1\right) \ctw{;} 	\notag\\&\quad\quad
+%		S\left(v_1 \ctw{:=} τ_1\ctn{.}elem_1\right) \ctw{;} 	\notag\\&\quad\quad
+% 		\quad\quad\vdots 								\notag\\&\quad\quad
+%		S\left(v_n \ctw{:=} τ_1\ctn{.}elem_n\right) 			\ 
+% 	\rdbrack{}_{\text{SIL}}\notag \\
+\begin{align}
+	S\ch{\ctn{if}\left(e_1\right) s_1 \ctw{else} s_2} &= \ldbrack{} 
+ 		\ctn{if}\ E\left(e_1\right) \ctw{then goto} η_1 \ctw{else} η_2 \ctw{;} \\&\quad\quad\!
+ 		η_1\ctn{:}\ S\left(s_1\right) \ctw{;} \notag\\&\quad\quad\!
+		\quad\;	 \ctw{goto} \eta_3 \notag\\&\quad\quad\!	
+		η_2\ctn{:}\ S\left(s_2\right)\notag\\&\quad\quad\!	
+		\eta_3\ctn{:}\ctw{nop} 
+ 	\rdbrack{}_{\text{SIL}}\notag
+\end{align}
+\ct{lockchange} for \ct{while} loops ignored for now.
+\begin{align}
+	S\ch{\ctn{while}\left(c\right) \ctw{invariant} i\ldots \ctw{;} s} &= \left\ldbrack{} \ \,
+		η_1\ct{:}	\tau_1 \ctw{:=}  E\left(c\right) \ctw{;} \right.				      \\&\quad\quad\
+		\quad\ 	\exhale{E\left(i\ldots\right)} \ctw{;} 					\notag\\&\quad\quad\ 
+		\quad\ \;	\ct{if}\ \tau_1 \ctw{then goto} η_2 \ctw{else} η_3 \ctw{;} 		\notag\\&\quad\quad\ 
+ 		η_2\ct{:}	\inhale{E\left(i\ldots\right)} \ctw{;}						\notag\\&\quad\quad\
+		\quad\ \;\;S\left(s\right) \ctw{;}									\notag\\&\quad\quad\ 
+	 	\quad\ \;	\ctw{goto} η_1 \ctw{;}									\notag\\&\quad\quad\
+ 	\left. 	η_3\ct{:} 	\inhale{ E\left(i\ldots\right)}	\right\rdbrack_\text{SIL}			\notag
+\end{align}
+
+\subsection{Fork-Join}
+There is no direct support for fork-join in SIL, so we'll	have to simulate those asynchronous calls by exhaling the precondition at the fork-statement and returning a token object with certain properties. At the join-site, we verify that the token is valid and inhale the methods postcondition.
+
+$c\bt{}m_\text{pre}\left[e, a_1, a_2, \cdots, a_n, \pi_\text{rd}\right]$ stands for the precondition of the method $m$ in class $c$ with $e$ substituted for the \ctn{this} reference and $a_1$ through $a_n$ substituted for the formal parameters of the method. The value $\pi_\text{rd}$, finally, represents the permission fraction transferred to the callee to satisfy read permissions in the precondition of $c\bt{}m$
+
+$c\bt{}m_\text{post}\left[e, a_1, a_2, \cdots, a_n, \pi_\text{rd}\right]$ is defined analogously for the method's postcondition.
+
+The token's type contains the class and method that was invoked. This information is handled by the Chalice type checker and does not need to be encoded in SIL. On the other hand, the receiver and all method arguments need to be associated with the token at the fork-site in order to substitute them in the method's postcondition at the join-site later.
+
+We probably have to pass read-permissions to the ghost fields of tokens around implicitly. Since these fields are never changed after the token is created, we can use fractional permissions to give away read-permissions to every method that receives the token.
+
+\begin{align}
+	S\ch{t \ctw{:=} \ctw{fork} e.m\left(a_1, a_2, \ldots, a_n\right)} &= \left\ldbrack{}\ 
+		\tau \ctw{:=} \transE{e}									\right.	\\&\quad\quad
+		t \ctw{:=} \ctw{newobj}										\notag\\&\quad\quad
+		\inhale{ \acc{t\ctn{.joinable}}{\ctn{write}}}						\notag\\&\quad\quad
+		t\ctn{.joinable} \ctw{:=} \ctw{True}\ 							\notag\\&\quad\quad
+		\inhale{ \acc{t\ctn{.}\pi_\text{rd}}{\ctn{write}} }					\notag\\&\quad\quad
+		\inhale{ 0 < t\ctn{.}\pi_\text{rd} < R } 							\notag\\&\quad\quad
+		\inhale{ \acc{t\ctn{.receiver}}{\ctn{write}} }						\notag\\&\quad\quad
+		t\ctn{.receiver} \ctw{:=} 	\tau		 							\notag\\&\quad\quad
+		\inhale{ \acc{t\ctn{.arg}_1}{\ctn{write}}}						\notag\\&\quad\quad
+		t\ctn{.arg}_1 \ctw{:=} \transE{a_1}\	 							\notag\\&\quad\quad
+		\qquad\vdots 												\notag\\&\quad\quad
+		\inhale{ \acc{t\ctn{.arg}_n}{\ctn{write}} }						\notag\\&\quad\quad
+		t\ctn{.arg}_n \ctw{:=} \transE{a_n}\ 								\notag\\&\quad\quad
+		\exhale{ \ctn{typeof}\left(e\right)\bt{}m_\text{pre}\left[\tau, \transE{a_1, \cdots, a_n} \right] 	}
+																\notag\\&\quad\quad
+\rdbrack{}_\text{SIL}			\notag
+%
+\end{align}
+where $R$ = all permissions to fields $c\bt{}m_\text{pre}$ mentions in read-access predicates.
+
+
+\begin{align}
+	S\ch{ o_1, \cdots, o_n \ctw{:=} \ctw{join} t} &= \ldbrack{}\ 					
+		\tau \ctw{:=} \transE{t}											\\&\quad\quad
+		\exhale{ \tau\ctn{.joinable} \ctw{==} \ctw{True}}		  				\notag\\&\quad\quad
+		\exhale{ \acc{\tau\ctn{.joinable}}{\ctn{write}}} 						\notag\\&\quad\quad
+		o_1 \ctw{:=} \ctw{havoc}										\notag\\&\quad\quad
+		\quad \vdots 												\notag\\&\quad\quad
+		o_n \ctw{:=} \ctw{havoc}										\notag\\&\quad\quad
+		\left. \inhale{c\bt{}m_\text{post}\left[\tau\ctn{.receiver}, \tau\ctn{.arg}_{1,\cdots{},n}, \tau\ctn{.}\pi_\text{rd}\right] }
+	\ \right\rdbrack{}_\text{SIL}											\notag\\
+%
+		\text{where}\qquad	c &= \ctn{typeof}\left(\tau\right)\ctn{.class}		\notag\\
+					 	m &= \ctn{typeof}\left(\tau\right)\ctn{.method}		\notag
+\end{align}
+
+\subsection{Inhaling/Exhaling}
+\begin{align}
+	\exhale{P \land Q}_{\text{\SIL}} &= \left\ldbrack \exhale{P} \ctw{;} \right. 				\\&\quad\ \ 
+		\left. \exhale{Q} \quad \right\rdbrack_{\text{\SIL}} 						\notag\\
+	\exhale{P \implies Q}_{\text{\SIL}} &= \left\ldbrack \ctn{if}\left( \transE{P} \right) \{  \right.		\\&\qquad\quad
+		\exhale{Q} 												\notag\\&\quad\quad 
+		\left. \} \quad \right\rdbrack_{\text{\SIL}}								\notag\\
+	\exhale{A}_\text{\SIL} &= \sil{\ctw{exhale} \transE{A}} \qquad\text{i.e., just forward the expression to SIL}
+\end{align}
+
+\subsection{Predicates}
+
+$σ\left(o\!\ctn{.}p\right)$  looks up the (permission) expression associated with a predicate $p$ on object $o$.
+\begin{align}
+	S\ch{\ct{fold}\ e_1\!\ctn{.}p_1} &= \ldbrack{} \ctw{exhale} σ\left(E\left(e_1\right)\!\ctn{.}p_1\right) \ctw{;} \\
+		&\qquad \ct{inhale}\ \acc{E\left(e_1\right)\!\ctn{.}p_1}{\ctn{write}} \rdbrack{}_\text{SIL} \notag \\
+	S\ch{\ct{unfold}\ e_1\!\ctn{.}p_1} &= \ldbrack{} \ctw{exhale}\acc{E\left(e_1\right)\!\ctn{.}p_1}{\ctn{write}} \ctw{;} \\
+		&\qquad \ct{inhale} σ\left(E\left(e_1\right)\!\ctn{.}p_1\right) \rdbrack{}_\text{SIL} \notag
+\end{align}
+
+\subsection{Monitors}
+$\iota\left(e\right)$ denotes the (monitor) invariant of an object $e$.
+
+\begin{align}
+	S\ch{\ct{share}\ e_1} &= \sil{\ctn{exhale}\ \iota\left(E\left(e_1\right)\right)} \\
+	S\ch{\ct{unshare}\ e_1} &= \sil{\ctn{exhale}\ \iota\left(E\left(e_1\right)\right)}
+\end{align}
+
+\end{document}

@@ -1,0 +1,6 @@
+class Main {
+    method main(){
+        var x : int := 5;
+        assert x == 5;
+    }
+}

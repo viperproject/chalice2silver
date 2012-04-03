@@ -1,0 +1,8 @@
+class Main {
+    method main(){
+        var i : int := 5;
+        while(i > 0){
+            i := i - 1;
+        }
+    }
+}

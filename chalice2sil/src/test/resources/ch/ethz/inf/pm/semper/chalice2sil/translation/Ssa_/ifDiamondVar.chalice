@@ -1,0 +1,12 @@
+class Main {
+    method main(){
+        var x : int;
+        var y : int := 5;
+        if(y >= 4){
+            x := 1;
+        } else {
+            x := 227;
+        }
+        y := x;
+    }
+}

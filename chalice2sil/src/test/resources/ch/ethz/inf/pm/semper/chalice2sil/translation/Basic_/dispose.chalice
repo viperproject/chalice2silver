@@ -1,0 +1,17 @@
+class Main {
+  var x : int;
+  var ä : int;
+    
+  method disposex(z : int)
+    requires rd(x)
+  {}
+
+  method test03()
+    requires acc(x) && rd(ä)
+    ensures rd(x) && rd(ä)
+  {
+    call disposex(1);
+    call disposex(2);
+    assert rd(x);
+  }
+}

@@ -1,0 +1,6 @@
+class Main{
+    method main(){
+        assert this == this;
+        assert this != null;
+    }
+}

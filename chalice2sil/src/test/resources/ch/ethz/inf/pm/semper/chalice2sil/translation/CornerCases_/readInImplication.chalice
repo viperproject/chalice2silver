@@ -1,0 +1,27 @@
+class Main {
+    var f : int;
+    var g : int;
+    var p : bool;
+    method goal()
+        requires rd(p)
+        requires p ==> acc(f) && rd(g)
+        ensures rd(p)
+        ensures old(p) ==> f == g && acc(f) && rd(g)
+    {
+        if(p){
+            f := g;
+        }
+    }
+    method main()
+        requires acc(f)
+        requires rd(p)
+        requires acc(g)
+        ensures acc(f)
+        ensures acc(g)
+        ensures rd(p)
+    {
+        g := 3;
+        call this.goal();
+        assert f == g;
+    }
+}

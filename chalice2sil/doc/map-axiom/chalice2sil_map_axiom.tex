@@ -1,0 +1,178 @@
+% !TEX TS-program = xelatex
+% !TEX encoding = UTF-8
+
+\documentclass[11pt]{article} % use larger type; default would be 10pt
+
+\usepackage[fleqn]{amsmath}
+\usepackage{amsthm,amsfonts}
+\usepackage{amssymb} % Must be included BEFORE unicode!!!
+\usepackage{fontspec} % Font selection for XeLaTeX; see fontspec.pdf for documentation
+\defaultfontfeatures{Mapping=tex-text} % to support TeX conventions like ``---''
+\usepackage{xunicode} % Unicode support for LaTeX character names (accents, European chars, etc)
+\usepackage{xltxtra} % Extra customizations for XeLaTeX
+\usepackage[math-style=ISO]{unicode-math}
+%\usepackage{multicol}
+
+
+\setmainfont{Cambria} % set the main body font (\textrm), assumes Charis SIL is installed
+\setsansfont{Calibri}
+\setmonofont{Consolas}
+\setmathfont{Cambria Math}
+
+% other LaTeX packages.....
+\usepackage{savetrees}
+\usepackage{fullpage}
+%\usepackage{bussproofs}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{syntax}
+\usepackage{color}
+\usepackage{float}
+\newfloat{grammarListingFloat}{hbpt}{gl.aux}
+\floatname{grammarListingFloat}{Listing}
+\newenvironment{grammarListing}{\begin{grammarListingFloat}\synshorts}{\synshortsoff\end{grammarListingFloat}}
+
+% =====================================================
+% ===== META INFORMATION ==============================
+% =====================================================
+
+\newcommand{\metaSemester}{HS11}
+\newcommand{\metaCourseFull}{Translating Chalice into SIL}
+\newcommand{\metaCourseShort}{Chalice2SIL}
+\newcommand{\metaCourse}{\metaCourseFull{} (\metaCourseShort)}
+\newcommand{\metaSectionPrefix}{}
+\newcommand{\metaAuthor}{Christian Klauser}
+\newcommand{\metaAuthorNethz}{klauserc}
+\newcommand{\metaAuthorLegi}{08-919-490}
+
+\newcommand{\metaTitle}{Maps}
+
+% =====================================================
+% =====================================================
+
+\pagestyle{fancy}%
+\renewcommand{\headrulewidth}{1pt}%
+\renewcommand{\footrulewidth}{0pt}%
+%\setlength{\headheight}{7pt}%
+\setlength{\headsep}{28pt}
+\setlength{\footskip}{10pt}%
+\fancyhead[L]{\metaCourse}%
+\fancyhead[R]{\metaAuthor,\ \ \today}%
+\fancyfoot[C]{\thepage}%
+
+\usepackage{graphicx} % support the \includegraphics command and options
+%\usepackage{pdflscape}
+
+%=========================================
+
+\newcommand{\abs}[1]{{\left\lvert#1\right\rvert}}
+\newcommand{\norm}[1]{{\left\lVert#1\right\rVert}}
+\newcommand{\setw}[2]{\ensuremath{\left\{#1\:\middle|\:#2\right\}}}
+\newcommand{\albool}{\ensuremath{\{0,1\}}}
+\newcommand{\alab}{\ensuremath{\{a,b\}}}
+\newcommand{\NN}{\ensuremath{\mathbb{N}}}
+\newcommand{\RR}{\ensuremath{\mathbb{R}}}
+\newcommand{\ZZ}{\ensuremath{\mathbb{Z}}}
+\newcommand{\QQ}{\ensuremath{\mathbb{Q}}}
+\newcommand{\CC}{\ensuremath{\mathbb{C}}}
+\newcommand{\KK}{\ensuremath{\mathbb{K}}}
+\newcommand{\MM}{\ensuremath{\mathbb{M}}}
+\newcommand{\E}[1]{\ensuremath{\mathbf{E}\left[#1\right]}}
+\newcommand{\ECond}[2]{\ensuremath{\mathbf{E}\left[#1\:\middle|\:#2\right]}}
+\renewcommand{\Pr}[1]{\ensuremath{\mathbf{Pr}\left[#1\right]}}
+\newcommand{\Prs}[2]{\ensuremath{\mathbf{Pr}_{#2}\left[#1\right]}}
+\newcommand{\PrCond}[2]{\ensuremath{\mathbf{Pr}\left[#1\:\middle|\:#2\right]}}
+
+\newcommand{\entails}{\ensuremath{\vdash\ }}
+\renewcommand{\implies}{\ensuremath{\ \rightarrow\ }}
+
+%=========================================
+%		Document-specific commands
+
+\newcommand{\ldbrack}{⟦}
+\newcommand{\rdbrack}{⟧}
+\newcommand{\ch}[1]{\left\ldbrack{}#1\right\rdbrack_\text{Ch}}
+\newcommand{\sil}[1]{\left\ldbrack{}#1\right\rdbrack_\text{SIL}}
+
+\newcommand{\Chalice}{Chalice}
+\newcommand{\SIL}{SIL}
+\newcommand{\ct}[1]{\ensuremath{\text{\texttt{#1}}\ \ }}
+\newcommand{\ctw}[1]{\ensuremath{\ \ \text{\texttt{#1}}\ \ }}
+\newcommand{\ctn}[1]{\ensuremath{\text{\texttt{#1}}}}
+\newcommand{\bt}{\lstinline!::!}
+\newcommand{\acc}[2]{\ctn{acc}\left(#1,\; #2\right)}
+\newcommand{\transE}[1]{\ensuremath{E\left(#1\right)}}
+\newcommand{\exhale}[1]{\ensuremath{\ctn{exhale}\!\left\ldbrack#1\right\rdbrack}}
+\newcommand{\inhale}[1]{\ensuremath{\ctn{inhale}\!\left\ldbrack#1\right\rdbrack}}
+
+%=========================================
+
+\usepackage[parfill]{parskip} 
+\usepackage{titlesec}
+%\titleformat{\section}[display]{\normalfont\Large\bfseries}{Problem \thesection:}{1em}{}
+\titleformat{\section}{\normalfont\Large\bfseries\sffamily}{\metaSectionPrefix \thesection\ }{0.5em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries\sffamily}{\thesection{}.\thesubsection}{0.5em}{}
+\titleformat{\subsubsection}{\normalfont\bfseries\sffamily}{\thesection{}.\thesubsection{}.\thesubsubsection}{0.4em}{}
+\renewcommand{\thesection}{\arabic{section}} %arabic
+\renewcommand{\thesubsection}{\arabic{subsection}} %alph
+\renewcommand{\thesubsubsection}{\arabic{subsubsection}} %roman
+
+%=========================================
+
+\title{\metaTitle}
+\author{\metaAuthor}
+%\date{} % Activate to display a given date or no date (if empty),
+         % otherwise the current date is printed 
+
+
+\lstdefinelanguage{Scala}%
+  {morekeywords={abstract,case,catch,class,def,% 
+    do,else,extends,false,final,finally,%
+    for,if,implicit,import,lazy,match,mixin,%
+    new,null,object,override,package,% 
+    private,protected,requires,return,sealed,% 
+    super,this,trait,true,try,% 
+    type,val,var,while,with,yield},%+
+%	otherkeywords={_,:,=,=>,<<:,<\%,>:,\#,@},%
+	otherkeywords={=,=>,<-,<\%,<:,>:,\#,@},%
+   sensitive,%
+   morecomment=[l]//,%
+   morecomment=[n]{/*}{*/},%
+   morestring=[b]",%
+   morestring=[b]',%
+   morestring=[b]""",%
+  }[keywords,comments,strings]%
+
+\begin{document}
+{\LARGE \bf\sffamily \metaTitle}
+
+\begin{lstlisting}[language=Scala]
+type Map[K,V]
+
+// Constructors
+def Empty[K,V] : Map[K,V]
+def Update[K,V](Map[K,V], K, V) : Map[K,V]
+
+// Functions
+def get(Map[K,V], K) : V
+
+// Predicates
+def has(Map[K,V], K)
+\end{lstlisting}
+
+\begin{equation}
+	∀ k : \lstinline!K! .\quad ¬\lstinline!has!\left(\lstinline!Empty!\left(\right),k\right) 
+\end{equation}
+
+\begin{align}
+	∀ m : \lstinline!Map[K,V]!,\ \ &k_1,k_2 : \lstinline!K!, v : \lstinline!V! .\notag\\ 
+		& \lstinline!has!\left(\lstinline!Update!\left(m,k_1,v\right),k_2\right) ↔ \left(k_1 = k_2 ∨ \left(k_1≠k_2 ∧ \lstinline!has!\left(m,k_2\right)\right)\right)
+\end{align}
+\begin{align}
+	∀ m : \lstinline!Map[K,V]!,\ \ &k_1,k_2 : \lstinline!K!, v : \lstinline!V! .\notag\\ 
+	& \left(k_1 ≠ k_2 → \lstinline!get!\left(\lstinline!Update!\left(m,k_1,v\right),k_2\right) = \lstinline!get!\left(m,k_2\right)\right) \notag\\
+	& ∧ \left(k_1 = k_2 → \lstinline!get!\left(\lstinline!Update!\left(m,k_1,v\right),k_2\right) = v\right)
+\end{align}
+
+
+\end{document}

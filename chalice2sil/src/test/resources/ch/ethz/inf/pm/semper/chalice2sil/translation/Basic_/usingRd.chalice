@@ -1,0 +1,17 @@
+class Main {
+    var f : int;
+    var g : int;
+    method main()
+        requires rd(f) && acc(g)
+        ensures  acc(g) && rd(f)
+    {
+        g := f;
+    }
+
+    method readF() returns(i : int)
+        requires rd(f)
+        ensures  rd(f)
+    {
+        i := f;
+    }
+}

@@ -1,0 +1,22 @@
+class Main {
+    var f : int;
+    var p : bool;
+    method goal()
+        requires rd(p)
+        requires p ==> acc(f)
+        ensures rd(p)
+        ensures old(p) ==> acc(f)
+    {
+        if(p){
+            f := 3;
+        }
+    }
+    method main()
+        requires acc(f)
+        requires rd(p)
+        ensures acc(f)
+        requires rd(p)
+    {
+        call this.goal();
+    }
+}
