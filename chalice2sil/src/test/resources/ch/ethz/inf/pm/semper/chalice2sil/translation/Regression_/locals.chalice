@@ -60,7 +60,7 @@ class Test01 {
 	
 	method mm()
 		requires acc(x)
-		ensures x == 1
+		ensures x == 1 /* @Error 330 */
 	{
 		x := 0
 		

@@ -1,9 +1,9 @@
-  class ó {
-    var ê: int
+  class Î± {
+    var Î²: int
 
     method test()
-      requires rd(ê)
+      requires rd(Î²)
     {
-      ê := ê + 1
+      Î² := Î² + 1 /* @Error 630 */
     }
   }
