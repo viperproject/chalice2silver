@@ -5,6 +5,7 @@ silast/*
 *.synctex.gz
 *.aux
 ~$*.*
+*.synctex.gz(busy)
 *.orig
 */.cache
 */.classpath
