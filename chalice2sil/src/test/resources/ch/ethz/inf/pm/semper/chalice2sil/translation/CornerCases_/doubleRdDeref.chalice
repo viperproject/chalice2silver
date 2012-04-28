@@ -16,6 +16,10 @@ class Main{
         a.f := 3;
         b := new B;
         b.a := a;
+        assert a != null;
+        assert b != null;
+        assert b.a != null;
+        assert acc(b.a.f);
         call z := stuff(b);
         assert b.a.f == 3;
         assert z == b.a.f;

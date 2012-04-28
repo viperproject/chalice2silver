@@ -2,7 +2,8 @@ class Main {
     var x : int;
     var y : int;
     method main()
-        requires acc(x) && acc(x)
+        requires acc(x) && acc(y)
+        ensures acc(y) && y == 1 || y == 2
     {
         if(x == 5){
             y := 1;
