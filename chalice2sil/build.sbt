@@ -16,7 +16,7 @@ classDirectory in Test <<= classDirectory in Compile
 
 // Dependencies
 
-libraryDependencies += "org.scalatest" %% "scalatest" % "1.6.1" % "test" withJavadoc() withSources()
+libraryDependencies += "org.scalatest" %% "scalatest" % "1.7.1" % "test" withJavadoc() withSources()
 
 libraryDependencies += "junit" % "junit" % "4.+" % "test" withJavadoc()
 

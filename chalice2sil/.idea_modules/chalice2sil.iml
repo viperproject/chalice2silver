@@ -31,12 +31,6 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="org.scala-lang_scala-library_2.9.1" level="project" />
     <orderEntry type="library" name="com.github.scopt_scopt_2.9.1_1.1.3" level="project" />
-    <orderEntry type="library" scope="TEST" name="org.scalatest_scalatest_2.9.1_1.7.RC1" level="project" />
-    <orderEntry type="library" scope="TEST" name="com.google.inject_guice_3.0" level="project" />
-    <orderEntry type="library" scope="TEST" name="javax.inject_javax.inject_1" level="project" />
-    <orderEntry type="library" scope="TEST" name="aopalliance_aopalliance_1.0" level="project" />
-    <orderEntry type="library" scope="TEST" name="org.sonatype.sisu.inject_cglib_2.2.1-v20090111" level="project" />
-    <orderEntry type="library" scope="TEST" name="asm_asm_3.1" level="project" />
     <orderEntry type="library" scope="TEST" name="junit_junit_4.10" level="project" />
     <orderEntry type="library" scope="TEST" name="org.hamcrest_hamcrest-core_1.1" level="project" />
     <orderEntry type="library" name="chalice.jar" level="project" />
@@ -46,6 +40,7 @@
     <orderEntry type="library" name="slf4j-log4j12-1.6.4" level="project" />
     <orderEntry type="library" name="log4j-1.2.16" level="project" />
     <orderEntry type="library" name="slf4j-api-1.6.4" level="project" />
+    <orderEntry type="library" name="scalatest_2.9.1-1.7.1" level="project" />
   </component>
 </module>
 
