@@ -1,0 +1,26 @@
+\lstdefinelanguage{Chalice} {
+	basicstyle=\ttfamily,
+	sensitive=true,
+	morecomment=[l][\color{gray_ulisses}\ttfamily]{//},
+	morecomment=[s][\color{gray_ulisses}\ttfamily]{\{/*}{*/\}},
+	morestring=[b]",
+	stringstyle=\color{red},
+	showstringspaces=false,
+	numberstyle=\tiny,
+	numberblanklines=true,
+	showspaces=false,
+	breaklines=true,
+	showtabs=false,
+	emph=
+	{[1]
+		int,token,seq
+	},
+	emphstyle={[1]\color{darkgreen}},
+	emph=
+	{[3]
+		class,do,else,if,
+		module,while,method,fork,join,channel,requires,ensures,invariant,predicate,function,
+		between,lock,share,call,var,returns
+	},
+	emphstyle={[3]\color{blue}\textbf},
+}

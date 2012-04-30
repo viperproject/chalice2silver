@@ -1,5 +1,9 @@
 class Main{
     method main()
-        ensures false == true
+        ensures false == true /* @Error 310 */
+    {}
+
+    method main2()
+        ensures true == (1 == 1)
     {}
 }

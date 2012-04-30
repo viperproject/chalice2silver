@@ -9,6 +9,7 @@ import ch.ethz.inf.pm.silicon.{Silicon, Config}
 import io.Source
 import java.nio.file.{Path, Files, Paths}
 import ch.ethz.inf.pm.silicon.interfaces.ResultWithMessage
+import silAST.source.SourceLocation
 
 /**
   * Author: Christian Klauser
@@ -118,14 +119,11 @@ abstract class ChaliceSuite extends FunSuite { //
 
             Console.out.println("Passing SIL program to Silicon")
             val siliconResults = {
-              // TODO: properly configure Silicon to use embedded preamble (wait for Malte to support that)
-              val config = new Config(z3exe = TestConfig.z3path.toAbsolutePath.toString,
-                preamble = "C:\\Users\\Christian\\ETH\\Semester\\Bachelor\\Chalice2SIL\\Silicon\\src\\main\\resources\\preamble.smt2")
+              val config = new Config(z3exe = TestConfig.z3path.toAbsolutePath.toString)
 
               val silicon = new Silicon(config)
 
-              //silicon.execute(silProgram)
-              List()
+              silicon.execute(silProgram)
             }
             // results have already been printed
             
@@ -139,19 +137,40 @@ abstract class ChaliceSuite extends FunSuite { //
 
             try{              
               t
+              //TODO: filter out expected errors
+              val unexpected = results.map({
+                case wm:ch.ethz.inf.pm.silicon.interfaces.ResultWithMessage =>
+                  expectedResults
+                    .find(e => e.code == wm.message.code && lineFromLoc(wm.message.loc) == e.line) match {
+                    case Some(m) =>
+                      expectedResults -= m
+                      None
+                    case None =>
+                      Some(wm)
+                  }
+                case o => Some(o)
+              }).flatten
+              
+              unexpected foreach { result =>
+                fail("Detected fatal result from Silicon: %s".format(result))
+              }
+              expectedResults foreach { e =>
+                fail("Expected result %s.".format(e))
+              }
             } finally {
               program = null
               messages = null
               environment = null
               results = null
             }
-
-            //TODO: filter out expected errors
-            siliconResults foreach { r =>
-                fail("Detected fatal result from Silicon: %s".format(r))
-            }
         }
       }
+    }
+
+    private val locationFormat = """(\d+)\.(\d+)""".r
+    private def lineFromLoc(loc : SourceLocation) : Int = locationFormat findFirstIn loc.toString match {
+      case None => -1
+      case Some(locationFormat(line,col)) => Integer.parseInt(line)
     }
 
     def expectedResultsFromSource(path : Path) {
@@ -161,7 +180,7 @@ abstract class ChaliceSuite extends FunSuite { //
       for(line <- Source.fromFile(path.toUri,scala.io.Codec.UTF8.name).getLines()){
         val mat = pat.matcher(line)
         while(mat.find()){
-          val code = Integer.parseInt(mat.group(2))
+          val code = Integer.parseInt(mat.group(1))
           expectedResults += ExpectedSiliconMessage(lineNum, code)
         }
         lineNum += 1

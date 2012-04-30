@@ -3,9 +3,9 @@ class Main {
       var x: int
 
       if (!b) {
-        assert x == 1 /* @Error */
+        assert x == 1 /* @Error 410 */
       } else {
-        assert x == 2 /* @Error */
+        assert x == 2 /* @Error 410 */
       }
     }
 }

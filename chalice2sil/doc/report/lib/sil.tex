@@ -1,0 +1,32 @@
+
+%Define colors
+
+\lstdefinelanguage{sil} {
+	basicstyle=\ttfamily,
+	sensitive=true,
+	morecomment=[l][\color{gray_ulisses}\ttfamily]{//},
+	morecomment=[s][\color{gray_ulisses}\ttfamily]{\{/*}{*/\}},
+	morestring=[b]",
+	stringstyle=\color{red},
+	showstringspaces=false,
+	numberstyle=\tiny,
+	numberblanklines=true,
+	showspaces=false,
+	breaklines=true,
+	showtabs=false,
+	emph=
+	{[1]
+		Integer,Permission,Map,Pair,Predicate,Sequemce
+	},
+	emphstyle={[1]\color{darkgreen}},
+	emph=
+	{[2]
+		int,token,seq
+	},
+	emphstyle={[2]\color{darkgreen}},
+	emph=
+	{[3]
+		program,field,domain,axiom,function,method,implementation,ref
+	},
+	emphstyle={[3]\color{blue}\textbf}
+}

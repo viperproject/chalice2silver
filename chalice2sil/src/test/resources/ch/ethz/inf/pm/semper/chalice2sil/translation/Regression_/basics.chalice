@@ -10,7 +10,7 @@ class Foo {
     assert a < 2
     
     a := 2
-    assert false
+    assert false /* @Error 410 */
     assert a > 2
   }
   
@@ -25,7 +25,7 @@ class Foo {
     requires x > 0 && y > 0
     ensures x * y > 0
     ensures x + y > 0
-    ensures x - y > 0 /* Fails */
+    ensures x - y > 0 /* @Error 310 */
   {}
 
 	var x: int
@@ -42,7 +42,7 @@ class Foo {
   
   method m5(n: int)
     requires rd(x)
-    ensures acc(x) /* Fails */
+    ensures acc(x) /* @Error 330 */
   {}
   
   method m6()
@@ -54,7 +54,7 @@ class Foo {
   method m7()
     requires rd(x)
   {
-    x := 1 /* Fails */
+    x := 1 /* @Error 630 */
   }
   
   method m8()
@@ -65,7 +65,7 @@ class Foo {
   
   method m9()
   {
-    var y := x /* Fails */
+    var y := x /* @Error 100 */
   }
   
   method m11()
