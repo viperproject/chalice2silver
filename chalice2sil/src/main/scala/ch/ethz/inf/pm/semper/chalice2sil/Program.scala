@@ -6,6 +6,8 @@ import chalice.{Chalice,PrintProgram}
 import translation.ProgramTranslator
 import java.io.File
 import silAST.source.noLocation
+import ch.ethz.inf.pm.silicon.Config._
+import ch.ethz.inf.pm.silicon.{Silicon, Config}
 
 object Program {
 
@@ -13,7 +15,7 @@ object Program {
     val chOptsBuilder = scala.collection.mutable.ArrayBuilder.make[String]()
     opts.chaliceOptions.foreach((entry) => {
       val (option, value) = entry
-      if(value.isEmpty())
+      if(value.isEmpty)
         chOptsBuilder += "/" + option
       else
         chOptsBuilder += "/" + option + ":" + value
@@ -90,10 +92,6 @@ object Program {
   }
 
   def main(args: Array[String]) {
-    println("Arguments")
-    args.foreach((s) => {print(" "); print(s);}) 
-    println
-    
     val opts = new ProgramOptions()
     val cmdParser = new OptionParser("chalice2sil") {
       // Chalice2SIL options
@@ -102,7 +100,8 @@ object Program {
       opt("f","forward-sil","class name",
         "Forwards the translated SIL program to the `public static main(silAST.Program)` method of the specified class.",
         (c:String) => { opts.forwardSil = Some(c) })
-      
+      opt("z3","z3-path","Custom path to Z3.",p => {opts.z3path = Some(p)})
+
       // Chalice files
       arglistOpt("<chalice-files...>", "The chalice source files.", (source : String) => opts.chaliceFiles.append(source) )
       
@@ -124,7 +123,11 @@ object Program {
     if(!cmdParser.parse(args.view.map(convertSlash))){
       // Help has already been printed
       return;
-    }// */
+    }
+
+    if(!opts.z3path.isDefined){
+      opts.z3path = Some(DefaultConfig.z3path.toAbsolutePath.toString)
+    }
     
     val program = invokeChalice(opts) match {
       case None => return;
@@ -143,7 +146,7 @@ object Program {
     // not implemented, for now just print regardless of whether opts.printSil is set
     opts.printSil = true;
     if(opts.printSil){
-      Console.out.println(silProgram.toString)
+      Console.out.println(silProgram.toString())
     }
 
     val warningCount = messages.count(_.severity == Warning)
@@ -162,6 +165,12 @@ object Program {
     //TODO: backends might need arguments and might produce messages
     opts.forwardSil match {
       case None =>
+        val config = new Config(z3exe = opts.z3path.get)
+        val silicon = new Silicon(config)
+        val messages = silicon.execute(silProgram)
+        for(m <- messages){
+          Console.out.println(m.toString) //TODO: unify with chalice2sil message system
+        }
       case Some(className) => 
         val classT = java.lang.Class.forName(className)
         val method = classT.getMethod("main",classOf[silAST.programs.Program])

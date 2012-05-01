@@ -276,9 +276,9 @@ trait ScopeTranslator
               // `inhale  get(m_0,(ref,field)) = perm(ref,field)` where (ref,field) = location
               inhale((prelude.Map.PermissionMap.get.apply(originalPermMapTerm,location))===(currentActualPermission))
   
-              // `exhale k_method < get(m,(ref,field))`
+              // `exhale 0 < get(m,(ref,field))`
               val currentVirtualPermission = prelude.Map.PermissionMap.get.p(permMapTerm,location)
-              exhale(permissionLT.apply(readFractionVariable,currentVirtualPermission))
+              exhale(permissionLT.apply(noPermission,currentVirtualPermission))
   
               // `inhale k < (get(m,(ref,field)) - k_method)`
               inhale(permissionLT.apply(callReadFractionTerm,permissionSubtraction.apply(currentVirtualPermission,readFractionVariable)))

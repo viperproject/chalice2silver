@@ -119,7 +119,7 @@ abstract class ChaliceSuite extends FunSuite { //
 
             Console.out.println("Passing SIL program to Silicon")
             val siliconResults = {
-              val config = new Config(z3exe = TestConfig.z3path.toAbsolutePath.toString)
+              val config = new Config(z3exe = DefaultConfig.z3path.toAbsolutePath.toString)
 
               val silicon = new Silicon(config)
 
