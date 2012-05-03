@@ -1,5 +1,7 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
+import silAST.source.SourceLocation
+
 /**
   * @author Christian Klauser
   */
@@ -14,7 +16,7 @@ class DerivedMemberEnvironment(methodEnvironment : MemberEnvironment)
   
   assert(!parentEnvironment.isInstanceOf[DerivedMemberEnvironment])
 
-  override def readFractionVariable = parentEnvironment.readFractionVariable
+  override def environmentReadFractionTerm(sourceLocation : SourceLocation) = parentEnvironment.environmentReadFractionTerm(sourceLocation)
 
   override def programVariables = parentEnvironment.programVariables
 

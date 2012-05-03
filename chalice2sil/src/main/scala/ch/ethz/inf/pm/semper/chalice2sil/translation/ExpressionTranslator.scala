@@ -90,8 +90,15 @@ trait ExpressionTranslator extends MemberEnvironment {
       case expression@chalice.Access(memberAccess, permission) => translateAccessExpression(permission)(
           currentExpressionFactory.makePermissionExpression(translateTerm(memberAccess.e),fields(memberAccess.f),_)(expression))
       case ma@chalice.MemberAccess(target,_) if ma.isPredicate =>
-        report(messages.UnknownAstNode(ma))
-        dummyExpr(currentExpressionFactory,ma)
+        currentExpressionFactory.makePredicateExpression(translateTerm(target),predicates(ma.predicate))(ma)
+      case unfolding@chalice.Unfolding(predicateAccess, body) =>
+        if(predicateAccess.perm != chalice.Full){
+          report(messages.PredicatePermissionScalingNotImplemented(predicateAccess))
+        }
+        val location = translateTerm(predicateAccess.ma.e)
+        val predExpr = currentExpressionFactory.makePredicateExpression(
+            location,predicates(predicateAccess.ma.predicate))(predicateAccess)
+        currentExpressionFactory.makeUnfoldingExpression(predExpr,translateExpression(body))(unfolding)
       case boolExpr if boolExpr.typ == chalice.BoolClass =>
         val boolTerm = translateTerm(boolExpr)
         currentExpressionFactory.makeDomainPredicateExpression(prelude.Boolean.eval,TermSequence(boolTerm))(boolExpr)
@@ -107,7 +114,7 @@ trait ExpressionTranslator extends MemberEnvironment {
       currentExpressionFactory.makeQuantifierExpression(Exists()(s),readFractionVar, conjunction(List(
         permissionLT.apply(noPermission, readFractionTerm),   // 0 < k 
         permissionLT.apply(readFractionTerm, fullPermission), // k < write
-        permissionLT.apply(readFractionTerm, readFractionVariable), // k < k_method
+        permissionLT.apply(readFractionTerm, environmentReadFractionTerm(permission)), // k < k_method
         body(readFractionTerm))))(s)// body(k)
     case amount => body(translatePermission(amount))
   }

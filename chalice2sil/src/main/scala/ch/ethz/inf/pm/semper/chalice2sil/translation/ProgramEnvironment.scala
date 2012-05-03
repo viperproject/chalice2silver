@@ -17,7 +17,7 @@ trait ProgramEnvironment extends Environment {
   def programFactory : ProgramFactory
   def methods : FactoryCache[chalice.Method,MethodTranslator]
   def fields : DerivedFactoryCache[chalice.Field, String, FieldTranslator]
-  def predicates : DerivedFactoryCache[chalice.Predicate, String, PredicateFactory]
+  def predicates : DerivedFactoryCache[chalice.Predicate, String, PredicateTranslator]
   def functions : DerivedFactoryCache[chalice.Function,  String,  FunctionFactory]
   def prelude : ChalicePrelude
 

@@ -157,25 +157,14 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
   }
   
   object Predicate extends DomainEnvironment("Predicate",Seq()) {
-    val dataType = factory.makeNonReferenceDataType(factory,DataTypeSequence())(loc)
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Constructors
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val create = factory.defineDomainFunction("create",DataTypeSequence(integerType),dataType)(loc)
-    factory.addDomainAxiom("create_is_ctor",
-        ∀(integerType,integerType,(a,b) =>
-          create(a) ≡ create(b) ↔ (a ≡ b)
-      ))(loc)
-
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Read Fraction
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     val globalReadFraction = factory.defineDomainFunction("globalReadFraction",DataTypeSequence(),permissionType)(loc)
 
-    val readFraction = factory.defineDomainFunction("readFraction",DataTypeSequence(dataType, referenceType),permissionType)(loc)
+    val readFraction = factory.defineDomainFunction("readFraction",DataTypeSequence(integerType, referenceType),permissionType)(loc)
     factory.addDomainAxiom("globalReadFraction",
-      ∀(dataType,referenceType, (pred,ref) => readFraction(pred,ref) ≡ globalReadFraction())
+      ∀(integerType,referenceType, (pred,ref) => readFraction(pred,ref) ≡ globalReadFraction())
     )(loc)
   }
 

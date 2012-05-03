@@ -16,6 +16,15 @@ object ChannelsNotImplemented extends MessageId(
   }
 }
 
+object PredicatePermissionScalingNotImplemented extends MessageId(
+  Error,
+  "ch.ethz.inf.pm.semper.chalice2sil.predicatePermissionScalingNotImplemented",
+  "Permission scaling for predicates is not implemented. (%s)") {
+  def apply(predicateAccess : chalice.Access) = new Message(this,predicateAccess) {
+    def data = Array(predicateAccess)
+  }
+}
+
 object UnknownAstNode extends MessageId(
   Fault,
   "ch.ethz.inf.pm.semper.chalice2sil.unknownAstNode",

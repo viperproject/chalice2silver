@@ -6,6 +6,7 @@ import silAST.methods.implementations.{ImplementationFactory, BasicBlockFactory}
 import util._
 import silAST.expressions.{Expression, ExpressionFactory}
 import silAST.source.SourceLocation
+import silAST.expressions.terms.Term
 
 /**
   *
@@ -13,7 +14,7 @@ import silAST.source.SourceLocation
 trait MemberEnvironment extends ProgramEnvironment {
   def programVariables : DerivedFactoryCache[chalice.Variable,String, ProgramVariable]
   def thisVariable : ProgramVariable
-  def readFractionVariable : ProgramVariable
+  def environmentReadFractionTerm(sourceLocation : SourceLocation) : Term
   def currentExpressionFactory : ExpressionFactory
   def nameSequence : NameSequence
  

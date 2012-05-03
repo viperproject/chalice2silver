@@ -11,7 +11,6 @@ import silAST.expressions._
 import silAST.types._
 import silAST.expressions.util.{TermSequence, PTermSequence}
 import silAST.methods.implementations.{CFGFactory, BasicBlockFactory}
-import chalice.Variable
 
 /**
   * @author Christian Klauser
@@ -28,9 +27,9 @@ trait ScopeTranslator
   final type CodeTranslator = ExpressionTranslator with TermTranslator with PermissionTranslator
 
   class ProgramVariableManager extends DerivedFactoryCache[chalice.Variable,  String, ProgramVariable] {
-    protected def deriveKey(p : Variable) = p.UniqueName
+    protected def deriveKey(p : chalice.Variable) = p.UniqueName
 
-    protected def construct(p : Variable) = declareScopedVariable(p,deriveKey(p),translateTypeExpr(p.t))
+    protected def construct(p : chalice.Variable) = declareScopedVariable(p,deriveKey(p),translateTypeExpr(p.t))
 
     override protected def deriveKeyFromValue(value : ProgramVariable) = value.name
   }
@@ -136,7 +135,9 @@ trait ScopeTranslator
         }
       case callNode:chalice.CallAsync => translateMethodFork(callNode)
       case c:chalice.Call if c.m.isInstanceOf[chalice.Method] => translateMethodCall(c)
-      case callNode:chalice.JoinAsync => translateMethodJoin(callNode) 
+      case callNode:chalice.JoinAsync => translateMethodJoin(callNode)
+      case foldNode:chalice.Fold => translateFold(codeTranslator, foldNode)
+      case unfoldNode:chalice.Unfold => translateUnfold(codeTranslator,unfoldNode)
       case otherStmt => report(messages.UnknownAstNode(otherStmt))
     }
 
@@ -177,7 +178,7 @@ trait ScopeTranslator
       // `inhale 0 < k ∧ k < full ∧ k < method_k`
       val kPositive = permissionLT.apply(noPermission,callReadFractionTerm)
       val kOnlyRead = permissionLT.apply(callReadFractionTerm,fullPermission)
-      val kSubfraction = permissionLT.apply(callReadFractionTerm,this.readFractionVariable)
+      val kSubfraction = permissionLT.apply(callReadFractionTerm,this.environmentReadFractionTerm(callNode))
       inhale(List(kPositive,kOnlyRead,kSubfraction))
   
       // Permission maps
@@ -254,7 +255,7 @@ trait ScopeTranslator
         * @param rs the list of read permission conditions to implement.
         */
       def appendCond(rs : List[ReadCondition]){
-        val combined = new CombinedPrecondition(this,currentExpressionFactory.makeProgramVariableTerm(this.readFractionVariable)(callNode))
+        val combined = new CombinedPrecondition(this,this.environmentReadFractionTerm(callNode))
         rs foreach {
           case ReadField(reference,field) =>
             val originalPermMapTerm = currentExpressionFactory.makeProgramVariableTerm(originalPermMapVar)(callNode)
@@ -281,7 +282,7 @@ trait ScopeTranslator
               exhale(permissionLT.apply(noPermission,currentVirtualPermission))
   
               // `inhale k < (get(m,(ref,field)) - k_method)`
-              inhale(permissionLT.apply(callReadFractionTerm,permissionSubtraction.apply(currentVirtualPermission,readFractionVariable)))
+              inhale(permissionLT.apply(callReadFractionTerm,permissionSubtraction.apply(currentVirtualPermission,environmentReadFractionTerm(callNode))))
   
               // `m := set(m,(ref,field),get(m,(ref,field)) - k)`
               val nextVirtualPermission = permissionSubtraction.p(currentVirtualPermission,callReadFractionTerm)
@@ -551,9 +552,32 @@ trait ScopeTranslator
     }
   }
 
+  def translateFold(codeTranslator : CodeTranslator, foldNode : chalice.Fold) {
+    val predicateAccess = foldNode.pred
+    if(predicateAccess.perm != chalice.Full) {
+      report(messages.PredicatePermissionScalingNotImplemented(predicateAccess))
+    }
+    val location = codeTranslator.translateTerm(predicateAccess.ma.e)
+    val predicateExpr = currentExpressionFactory.makePredicateExpression(
+      location,
+      predicates(predicateAccess.ma.predicate))(predicateAccess.ma)
+    currentBlock.appendFold(predicateExpr)(foldNode)
+  }
+
+  def translateUnfold(codeTranslator : CodeTranslator, unfoldNode : chalice.Unfold) {
+    val predicateAccess = unfoldNode.pred
+    if(predicateAccess.perm != chalice.Full) {
+      report(messages.PredicatePermissionScalingNotImplemented(predicateAccess))
+    }
+    val location = codeTranslator.translateTerm(predicateAccess.ma.e)
+    val predicateExpr = currentExpressionFactory.makePredicateExpression(
+      location,
+      predicates(predicateAccess.ma.predicate))(predicateAccess.ma)
+    currentBlock.appendUnfold(predicateExpr)(unfoldNode)
+  }
+
   class MemberCodeTranslator extends DefaultCodeTranslator(thisScopeTranslator) {
-    override protected def readFraction(location : SourceLocation) =
-      currentExpressionFactory.makeProgramVariableTerm(readFractionVariable)(location)
+    override protected def readFraction(location : SourceLocation) = environmentReadFractionTerm(location)
   }
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

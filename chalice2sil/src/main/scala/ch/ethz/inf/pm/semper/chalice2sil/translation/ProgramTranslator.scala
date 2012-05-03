@@ -36,9 +36,8 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
     lazy val specialNameList = List(prelude.Token.joinable.name)
 
     override def getOrElseUpdate(p : chalice.Field) = p match {
-        //As a side-effect of encountering a special field, create special fields.
       case chalice.SpecialField(name,_,_) if specialNameList contains name =>
-        super.getOrElseUpdate(p)
+        super.getOrElseUpdate(p) //TODO: do special fields need some kind of initialization?
       case _ => super.getOrElseUpdate(p)
     }
 
@@ -47,10 +46,10 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
     override protected def deriveKeyFromValue(value : FieldTranslator) = value.field.name
   }
 
-  val predicates = new DerivedFactoryCache[chalice.Predicate, String, PredicateFactory] {
+  val predicates = new DerivedFactoryCache[chalice.Predicate, String, PredicateTranslator] {
     protected def deriveKey(p : chalice.Predicate) = fullPredicateName(p)
 
-    protected def construct(p : chalice.Predicate) = programFactory.getPredicateFactory(fullPredicateName(p))(p)
+    protected def construct(p : chalice.Predicate) = new PredicateTranslator(programTranslator,p,getNextId)
   }
   
   val functions = new DerivedFactoryCache[chalice.Function,  String,  FunctionFactory] {
@@ -77,7 +76,12 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
   }}
 
   protected def collectSymbols(classNode : chalice.Class){
-    classNode.members.view.collect({case f:chalice.Field => f}).foreach(fields(_))
+    classNode.members.view foreach  {
+      case f:chalice.Field => fields(f)
+      case p:chalice.Predicate => predicates(p)
+      case m:chalice.Method => methods(m)
+      case _ => // ignore other symbols
+    }
   }
 
   protected def translate(decl : chalice.TopLevelDecl) {decl match {
@@ -91,6 +95,8 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
       case m:chalice.Method  =>
         methods(m).translate()
       case f:chalice.Field => // nothing to do for fields at this time
+      case p:chalice.Predicate =>
+        predicates(p).translate()
       case otherNode => report(messages.UnknownAstNode(otherNode))
     })
   }
