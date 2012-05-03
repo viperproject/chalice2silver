@@ -1,0 +1,93 @@
+package ch.ethz.inf.pm.semper.chalice2sil.translation
+
+import ch.ethz.inf.pm.semper.chalice2sil
+import chalice2sil._
+import silAST.source.SourceLocation
+import silAST.expressions.util.TermSequence
+import util.DerivedFactoryCache
+import chalice.Variable
+import silAST.programs.symbols.{FunctionFactory, ProgramVariable, PredicateFactory}
+
+/**
+  * @author Christian Klauser
+  */
+class FunctionTranslator(environment : ProgramEnvironment, val function : chalice.Function)
+  extends DerivedProgramEnvironment(environment)
+  with MemberEnvironment
+  with TypeTranslator {
+  val functionFactory : FunctionFactory = programFactory.getFunctionFactory(
+    fullFunctionName(function),
+    function.ins.map(
+      v => (v:SourceLocation,v.UniqueName, translateTypeExpr(v.t))),
+    translateTypeExpr(function.out))(function)
+
+  def programVariables = new DerivedFactoryCache[chalice.Variable, String, ProgramVariable] {
+    /**
+      * Derives the key from a supplied prototype.
+      *
+      * Note that, while prototypes may be mutable, the key derived from it should be the same while the prototype is in
+      * the same state, i.e., you can't just return an incrementing integer. Otherwise the following code would not work:
+      * {{{
+      *   val cache = new DerivedFactoryCache[P,K,V] {...}
+      *   val prototype = ...
+      *   assert(cache(prototype) == cache(prototype)) //deriveKey must return the same key for both lookups
+      * }}}
+
+    }* @param p The prototype to derive a key from.
+      * @return the key for the prototype
+      */
+    protected def deriveKey(p : Variable) = p.UniqueName
+
+
+    /**
+      * Determines the appropriate key for a value.
+      *
+      * By default, this method throws an `UnsupportedOperationException`.
+      * If you want the functionality of the `AdjustableCache` trait, override this method and provide an implementation.
+      * @param value The value for which the key should be derived.
+      * @return The (unique) key for this value.
+      */
+    override protected def deriveKeyFromValue(value : ProgramVariable) = value.name
+
+    /**
+      * In case of a cache-miss, this method is called to create the missing entry. The key with which the value will
+      * be added to the cache has been determined before via the `deriveKey` method.
+      * @param p  The prototype to create the value from.
+      * @return The value to be added to the cache.
+      */
+    protected def construct(p : Variable) = throw new
+        UnsupportedOperationException("Functions cannot define new program variables.")
+  }
+
+  def thisVariable = functionFactory.thisVar
+
+  def environmentReadFractionTerm(sourceLocation : SourceLocation) = {
+    val reference = currentExpressionFactory.makeProgramVariableTerm(thisVariable)(sourceLocation)
+    currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Predicate.readFraction,
+      TermSequence(reference))(sourceLocation)
+  }
+
+  def currentExpressionFactory = functionFactory
+
+  def nameSequence = util.NameSequence()
+
+  /**
+    * Translates the body of the predicate. Must be called exactly once.
+    */
+  def translate() {
+    programVariables.addExternal(thisVariable)
+    programVariables.addExternal(functionFactory.resultVar)
+    val translator = new DefaultCodeTranslator(this) {
+      override protected def readFraction(location : SourceLocation) = environmentReadFractionTerm(location)
+    }
+    function.spec foreach {
+      case chalice.Precondition(e) => functionFactory.addPrecondition(translator.translateExpression(e))
+      case chalice.Postcondition(e) => functionFactory.addPostcondition(translator.translateExpression(e))
+      case otherNode =>
+        report(messages.UnknownAstNode(otherNode))
+    }
+    functionFactory.setBody(translator.translateTerm(function.definition.get))
+    functionFactory.setMeasure(currentExpressionFactory.makeIntegerLiteralTerm(1)(function))
+  }
+
+}

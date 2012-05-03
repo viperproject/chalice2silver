@@ -18,7 +18,7 @@ trait ProgramEnvironment extends Environment {
   def methods : FactoryCache[chalice.Method,MethodTranslator]
   def fields : DerivedFactoryCache[chalice.Field, String, FieldTranslator]
   def predicates : DerivedFactoryCache[chalice.Predicate, String, PredicateTranslator]
-  def functions : DerivedFactoryCache[chalice.Function,  String,  FunctionFactory]
+  def functions : DerivedFactoryCache[chalice.Function,  String,  FunctionTranslator]
   def prelude : ChalicePrelude
 
   lazy val domains = List(integerDomain,permissionDomain,referenceDomain,prelude.Boolean.domain)

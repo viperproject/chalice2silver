@@ -182,6 +182,20 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     )(loc)
   }
 
+  object Function extends DomainEnvironment("Function",Seq()) {
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Read Fraction
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    val globalReadFraction = factory.defineDomainFunction("globalReadFraction",DataTypeSequence(),permissionType)(loc)
+    factory.addDomainAxiom("functions_and_predicates_are_the_same",
+      Predicate.globalReadFraction() ≡ Monitor.globalReadFraction())(loc)
+
+    val readFraction = factory.defineDomainFunction("readFraction",DataTypeSequence(referenceType),permissionType)(loc)
+    factory.addDomainAxiom("globalReadFraction",
+      ∀(referenceType, (ref) => readFraction(ref) ≡ globalReadFraction())
+    )(loc)
+  }
+
   object Pair {
     object Template extends DomainEnvironment("Pair",Seq((loc,"A"),(loc,"B"))){
       val firstType = factory.makeVariableType(factory.typeVariables.find(_.name ==  "A").get)(loc)

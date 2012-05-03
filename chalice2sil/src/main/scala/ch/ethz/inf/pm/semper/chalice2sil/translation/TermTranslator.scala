@@ -70,6 +70,11 @@ trait TermTranslator extends MemberEnvironment with TypeTranslator {
         val location = translateTerm(predicateAccess.ma.e)
         currentExpressionFactory.makeUnfoldingTerm(
           location,predicates(predicateAccess.ma.predicate),translateTerm(body))(unfolding)
+      case functionApplication@chalice.FunctionApplication(receiver,_,args) =>
+        currentExpressionFactory.makeFunctionApplicationTerm(
+          translateTerm(receiver),
+          functions(functionApplication.f),
+          TermSequence(args.map(translateTerm(_)):_*))(functionApplication)
       case binary:chalice.BinaryExpr => translateBinaryExpression(binary)
   }
 

@@ -52,14 +52,10 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
     protected def construct(p : chalice.Predicate) = new PredicateTranslator(programTranslator,p,getNextId)
   }
   
-  val functions = new DerivedFactoryCache[chalice.Function,  String,  FunctionFactory] {
+  val functions = new DerivedFactoryCache[chalice.Function,  String,  FunctionTranslator] {
     protected def deriveKey(f : chalice.Function) = fullFunctionName(f)
 
-    protected def construct(f : chalice.Function) = {
-      val params = f.ins.map[(SourceLocation,String, DataType),Seq[(SourceLocation,String, DataType)]](
-        v => (v,v.id,translateTypeExpr(v.t)))
-      programFactory.getFunctionFactory(fullFunctionName(f),params,translateTypeExpr(f.out))(f)
-    }
+    protected def construct(f : chalice.Function) = new FunctionTranslator(programTranslator,f)
   }
 
   val prelude = new ChalicePrelude(this)
@@ -80,6 +76,7 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
       case f:chalice.Field => fields(f)
       case p:chalice.Predicate => predicates(p)
       case m:chalice.Method => methods(m)
+      case f:chalice.Function => functions(f)
       case _ => // ignore other symbols
     }
   }
@@ -97,6 +94,8 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
       case f:chalice.Field => // nothing to do for fields at this time
       case p:chalice.Predicate =>
         predicates(p).translate()
+      case f:chalice.Function =>
+        functions(f).translate()
       case otherNode => report(messages.UnknownAstNode(otherNode))
     })
   }
