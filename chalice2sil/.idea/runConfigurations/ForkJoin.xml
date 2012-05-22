@@ -9,6 +9,7 @@
     <setting name="searchForTest" value="Across module dependencies" />
     <setting name="testName" value="crossMethodToken.chalice" />
     <setting name="testKind" value="Class" />
+    <setting name="showProgressMessages" value="Class" />
     <method>
       <option name="Make" enabled="false" />
       <option name="SBT.BeforeRunTask" enabled="true" action="test:compile" runInCurrentModule="false" />

@@ -9,8 +9,8 @@ import silAST.expressions.terms._
 import silAST.symbols.logical.{Equivalence, Or, And, Implication}
 import silAST.expressions._
 import silAST.types._
-import silAST.expressions.util.{TermSequence, PTermSequence}
 import silAST.methods.implementations.{CFGFactory, BasicBlockFactory}
+import silAST.expressions.util.{TermSequence, PTermSequence}
 
 /**
   * @author Christian Klauser
@@ -154,7 +154,29 @@ trait ScopeTranslator
     def _1 = lhs
     def _2 = rhs
   }
-  protected final case class ReadField(reference : PTerm, field : FieldTranslator) extends ReadCondition
+  protected final case class ReadField(reference : PTerm, field : FieldTranslator, permissionAmount : PTerm) extends ReadCondition
+
+  def allowsInexactChecking(permissionTerm : Term, methodFraction : Term, isNegative : Boolean = false) : Boolean = permissionTerm match {
+    case DomainFunctionApplicationTerm(f,TermSequence(left,right)) if
+      f == permissionMultiplication || f == permissionAddition =>
+        allowsInexactChecking(left, methodFraction,isNegative) && allowsInexactChecking(right, methodFraction,isNegative)
+    case DomainFunctionApplicationTerm(f,TermSequence(left,right)) if
+      f == permissionSubtraction => allowsInexactChecking(left,methodFraction,isNegative) && allowsInexactChecking(right,methodFraction,!isNegative)
+    case DomainFunctionApplicationTerm(f,TermSequence(scale,perm)) if
+      f == permissionIntegerMultiplication => allowsInexactChecking(perm,methodFraction,isNegative)
+    case rd if rd == methodFraction => !isNegative
+    case _ => false
+  }
+
+  def filterCondByChecking(rs : List[ReadCondition], inexact : Boolean, methodFraction : Term) : List[ReadCondition] = rs.map({
+    case rf@ReadField(_,_,perm) if allowsInexactChecking(perm,methodFraction) == inexact => rf
+    case ReadImplication(lhs,rs2) => val rs3 =
+        filterCondByChecking(rs2, inexact, methodFraction).collect({
+          case rf@ReadField(_,_,_) => rf
+          case ri@ReadImplication(_,_::_) => ri
+        })
+      ReadImplication(lhs, rs3)
+  })
 
   /**
     * Produces SIL code that determines the read permission fraction (`k`) for a call (synchronous or asynchronous)
@@ -201,7 +223,7 @@ trait ScopeTranslator
       def transplantExpression(e : PExpression) : PExpression = {
         e.substitute(callSubstitution)
       }
-      def transplantTerm(t : PTerm) : PTerm = {
+      def transplantPTerm(t : PTerm) : PTerm = {
         t.substitute(callSubstitution)
       }
   
@@ -214,13 +236,8 @@ trait ScopeTranslator
       def genReadCond(expr : Expression) : List[ReadCondition] = expr match {
         case PermissionExpression(_,_,FullPermissionTerm()) => Nil
         case PermissionExpression(_,_,NoPermissionTerm()) => Nil
-        case p@PermissionExpression(reference:PTerm,field,pTerm) => pTerm match {
-          case ProgramVariableTerm(varRef) if varRef == calleeFactory.parameters.last =>
-            List(ReadField(transplantTerm(reference),fields.lookup(field.name)))
-          case _ =>
-            report(messages.PermissionNotUnderstood(callNode,pTerm))
-            Nil
-        }
+        case p@PermissionExpression(reference:PTerm,field,pTerm:PTerm) =>
+          List(ReadField(transplantPTerm(reference),fields.lookup(field.name),pTerm))
         case PermissionExpression(nonReferenceTerm,_,_) =>
           report(messages.ContractNotUnderstood(expr))
           Nil
@@ -254,12 +271,13 @@ trait ScopeTranslator
         * the corresponding conditions on `k`.
         * @param rs the list of read permission conditions to implement.
         */
-      def appendCond(rs : List[ReadCondition]){
+      def appendCond(rs : List[ReadCondition], allowInexact : Boolean){
         val combined = new CombinedPrecondition(this,this.environmentReadFractionTerm(callNode))
         rs foreach {
-          case ReadField(reference,field) =>
+          case ReadField(reference,field,perm) =>
             val originalPermMapTerm = currentExpressionFactory.makeProgramVariableTerm(originalPermMapVar)(callNode)
             val permMapTerm = currentExpressionFactory.makeProgramVariableTerm(permMapVar)(callNode)
+            val localPermTerm = transplantPTerm(perm)
   
             val currentActualPermission = currentExpressionFactory.makePermTerm(reference,field)(callNode)
             temporaries.using(prelude.Pair.Location.dataType){ locationVar =>
@@ -276,16 +294,21 @@ trait ScopeTranslator
   
               // `inhale  get(m_0,(ref,field)) = perm(ref,field)` where (ref,field) = location
               inhale((prelude.Map.PermissionMap.get.apply(originalPermMapTerm,location))===(currentActualPermission))
-  
-              // `exhale 0 < get(m,(ref,field))`
+
               val currentVirtualPermission = prelude.Map.PermissionMap.get.p(permMapTerm,location)
-              exhale(permissionLT.apply(noPermission,currentVirtualPermission))
+              if(allowInexact){
+                // `exhale 0 < get(m,(ref,field))`
+                exhale(permissionLT.apply(noPermission,currentVirtualPermission))
+
+                // `inhale k < get(m,(ref,field))`
+                inhale(permissionLT.apply(localPermTerm,currentVirtualPermission))
+              } else {
+                // `exhale perm <= get(m,(ref,field))`
+                exhale(permissionLE.apply(localPermTerm,currentVirtualPermission))
+              }
   
-              // `inhale k < (get(m,(ref,field)) - k_method)`
-              inhale(permissionLT.apply(callReadFractionTerm,permissionSubtraction.apply(currentVirtualPermission,environmentReadFractionTerm(callNode))))
-  
-              // `m := set(m,(ref,field),get(m,(ref,field)) - k)`
-              val nextVirtualPermission = permissionSubtraction.p(currentVirtualPermission,callReadFractionTerm)
+              // `m := set(m,(ref,field),get(m,(ref,field)) - perm)`
+              val nextVirtualPermission = permissionSubtraction.p(currentVirtualPermission,localPermTerm)
               permMapVar <-- (prelude.Map.PermissionMap.update.p(permMapTerm,location,nextVirtualPermission))
             }
           case _ =>
@@ -293,14 +316,15 @@ trait ScopeTranslator
   
         rs collect { case a@ReadImplication(_,_) => a } groupBy (_.lhs) foreach { i =>
           silIf(i._1){
-            appendCond(i._2.map(_.rhs).flatten)
+            appendCond(i._2.map(_.rhs).flatten,allowInexact)
           } end()
         }
       }
   
-      calleeFactory.methodFactory.method.signature.precondition
+      val readConds = calleeFactory.methodFactory.method.signature.precondition
         .map(genReadCond _)
-        .foreach(appendCond _)
+
+      readConds.foreach(appendCond(_,true))
   
       callReadFractionTerm
     }
