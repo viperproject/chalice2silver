@@ -9,7 +9,7 @@ object HelloBuild extends Build {
                             base = file("boogie/Chalice"))
 							
   lazy val silast = Project(id = "silast",
-                            base = file("silast/src/SILAST"))
+                            base = file("silicon/silast/src/SILAST"))
 
   lazy val silicon = Project(id = "silicon",
                          base = file("silicon")) dependsOn(silast)

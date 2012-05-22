@@ -2,6 +2,9 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="svn" />
+    <mapping directory="$PROJECT_DIR$/boogie" vcs="hg4idea" />
+    <mapping directory="$PROJECT_DIR$/silicon" vcs="svn" />
+    <mapping directory="$PROJECT_DIR$/silicon/silast" vcs="svn" />
   </component>
 </project>
 

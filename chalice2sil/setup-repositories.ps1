@@ -17,8 +17,8 @@ $sd = (Split-Path $Invocation.MyCommand.Path);
 
 # Assemble paths
 $boogie = Join-Path $sd "boogie";
-$silast = Join-Path $sd "silast";
 $silicon = Join-Path $sd "silicon";
+$silast = Join-Path $silicon "silast";
 
 if($Force){
 	Remove-Item $boogie,$silast,$silicon -Recurse -Force;
@@ -37,6 +37,13 @@ if(-not (Test-Path $boogie)){
     cp $sbtjar,$sbt $chalice;
 }
 
+# Check out Silicon
+
+if(-not (Test-Path silicon)){
+    "Checking out Silicon to $silicon"
+    svn checkout https://svn.inf.ethz.ch/svn/pmueller/pm-group/projects/semper/SymbExEngine/trunk/Silicon "$silicon" --quiet
+}
+
 # Check out SILAST
 
 if(-not (Test-Path $silast)){
@@ -44,12 +51,6 @@ if(-not (Test-Path $silast)){
     svn checkout https://svn.inf.ethz.ch/svn/pmueller/pm-group/projects/semper/SILAST/trunk "$silast" --quiet
 }
 
-# Check out Silicon
-
-if(-not (Test-Path silicon)){
-    "Checking out Silicon to $silicon"
-    svn checkout https://svn.inf.ethz.ch/svn/pmueller/pm-group/projects/semper/SymbExEngine/trunk/Silicon "$silicon" --quiet
-}
 
 #########################################################################################
 ########     TROUBLESHOOTING                                         ####################
