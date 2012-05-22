@@ -32,8 +32,7 @@ class FunctionTranslator(environment : ProgramEnvironment, val function : chalic
       *   val prototype = ...
       *   assert(cache(prototype) == cache(prototype)) //deriveKey must return the same key for both lookups
       * }}}
-
-    }* @param p The prototype to derive a key from.
+      * @param p The prototype to derive a key from.
       * @return the key for the prototype
       */
     protected def deriveKey(p : Variable) = p.UniqueName

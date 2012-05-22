@@ -27,4 +27,6 @@ class FieldTranslator(
     expressionFactory.makePDomainFunctionApplicationTerm(
       prelude.Pair.Location.create,PTermSequence(reference,fieldLiteral))(reference.sourceLocation)
   }
+
+  override def toString = field.toString;
 }

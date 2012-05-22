@@ -64,7 +64,7 @@ trait TermTranslator extends MemberEnvironment with TypeTranslator {
       case literal@chalice.NullLiteral() =>
         currentExpressionFactory.makePDomainFunctionApplicationTerm(nullFunction,PTermSequence())(literal)
       case unfolding@chalice.Unfolding(predicateAccess, body) =>
-        if(predicateAccess.perm != chalice.Full){
+        if(predicateAccess.perm == chalice.Full){
           report(messages.PredicatePermissionScalingNotImplemented(predicateAccess))
         }
         val location = translateTerm(predicateAccess.ma.e)

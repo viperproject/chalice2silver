@@ -147,7 +147,8 @@ trait ScopeTranslator
       .format(stmt))
   }
 
-  protected abstract sealed class ReadCondition;
+  protected abstract sealed class ReadCondition
+
   protected final case class ReadImplication(lhs : PExpression, rhs : List[ReadCondition])
     extends ReadCondition
     with Product2[PExpression, List[ReadCondition]] {
@@ -168,12 +169,12 @@ trait ScopeTranslator
     case _ => false
   }
 
-  def filterCondByChecking(rs : List[ReadCondition], inexact : Boolean, methodFraction : Term) : List[ReadCondition] = rs.map({
+  def filterCondByChecking(rs : List[ReadCondition], inexact : Boolean, methodFraction : Term) : List[ReadCondition] = rs.collect({
     case rf@ReadField(_,_,perm) if allowsInexactChecking(perm,methodFraction) == inexact => rf
     case ReadImplication(lhs,rs2) => val rs3 =
         filterCondByChecking(rs2, inexact, methodFraction).collect({
           case rf@ReadField(_,_,_) => rf
-          case ri@ReadImplication(_,_::_) => ri
+          case ri@ReadImplication(_,_::_) => ri //we're not interested in empty lists
         })
       ReadImplication(lhs, rs3)
   })
@@ -237,7 +238,7 @@ trait ScopeTranslator
         case PermissionExpression(_,_,FullPermissionTerm()) => Nil
         case PermissionExpression(_,_,NoPermissionTerm()) => Nil
         case p@PermissionExpression(reference:PTerm,field,pTerm:PTerm) =>
-          List(ReadField(transplantPTerm(reference),fields.lookup(field.name),pTerm))
+          List(ReadField(transplantPTerm(reference),fields.lookup(field.name),transplantPTerm(pTerm)))
         case PermissionExpression(nonReferenceTerm,_,_) =>
           report(messages.ContractNotUnderstood(expr))
           Nil
@@ -277,7 +278,6 @@ trait ScopeTranslator
           case ReadField(reference,field,perm) =>
             val originalPermMapTerm = currentExpressionFactory.makeProgramVariableTerm(originalPermMapVar)(callNode)
             val permMapTerm = currentExpressionFactory.makeProgramVariableTerm(permMapVar)(callNode)
-            val localPermTerm = transplantPTerm(perm)
   
             val currentActualPermission = currentExpressionFactory.makePermTerm(reference,field)(callNode)
             temporaries.using(prelude.Pair.Location.dataType){ locationVar =>
@@ -298,17 +298,17 @@ trait ScopeTranslator
               val currentVirtualPermission = prelude.Map.PermissionMap.get.p(permMapTerm,location)
               if(allowInexact){
                 // `exhale 0 < get(m,(ref,field))`
-                exhale(permissionLT.apply(noPermission,currentVirtualPermission))
+                exhale(permissionLT.apply(noPermission,currentVirtualPermission), "Permission to " + field.field + " might not be positive.")
 
                 // `inhale k < get(m,(ref,field))`
-                inhale(permissionLT.apply(localPermTerm,currentVirtualPermission))
+                inhale(permissionLT.apply(perm,currentVirtualPermission))
               } else {
                 // `exhale perm <= get(m,(ref,field))`
-                exhale(permissionLE.apply(localPermTerm,currentVirtualPermission))
+                exhale(permissionLE.apply(perm,currentVirtualPermission), "Possibly insufficient permission to " + field.field + ".")
               }
   
               // `m := set(m,(ref,field),get(m,(ref,field)) - perm)`
-              val nextVirtualPermission = permissionSubtraction.p(currentVirtualPermission,localPermTerm)
+              val nextVirtualPermission = permissionSubtraction.p(currentVirtualPermission,perm)
               permMapVar <-- (prelude.Map.PermissionMap.update.p(permMapTerm,location,nextVirtualPermission))
             }
           case _ =>
@@ -324,7 +324,14 @@ trait ScopeTranslator
       val readConds = calleeFactory.methodFactory.method.signature.precondition
         .map(genReadCond _)
 
-      readConds.foreach(appendCond(_,true))
+      def emitConditionCode(allowInexact : Boolean) {
+        appendCond(filterCondByChecking(readConds.flatten.toList,allowInexact,callReadFractionTerm),allowInexact)
+      }
+
+      // First handle all cases where we have some flexibility when choosing k,
+      // and only then handle the cases where k is treated as fixed.
+      emitConditionCode(allowInexact = true)
+      emitConditionCode(allowInexact = false)
   
       callReadFractionTerm
     }

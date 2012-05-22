@@ -17,12 +17,12 @@ import silAST.symbols.logical.And
 /**
   * @author Christian Klauser
   */
-class LanguageConstruct(environment : ScopeTranslator, sourceLocation_ : SourceLocation)
-  extends LanguageConstructBase(environment, sourceLocation_) {
+class LanguageConstruct(scope : ScopeTranslator, sourceLocation_ : SourceLocation)
+  extends LanguageConstructBase(scope, sourceLocation_) {
   import environment._
 
   protected class ImpureHeapLocationOps protected[LanguageConstruct](variable : ProgramVariable, field : Field) extends PureHeapLocationOps(variable,field) {
-    def <--(rhs : PTerm) { environment.currentBlock.appendFieldAssignment(variable,field,rhs)(sourceLocation) }
+    def <--(rhs : PTerm) { scope.currentBlock.appendFieldAssignment(variable,field,rhs)(sourceLocation) }
   }
 
   final implicit def heapLocationOps(location : (ProgramVariable,Field)) : ImpureHeapLocationOps = new ImpureHeapLocationOps(location._1,location._2)
@@ -32,22 +32,22 @@ class LanguageConstruct(environment : ScopeTranslator, sourceLocation_ : SourceL
 
   final implicit def programVariableSeqOps(vars : Seq[ProgramVariable]) = new {
     def <--(call : MethodCallSpec) {
-      environment.currentBlock.appendCall(
+      scope.currentBlock.appendCall(
         currentExpressionFactory.makeProgramVariableSequence(vars)(sourceLocation),
         call._1,
         call._2,
         PTermSequence(call._3:_*))(sourceLocation)
     }
     def <--(rhss : Iterable[PTerm]) {
-      vars.zip(rhss).foreach(t => environment.currentBlock.appendAssignment(t._1,t._2)(sourceLocation))
+      vars.zip(rhss).foreach(t => scope.currentBlock.appendAssignment(t._1,t._2)(sourceLocation))
     }
   }
 
   protected class ImpureProgramVariableOps protected[LanguageConstruct](variable : ProgramVariable)
     extends PureProgramVariableOps(variable) {
-    def <--(rhs : PTerm) { environment.currentBlock.appendAssignment(variable,rhs)(sourceLocation) }
+    def <--(rhs : PTerm) { scope.currentBlock.appendAssignment(variable,rhs)(sourceLocation) }
     def <--(call : MethodCallSpec) { Seq(variable) <-- call }
-    def <--(newReferenceTag : NewRef) { environment.currentBlock.appendNew(variable,referenceType)(sourceLocation) }
+    def <--(newReferenceTag : NewRef) { scope.currentBlock.appendNew(variable,referenceType)(sourceLocation) }
   }
 
   final implicit def programVariableOps(variable : ProgramVariable) : ImpureProgramVariableOps = new ImpureProgramVariableOps(variable)
@@ -68,15 +68,15 @@ class LanguageConstruct(environment : ScopeTranslator, sourceLocation_ : SourceL
   final implicit def methodOpsT(method : MethodTranslator) = new MethodOps(method.methodFactory)
 
   final def fold(spec : PredicateExpression) {
-    environment.currentBlock.appendFold(spec)(sourceLocation)
+    scope.currentBlock.appendFold(spec)(sourceLocation)
   }
 
   final def unfold(spec : PredicateExpression) {
-    environment.currentBlock.appendUnfold(spec)(sourceLocation)
+    scope.currentBlock.appendUnfold(spec)(sourceLocation)
   }
 
   final def inhale(expr : Expression) {
-    environment.currentBlock.appendInhale(expr)(sourceLocation)
+    scope.currentBlock.appendInhale(expr)(sourceLocation)
   }
   
   final def inhale(es : TraversableOnce[Expression]*) {
@@ -87,7 +87,11 @@ class LanguageConstruct(environment : ScopeTranslator, sourceLocation_ : SourceL
   }
 
   final def exhale(expr : Expression) {
-    environment.currentBlock.appendExhale(expr)(sourceLocation)
+    scope.currentBlock.appendExhale(expr)(sourceLocation)
+  }
+
+  final def exhale(expr : Expression, message : String){
+    scope.currentBlock.appendExhale(expr,Some(message))(sourceLocation)
   }
 
   final def exhale(es : TraversableOnce[Expression]*) {
