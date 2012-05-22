@@ -5,12 +5,9 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
   */
 
 import ch.ethz.inf.pm.semper.chalice2sil.ChaliceSuite
-import org.scalatest.junit.JUnitRunner
-import org.junit.runner.RunWith
 import org.scalatest.matchers.{MatchResult, BeMatcher, ShouldMatchers}
 import silAST.programs.symbols.ProgramVariable
 
-@RunWith(classOf[JUnitRunner])
 class CornerCases extends ChaliceSuite with ShouldMatchers {
 
   // COMMON

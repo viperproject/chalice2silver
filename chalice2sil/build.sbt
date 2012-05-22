@@ -1,10 +1,22 @@
 // Chalice2SIL
 
+import AssemblyKeys._
+
 name := "chalice2sil"
 
 organization := "ch.ethz.inf.pm"
 
 version := "0.1-SNAPSHOT"
+
+mainClass in assembly := Some("ch.ethz.inf.pm.semper.chalice2sil.Program")
+
+// sbt-assembly (https://github.com/sbt/sbt-assembly)
+
+assemblySettings
+
+jarName in assembly := "chalice2sil.jar"
+
+test in assembly := {}
 
 // Scala
 
@@ -14,16 +26,12 @@ scalacOptions ++= Seq("-unchecked", "-deprecation")
 
 classDirectory in Test <<= classDirectory in Compile
 
+scalacOptions += "-deprecation"
+
+scalacOptions += "-unchecked"
+
 // Dependencies
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "1.7.1" % "test" withJavadoc() withSources()
 
-libraryDependencies += "junit" % "junit" % "4.+" % "test" withJavadoc()
-
-libraryDependencies += "com.novocode" % "junit-interface" % "0.8" % "test->default"
-
 libraryDependencies += "com.github.scopt" %% "scopt" % "1.1.3"
-
-libraryDependencies += "com.weiglewilczek.slf4s" %% "slf4s" % "1.0.7"
-
-libraryDependencies += "org.slf4j" % "slf4j-log4j12" %	"1.6.4"

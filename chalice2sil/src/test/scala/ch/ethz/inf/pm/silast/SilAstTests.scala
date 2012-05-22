@@ -1,8 +1,6 @@
 package ch.ethz.inf.pm.silast
 
 import org.scalatest.FunSuite
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
 import silAST.programs.{ProgramFactory, Program}
 import silAST.source.noLocation
 import silAST.types.{integerType, referenceType}
@@ -10,7 +8,6 @@ import silAST.types.{integerType, referenceType}
 /**
   * @author Christian Klauser
   */
-@RunWith(classOf[JUnitRunner])
 class SilAstTests extends FunSuite {
   test("two-identical-assignments"){
     val p = new ProgramFactory("two-identical-assignments")(noLocation)

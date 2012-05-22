@@ -2,7 +2,11 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea_modules/chalice.iml" filepath="$PROJECT_DIR$/.idea_modules/chalice.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea_modules/chalice2sil.iml" filepath="$PROJECT_DIR$/.idea_modules/chalice2sil.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea_modules/project.iml" filepath="$PROJECT_DIR$/.idea_modules/project.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea_modules/silast.iml" filepath="$PROJECT_DIR$/.idea_modules/silast.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea_modules/silicon.iml" filepath="$PROJECT_DIR$/.idea_modules/silicon.iml" />
     </modules>
   </component>
 </project>

@@ -1,8 +1,6 @@
 package ch.ethz.inf.pm.semper.chalice2sil.util
 
 import ch.ethz.inf.pm.semper.chalice2sil.ChaliceSuite
-import org.scalatest.junit.JUnitRunner
-import org.junit.runner.RunWith
 import silAST.programs.symbols.ProgramVariable
 import org.scalatest.matchers.{MatchResult, BeMatcher, ShouldMatchers}
 import org.scalatest.FunSuite
@@ -11,7 +9,6 @@ import ch.ethz.inf.pm.semper.chalice2sil.translation.util.UnicodeMangler
 /**
   * @author Christian Klauser
   */
-@RunWith(classOf[JUnitRunner])
 class UnicodeManglerTests extends FunSuite with ShouldMatchers {
 
   class AsciiMatcher extends BeMatcher[String] {

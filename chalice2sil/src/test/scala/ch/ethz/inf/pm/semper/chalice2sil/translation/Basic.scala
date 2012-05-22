@@ -5,8 +5,6 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
   */
 
 import ch.ethz.inf.pm.semper.chalice2sil.{ChaliceSuite}
-import org.scalatest.junit.JUnitRunner
-import org.junit.runner.RunWith
 import org.scalatest.matchers.{MatchResult, BeMatcher, ShouldMatchers}
 import silAST.types.{referenceType, integerType}
 import silAST.expressions.PermissionExpression
@@ -14,7 +12,6 @@ import silAST.programs.symbols.ProgramVariable
 import silAST.methods.implementations.FieldAssignmentStatement
 import silAST.expressions.terms.{FullPermissionTerm, ProgramVariableTerm, FieldReadTerm, LiteralTerm}
 
-@RunWith(classOf[JUnitRunner])
 class Basic extends ChaliceSuite with ShouldMatchers {
 
   // COMMON

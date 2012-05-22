@@ -1,12 +1,9 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import ch.ethz.inf.pm.semper.chalice2sil.ChaliceSuite
-import org.scalatest.junit.JUnitRunner
-import org.junit.runner.RunWith
 import silAST.programs.symbols.ProgramVariable
 import org.scalatest.matchers.{MatchResult, BeMatcher, ShouldMatchers}
 
-@RunWith(classOf[JUnitRunner])
 class Ssa extends ChaliceSuite with ShouldMatchers {
 
   // COMMON
