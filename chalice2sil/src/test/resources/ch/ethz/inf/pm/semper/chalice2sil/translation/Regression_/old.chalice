@@ -1,0 +1,35 @@
+class Test01 {
+	var f: int
+	
+	method test01(x: int)
+		requires x > 0
+		ensures x == old(x)
+	{}
+	
+	method test02()
+		requires rd(f)
+		ensures rd(f)
+		ensures f == old(f)
+	{}
+}
+
+class ForkTest {
+  var f: int
+  
+  method add(x: int) returns (y: int)
+    requires rd(f)
+    ensures rd*(f)
+    ensures y == old(f) + x
+  { y := f + x }
+  
+  method test01()
+    requires acc(f)
+  {
+    var r1: int
+    
+    f := 0
+    fork tk1 := add(2)
+    join r1 := tk1
+    assert r1 == 2
+  }
+}

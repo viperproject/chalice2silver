@@ -24,3 +24,4 @@ chalice2sil/lib/silicon.jar
 out.bpl
 chalice2sil/logfile.smt2
 chalice2sil/silicon
+silicon/*

@@ -5,9 +5,7 @@ param([Switch] $Force)
 # that it can then feed to Silicon (3) for verification.
 #
 # This script clones Boogie (of which Chalice is a part),
-# SILAST and Silicon into subfolders of Chalice2SIL
-# in order to use them as SBT sub-projects for building
-# Chalice2SIL
+# SILAST and Silicon directories next to this one.
 
 $ErrorActionPreference = 'Stop';
 
@@ -16,9 +14,9 @@ $Invocation = (Get-Variable MyInvocation -Scope 0).Value;
 $sd = (Split-Path $Invocation.MyCommand.Path);
 
 # Assemble paths
-$boogie = Join-Path $sd "boogie";
-$silicon = Join-Path $sd "silicon";
-$silast = Join-Path $silicon "silast";
+$boogie = Join-Path $sd "..\boogie";
+$silicon = Join-Path $sd "..\silicon";
+$silast = Join-Path $sd "..\silast";
 
 if($Force){
 	Remove-Item $boogie,$silast,$silicon -Recurse -Force;

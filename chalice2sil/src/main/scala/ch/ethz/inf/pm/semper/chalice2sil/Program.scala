@@ -92,31 +92,32 @@ object Program {
   }
 
   def main(args: Array[String]) {
-    val opts = new ProgramOptions()
+    val progOpts = new ProgramOptions()
+		
     val cmdParser = new OptionParser("chalice2sil") {
       // Chalice2SIL options
-      opt("v","verbose","Prints additional information about the translation/verification process.",{opts.verbose = true })
-      opt("p","print-sil","Prints the translated program in SIL.",{opts.printSil = true})
+      opt("v","verbose","Prints additional information about the translation/verification process.",{progOpts.verbose = true })
+      opt("p","print-sil","Prints the translated program in SIL.",{progOpts.printSil = true})
       opt("f","forward-sil","class name",
         "Forwards the translated SIL program to the `public static main(silAST.Program)` method of the specified class.",
-        (c:String) => { opts.forwardSil = Some(c) })
-      opt("z3","z3-path","Custom path to Z3.",p => {opts.z3path = Some(p)})
+        (c:String) => { progOpts.forwardSil = Some(c) })
+      opt("z3","z3-path","Custom path to Z3.",p => {progOpts.z3path = Some(p)})
 
       // Chalice files
-      arglistOpt("<chalice-files...>", "The chalice source files.", (source : String) => opts.chaliceFiles.append(source) )
+      arglistOpt("<chalice-files...>", "The chalice source files.", (source : String) => progOpts.chaliceFiles.append(source) )
       
       // Options for Chalice
       keyValueOpt("chop","chalice-option","<option>","<value>",
           "Passes an option to Chalice. Can be specified multiple times. A leading dash is added to the chalice option name automatically.", 
-          (o:String, v:String) => {opts.chaliceOptions += (o -> v); ()})
+          (o:String, v:String) => {progOpts.chaliceOptions += (o -> v); ()})
           
       // Help
       help("?","help","Displays this help message.")
     }
     
     def convertSlash(s: String): String = 
-      if(s.startsWith("/",0)) 
-          s.updated(0,'-') 
+      if(s.startsWith("/", 0)) 
+          s.updated(0, '-') 
         else 
           s
     
@@ -125,16 +126,16 @@ object Program {
       return;
     }
 
-    if(!opts.z3path.isDefined){
-      opts.z3path = Some(DefaultConfig.z3path.toAbsolutePath.toString)
+    if(!progOpts.z3path.isDefined){
+      progOpts.z3path = Some(DefaultConfig.z3path.toAbsolutePath.toString)
     }
     
-    val program = invokeChalice(opts) match {
+    val program = invokeChalice(progOpts) match {
       case None => return;
       case Some(p) => p
     }
 
-    val (silProgram,messages) = translateToSil(opts, program)
+    val (silProgram,messages) = translateToSil(progOpts, program)
 
     def pluralize(noun : String,  count : Int) = count match {
       case 0 => "no " + noun + "s"
@@ -143,9 +144,9 @@ object Program {
     }
 
     // Invoke verifier
-    // not implemented, for now just print regardless of whether opts.printSil is set
-    opts.printSil = true;
-    if(opts.printSil){
+    // not implemented, for now just print regardless of whether progOpts.printSil is set
+    progOpts.printSil = true;
+    if(progOpts.printSil){
       Console.out.println(silProgram.toString())
     }
 
@@ -163,9 +164,9 @@ object Program {
 
     //Forward SIL to a custom backend
     //TODO: backends might need arguments and might produce messages
-    opts.forwardSil match {
+    progOpts.forwardSil match {
       case None =>
-        val config = new Config(z3exe = opts.z3path.get)
+        val config = new Config(z3exe = progOpts.z3path.get)
         val silicon = new Silicon(config)
         val messages = silicon.execute(silProgram)
         for(m <- messages){
