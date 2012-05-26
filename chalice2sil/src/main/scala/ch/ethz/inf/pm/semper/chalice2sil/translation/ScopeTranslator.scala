@@ -272,7 +272,7 @@ trait ScopeTranslator
         * the corresponding conditions on `k`.
         * @param rs the list of read permission conditions to implement.
         */
-      def appendCond(rs : List[ReadCondition], allowInexact : Boolean){
+      def appendCond(rs : List[ReadCondition]){
         val combined = new CombinedPrecondition(this,this.environmentReadFractionTerm(callNode))
         rs foreach {
           case ReadField(reference,field,perm) =>
@@ -296,16 +296,12 @@ trait ScopeTranslator
               inhale((prelude.Map.PermissionMap.get.apply(originalPermMapTerm,location))===(currentActualPermission))
 
               val currentVirtualPermission = prelude.Map.PermissionMap.get.p(permMapTerm,location)
-              if(allowInexact){
-                // `exhale 0 < get(m,(ref,field))`
-                exhale(permissionLT.apply(noPermission,currentVirtualPermission), "Permission to " + field.field + " might not be positive.")
 
-                // `inhale k < get(m,(ref,field))`
-                inhale(permissionLT.apply(perm,currentVirtualPermission))
-              } else {
-                // `exhale perm <= get(m,(ref,field))`
-                exhale(permissionLE.apply(perm,currentVirtualPermission), "Possibly insufficient permission to " + field.field + ".")
-              }
+              // `exhale 0 < get(m,(ref,field))`
+              exhale(permissionLT.apply(noPermission,currentVirtualPermission), "Permission to " + field.field + " might not be positive.")
+
+              // `inhale k < get(m,(ref,field))`
+              inhale(permissionLT.apply(perm,currentVirtualPermission))
   
               // `m := set(m,(ref,field),get(m,(ref,field)) - perm)`
               val nextVirtualPermission = permissionSubtraction.p(currentVirtualPermission,perm)
@@ -316,7 +312,7 @@ trait ScopeTranslator
   
         rs collect { case a@ReadImplication(_,_) => a } groupBy (_.lhs) foreach { i =>
           silIf(i._1){
-            appendCond(i._2.map(_.rhs).flatten,allowInexact)
+            appendCond(i._2.map(_.rhs).flatten)
           } end()
         }
       }
@@ -325,13 +321,12 @@ trait ScopeTranslator
         .map(genReadCond _)
 
       def emitConditionCode(allowInexact : Boolean) {
-        appendCond(filterCondByChecking(readConds.flatten.toList,allowInexact,callReadFractionTerm),allowInexact)
+        appendCond(filterCondByChecking(readConds.flatten.toList,allowInexact,callReadFractionTerm))
       }
 
       // First handle all cases where we have some flexibility when choosing k,
       // and only then handle the cases where k is treated as fixed.
       emitConditionCode(allowInexact = true)
-      emitConditionCode(allowInexact = false)
   
       callReadFractionTerm
     }
