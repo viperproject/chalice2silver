@@ -9,7 +9,7 @@ class Main{
 
     method main()
         requires acc(f)
-        ensures rd(f)
+        // would like to ensures rd(f)
     {
         f := 3;
         fork tk := work(5);
@@ -18,6 +18,8 @@ class Main{
 
     method client(tk : token<Main.work>)
         requires acc(tk.joinable) && tk.joinable
+        // would like to ensure rd(f)
+        // cannot express that tk.thisPtr == this
     {
         var y : int;
         join y := tk;

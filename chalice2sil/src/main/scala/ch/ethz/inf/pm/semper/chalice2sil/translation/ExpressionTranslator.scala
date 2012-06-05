@@ -87,10 +87,12 @@ trait ExpressionTranslator extends MemberEnvironment {
               .reduce[Expression](currentExpressionFactory.makeBinaryExpression(And()(expression),_,_)(expression))
           }
         }
-      case expression@chalice.Access(memberAccess, permission) => translateAccessExpression(permission)(
-          currentExpressionFactory.makePermissionExpression(translateTerm(memberAccess.e),fields(memberAccess.f),_)(expression))
       case ma@chalice.MemberAccess(target,_) if ma.isPredicate =>
         currentExpressionFactory.makePredicateExpression(translateTerm(target),predicates(ma.predicate))(ma)
+      case expression@chalice.Access(memberAccess, permission) if !memberAccess.isPredicate =>
+        translateAccessExpression(permission)(
+          currentExpressionFactory.makePermissionExpression(translateTerm(memberAccess.e),fields(memberAccess.f),_)(expression))
+      //case expression@chalice.Access(predicateAccess, permission) if predicateAccess.isPredicate =>         translate
       case unfolding@chalice.Unfolding(predicateAccess, body) =>
         if(predicateAccess.perm != chalice.Full){
           report(messages.PredicatePermissionScalingNotImplemented(predicateAccess))

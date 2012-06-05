@@ -400,7 +400,7 @@ trait ScopeTranslator
         inhale(acc(tokenVar,tkField,fullPermission))
 
         // `if(*) { inhale precondition(e); tk.field = e; }`
-        silIf(choice,callNode){
+        //silIf(choice,callNode){
           oldNode match {
             case OldTermNode(OldTerm(inner:PTerm)) =>
               val innerLocal = inner.substitute(callSiteSubstitution)
@@ -417,7 +417,7 @@ trait ScopeTranslator
             case o => // inner term/expression is not a program term/expression
               report(messages.ContractNotUnderstood(o.astNode))
           }
-        } end ()
+        //} end ()
       }
 
       // Finally: `exhale precondition(method)`, with parameters substituted

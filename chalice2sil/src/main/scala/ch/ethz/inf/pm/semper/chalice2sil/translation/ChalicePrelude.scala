@@ -160,10 +160,10 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Read Fraction
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val globalReadFraction = factory.defineDomainFunction("globalReadFraction",DataTypeSequence(),permissionType)(loc)
+    val globalReadFraction = factory.defineDomainFunction("globalPredicateReadFraction",DataTypeSequence(),permissionType)(loc)
 
-    val readFraction = factory.defineDomainFunction("readFraction",DataTypeSequence(integerType, referenceType),permissionType)(loc)
-    factory.addDomainAxiom("globalReadFraction",
+    val readFraction = factory.defineDomainFunction("predicateReadFraction",DataTypeSequence(integerType, referenceType),permissionType)(loc)
+    factory.addDomainAxiom("globalPredicateReadFraction",
       ∀(integerType,referenceType, (pred,ref) => readFraction(pred,ref) ≡ globalReadFraction())
     )(loc)
   }
@@ -172,12 +172,12 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Read Fraction
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val globalReadFraction = factory.defineDomainFunction("globalReadFraction",DataTypeSequence(),permissionType)(loc)
+    val globalReadFraction = factory.defineDomainFunction("globalMonitorReadFraction",DataTypeSequence(),permissionType)(loc)
     factory.addDomainAxiom("monitors_and_predicates_are_the_same",
       Predicate.globalReadFraction() ≡ Monitor.globalReadFraction())(loc)
 
-    val readFraction = factory.defineDomainFunction("readFraction",DataTypeSequence(referenceType),permissionType)(loc)
-    factory.addDomainAxiom("globalReadFraction",
+    val readFraction = factory.defineDomainFunction("monitorReadFraction",DataTypeSequence(referenceType),permissionType)(loc)
+    factory.addDomainAxiom("globalMonitorReadFraction",
       ∀(referenceType, (ref) => readFraction(ref) ≡ globalReadFraction())
     )(loc)
   }
@@ -186,12 +186,12 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Read Fraction
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val globalReadFraction = factory.defineDomainFunction("globalReadFraction",DataTypeSequence(),permissionType)(loc)
+    val globalReadFraction = factory.defineDomainFunction("globalFunctionReadFraction",DataTypeSequence(),permissionType)(loc)
     factory.addDomainAxiom("functions_and_predicates_are_the_same",
       Predicate.globalReadFraction() ≡ Monitor.globalReadFraction())(loc)
 
-    val readFraction = factory.defineDomainFunction("readFraction",DataTypeSequence(referenceType),permissionType)(loc)
-    factory.addDomainAxiom("globalReadFraction",
+    val readFraction = factory.defineDomainFunction("functionReadFraction",DataTypeSequence(referenceType),permissionType)(loc)
+    factory.addDomainAxiom("globalFunctionReadFraction",
       ∀(referenceType, (ref) => readFraction(ref) ≡ globalReadFraction())
     )(loc)
   }

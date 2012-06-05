@@ -33,6 +33,7 @@ trait Environment {
    */
   def fullFieldName(f : chalice.Field) = f match {
     case chalice.SpecialField(name,_,_) => name
+    case null => throw new IllegalArgumentException("f cannot be null in fullFieldName(f : chalice.Field).")
     case _ => f.Parent.id + "::" + f.id
   }
 
