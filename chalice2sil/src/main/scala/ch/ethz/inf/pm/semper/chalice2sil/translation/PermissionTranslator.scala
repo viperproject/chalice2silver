@@ -19,28 +19,28 @@ trait PermissionTranslator extends TermTranslator {
   protected def permissionTranslation = matchingPermission {
     case p@chalice.PermPlus(lhs,rhs) =>
       currentExpressionFactory.makeDomainFunctionApplicationTerm(permissionAddition,
-        TermSequence(translatePermission(lhs),translatePermission(rhs)))(p)
+        TermSequence(translatePermission(lhs),translatePermission(rhs)),p)
     case m@chalice.PermMinus(lhs,rhs) =>
       currentExpressionFactory.makeDomainFunctionApplicationTerm(permissionSubtraction,
-        TermSequence(translatePermission(lhs),translatePermission(rhs)))(m)
+        TermSequence(translatePermission(lhs),translatePermission(rhs)),m)
     case t@chalice.PermTimes(lhs,rhs) =>
       currentExpressionFactory.makeDomainFunctionApplicationTerm(permissionMultiplication,
-        TermSequence(translatePermission(lhs),translatePermission(rhs)))(t)
+        TermSequence(translatePermission(lhs),translatePermission(rhs)),t)
     case t@chalice.IntPermTimes(factor,perm) =>
       currentExpressionFactory.makeDomainFunctionApplicationTerm(permissionIntegerMultiplication,
-        TermSequence(translateTerm(factor),translatePermission(perm)))(t)
-    case f@chalice.Full => currentExpressionFactory.makeFullPermission()(f)
-    case f@chalice.Frac(chalice.IntLiteral(100)) => currentExpressionFactory.makeFullPermission()(f)
-    case f@chalice.Frac(n) => currentExpressionFactory.makePercentagePermission(translateTerm(n))(f)
+        TermSequence(translateTerm(factor),translatePermission(perm)),t)
+    case f@chalice.Full => currentExpressionFactory.makeFullPermission(f)
+    case f@chalice.Frac(chalice.IntLiteral(100)) => currentExpressionFactory.makeFullPermission(f)
+    case f@chalice.Frac(n) => currentExpressionFactory.makePercentagePermission(translateTerm(n),f)
     case k@chalice.Epsilon => readFraction(k)
     case k@chalice.MethodEpsilon => readFraction(k)
     case permission =>
       report(messages.UnknownAstNode(permission))
-      currentExpressionFactory.makeNoPermission()(permission)
+      currentExpressionFactory.makeNoPermission(permission)
   }
 
   protected def readFraction(location : SourceLocation) : Term = {
     report(messages.NoContextForReadPermission(location))
-    currentExpressionFactory.makeNoPermission()(location)
+    currentExpressionFactory.makeNoPermission(location)
   }
 }

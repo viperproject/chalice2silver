@@ -22,7 +22,7 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
    */
   var onNewMessage : Buffer[Message => Unit] = new ArrayBuffer
   val pastMessages = new LinkedHashSet[Message] with SynchronizedSet[Message]
-  val programFactory = Program.getFactory(programName)(programLocation)
+  val programFactory = Program.getFactory(programName,programLocation)
   val methods = new FactoryHashCache[chalice.Method, MethodTranslator]{
     def construct(m : chalice.Method) = new MethodTranslator(programTranslator, m)
   }

@@ -45,7 +45,7 @@ trait ScopeTranslator
     val methodExit = blockStack.pop()
 
     cfgFactory.setStartNode(methodEntry)
-    methodExit.setHalt()(noLocation)
+    methodExit.setHalt(noLocation)
     cfgFactory.setEndNode(methodExit)
   }
 
@@ -75,12 +75,12 @@ trait ScopeTranslator
       case loopNode@chalice.WhileStmt(condition,_,_,lockChange,body) =>
         val conditionExpr = translatePExpression(codeTranslator,condition)
         //compile loop body
-        val loop = cfgFactory.addLoopBlock(getNextName(),conditionExpr)(stmt)
+        val loop = cfgFactory.addLoopBlock(getNextName(),conditionExpr,stmt)
         if(loopNode.Invs != Nil){
           loop.setInvariant(
             loopNode.Invs
               .map(translatePExpression(codeTranslator,_))
-              .reduce(currentExpressionFactory.makePBinaryExpression(And()(loopNode),_,_)(loopNode)))
+              .reduce(currentExpressionFactory.makePBinaryExpression(And()(loopNode),_,_,loopNode)))
         } else {
           loop.setInvariant(TrueExpression()(loopNode))
         }
@@ -88,9 +88,9 @@ trait ScopeTranslator
         loopTranslator.translateBody(loopTranslator.translateStatement(_,body))
 
         //integrate loop into CFG
-        currentBlock.setGoto(loop)(stmt)
+        currentBlock.setGoto(loop,stmt)
         val nextBlock = basicBlocks(getNextName("after_while"))
-        loop.setGoto(nextBlock)(stmt)
+        loop.setGoto(nextBlock,stmt)
         continueWith(nextBlock)
       case a@chalice.LocalVar(v,rhsOpt) =>
         rhsOpt match {
@@ -113,14 +113,14 @@ trait ScopeTranslator
           case newObj:chalice.NewRhs =>
             temporaries.using(referenceType){targetVar =>
               translateNew(codeTranslator,newObj,targetVar)
-              block(currentExpressionFactory.makeProgramVariableTerm(targetVar)(newObj))
+              block(currentExpressionFactory.makeProgramVariableTerm(targetVar,newObj))
             }
           case expr:chalice.Expression =>
             val t = translatePTerm(codeTranslator, expr)
             block(t)
         }
         def assignViaVar(rcvrVar : ProgramVariable) {
-          withRhsTranslation(currentBlock.appendFieldAssignment(rcvrVar, fields(location.f), _)(stmt))
+          withRhsTranslation(currentBlock.appendFieldAssignment(rcvrVar, fields(location.f), _,stmt))
         }
         location.e match {
           case rcvr:chalice.VariableExpr => assignViaVar(programVariables(rcvr.v))
@@ -129,8 +129,8 @@ trait ScopeTranslator
           case rcvr =>
             temporaries.using(referenceType){ rcvrVar =>
               val rcvrTerm = translatePTerm(codeTranslator, rcvr)
-              currentBlock.appendAssignment(rcvrVar,rcvrTerm)(rcvr)
-              withRhsTranslation(currentBlock.appendFieldAssignment(rcvrVar,fields(location.f),_)(stmt))
+              currentBlock.appendAssignment(rcvrVar,rcvrTerm,rcvr)
+              withRhsTranslation(currentBlock.appendFieldAssignment(rcvrVar,fields(location.f),_,stmt))
             }
         }
       case callNode:chalice.CallAsync => translateMethodFork(callNode)
@@ -235,11 +235,11 @@ trait ScopeTranslator
         * @return A list of extracted read conditions.
         */
       def genReadCond(expr : Expression) : List[ReadCondition] = expr match {
-        case PermissionExpression(_,_,FullPermissionTerm()) => Nil
-        case PermissionExpression(_,_,NoPermissionTerm()) => Nil
-        case p@PermissionExpression(reference:PTerm,field,pTerm:PTerm) =>
+        case PermissionExpression(_,FullPermissionTerm()) => Nil
+        case PermissionExpression(_,NoPermissionTerm()) => Nil
+        case p@PermissionExpression(FieldLocation(reference:PTerm,field),pTerm:PTerm) =>
           List(ReadField(transplantPTerm(reference),fields.lookup(field.name),transplantPTerm(pTerm)))
-        case PermissionExpression(nonReferenceTerm,_,_) =>
+        case PermissionExpression(nonReferenceTerm,_) =>
           report(messages.ContractNotUnderstood(expr))
           Nil
         case BinaryExpression(Implication(),lhs:PExpression,rhs) =>
@@ -276,12 +276,12 @@ trait ScopeTranslator
         val combined = new CombinedPrecondition(this,this.environmentReadFractionTerm(callNode))
         rs foreach {
           case ReadField(reference,field,perm) =>
-            val originalPermMapTerm = currentExpressionFactory.makeProgramVariableTerm(originalPermMapVar)(callNode)
-            val permMapTerm = currentExpressionFactory.makeProgramVariableTerm(permMapVar)(callNode)
+            val originalPermMapTerm = currentExpressionFactory.makeProgramVariableTerm(originalPermMapVar, callNode)
+            val permMapTerm = currentExpressionFactory.makeProgramVariableTerm(permMapVar, callNode)
   
             val currentActualPermission = currentExpressionFactory.makePermTerm(reference,field)(callNode)
             temporaries.using(prelude.Pair.Location.dataType){ locationVar =>
-              val location = currentExpressionFactory.makeProgramVariableTerm(locationVar)(callNode)
+              val location = currentExpressionFactory.makeProgramVariableTerm(locationVar, callNode)
   
               // Assert the precondition of the reference.
               combined.visitTerm(reference,null) match {
@@ -349,10 +349,10 @@ trait ScopeTranslator
     val destinationVars = destinations.map(vExpr => programVariables(vExpr.v))
     val argTerms = args.map(translatePTerm(codeTranslator, _)) ++ List(readFractionTerm)
     currentBlock.appendCall(
-      currentBlock.makeProgramVariableSequence(destinationVars)(callNode),
+      currentBlock.makeProgramVariableSequence(destinationVars, callNode),
       receiverTerm,
       calleeFactory,
-      PTermSequence(argTerms : _*))(callNode)
+      PTermSequence(argTerms : _*),callNode)
   }
 
   def translateMethodFork(callNode : chalice.CallAsync) {
@@ -502,15 +502,15 @@ trait ScopeTranslator
   def removeSideEffects(expr : Expression) : Expression = {
     val remover = new ExpressionTransplantation(this) {
       def translateProgramVariable(variable : ProgramVariable) = 
-        currentExpressionFactory.makeProgramVariableTerm(variable)(variable.sourceLocation)
+        currentExpressionFactory.makeProgramVariableTerm(variable, variable.sourceLocation)
 
       override def transplant(expression : Expression) = expression match {
-        case PermissionExpression(ref,field,amount) =>
+        case PermissionExpression(FieldLocation(ref,field),amount) =>
           // `amount ≤ perm(ref,field)`
           currentExpressionFactory.makeDomainPredicateExpression(
             permissionLE,TermSequence(amount,
               currentExpressionFactory.makePermTerm(ref,field)(expression)
-          ))(expression)
+          ),expression)
         case _ => super.transplant(expression)
       }
     }
@@ -519,12 +519,12 @@ trait ScopeTranslator
 
   def translateAssert(expr : chalice.Expression) {
     val translator = new MemberCodeTranslator with AssertionTranslator
-    currentBlock.appendExhale(translator.translateExpression(expr))(expr)
+    currentBlock.appendExhale(translator.translateExpression(expr),expr)
   }
 
   def translateAssume(expr : chalice.Expression) {
     val translator = new MemberCodeTranslator with AssertionTranslator
-    currentBlock.appendInhale(translator.translateExpression(expr))(expr)
+    currentBlock.appendInhale(translator.translateExpression(expr),expr)
   }
 
   protected def translateAssignment(codeTranslator : CodeTranslator, lhs : chalice.VariableExpr,  rhs : chalice.RValue){
@@ -537,7 +537,7 @@ trait ScopeTranslator
         translateNew(codeTranslator,newObj,targetVariable)
       case e:chalice.Expression =>
         val rhsTerm = translatePTerm(codeTranslator, e)
-        currentBlock.appendAssignment(targetVariable,rhsTerm)(lhs)
+        currentBlock.appendAssignment(targetVariable,rhsTerm,lhs)
     }
 
     assert(currentBlock.programVariables contains targetVariable,
@@ -546,17 +546,17 @@ trait ScopeTranslator
   }
 
   protected def translateNew(codeTranslator : CodeTranslator, newObj : chalice.NewRhs, targetVar : ProgramVariable) {
-    currentBlock.appendNew(targetVar,referenceType)(newObj)
-    val refTerm = currentExpressionFactory.makeProgramVariableTerm(targetVar)(newObj)
-    val fullAccess = currentExpressionFactory.makeFullPermission()(newObj)
+    currentBlock.appendNew(targetVar,referenceType,newObj)
+    val refTerm = currentExpressionFactory.makeProgramVariableTerm(targetVar,newObj)
+    val fullAccess = currentExpressionFactory.makeFullPermission(newObj)
     newObj.typ.Fields foreach { cf =>
       val field = fields(cf)
       currentBlock.appendInhale(
-        currentExpressionFactory.makePermissionExpression(refTerm,field,fullAccess)(newObj))(newObj)
+        currentExpressionFactory.makeFieldPermissionExpression(refTerm,field,fullAccess,newObj),newObj)
     }
     newObj.initialization foreach  { init =>
       val rhsTerm = translatePTerm(codeTranslator,init.e)
-      currentBlock.appendFieldAssignment(targetVar,fields(init.f),rhsTerm)(init)
+      currentBlock.appendFieldAssignment(targetVar,fields(init.f),rhsTerm,init)
     }
   }
 
@@ -584,10 +584,7 @@ trait ScopeTranslator
       report(messages.PredicatePermissionScalingNotImplemented(predicateAccess))
     }
     val location = codeTranslator.translateTerm(predicateAccess.ma.e)
-    val predicateExpr = currentExpressionFactory.makePredicateExpression(
-      location,
-      predicates(predicateAccess.ma.predicate))(predicateAccess.ma)
-    currentBlock.appendFold(predicateExpr)(foldNode)
+    currentBlock.appendFold(location,predicates(predicateAccess.ma.predicate),codeTranslator.translatePermission(predicateAccess.perm),foldNode)
   }
 
   def translateUnfold(codeTranslator : CodeTranslator, unfoldNode : chalice.Unfold) {
@@ -596,10 +593,7 @@ trait ScopeTranslator
       report(messages.PredicatePermissionScalingNotImplemented(predicateAccess))
     }
     val location = codeTranslator.translateTerm(predicateAccess.ma.e)
-    val predicateExpr = currentExpressionFactory.makePredicateExpression(
-      location,
-      predicates(predicateAccess.ma.predicate))(predicateAccess.ma)
-    currentBlock.appendUnfold(predicateExpr)(unfoldNode)
+    currentBlock.appendUnfold(location,predicates(predicateAccess.ma.predicate),codeTranslator.translatePermission(predicateAccess.perm),unfoldNode)
   }
 
   class MemberCodeTranslator extends DefaultCodeTranslator(thisScopeTranslator) {
@@ -649,16 +643,16 @@ trait ScopeTranslator
         val elseBlock = basicBlocks(getNextName("if_else"))
         val (result,elseBlockEnd) = into(elseBlock,els())
 
-        elseBlockEnd.setGoto(nextBlock)(elseLocation)
+        elseBlockEnd.setGoto(nextBlock,elseLocation)
         (Some(result),elseBlock)
       case None => (None,nextBlock)
     }
 
     //  finally, connect then-block to successor with no condition (True)
-    endThenBlock.setGoto(nextBlock)(thenLocation)
+    endThenBlock.setGoto(nextBlock,thenLocation)
 
     //Create control transfer from current block to then or else
-    currentBlock.setBranch(condExpr,thenBlock,elseSuccessor)(thenLocation)
+    currentBlock.setBranch(condExpr,thenBlock,elseSuccessor,thenLocation)
 
     //Update currentBlock
     this.continueWith(nextBlock)
@@ -667,7 +661,7 @@ trait ScopeTranslator
   }
 
   def basicBlocks = new FactoryHashCache[String,  BasicBlockFactory]{
-    protected def construct(key : String) = cfgFactory.addBasicBlock(key)(noLocation)
+    protected def construct(key : String) = cfgFactory.addBasicBlock(key,noLocation)
   }
 
   def currentBlock = {

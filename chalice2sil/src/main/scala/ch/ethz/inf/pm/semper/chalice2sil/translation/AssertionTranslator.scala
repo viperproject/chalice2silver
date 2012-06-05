@@ -19,14 +19,14 @@ trait AssertionTranslator extends ExpressionTranslator {
       permission match {
         case chalice.Epsilon =>
           // 0 < perm(location,field)
-          val noPermission = currentExpressionFactory.makeNoPermission()(a)
+          val noPermission = currentExpressionFactory.makeNoPermission(a)
           currentExpressionFactory.makeDomainPredicateExpression(
-            permissionLT,TermSequence(noPermission,currentPermission))(a)
+            permissionLT,TermSequence(noPermission,currentPermission),a)
         case _ =>
           // $REQUIRED$ ≤ perm(objRef,field)
           val requiredPermission = translatePermission(permission)
           currentExpressionFactory.makeDomainPredicateExpression(
-            permissionLE,TermSequence(requiredPermission,currentPermission))(a)
+            permissionLE,TermSequence(requiredPermission,currentPermission),a)
       }
   } orElse super.expressionTranslation
 }

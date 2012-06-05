@@ -8,6 +8,7 @@ import scala.util.parsing.input.Positional
 import collection.GenTraversableLike
 import silAST.methods.MethodFactory
 import silAST.programs.symbols.{FunctionFactory, PredicateFactory, Field}
+import silAST.expressions.terms.{PredicateLocation, Term, FieldLocation, Location}
 
 package object chalice2sil {
     //at some point, use the node's Positional trait to provide a source location.
@@ -22,5 +23,11 @@ package object chalice2sil {
     implicit def unwrapMethod(mt : MethodTranslator) : MethodFactory = mt.methodFactory
     implicit def unwrapPredicate(pt : PredicateTranslator) : PredicateFactory = pt.predicateFactory
     implicit def unwrapFunction(ft : FunctionTranslator) : FunctionFactory = ft.functionFactory
+
+    def getReceiverFromLocation(location : Location) : Term = location match {
+      case FieldLocation(receiver,_) => receiver
+      case PredicateLocation(receiver,_) => receiver
+      case _ => throw new Error("Don't know how to access receiver of location " + location + ".")
+    }
   }
 }

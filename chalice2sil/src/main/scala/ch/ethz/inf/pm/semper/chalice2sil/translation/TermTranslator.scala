@@ -17,65 +17,65 @@ trait TermTranslator extends MemberEnvironment with TypeTranslator {
 
   protected def matchingTerm(partialFunction : PartialFunction[chalice.Expression, Term]) = partialFunction
   
-  def dummyTerm(location : SourceLocation) = currentExpressionFactory.makeIntegerLiteralTerm(27)(location)
-  
+  def dummyTerm(location : SourceLocation) = currentExpressionFactory.makeIntegerLiteralTerm(27,location)
+
   protected def termTranslation : PartialFunction[chalice.Expression,Term] = matchingTerm {
-      case rvalue@chalice.IntLiteral(i) =>
-        currentExpressionFactory.makeIntegerLiteralTerm(i)(rvalue)
-      case rvalue@chalice.BoolLiteral(true) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.trueLiteral,TermSequence())(rvalue)
-      case rvalue@chalice.BoolLiteral(false) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.falseLiteral,TermSequence())(rvalue)
-      case variableExpr:chalice.VariableExpr =>
-        currentExpressionFactory.makeProgramVariableTerm((programVariables(variableExpr.v)))(variableExpr)
-      case rvalue@chalice.Old(e) => currentExpressionFactory.makeOldTerm(translateTerm(e))(rvalue)
-      case access@chalice.MemberAccess(rcvr,_) if !access.isPredicate =>
-        assert(access.f != null,"Chalice MemberAccess node (%s) is not linked to a field.".format(access))
-        val rcvrTerm = translateTerm(rcvr)
-        currentExpressionFactory.makeFieldReadTerm(rcvrTerm,fields(access.f))(access)
-      case ifThenElse@chalice.IfThenElse(cond,thn,els) =>
-        val condTerm = translateTerm(cond)
-        val thnTerm = translateTerm(thn)
-        val elsTerm = translateTerm(els)
-        currentExpressionFactory.makeIfThenElseTerm(condTerm,thnTerm,elsTerm)(ifThenElse)
-      case th@chalice.ImplicitThisExpr() =>
-        currentExpressionFactory.makeProgramVariableTerm(thisVariable)(th)
-      case th@chalice.ExplicitThisExpr() =>
-        currentExpressionFactory.makeProgramVariableTerm(thisVariable)(th)
-      case rvalue@chalice.And(lhs,rhs) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.logicalAnd,TermSequence(
-          translateTerm(lhs),
-          translateTerm(rhs)
-        ))(rvalue)
-      case rvalue@chalice.Or(lhs,rhs) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.logicalOr,TermSequence(
-          translateTerm(lhs),
-          translateTerm(rhs)
-        ))(rvalue)
-      case rvalue@chalice.Implies(lhs,rhs) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.implication,TermSequence(
-          translateTerm(lhs),
-          translateTerm(rhs)
-        ))(rvalue)
-      case rvalue@chalice.Not(op) =>
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.not,TermSequence(
-          translateTerm(op)
-        ))(rvalue)
-      case literal@chalice.NullLiteral() =>
-        currentExpressionFactory.makePDomainFunctionApplicationTerm(nullFunction,PTermSequence())(literal)
-      case unfolding@chalice.Unfolding(predicateAccess, body) =>
-        if(predicateAccess.perm == chalice.Full){
-          report(messages.PredicatePermissionScalingNotImplemented(predicateAccess))
-        }
-        val location = translateTerm(predicateAccess.ma.e)
-        currentExpressionFactory.makeUnfoldingTerm(
-          location,predicates(predicateAccess.ma.predicate),translateTerm(body))(unfolding)
-      case functionApplication@chalice.FunctionApplication(receiver,_,args) =>
-        currentExpressionFactory.makeFunctionApplicationTerm(
-          translateTerm(receiver),
-          functions(functionApplication.f),
-          TermSequence(args.map(translateTerm(_)):_*))(functionApplication)
-      case binary:chalice.BinaryExpr => translateBinaryExpression(binary)
+    case rvalue@chalice.IntLiteral(i) =>
+      currentExpressionFactory.makeIntegerLiteralTerm(i,rvalue)
+    case rvalue@chalice.BoolLiteral(true) =>
+      currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.trueLiteral,TermSequence(),rvalue)
+    case rvalue@chalice.BoolLiteral(false) =>
+      currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.falseLiteral,TermSequence(),rvalue)
+    case variableExpr:chalice.VariableExpr =>
+      currentExpressionFactory.makeProgramVariableTerm((programVariables(variableExpr.v)),variableExpr)
+    case rvalue@chalice.Old(e) => currentExpressionFactory.makeOldTerm(translateTerm(e))(rvalue)
+    case access@chalice.MemberAccess(rcvr,_) if !access.isPredicate =>
+      assert(access.f != null,"Chalice MemberAccess node (%s) is not linked to a field.".format(access))
+      val rcvrTerm = translateTerm(rcvr)
+      currentExpressionFactory.makeFieldReadTerm(rcvrTerm,fields(access.f),access)
+    case ifThenElse@chalice.IfThenElse(cond,thn,els) =>
+      val condTerm = translateTerm(cond)
+      val thnTerm = translateTerm(thn)
+      val elsTerm = translateTerm(els)
+      currentExpressionFactory.makeIfThenElseTerm(condTerm,thnTerm,elsTerm)(ifThenElse)
+    case th@chalice.ImplicitThisExpr() =>
+      currentExpressionFactory.makeProgramVariableTerm(thisVariable,th)
+    case th@chalice.ExplicitThisExpr() =>
+      currentExpressionFactory.makeProgramVariableTerm(thisVariable,th)
+    case rvalue@chalice.And(lhs,rhs) =>
+      currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.logicalAnd,TermSequence(
+        translateTerm(lhs),
+        translateTerm(rhs)
+      ),rvalue)
+    case rvalue@chalice.Or(lhs,rhs) =>
+      currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.logicalOr,TermSequence(
+        translateTerm(lhs),
+        translateTerm(rhs)
+      ),rvalue)
+    case rvalue@chalice.Implies(lhs,rhs) =>
+      currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.implication,TermSequence(
+        translateTerm(lhs),
+        translateTerm(rhs)
+      ),rvalue)
+    case rvalue@chalice.Not(op) =>
+      currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.not,TermSequence(
+        translateTerm(op)
+      ),rvalue)
+    case literal@chalice.NullLiteral() =>
+      currentExpressionFactory.makePDomainFunctionApplicationTerm(nullFunction,PTermSequence(),literal)
+    case unfolding@chalice.Unfolding(predicateAccess, body) =>
+      if(predicateAccess.perm == chalice.Full){
+        report(messages.PredicatePermissionScalingNotImplemented(predicateAccess))
+      }
+      val location = translateTerm(predicateAccess.ma.e)
+      currentExpressionFactory.makeUnfoldingTerm(
+        location,predicates(predicateAccess.ma.predicate),translatePermission(predicateAccess.perm),translateTerm(body),unfolding)
+    case functionApplication@chalice.FunctionApplication(receiver,_,args) =>
+      currentExpressionFactory.makeFunctionApplicationTerm(
+        translateTerm(receiver),
+        functions(functionApplication.f),
+        TermSequence(args.map(translateTerm(_)):_*),functionApplication)
+    case binary:chalice.BinaryExpr => translateBinaryExpression(binary)
   }
 
   protected def translateBinaryExpression(binary : chalice.BinaryExpr) : Term = {
@@ -84,7 +84,7 @@ trait TermTranslator extends MemberEnvironment with TypeTranslator {
     val (lhsType,rhsType,resultType) = (translateClassRef(lhs.typ),translateClassRef(rhs.typ),translateClassRef(binary.ResultType))
 
     domainFunctionLookup.lookup(List(lhsType,rhsType,resultType).map(_.domain))(binary.OpName,List(Some(lhsType),Some(rhsType))) match {
-      case Success(e) => currentExpressionFactory.makeDomainFunctionApplicationTerm(e,TermSequence(translateTerm(lhs),translateTerm(rhs)))(binary)
+      case Success(e) => currentExpressionFactory.makeDomainFunctionApplicationTerm(e,TermSequence(translateTerm(lhs),translateTerm(rhs)),binary)
       case _ if binary.OpName == "!=" => // If no NEQ operator exists, translate as ¬(_ == _)
         val eq = chalice.Eq(binary.E0,binary.E1)
         eq.typ = binary.ResultType
@@ -98,5 +98,7 @@ trait TermTranslator extends MemberEnvironment with TypeTranslator {
         dummyTerm(binary)
     }
   }
+
+  def translatePermission(permission : chalice.Permission) : Term
 
 }

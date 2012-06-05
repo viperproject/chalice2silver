@@ -20,7 +20,7 @@ class CombinedPrecondition(environment : MemberEnvironment, val readFractionTerm
     case (TrueExpression(),rhs) => rhs
     case (lhs,TrueExpression()) => lhs
     case (lhs,rhs) =>
-      currentExpressionFactory.makeBinaryExpression(And()(lhs.sourceLocation),lhs,rhs)(lhs.sourceLocation)
+      currentExpressionFactory.makeBinaryExpression(And()(lhs.sourceLocation),lhs,rhs,lhs.sourceLocation)
   }
 
   protected def zero = TrueExpression()(noLocation)
@@ -31,25 +31,25 @@ class CombinedPrecondition(environment : MemberEnvironment, val readFractionTerm
         val lhsPrecondition = visitExpression(lhs,arg)
         val rhsPrecondition = visitExpression(rhs,arg)
         // `lhs ⇒ rhsPrecondition`
-        val rhsBranch = currentExpressionFactory.makeBinaryExpression(Implication()(expression.sourceLocation),lhs,rhsPrecondition)(expression.sourceLocation)
+        val rhsBranch = currentExpressionFactory.makeBinaryExpression(Implication()(expression.sourceLocation),lhs,rhsPrecondition,expression.sourceLocation)
         // `lhsPrecondition ∧ (lhs ⇒ rhsPrecondition)`
-        currentExpressionFactory.makeBinaryExpression(And()(expression.sourceLocation),lhsPrecondition,rhsBranch)(expression.sourceLocation)
+        currentExpressionFactory.makeBinaryExpression(And()(expression.sourceLocation),lhsPrecondition,rhsBranch,expression.sourceLocation)
       }
     case _ => super.visitExpression(expression,arg)
   }
 
   override def visitTerm(term : Term, arg : Null) : Expression = term match {
-    case FieldReadTerm(location,field) =>
+    case FieldReadTerm(FieldLocation(receiver,field)) =>
       // A field access `x.f` requires `x != null ∧ acc(x.f,k)`, k is the current read permission fraction
       // `acc(x.f,k)`
-      val hasReadAccess = currentExpressionFactory.makePermissionExpression(location,field,readFractionTerm)(term.sourceLocation)
+      val hasReadAccess = currentExpressionFactory.makeFieldPermissionExpression(receiver,field,readFractionTerm,term.sourceLocation)
       // `x == null`
-      val eqNull = currentExpressionFactory.makeEqualityExpression(location,
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(nullFunction,TermSequence())(term.sourceLocation))(term.sourceLocation)
+      val eqNull = currentExpressionFactory.makeEqualityExpression(receiver,
+        currentExpressionFactory.makeDomainFunctionApplicationTerm(nullFunction,TermSequence(),term.sourceLocation),term.sourceLocation)
       // `¬(x == null)`
-      val notNull = currentExpressionFactory.makeUnaryExpression(Not()(term.sourceLocation),eqNull)(term.sourceLocation)
+      val notNull = currentExpressionFactory.makeUnaryExpression(Not()(term.sourceLocation),eqNull,term.sourceLocation)
       // `¬(x == null) ∧ acc(x.f,k)`
-      currentExpressionFactory.makeBinaryExpression(And()(term.sourceLocation),notNull,hasReadAccess)(term.sourceLocation)
+      currentExpressionFactory.makeBinaryExpression(And()(term.sourceLocation),notNull,hasReadAccess,term.sourceLocation)
     case DomainFunctionApplicationTerm(f,ts) if ts.size == 2 && f == booleanImplication =>
       val lhsTerm = ts(0)
       val rhsTerm = ts(1);
@@ -58,29 +58,29 @@ class CombinedPrecondition(environment : MemberEnvironment, val readFractionTerm
         val lhsPrecondition = visitTerm(lhsTerm,arg)
         val rhsPrecondition = visitTerm(rhsTerm,arg)
         // `eval(lhs)`
-        val lhsCond = currentExpressionFactory.makeDomainPredicateExpression(booleanEvaluate,TermSequence(lhsTerm))(term.sourceLocation)
+        val lhsCond = currentExpressionFactory.makeDomainPredicateExpression(booleanEvaluate,TermSequence(lhsTerm),term.sourceLocation)
         // `eval(lhs) ⇒ rhsPrecondition`
-        val rhsBranch = currentExpressionFactory.makeBinaryExpression(Implication()(term.sourceLocation),lhsCond,rhsPrecondition)(term.sourceLocation)
+        val rhsBranch = currentExpressionFactory.makeBinaryExpression(Implication()(term.sourceLocation),lhsCond,rhsPrecondition,term.sourceLocation)
         // `lhsPrecondition ∧ (eval(lhs) ⇒ rhsPrecondition)`
-        currentExpressionFactory.makeBinaryExpression(And()(term.sourceLocation),lhsPrecondition,rhsBranch)(term.sourceLocation)
+        currentExpressionFactory.makeBinaryExpression(And()(term.sourceLocation),lhsPrecondition,rhsBranch,term.sourceLocation)
       }
     case IfThenElseTerm(cond,thn,els) =>
       val condPrecondition = visitTerm(cond,arg)
-      val condExpr = currentExpressionFactory.makeDomainPredicateExpression(booleanEvaluate,TermSequence(cond))(term.sourceLocation)
+      val condExpr = currentExpressionFactory.makeDomainPredicateExpression(booleanEvaluate,TermSequence(cond),term.sourceLocation)
       val thnPrecondition = visitTerm(thn,arg)
       val elsPrecondition = visitTerm(els,arg);
       // `condPrecondition ∧ (cond ⇒ thnPrecondition) ∧ (¬cond ⇒ elsPrecondition)`
       {
         // `cond ⇒ thnPrecondition`
-        val thnBranch = currentExpressionFactory.makeBinaryExpression(Implication()(term.sourceLocation),condExpr,thnPrecondition)(term.sourceLocation)
+        val thnBranch = currentExpressionFactory.makeBinaryExpression(Implication()(term.sourceLocation),condExpr,thnPrecondition,term.sourceLocation)
         // `¬cond`
-        val notCondExpr = currentExpressionFactory.makeUnaryExpression(Not()(term.sourceLocation),condExpr)(term.sourceLocation)
+        val notCondExpr = currentExpressionFactory.makeUnaryExpression(Not()(term.sourceLocation),condExpr,term.sourceLocation)
         // `¬cond ⇒ elsPrecondition`
-        val elsBranch = currentExpressionFactory.makeBinaryExpression(Implication()(term.sourceLocation),notCondExpr,elsPrecondition)(term.sourceLocation)
+        val elsBranch = currentExpressionFactory.makeBinaryExpression(Implication()(term.sourceLocation),notCondExpr,elsPrecondition,term.sourceLocation)
         // `(cond ⇒ thnPrecondition) ∧ (¬cond ⇒ elsPrecondition)`
-        val branches = currentExpressionFactory.makeBinaryExpression(And()(term.sourceLocation),thnBranch,elsBranch)(term.sourceLocation)
+        val branches = currentExpressionFactory.makeBinaryExpression(And()(term.sourceLocation),thnBranch,elsBranch,term.sourceLocation)
         // finally: `condPrecondition ∧ (cond ⇒ thnPrecondition) ∧ (¬cond ⇒ elsPrecondition)`
-        currentExpressionFactory.makeBinaryExpression(And()(term.sourceLocation),condPrecondition,branches)(term.sourceLocation)
+        currentExpressionFactory.makeBinaryExpression(And()(term.sourceLocation),condPrecondition,branches,term.sourceLocation)
       }
     case _ => super.visitTerm(term,arg)
   }

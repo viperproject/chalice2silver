@@ -16,7 +16,7 @@ class PredicateTranslator(environment : ProgramEnvironment, val predicate : chal
   extends DerivedProgramEnvironment(environment)
   with MemberEnvironment
 {
-  val predicateFactory : PredicateFactory = programFactory.getPredicateFactory(fullPredicateName(predicate))(predicate)
+  val predicateFactory : PredicateFactory = programFactory.getPredicateFactory(fullPredicateName(predicate),predicate)
 
   def programVariables = new DerivedFactoryCache[chalice.Variable,String,ProgramVariable] {
     /**
@@ -58,10 +58,10 @@ class PredicateTranslator(environment : ProgramEnvironment, val predicate : chal
   def thisVariable = predicateFactory.thisVar
 
   def environmentReadFractionTerm(sourceLocation : SourceLocation) = {
-    val idLiteral = currentExpressionFactory.makeIntegerLiteralTerm(id)(predicate)
-    val reference = currentExpressionFactory.makeProgramVariableTerm(thisVariable)(predicate)
+    val idLiteral = currentExpressionFactory.makeIntegerLiteralTerm(id,predicate)
+    val reference = currentExpressionFactory.makeProgramVariableTerm(thisVariable,predicate)
     currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Predicate.readFraction,
-      TermSequence(idLiteral,reference))(predicate)
+      TermSequence(idLiteral,reference),predicate)
   }
 
   def currentExpressionFactory = predicateFactory

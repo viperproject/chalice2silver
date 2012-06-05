@@ -2,6 +2,8 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation.util
 
 import silAST.expressions._
 import terms._
+import ch.ethz.inf.pm.semper.chalice2sil
+import chalice2sil._
 
 
 /**
@@ -19,12 +21,12 @@ trait ExpressionVisitor[A, R] {
       visitMergeTerms(arg, lhs, rhs)
     case DomainPredicateExpression(p, args) =>
       visitMergeTerms(arg, args : _*)
-    case PermissionExpression(ref, field, perm) =>
-      visitMergeTerms(arg, ref, perm)
-    case UnfoldingExpression(p, expr) =>
-      visitMergeExpressions(arg, p, expr)
-    case PredicateExpression(receiver, predicate) =>
-      visitTerm(receiver, arg)
+    case PermissionExpression(location, perm) =>
+      visitMergeTerms(arg, getReceiverFromLocation(location), perm)
+    case UnfoldingExpression(location, perm, expr) =>
+      merge(
+        visitMergeTerms(arg, getReceiverFromLocation(location),perm),
+        visitExpression(expr,arg))
     case QuantifierExpression(q, v, expr) => visitExpression(expr, arg)
     case TrueExpression()
          | FalseExpression() => zero
@@ -33,14 +35,14 @@ trait ExpressionVisitor[A, R] {
 
   def visitTerm(term : Term, arg : A) : R = term match {
     case CastTerm(operand, newType) => visitTerm(operand, arg)
-    case FieldReadTerm(location, field) => visitTerm(location, arg)
+    case FieldReadTerm(location) => visitTerm(getReceiverFromLocation(location), arg)
     case DomainFunctionApplicationTerm(f, args) => visitMergeTerms(arg, args : _*)
     case EpsilonPermissionTerm() => zero
     case FullPermissionTerm() => zero
     case FunctionApplicationTerm(receiver, f, args) => merge(visitTerm(receiver, arg), visitMergeTerms(arg, args : _*))
     case NoPermissionTerm() => zero
-    case UnfoldingTerm(receiver, p, body) => visitMergeTerms(arg, receiver, body)
-    case PermTerm(location, field) => visitTerm(location, arg)
+    case UnfoldingTerm(location, perm, body) => visitMergeTerms(arg, getReceiverFromLocation(location),perm, body)
+    case PermTerm(location) => visitTerm(getReceiverFromLocation(location), arg)
     case ProgramVariableTerm(v) => zero
     case i : IntegerLiteralTerm => zero
     case IfThenElseTerm(cond, then, otherwise) => visitMergeTerms(arg, cond, then, otherwise)

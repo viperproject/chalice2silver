@@ -23,9 +23,9 @@ class FieldTranslator(
   with TypeTranslator {
   
   def locationLiteral(expressionFactory : ExpressionFactory, reference : PTerm) : PTerm = {
-    val fieldLiteral = expressionFactory.makeIntegerLiteralTerm(id)(reference.sourceLocation)
+    val fieldLiteral = expressionFactory.makeIntegerLiteralTerm(id,reference.sourceLocation)
     expressionFactory.makePDomainFunctionApplicationTerm(
-      prelude.Pair.Location.create,PTermSequence(reference,fieldLiteral))(reference.sourceLocation)
+      prelude.Pair.Location.create,PTermSequence(reference,fieldLiteral),reference.sourceLocation)
   }
 
   override def toString = field.toString;

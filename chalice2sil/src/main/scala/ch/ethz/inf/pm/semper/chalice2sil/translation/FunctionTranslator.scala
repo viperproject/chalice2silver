@@ -19,7 +19,7 @@ class FunctionTranslator(environment : ProgramEnvironment, val function : chalic
     fullFunctionName(function),
     function.ins.map(
       v => (v:SourceLocation,v.UniqueName, translateTypeExpr(v.t))),
-    translateTypeExpr(function.out))(function)
+    translateTypeExpr(function.out),function)
 
   def programVariables = new DerivedFactoryCache[chalice.Variable, String, ProgramVariable] {
     /**
@@ -61,9 +61,9 @@ class FunctionTranslator(environment : ProgramEnvironment, val function : chalic
   def thisVariable = functionFactory.thisVar
 
   def environmentReadFractionTerm(sourceLocation : SourceLocation) = {
-    val reference = currentExpressionFactory.makeProgramVariableTerm(thisVariable)(sourceLocation)
+    val reference = currentExpressionFactory.makeProgramVariableTerm(thisVariable,sourceLocation)
     currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Function.readFraction,
-      TermSequence(reference))(sourceLocation)
+      TermSequence(reference),sourceLocation)
   }
 
   def currentExpressionFactory = functionFactory
@@ -86,7 +86,7 @@ class FunctionTranslator(environment : ProgramEnvironment, val function : chalic
         report(messages.UnknownAstNode(otherNode))
     }
     functionFactory.setBody(translator.translateTerm(function.definition.get))
-    functionFactory.setMeasure(currentExpressionFactory.makeIntegerLiteralTerm(1)(function))
+    functionFactory.setMeasure(currentExpressionFactory.makeIntegerLiteralTerm(1,function))
   }
 
 }
