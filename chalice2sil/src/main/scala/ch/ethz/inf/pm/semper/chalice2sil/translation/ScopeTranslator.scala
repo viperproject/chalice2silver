@@ -580,18 +580,12 @@ trait ScopeTranslator
 
   def translateFold(codeTranslator : CodeTranslator, foldNode : chalice.Fold) {
     val predicateAccess = foldNode.pred
-    if(predicateAccess.perm != chalice.Full) {
-      report(messages.PredicatePermissionScalingNotImplemented(predicateAccess))
-    }
     val location = codeTranslator.translateTerm(predicateAccess.ma.e)
     currentBlock.appendFold(location,predicates(predicateAccess.ma.predicate),codeTranslator.translatePermission(predicateAccess.perm),foldNode)
   }
 
   def translateUnfold(codeTranslator : CodeTranslator, unfoldNode : chalice.Unfold) {
     val predicateAccess = unfoldNode.pred
-    if(predicateAccess.perm != chalice.Full) {
-      report(messages.PredicatePermissionScalingNotImplemented(predicateAccess))
-    }
     val location = codeTranslator.translateTerm(predicateAccess.ma.e)
     currentBlock.appendUnfold(location,predicates(predicateAccess.ma.predicate),codeTranslator.translatePermission(predicateAccess.perm),unfoldNode)
   }
