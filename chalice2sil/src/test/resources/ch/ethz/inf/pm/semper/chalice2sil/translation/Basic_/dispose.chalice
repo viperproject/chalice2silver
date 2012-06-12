@@ -11,6 +11,7 @@ class Main {
     ensures rd(x) && rd(y)
   {
     call disposex(1);
+    assert rd(x);
     call disposex(2);
     assert rd(x);
   }

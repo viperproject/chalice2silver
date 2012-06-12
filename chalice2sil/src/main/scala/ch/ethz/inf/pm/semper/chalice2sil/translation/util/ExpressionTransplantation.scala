@@ -36,8 +36,9 @@ abstract class ExpressionTransplantation(methodEnvironment : MemberEnvironment)
       currentExpressionFactory.makeFieldPermissionExpression(transplant(receiver), field, transplant(perm),expression)
     case PermissionExpression(PredicateLocation(receiver,predicate), perm) =>
       currentExpressionFactory.makePredicatePermissionExpression(transplant(receiver), predicates.lookup(predicate.name), transplant(perm),expression)
-    case UnfoldingExpression(PredicateLocation(receiver,predicate), perm, expr) =>
-      currentExpressionFactory.makeUnfoldingExpression(transplant(receiver),predicates.lookup(predicate.name),transplant(perm), transplant(expr),expression)
+    case UnfoldingExpression(PredicatePermissionExpression(PredicateLocation(receiver,predicate), perm), expr) =>
+      val predicateAccess = currentExpressionFactory.makePredicatePermissionExpression(transplant(receiver), predicates.lookup(predicate.name), transplant(perm), expression)
+      currentExpressionFactory.makeUnfoldingExpression(predicateAccess, transplant(expr),expression)
     case QuantifierExpression(q,v,inner) =>
       val logical = currentExpressionFactory.makeBoundVariable(v.name,v.dataType,expression)
       val old = translateLogicalVariable
@@ -61,8 +62,12 @@ abstract class ExpressionTransplantation(methodEnvironment : MemberEnvironment)
     case FunctionApplicationTerm(receiver, f, args) => currentExpressionFactory.makeFunctionApplicationTerm(transplant(receiver),
       functions.lookup(f.name), transplant(args),term)
     case NoPermissionTerm() => currentExpressionFactory.makeNoPermission(term)
-    case UnfoldingTerm(PredicateLocation(receiver,predicate), perm, body) =>
-      currentExpressionFactory.makeUnfoldingTerm(transplant(receiver),predicates.lookup(predicate.name), transplant(perm), transplant(body),term)
+    case PUnfoldingTerm(PPredicatePermissionExpression(PPredicateLocation(receiver,predicate),perm),body) =>
+      val predicateAccess = currentExpressionFactory.makePPredicatePermissionExpression(transplant(receiver).asInstanceOf[PTerm], predicates.lookup(predicate.name), transplant(perm).asInstanceOf[PTerm], term)
+      currentExpressionFactory.makePUnfoldingTerm(predicateAccess, transplant(body).asInstanceOf[PTerm],term)
+    case UnfoldingTerm(PredicatePermissionExpression(PredicateLocation(receiver,predicate), perm), body) =>
+      val predicateAccess = currentExpressionFactory.makePredicatePermissionExpression(transplant(receiver), predicates.lookup(predicate.name), transplant(perm), term)
+      currentExpressionFactory.makeUnfoldingTerm(predicateAccess, transplant(body),term)
     case PermTerm(FieldLocation(receiver,field)) => currentExpressionFactory.makePermTerm(transplant(receiver),field)(term)
     case ProgramVariableTerm(v) => translateProgramVariable(v)
     case LogicalVariableTerm(v) =>

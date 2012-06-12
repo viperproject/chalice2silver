@@ -3,7 +3,7 @@ $__chalice2sil_env_sd = Split-Path (Get-Variable MyInvocation -Scope 0).Value.My
 function Run-Chalice(
 	[Parameter()][String] $Chalice = '..\boogie\Chalice', 
 	[Parameter()][Switch] $WhatIf, 
-	[Parameter(Position=0)] $firstArg = "-help",
+	[Parameter(Position=0)] $firstArg = $null,
 	[Parameter()][String] $File = '',
 	[Parameter(ValueFromRemainingArguments = $true)] $remainingArgs){
 
@@ -20,7 +20,7 @@ function Run-Chalice(
 	if($File -ne $null){
 		$f = Get-Item $File;
 		if($f -eq $null) {echo "OMG";}
-		$remainingArgs = $remainingArgs + (,$f);
+		$remainingArgs = $remainingArgs + ($f,"/print:out.bpl");
 	} else {
 		$remainingArgs = $remainingArgs;
 	}
@@ -29,6 +29,10 @@ function Run-Chalice(
 		$remainingArgs = @();
 	}
 	
+    if($remainingArgs.Length -eq 0){
+        $remainingArgs = (,"-help");
+    }
+    
 	$sargs = $remainingArgs | where {$_ -ne $null} | foreach { $s = $_.ToString().Replace("\","\\").Replace("`"","\`""); "$s" }
 	$eargs = [String]::Join(" ", $sargs)
 	

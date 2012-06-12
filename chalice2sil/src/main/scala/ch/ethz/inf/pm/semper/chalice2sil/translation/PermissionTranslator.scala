@@ -33,10 +33,16 @@ trait PermissionTranslator extends TermTranslator {
     case f@chalice.Frac(chalice.IntLiteral(100)) => currentExpressionFactory.makeFullPermission(f)
     case f@chalice.Frac(n) => currentExpressionFactory.makePercentagePermission(translateTerm(n),f)
     case k@chalice.Epsilon => readFraction(k)
-    case k@chalice.MethodEpsilon => readFraction(k)
+    case k@chalice.MethodEpsilon => readFraction(k)    //only one of these three is relevant at any given time
+    case k@chalice.PredicateEpsilon(_) => readFraction(k)
+    case k@chalice.MonitorEpsilon(_) => readFraction(k)
+    case e@chalice.Epsilons(intExpr) =>
+         currentExpressionFactory.makeDomainFunctionApplicationTerm(
+           permissionIntegerMultiplication,TermSequence(translateTerm(intExpr), currentExpressionFactory.makeEpsilonPermission(e)),e)
     case permission =>
       report(messages.UnknownAstNode(permission))
       currentExpressionFactory.makeNoPermission(permission)
+
   }
 
   protected def readFraction(location : SourceLocation) : Term = {

@@ -5,13 +5,13 @@ import silAST.expressions.util.DTermSequence._
 import silAST.symbols.logical.Not._
 import silAST.expressions.util.DTermSequence
 import silAST.symbols.logical.Not
-import silAST.expressions.terms.DTerm
 import silAST.expressions.DExpression
 import silAST.source.{SourceLocation, noLocation}
 import silAST.domains.{Domain, DomainPredicate, DomainFunction}
 import silAST.types._
 import silAST.symbols.logical.quantification.{LogicalVariable, Forall}
 import util.{FactoryHashCache, NameSequence}
+import silAST.expressions.terms.{IntegerLiteralTerm, DTerm}
 
 /**
  * Author: Christian Klauser
@@ -99,6 +99,8 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
       def →(rhs:DExpression) : DExpression =
         factory.makeDBinaryExpression(silAST.symbols.logical.Implication()(loc),lhs,rhs,loc)
     }
+
+    implicit protected def integerAsLiteral(n : Int) : DTerm = factory.makeIntegerLiteralTerm(n,loc)
   } 
   
   object Boolean {
@@ -156,7 +158,7 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     }
   }
   
-  object Predicate extends DomainEnvironment("Predicate",Seq()) {
+  object Predicate extends DomainEnvironment("Predicate",List()) {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Read Fraction
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -168,7 +170,7 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     ,loc)
   }
 
-  object Monitor extends DomainEnvironment("Monitor",Seq()) {
+  object Monitor extends DomainEnvironment("Monitor",List()) {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Read Fraction
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -182,7 +184,7 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     ,loc)
   }
 
-  object Function extends DomainEnvironment("Function",Seq()) {
+  object Function extends DomainEnvironment("Function",List()) {
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Read Fraction
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -197,7 +199,7 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
   }
 
   object Pair {
-    object Template extends DomainEnvironment("Pair",Seq((loc,"A"),(loc,"B"))){
+    object Template extends DomainEnvironment("Pair",List((loc,"A"),(loc,"B"))){
       val firstType = factory.makeVariableType(factory.typeVariables.find(_.name ==  "A").get,loc)
       var secondType = factory.makeVariableType(factory.typeVariables.find(_.name == "B").get,loc)
       val dataType = factory.makeNonReferenceDataType(factory,DataTypeSequence(firstType,secondType),loc)
@@ -242,7 +244,7 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
   }
   
   object Map {
-    object Template extends DomainEnvironment("Map",Seq((loc,"K"),(loc,"V")))  {
+    object Template extends DomainEnvironment("Map",List((loc,"K"),(loc,"V")))  {
       val keyType = factory.makeVariableType(factory.typeVariables.find(_.name == "K").get,loc)
       val valueType = factory.makeVariableType(factory.typeVariables.find(_.name == "V").get,loc)
       val dataType = factory.makeNonReferenceDataType(factory,DataTypeSequence(keyType, valueType),loc)
@@ -295,5 +297,36 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     }
     def apply(t1 : DataType, t2 : DataType) = instances.apply((t1,t2))
     lazy val PermissionMap = prelude.Map(prelude.Pair.Location.dataType,permissionType)
+  }
+
+  object Seq {
+    object Template extends DomainEnvironment("Seq",List((loc,"T"))) {
+      val elementType = factory.makeVariableType(factory.typeVariables.find(_.name == "T").get,loc)
+      val dataType = factory.makeNonReferenceDataType(factory,DataTypeSequence(elementType),loc)
+
+      val length = factory.defineDomainFunction("length",DataTypeSequence(dataType),integerType,loc,List("Computes the length of the list."))
+      // axiom ∀ s : Seq[T] . 0 <= length(s)
+      factory.addDomainAxiom("length_is_positive",
+        ∀(dataType,s => Boolean.eval(integerGE.apply(0,length(s)))),loc)
+
+      val empty = factory.defineDomainFunction("empty",DataTypeSequence(),dataType,loc,List("The empty list constructor."))
+      factory.addDomainAxiom("empty_seq_has_length_zero",length(empty()) ≡ 0,loc)
+      factory.addDomainAxiom("length_zero_implies_empty_seq",∀(dataType, s => (length(s) ≡ 0) → (s ≡ empty())),loc)
+
+      val singleton = factory.defineDomainFunction("singleton",DataTypeSequence(elementType),dataType,loc,List("Creates a sequence containing a single element."))
+      factory.addDomainAxiom("singleton_has_length_one",∀(elementType, t => length(singleton(t)) ≡ 1),loc)
+
+      val append = factory.defineDomainFunction("append",DataTypeSequence(dataType,dataType),dataType,loc,List("Concatenates two sequences."))
+      factory.addDomainAxiom("length_of_append_added", ∀(dataType,dataType,(xs,ys) =>
+        length(append(xs,ys)) ≡ integerAddition.apply(length(xs),length(ys))
+      ),loc)
+
+      val at = factory.defineDomainFunction("at",DataTypeSequence(dataType,integerType),elementType,loc,List("Returns the element stored at the specified index."))
+      factory.addDomainAxiom("index_zero_of_singleton",∀(elementType,t => at(singleton(t),0) ≡ t),loc)
+
+      val take = factory.defineDomainFunction("take",DataTypeSequence(dataType,integerType),dataType,loc,List("Returns only the first n elements of a sequence."))
+      val drop = factory.defineDomainFunction("drop",DataTypeSequence(dataType,integerType),dataType,loc,List("Returns a sequence without the first n elements."))
+
+    }
   }
 }

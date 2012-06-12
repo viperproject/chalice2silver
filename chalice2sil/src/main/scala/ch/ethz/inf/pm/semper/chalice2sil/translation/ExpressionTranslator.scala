@@ -92,10 +92,19 @@ trait ExpressionTranslator extends MemberEnvironment {
       case expression@chalice.Access(memberAccess, permission) if !memberAccess.isPredicate =>
         translateAccessExpression(permission)(
           currentExpressionFactory.makeFieldPermissionExpression(translateTerm(memberAccess.e),fields(memberAccess.f),_,expression))
-      //case expression@chalice.Access(predicateAccess, permission) if predicateAccess.isPredicate =>         translate
+      case expression@chalice.Access(predicateAccess, permission) if predicateAccess.isPredicate =>
+        translateAccessExpression(permission)(currentExpressionFactory.makePredicatePermissionExpression(
+          translateTerm(predicateAccess.e),
+          predicates(predicateAccess.predicate),
+          _,
+          expression))
       case unfolding@chalice.Unfolding(predicateAccess, body) =>
         val location = translateTerm(predicateAccess.ma.e)
-        currentExpressionFactory.makeUnfoldingExpression(location,predicates(predicateAccess.ma.predicate),translatePermission(predicateAccess.perm),translateExpression(body),unfolding)
+        val permissionExpr = currentExpressionFactory.makePredicatePermissionExpression(location,
+          predicates(predicateAccess.ma.predicate),
+          translatePermission(predicateAccess.perm), unfolding)
+        currentExpressionFactory.makeUnfoldingExpression(
+          permissionExpr,translateExpression(body),unfolding)
       case boolExpr if boolExpr.typ == chalice.BoolClass =>
         val boolTerm = translateTerm(boolExpr)
         currentExpressionFactory.makeDomainPredicateExpression(prelude.Boolean.eval,TermSequence(boolTerm),boolExpr)

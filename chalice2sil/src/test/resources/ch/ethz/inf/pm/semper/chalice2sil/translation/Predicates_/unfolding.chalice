@@ -10,7 +10,7 @@ class Cell {
     var tmp: int := unfolding p in value;
     var tmp2: int := unfolding p in value;
     call void()
-    assert tmp == unfolding p in value // ERROR: should fail
+    assert tmp == unfolding p in value // @Error 410
   }
 
   method test2()

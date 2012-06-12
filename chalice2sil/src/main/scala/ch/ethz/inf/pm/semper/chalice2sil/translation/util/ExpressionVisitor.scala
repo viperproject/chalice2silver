@@ -1,9 +1,9 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation.util
 
-import silAST.expressions._
-import terms._
 import ch.ethz.inf.pm.semper.chalice2sil
 import chalice2sil._
+import silAST.expressions._
+import terms._
 
 
 /**
@@ -12,6 +12,8 @@ import chalice2sil._
   * @tparam R type of visit results
   */
 trait ExpressionVisitor[A, R] {
+  import silAST.expressions.PermissionExpression
+
   def visitExpression(expression : Expression, arg : A) : R = expression match {
     case BinaryExpression(op, lhs, rhs) =>
       visitMergeExpressions(arg, lhs, rhs)
@@ -21,9 +23,9 @@ trait ExpressionVisitor[A, R] {
       visitMergeTerms(arg, lhs, rhs)
     case DomainPredicateExpression(p, args) =>
       visitMergeTerms(arg, args : _*)
-    case PermissionExpression(location, perm) =>
-      visitMergeTerms(arg, getReceiverFromLocation(location), perm)
-    case UnfoldingExpression(location, perm, expr) =>
+    case PermissionExpression(location,perm) =>
+      visitMergeTerms(arg, getReceiverFromLocation(location),perm)
+    case UnfoldingExpression(PredicatePermissionExpression(location, perm), expr) =>
       merge(
         visitMergeTerms(arg, getReceiverFromLocation(location),perm),
         visitExpression(expr,arg))
@@ -41,7 +43,7 @@ trait ExpressionVisitor[A, R] {
     case FullPermissionTerm() => zero
     case FunctionApplicationTerm(receiver, f, args) => merge(visitTerm(receiver, arg), visitMergeTerms(arg, args : _*))
     case NoPermissionTerm() => zero
-    case UnfoldingTerm(location, perm, body) => visitMergeTerms(arg, getReceiverFromLocation(location),perm, body)
+    case UnfoldingTerm(PredicatePermissionExpression(location,perm), body) => visitMergeTerms(arg, getReceiverFromLocation(location),perm, body)
     case PermTerm(location) => visitTerm(getReceiverFromLocation(location), arg)
     case ProgramVariableTerm(v) => zero
     case i : IntegerLiteralTerm => zero

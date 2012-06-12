@@ -6,7 +6,9 @@ import math.BigInt._
 import ch.ethz.inf.pm.semper.chalice2sil._
 import silAST.types.nullFunction
 import silAST.expressions.util.{PTermSequence, TermSequence}
-import silAST.expressions.terms.Term
+import silAST.expressions.terms.{PTerm, Term}
+import silAST.programs.symbols.PredicateFactory
+import silAST.expressions.{PPredicatePermissionExpression, PredicatePermissionExpression}
 
 /**
   * @author Christian Klauser
@@ -65,14 +67,27 @@ trait TermTranslator extends MemberEnvironment with TypeTranslator {
       currentExpressionFactory.makePDomainFunctionApplicationTerm(nullFunction,PTermSequence(),literal)
     case unfolding@chalice.Unfolding(predicateAccess, body) =>
       val location = translateTerm(predicateAccess.ma.e)
-      currentExpressionFactory.makeUnfoldingTerm(
-        location,predicates(predicateAccess.ma.predicate),translatePermission(predicateAccess.perm),translateTerm(body),unfolding)
+      val predicateExpression = makePredicatePermissionExpression(location,
+        predicates(predicateAccess.ma.predicate),
+        translatePermission(predicateAccess.perm),unfolding)
+      (predicateExpression,translateTerm(body)) match {
+        case (pred:PPredicatePermissionExpression,bodyTerm:PTerm) =>
+          currentExpressionFactory.makePUnfoldingTerm(pred,bodyTerm,unfolding)
+        case (_,bodyTerm) =>
+          currentExpressionFactory.makeUnfoldingTerm(predicateExpression,bodyTerm,unfolding)
+      }
     case functionApplication@chalice.FunctionApplication(receiver,_,args) =>
       currentExpressionFactory.makeFunctionApplicationTerm(
         translateTerm(receiver),
         functions(functionApplication.f),
         TermSequence(args.map(translateTerm(_)):_*),functionApplication)
     case binary:chalice.BinaryExpr => translateBinaryExpression(binary)
+  }
+
+  def makePredicatePermissionExpression(location : Term, predicateFactory : PredicateFactory,permission : Term, sourceLocation : SourceLocation ) : PredicatePermissionExpression =
+    (location,permission) match {
+    case (pLocation : PTerm,pPermission : PTerm) => currentExpressionFactory.makePPredicatePermissionExpression(pLocation,predicateFactory,pPermission,sourceLocation)
+    case _ => currentExpressionFactory.makePredicatePermissionExpression(location,predicateFactory,permission,sourceLocation)
   }
 
   protected def translateBinaryExpression(binary : chalice.BinaryExpr) : Term = {
