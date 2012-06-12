@@ -15,11 +15,11 @@ import silAST.expressions.{PPredicatePermissionExpression, PredicatePermissionEx
   */
 trait TermTranslator extends MemberEnvironment with TypeTranslator {
 
-  def translateTerm(expression : chalice.Expression) : Term = termTranslation(expression)
+  final def translateTerm(expression : chalice.Expression) : Term = termTranslation(expression)
 
-  protected def matchingTerm(partialFunction : PartialFunction[chalice.Expression, Term]) = partialFunction
+  protected final def matchingTerm(partialFunction : PartialFunction[chalice.Expression, Term]) = partialFunction
   
-  def dummyTerm(location : SourceLocation) = currentExpressionFactory.makeIntegerLiteralTerm(27,location)
+  final def dummyTerm(location : SourceLocation) = currentExpressionFactory.makeIntegerLiteralTerm(27,location)
 
   protected def termTranslation : PartialFunction[chalice.Expression,Term] = matchingTerm {
     case rvalue@chalice.IntLiteral(i) =>

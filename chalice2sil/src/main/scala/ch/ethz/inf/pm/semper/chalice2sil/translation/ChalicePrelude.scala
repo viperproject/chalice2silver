@@ -176,7 +176,7 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     val globalReadFraction = factory.defineDomainFunction("globalMonitorReadFraction",DataTypeSequence(),permissionType,loc)
     factory.addDomainAxiom("monitors_and_predicates_are_the_same",
-      Predicate.globalReadFraction() ≡ Monitor.globalReadFraction(),loc)
+      Predicate.globalReadFraction() ≡ globalReadFraction(),loc)
 
     val readFraction = factory.defineDomainFunction("monitorReadFraction",DataTypeSequence(referenceType),permissionType,loc)
     factory.addDomainAxiom("globalMonitorReadFraction",

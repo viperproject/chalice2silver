@@ -15,50 +15,56 @@ class FunctionTranslator(environment : ProgramEnvironment, val function : chalic
   extends DerivedProgramEnvironment(environment)
   with MemberEnvironment
   with TypeTranslator {
+
   val functionFactory : FunctionFactory = programFactory.getFunctionFactory(
     fullFunctionName(function),
     function.ins.map(
       v => (v:SourceLocation,v.UniqueName, translateTypeExpr(v.t))),
     translateTypeExpr(function.out),function)
 
-  def programVariables = new DerivedFactoryCache[chalice.Variable, String, ProgramVariable] {
-    /**
-      * Derives the key from a supplied prototype.
-      *
-      * Note that, while prototypes may be mutable, the key derived from it should be the same while the prototype is in
-      * the same state, i.e., you can't just return an incrementing integer. Otherwise the following code would not work:
-      * {{{
-      *   val cache = new DerivedFactoryCache[P,K,V] {...}
-      *   val prototype = ...
-      *   assert(cache(prototype) == cache(prototype)) //deriveKey must return the same key for both lookups
-      * }}}
-      * @param p The prototype to derive a key from.
-      * @return the key for the prototype
-      */
-    protected def deriveKey(p : Variable) = p.UniqueName
+  val programVariables = {
+    val cache = new DerivedFactoryCache[chalice.Variable, String, ProgramVariable] {
+      /**
+        * Derives the key from a supplied prototype.
+        *
+        * Note that, while prototypes may be mutable, the key derived from it should be the same while the prototype is in
+        * the same state, i.e., you can't just return an incrementing integer. Otherwise the following code would not work:
+        * {{{
+        *   val cache = new DerivedFactoryCache[P,K,V] {...}
+        *   val prototype = ...
+        *   assert(cache(prototype) == cache(prototype)) //deriveKey must return the same key for both lookups
+        * }}}
+        * @param p The prototype to derive a key from.
+        * @return the key for the prototype
+        */
+      protected def deriveKey(p : Variable) = p.UniqueName
 
 
-    /**
-      * Determines the appropriate key for a value.
-      *
-      * By default, this method throws an `UnsupportedOperationException`.
-      * If you want the functionality of the `AdjustableCache` trait, override this method and provide an implementation.
-      * @param value The value for which the key should be derived.
-      * @return The (unique) key for this value.
-      */
-    override protected def deriveKeyFromValue(value : ProgramVariable) = value.name
+      /**
+        * Determines the appropriate key for a value.
+        *
+        * By default, this method throws an `UnsupportedOperationException`.
+        * If you want the functionality of the `AdjustableCache` trait, override this method and provide an implementation.
+        * @param value The value for which the key should be derived.
+        * @return The (unique) key for this value.
+        */
+      override protected def deriveKeyFromValue(value : ProgramVariable) = value.name
 
-    /**
-      * In case of a cache-miss, this method is called to create the missing entry. The key with which the value will
-      * be added to the cache has been determined before via the `deriveKey` method.
-      * @param p  The prototype to create the value from.
-      * @return The value to be added to the cache.
-      */
-    protected def construct(p : Variable) = throw new
-        UnsupportedOperationException("Functions cannot define new program variables.")
+      /**
+        * In case of a cache-miss, this method is called to create the missing entry. The key with which the value will
+        * be added to the cache has been determined before via the `deriveKey` method.
+        * @param p  The prototype to create the value from.
+        * @return The value to be added to the cache.
+        */
+      protected def construct(p : Variable) = throw new
+          UnsupportedOperationException("Functions cannot define new program variables. Missing variable mapping for " + p.id + " : " + p.t.typ)
+    }
+    functionFactory.parameters.foreach(cache.addExternal)
+    cache
   }
 
   def thisVariable = functionFactory.thisVar
+  def resultVariable = functionFactory.resultVar
 
   def environmentReadFractionTerm(sourceLocation : SourceLocation) = {
     val reference = currentExpressionFactory.makeProgramVariableTerm(thisVariable,sourceLocation)
@@ -78,6 +84,12 @@ class FunctionTranslator(environment : ProgramEnvironment, val function : chalic
     programVariables.addExternal(functionFactory.resultVar)
     val translator = new DefaultCodeTranslator(this) {
       override protected def readFraction(location : SourceLocation) = environmentReadFractionTerm(location)
+
+      override protected def termTranslation = resultTranslation orElse super.termTranslation
+
+      private val resultTranslation = matchingTerm {
+        case r@chalice.Result() => currentExpressionFactory.makeProgramVariableTerm(resultVariable,r)
+      }
     }
     function.spec foreach {
       case chalice.Precondition(e) => functionFactory.addPrecondition(translator.translateExpression(e))

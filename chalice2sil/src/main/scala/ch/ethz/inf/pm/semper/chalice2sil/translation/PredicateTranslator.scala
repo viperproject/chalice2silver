@@ -18,7 +18,7 @@ class PredicateTranslator(environment : ProgramEnvironment, val predicate : chal
 {
   val predicateFactory : PredicateFactory = programFactory.getPredicateFactory(fullPredicateName(predicate),predicate)
 
-  def programVariables = new DerivedFactoryCache[chalice.Variable,String,ProgramVariable] {
+  val programVariables = new DerivedFactoryCache[chalice.Variable,String,ProgramVariable] {
     /**
       * Derives the key from a supplied prototype.
       *
