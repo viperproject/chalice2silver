@@ -155,7 +155,7 @@ trait ScopeTranslator
     def _1 = lhs
     def _2 = rhs
   }
-  protected final case class ReadField(reference : PTerm, field : FieldTranslator, permissionAmount : PTerm) extends ReadCondition
+  protected final case class ReadLocation(reference : PTerm, location : LocationTranslator, permissionAmount : PTerm) extends ReadCondition
 
   def allowsInexactChecking(permissionTerm : Term, methodFraction : Term, isNegative : Boolean = false) : Boolean = permissionTerm match {
     case DomainFunctionApplicationTerm(f,TermSequence(left,right)) if
@@ -170,10 +170,10 @@ trait ScopeTranslator
   }
 
   def filterCondByChecking(rs : List[ReadCondition], inexact : Boolean, methodFraction : Term) : List[ReadCondition] = rs.collect({
-    case rf@ReadField(_,_,perm) if allowsInexactChecking(perm,methodFraction) == inexact => rf
+    case rf@ReadLocation(_,_,perm) if allowsInexactChecking(perm,methodFraction) == inexact => rf
     case ReadImplication(lhs,rs2) => val rs3 =
         filterCondByChecking(rs2, inexact, methodFraction).collect({
-          case rf@ReadField(_,_,_) => rf
+          case rf@ReadLocation(_,_,_) => rf
           case ri@ReadImplication(_,_::_) => ri //we're not interested in empty lists
         })
       ReadImplication(lhs, rs3)
@@ -238,7 +238,9 @@ trait ScopeTranslator
         case PermissionExpression(_,FullPermissionTerm()) => Nil
         case PermissionExpression(_,NoPermissionTerm()) => Nil
         case p@PermissionExpression(FieldLocation(reference:PTerm,field),pTerm:PTerm) =>
-          List(ReadField(transplantPTerm(reference),fields.lookup(field.name),transplantPTerm(pTerm)))
+          List(ReadLocation(transplantPTerm(reference),fields.lookup(field.name),transplantPTerm(pTerm)))
+        case p@PermissionExpression(PredicateLocation(reference:PTerm,pred),pTerm:PTerm) =>
+          List(ReadLocation(transplantPTerm(reference),predicates.lookup(pred.name),transplantPTerm(pTerm)))
         case PermissionExpression(nonReferenceTerm,_) =>
           report(messages.ContractNotUnderstood(expr))
           Nil
@@ -275,7 +277,7 @@ trait ScopeTranslator
       def appendCond(rs : List[ReadCondition]){
         val combined = new CombinedPrecondition(this,this.environmentReadFractionTerm(callNode))
         rs foreach {
-          case ReadField(reference,field,perm) =>
+          case ReadLocation(reference,field:FieldTranslator,perm) =>
             val originalPermMapTerm = currentExpressionFactory.makeProgramVariableTerm(originalPermMapVar, callNode)
             val permMapTerm = currentExpressionFactory.makeProgramVariableTerm(permMapVar, callNode)
   
@@ -286,10 +288,13 @@ trait ScopeTranslator
               // Assert the precondition of the reference.
               combined.visitTerm(reference,null) match {
                 case TrueExpression() => // `exhale true` only confuses
-                case definedness => exhale(removeSideEffects(definedness))
+                case definedness => exhale(removeSideEffects(definedness),
+                  "The precondition of " + callNode.m.Id + " mentions a location that might not be defined. (Null reference of insufficient permission to field)",
+                  reference.sourceLocation)
               }
               
               // `location := (ref,field)`
+              comment("location := (ref,field) //cache a representation of memory location for access to " + field.field + ".")
               locationVar <-- field.locationLiteral(currentExpressionFactory, reference.asInstanceOf[PTerm])
   
               // `inhale  get(m_0,(ref,field)) = perm(ref,field)` where (ref,field) = location
@@ -307,6 +312,8 @@ trait ScopeTranslator
               val nextVirtualPermission = permissionSubtraction.p(currentVirtualPermission,perm)
               permMapVar <-- (prelude.Map.PermissionMap.update.p(permMapTerm,location,nextVirtualPermission))
             }
+          case ReadLocation(_,p:PredicateTranslator,_) =>
+            report(messages.ContractNotUnderstood(p.predicateFactory.predicate))
           case _ =>
         }
   
@@ -324,8 +331,7 @@ trait ScopeTranslator
         appendCond(filterCondByChecking(readConds.flatten.toList,allowInexact,callReadFractionTerm))
       }
 
-      // First handle all cases where we have some flexibility when choosing k,
-      // and only then handle the cases where k is treated as fixed.
+      comment("Collect constraints on the method call site fraction.")
       emitConditionCode(allowInexact = true)
   
       callReadFractionTerm
@@ -342,6 +348,8 @@ trait ScopeTranslator
     val chalice.Call(_,destinations,receiver,_,args) = callNode
     val calleeFactory = methods(callNode.m.asInstanceOf[chalice.Method])
 
+    currentBlock.appendInhale(TrueExpression()(callNode),callNode,List("Begin synchronous call to " + calleeFactory.name + "."))
+
     val readFractionTerm = determineReadPermissionFraction(codeTranslator,callNode)
 
     // Generate call statement
@@ -352,7 +360,7 @@ trait ScopeTranslator
       currentBlock.makeProgramVariableSequence(destinationVars, callNode),
       receiverTerm,
       calleeFactory,
-      PTermSequence(argTerms : _*),callNode)
+      PTermSequence(argTerms : _*),callNode,List("Perform synchronous method call to " + calleeFactory.name + "."))
   }
 
   def translateMethodFork(callNode : chalice.CallAsync) {
@@ -421,9 +429,12 @@ trait ScopeTranslator
       }
 
       // Finally: `exhale precondition(method)`, with parameters substituted
-      if(calleeFactory.method.signature.precondition.size > 0)
-        exhale(calleeFactory.method.signature.precondition
-          .map(_.substitute(callSiteSubstitution)))
+      if(calleeFactory.method.signature.precondition.size > 0)  {
+        comment("Finally exhale precondition of " + calleeFactory.name + ".")
+        exhale(calleeFactory.method.signature.precondition.map(_.substitute(callSiteSubstitution)),
+          Some("The precondition of method " + calleeFactory.name + ", defined at " + calleeFactory.method.signature.precondition.headOption.map(_.sourceLocation).getOrElse(calleeFactory.method.sourceLocation)),
+          Some(astNodeToSourceLocation(callNode)))
+      }
     }
   }
   
@@ -519,12 +530,14 @@ trait ScopeTranslator
 
   def translateAssert(expr : chalice.Expression) {
     val translator = new MemberCodeTranslator with AssertionTranslator
-    currentBlock.appendExhale(translator.translateExpression(expr),expr)
+    currentBlock.appendExhale(translator.translateExpression(expr),
+      Some("Assertion at " + astNodeToSourceLocation(expr) + " might not hold."),
+      expr,List("Assertion originally from Chalice source code."))
   }
 
   def translateAssume(expr : chalice.Expression) {
     val translator = new MemberCodeTranslator with AssertionTranslator
-    currentBlock.appendInhale(translator.translateExpression(expr),expr)
+    currentBlock.appendInhale(translator.translateExpression(expr),expr,List("Assumption originally from Chalice source code. (" + astNodeToSourceLocation(expr) + ")"))
   }
 
   protected def translateAssignment(codeTranslator : CodeTranslator, lhs : chalice.VariableExpr,  rhs : chalice.RValue){

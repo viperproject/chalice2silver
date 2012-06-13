@@ -20,13 +20,9 @@ class FieldTranslator(
                          */
                        val id : Int, programEnvironment : ProgramEnvironment)
   extends DerivedProgramEnvironment(programEnvironment)
+  with LocationTranslator
   with TypeTranslator {
-  
-  def locationLiteral(expressionFactory : ExpressionFactory, reference : PTerm) : PTerm = {
-    val fieldLiteral = expressionFactory.makeIntegerLiteralTerm(id,reference.sourceLocation)
-    expressionFactory.makePDomainFunctionApplicationTerm(
-      prelude.Pair.Location.create,PTermSequence(reference,fieldLiteral),reference.sourceLocation)
-  }
 
-  override def toString = field.toString;
+
+  override def toString = field.toString()
 }

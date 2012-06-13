@@ -12,9 +12,14 @@ import chalice.Variable
 /**
   * @author Christian Klauser
   */
-class PredicateTranslator(environment : ProgramEnvironment, val predicate : chalice.Predicate, val id : Int)
+class PredicateTranslator(environment : ProgramEnvironment, val predicate : chalice.Predicate, /**
+  * An id that is unique within the program and is used to identify this predicate
+  * in expressions.
+  */
+                          val id : Int)
   extends DerivedProgramEnvironment(environment)
   with MemberEnvironment
+  with LocationTranslator
 {
   val predicateFactory : PredicateFactory = programFactory.getPredicateFactory(fullPredicateName(predicate),predicate)
 
