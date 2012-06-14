@@ -1,0 +1,29 @@
+class Cell {
+    var f : int;
+}
+
+class Dell {
+    var cell : Cell;
+}
+
+class Main {
+    method parallel(d : Dell) returns (r: bool)
+        requires d != null ==> rd(d.cell) && d.cell != null && rd(d.cell.f) && d.cell.f == 5
+        ensures r ==> old(d.cell.f == 5)    && r == (d != null)
+    {
+          r := d != null;
+    }
+
+    method main(d : Dell, c : Cell)
+        requires acc(d.cell) && acc(c.f)
+        ensures acc(d.cell) && acc(c.f)
+    {
+        var r : bool;
+        d.cell := c;
+        c.f := 5;
+        fork tk := parallel(d)
+        assert c.f == 5;
+        join r := tk;
+        assert r;
+    }
+}

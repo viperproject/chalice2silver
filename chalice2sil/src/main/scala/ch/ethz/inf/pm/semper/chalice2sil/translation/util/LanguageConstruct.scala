@@ -83,7 +83,10 @@ class LanguageConstruct(scope : ScopeTranslator, sourceLocation_ : SourceLocatio
   }
 
   final def unfold(receiver : Term, predicate : PredicateFactory,permission : Term) {
-    scope.currentBlock.appendUnfold(receiver,predicate,permission,sourceLocation,takeComment())
+    scope.currentBlock.appendUnfold(
+      currentExpressionFactory.makePredicatePermissionExpression(receiver,predicate,permission,sourceLocation),
+      sourceLocation,
+      takeComment())
   }
 
   final def inhale(expr : Expression) {

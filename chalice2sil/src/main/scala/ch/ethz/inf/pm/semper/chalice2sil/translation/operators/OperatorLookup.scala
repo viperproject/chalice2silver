@@ -1,12 +1,12 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation.operators
 
 import collection._
-import silAST.types.{DataType, DataTypeSequence}
+import silAST.types.{referenceEquality, DataType, DataTypeSequence}
 
 class OperatorLookup[TOp <: {def signature : {def parameterTypes : DataTypeSequence}; def name : String}] {
   protected def operatorNameCandidates(opName : String) : List[String] = opName :: (opName match {
     case "=="
-       | "<==>" => List("↔","<=>")
+       | "<==>" => List("↔","<=>",referenceEquality.name)
     case "<" => List("LT")
     case "<=" | "≤" => List("LE")
     case ">" => List("GT")

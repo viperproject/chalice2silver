@@ -600,7 +600,13 @@ trait ScopeTranslator
   def translateUnfold(codeTranslator : CodeTranslator, unfoldNode : chalice.Unfold) {
     val predicateAccess = unfoldNode.pred
     val location = codeTranslator.translateTerm(predicateAccess.ma.e)
-    currentBlock.appendUnfold(location,predicates(predicateAccess.ma.predicate),codeTranslator.translatePermission(predicateAccess.perm),unfoldNode)
+    currentBlock.appendUnfold(
+      currentExpressionFactory.makePredicatePermissionExpression(
+        location,
+        predicates(predicateAccess.ma.predicate),
+        codeTranslator.translatePermission(predicateAccess.perm),
+        unfoldNode),
+      unfoldNode)
   }
 
   class MemberCodeTranslator extends DefaultCodeTranslator(thisScopeTranslator) {
