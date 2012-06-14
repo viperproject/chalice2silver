@@ -106,4 +106,6 @@ class LanguageConstructBase(val environment : MemberEnvironment, val sourceLocat
 
     def ===(other:Term) : EqualityExpression = currentExpressionFactory.makeEqualityExpression(term,other,sourceLocation)
   }
+
+  implicit def intToLiteral(integer : Int) : Term = currentExpressionFactory.makeIntegerLiteralTerm(integer,sourceLocation)
 }

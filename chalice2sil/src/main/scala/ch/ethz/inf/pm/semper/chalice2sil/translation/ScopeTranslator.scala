@@ -11,6 +11,7 @@ import silAST.expressions._
 import silAST.types._
 import silAST.methods.implementations.{CFGFactory, BasicBlockFactory}
 import silAST.expressions.util.{TermSequence, PTermSequence}
+import silAST.domains.{TypeVariableSubstitution, LogicalVariableSubstitution}
 
 /**
   * @author Christian Klauser
@@ -198,10 +199,15 @@ trait ScopeTranslator
       //Read (fractional) permissions
       val callReadFractionVariable = declareScopedVariable(callNode, getNextName("k"), permissionType) // a unique variable for every method invocation
       val callReadFractionTerm : PTerm = callReadFractionVariable
-      // `inhale 0 < k ∧ k < full ∧ k < method_k`
+      // `inhale 0 < k ∧ k < full ∧ (1000*k) < method_k`
+      //    The factor 1000 is a hack that is also present in the Boogie-encoding.
+      //    It "simulates" the fact that read permissions are really small and can be split off many, many times
+      def aThousandTimes(t : Term) = currentExpressionFactory.makeDomainFunctionApplicationTerm(
+        permissionIntegerMultiplication, TermSequence(1000,t),
+        callNode,List("This \"hack\" ensures that we can give away many small read permission fractions."))
       val kPositive = permissionLT.apply(noPermission,callReadFractionTerm)
-      val kOnlyRead = permissionLT.apply(callReadFractionTerm,fullPermission)
-      val kSubfraction = permissionLT.apply(callReadFractionTerm,this.environmentReadFractionTerm(callNode))
+      val kOnlyRead = permissionLT.apply(aThousandTimes(callReadFractionTerm),fullPermission)
+      val kSubfraction = permissionLT.apply(aThousandTimes(callReadFractionTerm),this.environmentReadFractionTerm(callNode))
       inhale(List(kPositive,kOnlyRead,kSubfraction))
   
       // Permission maps

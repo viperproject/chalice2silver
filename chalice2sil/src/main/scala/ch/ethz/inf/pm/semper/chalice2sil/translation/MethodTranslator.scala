@@ -105,7 +105,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       // requires (noPermission < k ∧ k < fullPermission)
       mf.addPrecondition(conjunction(List(
         permissionLT.apply(noPermission,kTerm),
-        permissionLT.apply(kTerm,fullPermission)
+        permissionLT.apply(permissionIntegerMultiplication.apply(1000,kTerm),fullPermission)
       )),method)
 
       k
