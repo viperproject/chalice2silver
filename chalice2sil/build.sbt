@@ -32,7 +32,7 @@ scalacOptions += "-unchecked"
 
 // Dependencies
 
-libraryDependencies += "org.scalatest" %% "scalatest" % "1.7.1" % "test" withJavadoc() withSources()
+libraryDependencies += "org.scalatest" %% "scalatest" % "1.8" % "test" withJavadoc() withSources()
 
 libraryDependencies += "com.github.scopt" %% "scopt" % "2.0.1"
 
