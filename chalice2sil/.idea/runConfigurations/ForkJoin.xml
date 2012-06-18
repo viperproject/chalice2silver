@@ -10,6 +10,7 @@
     <setting name="testName" value="crossMethodToken.chalice" />
     <setting name="testKind" value="Class" />
     <setting name="showProgressMessages" value="false" />
+    <setting name="useOlderScalaTestVersion" value="true" />
     <RunnerSettings RunnerId="Debug">
       <option name="DEBUG_PORT" value="" />
       <option name="TRANSPORT" value="0" />
