@@ -9,7 +9,7 @@ class Dell {
 class Main {
     method parallel(d : Dell) returns (r: bool)
         requires d != null ==> rd(d.cell) && d.cell != null && rd(d.cell.f) && d.cell.f == 5
-        ensures r ==> old(d.cell.f == 5)    && r == (d != null)
+        ensures r ==> old(d.cell.f == 5)    && r == (d != null)    // @Error 305
     {
           r := d != null;
     }
@@ -24,6 +24,6 @@ class Main {
         fork tk := parallel(d)
         assert c.f == 5;
         join r := tk;
-        assert r;
+        assert r;  // @Error 410
     }
 }

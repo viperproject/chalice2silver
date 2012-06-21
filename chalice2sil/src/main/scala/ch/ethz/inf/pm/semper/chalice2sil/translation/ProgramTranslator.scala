@@ -1,6 +1,6 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
-import collection.mutable.{ArrayBuffer, Buffer, LinkedHashSet, SynchronizedSet}
+import collection._
 import ch.ethz.inf.pm.semper.chalice2sil
 import chalice2sil._
 import silAST.programs.Program
@@ -18,10 +18,10 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
     extends ProgramEnvironment
     with TypeTranslator { programTranslator =>
   /**
-   * The SilTranslator will call this function whenever a new message is generated.
+   * The individual translators will call this function whenever a new message is generated.
    */
-  var onNewMessage : Buffer[Message => Unit] = new ArrayBuffer
-  val pastMessages = new LinkedHashSet[Message] with SynchronizedSet[Message]
+  var onNewMessage : mutable.Buffer[Message => Unit] = new mutable.ArrayBuffer
+  val pastMessages = new mutable.LinkedHashSet[Message] with mutable.SynchronizedSet[Message]
   val programFactory = Program.getFactory(programName,programLocation)
   val methods = new FactoryHashCache[chalice.Method, MethodTranslator]{
     def construct(m : chalice.Method) = new MethodTranslator(programTranslator, m)
@@ -49,13 +49,18 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
   val predicates = new DerivedFactoryCache[chalice.Predicate, String, PredicateTranslator] {
     protected def deriveKey(p : chalice.Predicate) = fullPredicateName(p)
 
-    protected def construct(p : chalice.Predicate) = new PredicateTranslator(programTranslator,p,getNextId)
+    protected def construct(p : chalice.Predicate) = new ChalicePredicateTranslator(programTranslator,p,getNextId)
   }
   
   val functions = new DerivedFactoryCache[chalice.Function,  String,  FunctionTranslator] {
     protected def deriveKey(f : chalice.Function) = fullFunctionName(f)
 
     protected def construct(f : chalice.Function) = new FunctionTranslator(programTranslator,f)
+  }
+
+  val monitorInvariants = new DerivedFactoryCache[chalice.Class, String, PredicateTranslator] {
+    protected def deriveKey(c : chalice.Class) = fullMonitorInvariantName(c)
+    protected def construct(c : chalice.Class) = new MonitorInvariantPredicateTranslator(programTranslator,c,getNextId)
   }
 
   val prelude = new ChalicePrelude(this)
@@ -77,6 +82,7 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
       case p:chalice.Predicate => predicates(p)
       case m:chalice.Method => methods(m)
       case f:chalice.Function => functions(f)
+      case i:chalice.MonitorInvariant => monitorInvariants(classNode) // idempotent, but makes sure that invariant is created lazily
       case _ => // ignore other symbols
     }
   }
@@ -88,6 +94,13 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
   }}
 
   protected def translate(classNode: chalice.Class){
+    // In Chalice2SIL, monitor invariants are not considered "members of a class"
+    //  they are a "property of a class"
+    if(!classNode.MonitorInvariants.isEmpty){
+      monitorInvariants(classNode).translate();
+    }
+
+    // Translate one member at a time
     classNode.members.foreach({
       case m:chalice.Method  =>
         methods(m).translate()
@@ -96,6 +109,7 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
         predicates(p).translate()
       case f:chalice.Function =>
         functions(f).translate()
+      case i:chalice.MonitorInvariant => () //handled separately above
       case otherNode => report(messages.UnknownAstNode(otherNode))
     })
   }

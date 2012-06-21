@@ -12,16 +12,21 @@ import chalice.Variable
 /**
   * @author Christian Klauser
   */
-class PredicateTranslator(environment : ProgramEnvironment, val predicate : chalice.Predicate, /**
+abstract class PredicateTranslator(environment : ProgramEnvironment,
+  /**
   * An id that is unique within the program and is used to identify this predicate
   * in expressions.
   */
-                          val id : Int)
+  val id : Int)
   extends DerivedProgramEnvironment(environment)
   with MemberEnvironment
   with LocationTranslator
 {
-  val predicateFactory : PredicateFactory = programFactory.getPredicateFactory(fullPredicateName(predicate),predicate)
+  def sourceLocation : SourceLocation
+  def createPredicateFactory() : PredicateFactory
+  def translate()
+
+  val predicateFactory : PredicateFactory = createPredicateFactory()
 
   val programVariables = new DerivedFactoryCache[chalice.Variable,String,ProgramVariable] {
     /**
@@ -34,8 +39,7 @@ class PredicateTranslator(environment : ProgramEnvironment, val predicate : chal
       *   val prototype = ...
       *   assert(cache(prototype) == cache(prototype)) //deriveKey must return the same key for both lookups
       * }}}
-
-    }* @param p The prototype to derive a key from.
+      * @param p The prototype to derive a key from.
       * @return the key for the prototype
       */
     protected def deriveKey(p : Variable) = p.UniqueName
@@ -63,25 +67,14 @@ class PredicateTranslator(environment : ProgramEnvironment, val predicate : chal
   def thisVariable = predicateFactory.thisVar
 
   def environmentReadFractionTerm(sourceLocation : SourceLocation) = {
-    val idLiteral = currentExpressionFactory.makeIntegerLiteralTerm(id,predicate)
-    val reference = currentExpressionFactory.makeProgramVariableTerm(thisVariable,predicate)
+    val idLiteral = currentExpressionFactory.makeIntegerLiteralTerm(id,sourceLocation)
+    val reference = currentExpressionFactory.makeProgramVariableTerm(thisVariable,sourceLocation)
     currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Predicate.readFraction,
-      TermSequence(idLiteral,reference),predicate)
+      TermSequence(idLiteral,reference),sourceLocation)
   }
 
   def currentExpressionFactory = predicateFactory
 
   def nameSequence = util.NameSequence()
-
-  /**
-    * Translates the body of the predicate. Must be called exactly once.
-    */
-  def translate() {
-    programVariables.addExternal(thisVariable)
-    val translator = new DefaultCodeTranslator(this) {
-      override protected def readFraction(location : SourceLocation) = environmentReadFractionTerm(location)
-    }
-    predicateFactory.setExpression(translator.translateExpression(predicate.definition))
-  }
 
 }

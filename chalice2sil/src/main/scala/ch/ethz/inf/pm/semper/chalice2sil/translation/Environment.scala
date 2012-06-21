@@ -51,4 +51,10 @@ trait Environment {
     */
   def fullFunctionName(f : chalice.Function) = f.Parent.id + "::" + f.Id
 
+  /**
+    * Returns the globally unique name of the predicate representing the monitor invariant.
+    * @param c the class for which to provide the monitor invariant name for
+    * @return a globally unique name for the monitor invariant of c
+    */
+  def fullMonitorInvariantName(c : chalice.Class) = c.id + "::$invariant"
 }

@@ -148,14 +148,18 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     val domain = booleanDomain
   }
 
-  object Token {
-    val dataType = referenceType
-    lazy val joinable : FieldTranslator = {
-      val f = programEnvironment.programFactory.defineField("joinable",Boolean.dataType)(loc)
+  trait SpecialFieldDescription {
+    protected def defineSpecialField(name : String, dataType : DataType) : FieldTranslator = {
+      val f = programEnvironment.programFactory.defineField(name, dataType)(loc)
       val ft = new FieldTranslator(f,programEnvironment.fields.getNextId,programEnvironment)
       programEnvironment.fields.addExternal(ft)
       ft
     }
+  }
+
+  object Token extends SpecialFieldDescription {
+    val dataType = referenceType
+    lazy val joinable : FieldTranslator = defineSpecialField("joinable",Boolean.dataType)
   }
   
   object Predicate extends DomainEnvironment("Predicate",List()) {
@@ -168,6 +172,8 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     factory.addDomainAxiom("globalPredicateReadFraction",
       ∀(integerType,referenceType, (pred,ref) => readFraction(pred,ref) ≡ globalReadFraction())
     ,loc)
+
+    val domain = factory.compile().getInstance(DataTypeSequence())
   }
 
   object Monitor extends DomainEnvironment("Monitor",List()) {
@@ -283,7 +289,7 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Compile Domain
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    case class PreludeDomainInfo protected[Map] (keyType : DataType, valueType : DataType) {
+    final case class PreludeDomainInfo protected[Map] (keyType : DataType, valueType : DataType) {
       val domain = programEnvironment.programFactory.makeDomainInstance(Template.factory,DataTypeSequence(keyType,valueType))
       val dataType = programEnvironment.programFactory.makeNonReferenceDataType(Template.factory,DataTypeSequence(keyType,valueType),loc)
 
@@ -297,6 +303,34 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     }
     def apply(t1 : DataType, t2 : DataType) = instances.apply((t1,t2))
     lazy val PermissionMap = prelude.Map(prelude.Pair.Location.dataType,permissionType)
+  }
+
+  /**
+    * The set "Mu" is a dense partially ordered set with a bottom element.
+    * It is used to implement deadlock prevention by associating every lock (i.e. every shared object) and
+    * every thread with a waitlevel ∈ Mu. A lock may only be taken when the thread's waitlevel is below
+    * the lock's mu value.
+    */
+  object Mu extends DomainEnvironment("Mu") {
+    val dataType = factory.makeNonReferenceDataType(factory,DataTypeSequence(),loc,List("Type of Mu elements."))
+    val lockBottom = factory.defineDomainFunction("lockBottom",DataTypeSequence(),dataType,loc,List("The bottom element in the partial ordering of the set Mu."))
+    val below = factory.defineDomainPredicate("<<",DataTypeSequence(dataType,dataType),loc,List("Determines whether one element of Mu is strictly below another element of Mu."))
+
+    // axioms establishing below as a strict partial ordering of Mu
+    factory.addDomainAxiom("irreflexive",∀(dataType,
+        (a) => not(below(a))
+      ),loc)
+    factory.addDomainAxiom("asymmetric",∀(dataType,dataType,
+        (a,b) => below(a,b) → not(below(b,a))
+      ),loc)
+    factory.addDomainAxiom("transitive",∀(dataType,dataType,dataType,
+      (a,b,c) => (below(a,b) and below(b,c)) → below(a,c)
+    ),loc)
+
+    // lockBottom is below every non-lockBottom element of Mu
+    factory.addDomainAxiom("lockBottom_is_bottom",∀(dataType,
+      a => (a ≠ lockBottom()) → below(lockBottom(),a)
+    ),loc)
   }
 
   object Seq {

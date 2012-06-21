@@ -5,15 +5,15 @@ class C {
 
     method main(){
         var c : C;
-        c := new C();
-        f := 5;
+        c := new C;
+        c.f := 5;
 
-        share f;
+        share c;
 
         acquire c;
-        f := 6;
+        c.f := 6;
         release c;
 
-        f := 7;
+        c.f := 7;   //should fail
     }
 }

@@ -102,7 +102,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       programVariables.addExternal(k)
 
       val kTerm = mf.makeProgramVariableTerm(k,method)
-      // requires (noPermission < k ∧ k < fullPermission)
+      // requires (noPermission < k ∧ 1000*k < fullPermission)
       mf.addPrecondition(conjunction(List(
         permissionLT.apply(noPermission,kTerm),
         permissionLT.apply(permissionIntegerMultiplication.apply(1000,kTerm),fullPermission)

@@ -1,0 +1,16 @@
+class C {
+    var f : int;
+
+    method main(){
+        var c : C;
+        c := new C;
+        c.f := 4;
+        share c;
+        c.f := 5;  // should succeed, the invariant doesn't mention C::f
+        acquire c;
+        c.f := 6;
+        release c;
+        c.f := 7;
+        assert c.f == 7;
+    }
+}

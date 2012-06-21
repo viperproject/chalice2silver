@@ -1,3 +1,6 @@
+// Silicon might require more stack space than is normally granted by the JVM
+// Issuing `-Xss2M` works (2 mega bytes of stack space per thread)
+
 class Main {
     var f : int;
     var g : int;

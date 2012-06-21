@@ -3,14 +3,13 @@
     <module name="chalice2sil" />
     <setting name="path" value="" />
     <setting name="package" value="ch.ethz.inf.pm" />
-    <setting name="vmparams" value="" />
+    <setting name="vmparams" value="-Xss2M" />
     <setting name="params" value="" />
     <setting name="workingDirectory" value="file://$PROJECT_DIR$" />
     <setting name="searchForTest" value="In single module" />
     <setting name="testName" value="" />
     <setting name="testKind" value="All in package" />
     <setting name="showProgressMessages" value="false" />
-    <setting name="useOlderScalaTestVersion" value="true" />
     <RunnerSettings RunnerId="Debug">
       <option name="DEBUG_PORT" value="" />
       <option name="TRANSPORT" value="0" />

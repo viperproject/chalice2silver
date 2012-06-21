@@ -10,7 +10,6 @@
     <setting name="testName" value="doubleRdDeref.chalice" />
     <setting name="testKind" value="Class" />
     <setting name="showProgressMessages" value="false" />
-    <setting name="useOlderScalaTestVersion" value="true" />
     <RunnerSettings RunnerId="Run" />
     <ConfigurationWrapper RunnerId="Run" />
     <method>

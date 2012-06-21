@@ -23,4 +23,6 @@ class DerivedProgramEnvironment(programEnvironment: ProgramEnvironment) extends 
   def predicates = programEnvironment.predicates
 
   def functions = programEnvironment.functions
+
+  def monitorInvariants = programEnvironment.monitorInvariants
 }

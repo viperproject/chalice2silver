@@ -10,7 +10,6 @@
     <setting name="testName" value="ifDiamondVar.chalice" />
     <setting name="testKind" value="Class" />
     <setting name="showProgressMessages" value="false" />
-    <setting name="useOlderScalaTestVersion" value="true" />
     <method>
       <option name="Make" enabled="false" />
       <option name="SBT.BeforeRunTask" enabled="true" action="test:compile" runInCurrentModule="false" />

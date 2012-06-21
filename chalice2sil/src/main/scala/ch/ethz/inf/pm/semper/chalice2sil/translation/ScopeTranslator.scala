@@ -3,7 +3,7 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
 import silAST.programs.symbols.ProgramVariable
 import ch.ethz.inf.pm.semper.chalice2sil._
 import silAST.source.{noLocation, SourceLocation}
-import collection.mutable.Stack
+import collection._
 import translation.util._
 import silAST.expressions.terms._
 import silAST.symbols.logical.{Equivalence, Or, And, Implication}
@@ -21,7 +21,7 @@ trait ScopeTranslator
   with TypeTranslator
 { thisScopeTranslator =>
   def cfgFactory : CFGFactory
-  def blockStack : Stack[BasicBlockFactory]
+  def blockStack : mutable.Stack[BasicBlockFactory]
   def temporaries : TemporaryVariableBroker
   def declareScopedVariable(sourceLocation : SourceLocation, uniqueName : String, dataType : DataType) : ProgramVariable
 
@@ -408,30 +408,43 @@ trait ScopeTranslator
         val oldNode = entry._1
         val tkField = entry._2
         val cp = new CombinedPrecondition(this,readFractionTerm)
-        val choice = booleanEvaluate.p(declareScopedVariable(callNode,getNextName("nondeterministic_choice"),booleanType))
+        val choiceVar = declareScopedVariable(callNode,getNextName("precondition_met"),booleanType)
+        val choice = booleanEvaluate.p(choiceVar)
 
         // `inhale acc(tk.field,full);`
         inhale(acc(tokenVar,tkField,fullPermission))
 
+        // `var choice : Boolean
+        // `inhale eval(choice) <=> precondition(e)
         // `if(*) { inhale precondition(e); tk.field = e; }`
-        //silIf(choice,callNode){
-          oldNode match {
-            case OldTermNode(OldTerm(inner:PTerm)) =>
+
+        oldNode match {
+          case OldTermNode(OldTerm(inner:PTerm)) => {
+            languageConstruct(inner.sourceLocation)( _ => {
               val innerLocal = inner.substitute(callSiteSubstitution)
-              inhale(cp.visitTerm(innerLocal,null))
-              (tokenVar!tkField) <-- innerLocal
-            case OldExpressionNode(OldExpression(inner:PExpression)) =>
-              val innerLocal = inner.substitute(callSiteSubstitution)
-              inhale(cp.visitExpression(innerLocal,null))
+              val precondition  = removeSideEffects(cp.visitTerm(innerLocal,null))
+              inhale(Equivalence()(innerLocal.sourceLocation).t(choice, precondition))
+              silIf(choice,innerLocal.sourceLocation){
+                (tokenVar!tkField) <-- innerLocal
+              } end()
+            })
+          }
+          case OldExpressionNode(OldExpression(inner:PExpression)) => { languageConstruct(inner.sourceLocation)( _ => {
+            val innerLocal = inner.substitute(callSiteSubstitution)
+            inhale(Equivalence()(innerLocal.sourceLocation).t(choice,removeSideEffects(cp.visitExpression(innerLocal,null))))
+            silIf(choice,inner.sourceLocation){
               silIf(innerLocal,callNode){
                 (tokenVar!tkField) <-- booleanTrue.p()
               } els {
                 (tokenVar!tkField) <-- booleanFalse.p ()
               } end()
-            case o => // inner term/expression is not a program term/expression
-              report(messages.ContractNotUnderstood(o.astNode))
+            } end ()
+          })}
+          case o => {// inner term/expression is not a program term/expression
+            report(messages.ContractNotUnderstood(o.astNode))
+            ()
           }
-        //} end ()
+        }
       }
 
       // Finally: `exhale precondition(method)`, with parameters substituted
