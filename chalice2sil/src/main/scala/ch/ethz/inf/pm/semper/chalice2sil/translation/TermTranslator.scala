@@ -28,6 +28,8 @@ trait TermTranslator extends MemberEnvironment with TypeTranslator {
       currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.trueLiteral,TermSequence(),rvalue)
     case rvalue@chalice.BoolLiteral(false) =>
       currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.falseLiteral,TermSequence(),rvalue)
+    case rvalue@chalice.LockBottomLiteral() =>
+      currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Mu().lockBottom,TermSequence(),rvalue)
     case variableExpr:chalice.VariableExpr =>
       currentExpressionFactory.makeProgramVariableTerm((programVariables(variableExpr.v)),variableExpr)
     case rvalue@chalice.Old(e) => currentExpressionFactory.makeOldTerm(translateTerm(e))(rvalue)

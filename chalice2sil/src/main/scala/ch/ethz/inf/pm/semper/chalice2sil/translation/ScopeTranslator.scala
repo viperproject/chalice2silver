@@ -263,10 +263,10 @@ trait ScopeTranslator
           Nil
         case BinaryExpression(Equivalence(),lhs,rhs) =>
           // Interpret A ↔ B ≡ (A → B) ∧ (B → A)
-          genReadCond(conjunction(List(
+          genReadCond(conjunction(
             Implication()(callNode).t(lhs,rhs),
             Implication()(callNode).t(rhs,lhs)
-          )))
+          ))
         case  _:EqualityExpression
             | _:AtomicExpression
             | _:UnaryExpression => Nil

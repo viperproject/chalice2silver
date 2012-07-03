@@ -117,11 +117,11 @@ trait ExpressionTranslator extends MemberEnvironment {
       import ctor._
       val readFractionVar = currentExpressionFactory.makeBoundVariable(getNextName("kstar"),permissionType,s)
       val readFractionTerm = currentExpressionFactory.makeBoundVariableTerm(readFractionVar,s)
-      currentExpressionFactory.makeQuantifierExpression(Exists()(s),readFractionVar, conjunction(List(
+      currentExpressionFactory.makeQuantifierExpression(Exists()(s),readFractionVar, conjunction(
         permissionLT.apply(noPermission, readFractionTerm),   // 0 < k 
         permissionLT.apply(readFractionTerm, fullPermission), // k < write
         permissionLT.apply(readFractionTerm, environmentReadFractionTerm(permission)), // k < k_method
-        body(readFractionTerm))))(s)// body(k)
+        body(readFractionTerm)))(s)// body(k)
     case amount => body(translatePermission(amount))
   }
 

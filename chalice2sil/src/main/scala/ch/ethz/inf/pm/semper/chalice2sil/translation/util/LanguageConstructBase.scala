@@ -23,8 +23,8 @@ class LanguageConstructBase(val environment : MemberEnvironment, val sourceLocat
     def !(ft : FieldTranslator) = (variable, ft)
   }
 
-  final def conjunction(es : TraversableOnce[Expression]*) : Expression = {
-    es.flatten.reduceOption(currentExpressionFactory.makeBinaryExpression(And()(sourceLocation), _, _, sourceLocation)) match {
+  final def conjunction(es : Expression*) : Expression = {
+    es.reduceOption(currentExpressionFactory.makeBinaryExpression(And()(sourceLocation), _, _, sourceLocation)) match {
       case Some(e) => e
       case None => TrueExpression()(sourceLocation)
     }

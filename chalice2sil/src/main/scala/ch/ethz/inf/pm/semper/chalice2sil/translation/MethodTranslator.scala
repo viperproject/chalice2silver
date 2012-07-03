@@ -12,7 +12,9 @@ import silAST.expressions._
 import silAST.symbols.logical._
 import collection.immutable
 import immutable.Set
+import quantification.{LogicalVariable, Forall}
 import util._
+import silAST.expressions.util.TermSequence
 
 class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     extends DerivedProgramEnvironment(st)
@@ -103,23 +105,40 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
 
       val kTerm = mf.makeProgramVariableTerm(k,method)
       // requires (noPermission < k ∧ 1000*k < fullPermission)
-      mf.addPrecondition(conjunction(List(
+      mf.addPrecondition(conjunction(
         permissionLT.apply(noPermission,kTerm),
         permissionLT.apply(permissionIntegerMultiplication.apply(1000,kTerm),fullPermission)
-      )),method)
+      ),method)
+
+      // thread object
+      val currentThread = mf.addParameter(getNextName(prelude.Thread.parameterName),prelude.Thread.dataType,method)
+      programVariables.addExternal(currentThread)
+      val currentThreadTerm = mf.makeProgramVariableTerm(currentThread,method)
+      // requires currentThread != null && acc(currentThread.heldMap) && acc(currentThread.muMap)
+      mf.addPrecondition(conjunction(
+        Not()(method).t((currentThreadTerm:Term) === nullFunction.apply()),
+        acc(currentThreadTerm,prelude.Thread.heldMap,fullPermission),
+        acc(currentThreadTerm,prelude.Thread.muMap,fullPermission)
+      ),method)                ;
+
+      // there are more contracts mentioning currentthread in {{createContracts}}
 
       k
     }
   }
   
-  val environmentReadFractionVariable = createSignature();
+  val environmentReadFractionVariable = createSignature()
   def environmentReadFractionTerm(sourceLocation : SourceLocation) = currentExpressionFactory.makeProgramVariableTerm(environmentReadFractionVariable,sourceLocation)
-  
+
+  val environmentCurrentThreadVariable = methodFactory.inputProgramVariables.find(_.name.startsWith(prelude.Thread.parameterName)).get
+  def environmentCurrentThreadTerm(sourceLocation : SourceLocation) = currentExpressionFactory.makeProgramVariableTerm(environmentCurrentThreadVariable,sourceLocation)
+
   private[this] def createContracts() {
     val contractTranslator = new DefaultCodeTranslator(this){
       override protected def readFraction(location : SourceLocation) = environmentReadFractionTerm(location)
     }
 
+    // Add pre- and postconditions
     method.spec.foreach(spec => spec match {
       case chalice.Precondition(e) =>
         val precondition = contractTranslator.translateExpression(e)
@@ -127,8 +146,66 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       case chalice.Postcondition(e) =>
         val postcondition = contractTranslator.translateExpression(e)
         methodFactory.addPostcondition(postcondition,spec)
+      case chalice.LockChange(es) => {} // handled separately
       case otherSpec => report(messages.UnknownAstNode(otherSpec))
     })
+
+    // Add constraints about currentThread.heldMap and currentThread.muMap
+//    (forall o: ref ::   (0<eh[o, held]) == (0<h[o, held])) &&
+//    (forall o: ref ::   (0<h[o, held]) ==> eh[o, mu] == h[o, mu]) &&
+//    (forall o: ref ::    h[o, held] == eh[o, held])
+    def forallReferencesInPostcondition(f : Function[Term,Expression]) = {
+      val qObjVar = methodFactory.makeBoundVariable(getNextName("o"),referenceType,method)
+      methodFactory.addPostcondition(methodFactory.makeQuantifierExpression(Forall()(method),qObjVar,
+        f(currentExpressionFactory.makeBoundVariableTerm(qObjVar,method))
+      )(method,Nil),method)
+    }
+
+    val lockChanged = method.Spec.collect({case chalice.LockChange(es) => es.map(contractTranslator.translateTerm(_))}).flatten
+    def isLockChanged(term : Term) : Expression = {
+      lockChanged.map(lc => currentExpressionFactory.makeEqualityExpression(term,lc,lc.sourceLocation):Expression).
+        reduceOption((l,r) => currentExpressionFactory.makeBinaryExpression(And()(l.sourceLocation),l,r,l.sourceLocation)).
+        getOrElse(FalseExpression()(term.sourceLocation,Nil))
+    }
+    def exceptIsLockChanged(obj : Term, expr : Expression) = {
+      isLockChanged(obj) match {
+        case FalseExpression() => expr
+        case test =>
+          currentExpressionFactory.makeBinaryExpression(Implication()(test.sourceLocation),
+            currentExpressionFactory.makeUnaryExpression(Not()(test.sourceLocation),test,test.sourceLocation),
+            expr,
+            test.sourceLocation)
+      }
+    }
+
+    val heldMapTerm : Term = currentExpressionFactory.makeFieldReadTerm(environmentCurrentThreadTerm(method),prelude.Thread.heldMap,method)
+    def heldLookup(ref : Term) : Term = {
+      currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Map.HeldMap.get,TermSequence(heldMapTerm,ref),ref.sourceLocation)
+    }
+
+    val muMapTerm : Term = currentExpressionFactory.makeFieldReadTerm(environmentCurrentThreadTerm(method),prelude.Thread.muMap,method)
+    def muLookup(ref : Term) : Term = {
+      currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Map.MuMap.get,TermSequence(muMapTerm,ref),ref.sourceLocation)
+    }
+
+    //  ∀ o : ref :: ¬isLockChanged(o) ⇒ old(currentThread.heldMap[o]) == currentThread.heldMap[o]
+    forallReferencesInPostcondition(o =>
+      exceptIsLockChanged(o,
+        currentExpressionFactory.makeEqualityExpression(
+          currentExpressionFactory.makeOldTerm(heldLookup(o))(method),
+          heldLookup(o),method
+        )))
+
+    // ∀ o : ref :: ¬isLockChanged(o) ⇒ (currentThread.heldMap[o] ⇒ old(currentThread.muMap[o]) == currentThread.muMap[o]))
+    forallReferencesInPostcondition(o =>
+      exceptIsLockChanged(o,
+        currentExpressionFactory.makeBinaryExpression(Implication()(method),
+          currentExpressionFactory.makeDomainPredicateExpression(prelude.Boolean.eval,TermSequence(heldLookup(o)),method),
+          currentExpressionFactory.makeEqualityExpression(currentExpressionFactory.makeOldTerm(muLookup(o))(method,Nil),muLookup(o),method),
+          method,Nil
+        )
+      )
+    )
 
     methodFactory.finalizeSignature()
   }

@@ -7,11 +7,13 @@ import silAST.expressions.util.DTermSequence
 import silAST.symbols.logical.Not
 import silAST.expressions.DExpression
 import silAST.source.{SourceLocation, noLocation}
-import silAST.domains.{Domain, DomainPredicate, DomainFunction}
+import silAST.domains._
 import silAST.types._
 import silAST.symbols.logical.quantification.{LogicalVariable, Forall}
 import util.{FactoryHashCache, NameSequence}
 import silAST.expressions.terms.{IntegerLiteralTerm, DTerm}
+import scala.Tuple1
+import silAST.symbols.logical.quantification.Forall
 
 /**
  * Author: Christian Klauser
@@ -22,9 +24,18 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
   
   private val loc = new SourceLocation{
     override def toString = "Chalice#built-in"
-  }  //TODO: define a more sensible location than `noLocation` for the Prelude
+  }
 
-  protected class DomainEnvironment(domainName: String, typeVariableNames: Seq[(SourceLocation,String)] = Nil) extends DerivedProgramEnvironment(programEnvironment){
+  protected implicit val unpackNoTypeArguments = (u:Unit) => List[DataType]()
+  protected implicit val unpackSingleTypeArgument = (t:Tuple1[DataType]) => List(t._1)
+  protected implicit val acceptSingleTypeArgument = (t:DataType) => List(t)
+  protected implicit val unpackDoubleTypeArguments = (t:(DataType,DataType)) => List(t._1,t._2)
+
+  protected abstract class DomainEnvironment(
+                                                    domainName: String,
+                                                    typeVariableNames: Seq[(SourceLocation,String)] = Nil)
+      extends DerivedProgramEnvironment(programEnvironment){
+
     val factory = programFactory.getDomainFactory(domainName, typeVariableNames.map(t => (t._1,t._2,Nil)),loc)
 
     protected def fApp(domainFunction : DomainFunction, args : DTerm*) = {
@@ -101,7 +112,31 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     }
 
     implicit protected def integerAsLiteral(n : Int) : DTerm = factory.makeIntegerLiteralTerm(n,loc)
-  } 
+  }
+
+  abstract class PreludeDomain[TypeArguments]
+    (implicit unpackTypeArguments : Function[TypeArguments,Seq[DataType]]) {
+
+    protected def Template : DomainEnvironment
+
+    type DomainInfoType <: DomainInfo
+
+    abstract class DomainInfo(typeArguments : TypeArguments) {
+      protected val programFactory = programEnvironment.programFactory
+      protected def templateFactory : DomainTemplateFactory = Template.factory
+
+      val domain = programFactory.makeDomainInstance(templateFactory,DataTypeSequence(unpackTypeArguments(typeArguments):_*))
+      val dataType = programFactory.makeNonReferenceDataType(templateFactory,DataTypeSequence(unpackTypeArguments(typeArguments):_*),loc)
+      protected def function(f : DomainFunction) = domain.functions.find(_.name == f.name).get
+      protected def predicate(p : DomainPredicate) = domain.predicates.find(_.name == p.name) .get
+    }
+
+    protected def constructDomainInfo(t : TypeArguments) : DomainInfoType
+
+    val instances = new FactoryHashCache[TypeArguments,DomainInfoType] {
+      protected def construct(t : TypeArguments) = constructDomainInfo(t)
+    }
+  }
   
   object Boolean {
 
@@ -148,7 +183,7 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     val domain = booleanDomain
   }
 
-  trait SpecialFieldDescription {
+  trait SpecialObjectInfo {
     protected def defineSpecialField(name : String, dataType : DataType) : FieldTranslator = {
       val f = programEnvironment.programFactory.defineField(name, dataType)(loc)
       val ft = new FieldTranslator(f,programEnvironment.fields.getNextId,programEnvironment)
@@ -157,54 +192,97 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     }
   }
 
-  object Token extends SpecialFieldDescription {
+  object Token extends SpecialObjectInfo {
     val dataType = referenceType
     lazy val joinable : FieldTranslator = defineSpecialField("joinable",Boolean.dataType)
   }
+
+  object Thread extends SpecialObjectInfo {
+    val dataType = referenceType
+    lazy val heldMap = defineSpecialField("heldMap",Map(referenceType,Boolean.dataType).dataType)
+    lazy val muMap = defineSpecialField("muMap",Map(referenceType,Mu().dataType).dataType)
+    val parameterName = "$currentThread"
+  }
   
-  object Predicate extends DomainEnvironment("Predicate",List()) {
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Read Fraction
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val globalReadFraction = factory.defineDomainFunction("globalPredicateReadFraction",DataTypeSequence(),permissionType,loc)
+  object Predicate extends PreludeDomain[Unit] {
+    object Template extends DomainEnvironment("Predicate",List()) {
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      // Read Fraction
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      val globalReadFraction = factory.defineDomainFunction("globalPredicateReadFraction",DataTypeSequence(),permissionType,loc)
 
-    val readFraction = factory.defineDomainFunction("predicateReadFraction",DataTypeSequence(integerType, referenceType),permissionType,loc)
-    factory.addDomainAxiom("globalPredicateReadFraction",
-      ∀(integerType,referenceType, (pred,ref) => readFraction(pred,ref) ≡ globalReadFraction())
-    ,loc)
+      val readFraction = factory.defineDomainFunction("predicateReadFraction",DataTypeSequence(integerType, referenceType),permissionType,loc)
+      factory.addDomainAxiom("globalPredicateReadFraction",
+        ∀(integerType,referenceType, (pred,ref) => readFraction(pred,ref) ≡ globalReadFraction())
+      ,loc)
+    }
 
-    val domain = factory.compile().getInstance(DataTypeSequence())
+    class PredicateDomainInfo() extends DomainInfo() {
+      val globalReadFraction = function(Template.globalReadFraction)
+      val readFraction = function(Template.readFraction)
+    }
+
+    protected def constructDomainInfo(t : Unit) = new PredicateDomainInfo()
+
+    type DomainInfoType = PredicateDomainInfo
+
+    protected lazy val instance = instances(())
+    def apply() = instance
   }
 
-  object Monitor extends DomainEnvironment("Monitor",List()) {
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Read Fraction
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val globalReadFraction = factory.defineDomainFunction("globalMonitorReadFraction",DataTypeSequence(),permissionType,loc)
-    factory.addDomainAxiom("monitors_and_predicates_are_the_same",
-      Predicate.globalReadFraction() ≡ globalReadFraction(),loc)
+  object Monitor extends PreludeDomain[Unit]{
+    object Template extends DomainEnvironment("Monitor",List()) {
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      // Read Fraction
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      val globalReadFraction = factory.defineDomainFunction("globalMonitorReadFraction",DataTypeSequence(),permissionType,loc)
+      factory.addDomainAxiom("monitors_and_predicates_are_the_same",
+        Predicate().globalReadFraction() ≡ globalReadFraction(),loc)
 
-    val readFraction = factory.defineDomainFunction("monitorReadFraction",DataTypeSequence(referenceType),permissionType,loc)
-    factory.addDomainAxiom("globalMonitorReadFraction",
-      ∀(referenceType, (ref) => readFraction(ref) ≡ globalReadFraction())
-    ,loc)
+      val readFraction = factory.defineDomainFunction("monitorReadFraction",DataTypeSequence(referenceType),permissionType,loc)
+      factory.addDomainAxiom("globalMonitorReadFraction",
+        ∀(referenceType, (ref) => readFraction(ref) ≡ globalReadFraction())
+      ,loc)
+    }
+
+    class MonitorDomainInfo() extends DomainInfo() {
+      val globalReadFraction = function(Template.globalReadFraction)
+      val readFraction = function(Template.readFraction)
+    }
+    type DomainInfoType = MonitorDomainInfo
+    protected def constructDomainInfo(t : Unit) = new MonitorDomainInfo()
+
+    protected lazy val instance = instances(())
+    def apply() = instance
   }
 
-  object Function extends DomainEnvironment("Function",List()) {
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Read Fraction
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    val globalReadFraction = factory.defineDomainFunction("globalFunctionReadFraction",DataTypeSequence(),permissionType,loc)
-    factory.addDomainAxiom("functions_and_predicates_are_the_same",
-      Predicate.globalReadFraction() ≡ Monitor.globalReadFraction(),loc)
+  object Function extends PreludeDomain[Unit] {
+    object Template extends DomainEnvironment("Function",List()) {
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      // Read Fraction
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      val globalReadFraction = factory.defineDomainFunction("globalFunctionReadFraction",DataTypeSequence(),permissionType,loc)
+      factory.addDomainAxiom("functions_and_predicates_are_the_same",
+        Predicate().globalReadFraction() ≡ Monitor().globalReadFraction(),loc)
 
-    val readFraction = factory.defineDomainFunction("functionReadFraction",DataTypeSequence(referenceType),permissionType,loc)
-    factory.addDomainAxiom("globalFunctionReadFraction",
-      ∀(referenceType, (ref) => readFraction(ref) ≡ globalReadFraction())
-    ,loc)
+      val readFraction = factory.defineDomainFunction("functionReadFraction",DataTypeSequence(referenceType),permissionType,loc)
+      factory.addDomainAxiom("globalFunctionReadFraction",
+        ∀(referenceType, (ref) => readFraction(ref) ≡ globalReadFraction())
+      ,loc)
+    }
+
+    class FunctionDomainInfo() extends DomainInfo() {
+      val globalReadFraction = function(Template.globalReadFraction)
+      val readFraction = function(Template.readFraction)
+    }
+    type DomainInfoType = FunctionDomainInfo
+    protected def constructDomainInfo(t : Unit) = new FunctionDomainInfo()
+
+    protected lazy val instance = instances(())
+    def apply() = instance
   }
 
-  object Pair {
+  object Pair extends PreludeDomain[(DataType,DataType)] {
     object Template extends DomainEnvironment("Pair",List((loc,"A"),(loc,"B"))){
       val firstType = factory.makeVariableType(factory.typeVariables.find(_.name ==  "A").get,loc)
       var secondType = factory.makeVariableType(factory.typeVariables.find(_.name == "B").get,loc)
@@ -234,22 +312,19 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
           (create(a,b) ≡ create(x,y)) ↔ (a ≡ x and (b ≡ y))
         )),loc)
     }
-    case class PreludeDomainInfo protected[Pair] (firstType : DataType, secondType : DataType) {
-      val domain = programEnvironment.programFactory.makeDomainInstance(Template.factory,DataTypeSequence(firstType,secondType))
-      val dataType = programEnvironment.programFactory.makeNonReferenceDataType(Template.factory,DataTypeSequence(firstType,secondType),loc)
+    class FunctionDomainInfo(t : (DataType,DataType)) extends DomainInfo(t) {
+      val create = function(Template.create)
+      val getFirst = function(Template.getFirst)
+      val getSecond = function(Template.getSecond)
+    }
+    type DomainInfoType = FunctionDomainInfo
+    protected def constructDomainInfo(t : (DataType,DataType)) = new FunctionDomainInfo(t)
 
-      val create = domain.functions.find(_.name == "create").get
-      val getFirst = domain.functions.find(_.name == "getFirst").get
-      val getSecond = domain.functions.find(_.name == "getSecond").get
-    }
-    val instances = new FactoryHashCache[(DataType,DataType),PreludeDomainInfo] {
-      protected def construct(t : (DataType, DataType)) = PreludeDomainInfo(t._1,t._2)
-    }
     def apply(t1 : DataType, t2 : DataType) = instances.apply((t1,t2))
     lazy val Location = prelude.Pair(referenceType,integerType)
   }
   
-  object Map {
+  object Map extends PreludeDomain[(DataType,DataType)] {
     object Template extends DomainEnvironment("Map",List((loc,"K"),(loc,"V")))  {
       val keyType = factory.makeVariableType(factory.typeVariables.find(_.name == "K").get,loc)
       val valueType = factory.makeVariableType(factory.typeVariables.find(_.name == "V").get,loc)
@@ -289,20 +364,19 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Compile Domain
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    final case class PreludeDomainInfo protected[Map] (keyType : DataType, valueType : DataType) {
-      val domain = programEnvironment.programFactory.makeDomainInstance(Template.factory,DataTypeSequence(keyType,valueType))
-      val dataType = programEnvironment.programFactory.makeNonReferenceDataType(Template.factory,DataTypeSequence(keyType,valueType),loc)
+    class FunctionDomainInfo(t : (DataType,DataType)) extends DomainInfo(t) {
+      val empty = function(Template.empty)
+      val update = function(Template.update)
+      val get = function(Template.get)
+      val has = predicate(Template.has)
+    }
+    type DomainInfoType = FunctionDomainInfo
+    protected def constructDomainInfo(t : (DataType,DataType)) = new FunctionDomainInfo(t)
 
-      val empty = domain.functions.find(_.name == "empty").get
-      val update = domain.functions.find(_.name == "update").get
-      val get = domain.functions.find(_.name == "get").get
-      val has = domain.predicates.find(_.name == "has").get
-    }
-    val instances = new FactoryHashCache[(DataType,DataType),PreludeDomainInfo] {
-      protected def construct(t : (DataType, DataType)) = PreludeDomainInfo(t._1,t._2)
-    }
     def apply(t1 : DataType, t2 : DataType) = instances.apply((t1,t2))
     lazy val PermissionMap = prelude.Map(prelude.Pair.Location.dataType,permissionType)
+    lazy val HeldMap = prelude.Map(referenceType,Boolean.dataType)
+    lazy val MuMap = prelude.Map(referenceType,Mu().dataType)
   }
 
   /**
@@ -311,26 +385,38 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     * every thread with a waitlevel ∈ Mu. A lock may only be taken when the thread's waitlevel is below
     * the lock's mu value.
     */
-  object Mu extends DomainEnvironment("Mu") {
-    val dataType = factory.makeNonReferenceDataType(factory,DataTypeSequence(),loc,List("Type of Mu elements."))
-    val lockBottom = factory.defineDomainFunction("lockBottom",DataTypeSequence(),dataType,loc,List("The bottom element in the partial ordering of the set Mu."))
-    val below = factory.defineDomainPredicate("<<",DataTypeSequence(dataType,dataType),loc,List("Determines whether one element of Mu is strictly below another element of Mu."))
+  object Mu extends PreludeDomain[Unit] {
+    object Template extends DomainEnvironment("Mu") {
+      val dataType =
+        programFactory.makeNonReferenceDataType(factory,DataTypeSequence(),loc,List("Type of Mu elements."))
+      val lockBottom = factory.defineDomainFunction("lockBottom",DataTypeSequence(),dataType,loc,List("The bottom element in the partial ordering of the set Mu."))
+      val below = factory.defineDomainPredicate("<<",DataTypeSequence(dataType,dataType),loc,List("Determines whether one element of Mu is strictly below another element of Mu."))
 
-    // axioms establishing below as a strict partial ordering of Mu
-    factory.addDomainAxiom("irreflexive",∀(dataType,
-        (a) => not(below(a))
+      // axioms establishing below as a strict partial ordering of Mu
+      factory.addDomainAxiom("irreflexive",∀(dataType,
+          (a) => not(below(a,a))
+        ),loc)
+      factory.addDomainAxiom("asymmetric",∀(dataType,dataType,
+          (a,b) => below(a,b) → not(below(b,a))
+        ),loc)
+      factory.addDomainAxiom("transitive",∀(dataType,dataType,dataType,
+        (a,b,c) => (below(a,b) and below(b,c)) → below(a,c)
       ),loc)
-    factory.addDomainAxiom("asymmetric",∀(dataType,dataType,
-        (a,b) => below(a,b) → not(below(b,a))
-      ),loc)
-    factory.addDomainAxiom("transitive",∀(dataType,dataType,dataType,
-      (a,b,c) => (below(a,b) and below(b,c)) → below(a,c)
-    ),loc)
 
-    // lockBottom is below every non-lockBottom element of Mu
-    factory.addDomainAxiom("lockBottom_is_bottom",∀(dataType,
-      a => (a ≠ lockBottom()) → below(lockBottom(),a)
-    ),loc)
+      // lockBottom is below every non-lockBottom element of Mu
+      factory.addDomainAxiom("lockBottom_is_bottom",∀(dataType,
+        a => (a ≠ lockBottom()) → below(lockBottom(),a)
+      ),loc)
+    }
+    class MuDomainInfo() extends DomainInfo() {
+      val lockBottom = function(Template.lockBottom)
+      val below = predicate(Template.below)
+    }
+    type DomainInfoType = MuDomainInfo
+    protected def constructDomainInfo(t : Unit) = new MuDomainInfo()
+
+    protected lazy val instance = instances(())
+    def apply() = instance
   }
 
   object Seq {

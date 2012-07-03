@@ -1,0 +1,45 @@
+class Main {
+    var f : int;
+    var g : int;
+
+    invariant acc(f);
+
+    method main()
+    {
+        var m : Main;
+        var n : Main;
+
+        m := new Main;
+
+        m.f := 3;
+        m.g := 4;
+
+        share m;
+
+        acquire m;
+
+        call n := cpMain(m);
+
+        share n;
+
+        acquire n;
+
+        release n;
+        release m;
+    }
+
+    method cpMain(m1 : Main) returns (m2 : Main)
+        requires m1 != null
+        requires rd(m1.f) && rd(m1.g)
+        ensures  rd(m1.f) && rd(m1.g)
+        ensures m2 != null && acc(m2.f) && acc(m2.g) && acc(m2.mu)
+        ensures m2.f == m1.f && m2.g == m1.g && m2.mu == lockbottom
+    {
+        var m3 : Main;
+        m3 := new Main;
+        m3.f := m1.f;
+        m3.g := m1.g;
+
+        m2 := m3;
+    }
+}

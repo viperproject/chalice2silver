@@ -69,7 +69,7 @@ abstract class PredicateTranslator(environment : ProgramEnvironment,
   def environmentReadFractionTerm(sourceLocation : SourceLocation) = {
     val idLiteral = currentExpressionFactory.makeIntegerLiteralTerm(id,sourceLocation)
     val reference = currentExpressionFactory.makeProgramVariableTerm(thisVariable,sourceLocation)
-    currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Predicate.readFraction,
+    currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Predicate().readFraction,
       TermSequence(idLiteral,reference),sourceLocation)
   }
 

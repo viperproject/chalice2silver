@@ -68,7 +68,7 @@ class FunctionTranslator(environment : ProgramEnvironment, val function : chalic
 
   def environmentReadFractionTerm(sourceLocation : SourceLocation) = {
     val reference = currentExpressionFactory.makeProgramVariableTerm(thisVariable,sourceLocation)
-    currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Function.readFraction,
+    currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Function().readFraction,
       TermSequence(reference),sourceLocation)
   }
 
