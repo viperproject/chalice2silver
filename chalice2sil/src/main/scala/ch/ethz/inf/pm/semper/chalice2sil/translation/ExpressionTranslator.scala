@@ -1,14 +1,15 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import operators.Lookup._
-import silAST.expressions.Expression
+import silAST.expressions.{TrueExpression, FalseExpression, Expression}
 import silAST.expressions.util.TermSequence
 import silAST.symbols.logical.{Not, And, Or, Implication}
 import ch.ethz.inf.pm.semper.chalice2sil.translation.util.PureLanguageConstruct
-import silAST.symbols.logical.quantification.Exists
-import silAST.types.{permissionLT, permissionType, DataType}
+import silAST.symbols.logical.quantification.{Forall, Exists}
+import silAST.types.{referenceType, permissionLT, permissionType, DataType}
 import ch.ethz.inf.pm.semper.chalice2sil._
 import silAST.expressions.terms.{FullPermissionTerm, Term}
+import silAST.source.SourceLocation
 
 /**
   * @author Christian Klauser
@@ -22,9 +23,38 @@ trait ExpressionTranslator extends MemberEnvironment {
 
   def translateExpression(e : chalice.Expression) : Expression = expressionTranslation(e)
 
+  protected def withWaitlevel(waitlevel : SourceLocation)(f : Function[Term,Expression]) = {
+    // ∀ o:ref :: $CurrentThread.heldMap[o] ⇒ f($CurrentThread.muMap[o])
+    val heldMap = currentExpressionFactory.makeFieldReadTerm(environmentCurrentThreadTerm(waitlevel),prelude.Thread.heldMap,waitlevel)
+    val oVar = currentExpressionFactory.makeBoundVariable(getNextName("o"),referenceType,waitlevel)
+    val oVarTerm = currentExpressionFactory.makeBoundVariableTerm(oVar,waitlevel)
+    val isHeld = currentExpressionFactory.makeDomainPredicateExpression(prelude.Boolean.eval,TermSequence(
+      currentExpressionFactory.makeDomainFunctionApplicationTerm(
+        prelude.Map.HeldMap.get,TermSequence(heldMap,oVarTerm),waitlevel)
+    ),waitlevel)
+    val muMap = currentExpressionFactory.makeFieldReadTerm(environmentCurrentThreadTerm(waitlevel),prelude.Thread.muMap,waitlevel)
+    val oMu = currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Map.MuMap.get,TermSequence(muMap,oVarTerm),waitlevel)
+    val impl = currentExpressionFactory.makeBinaryExpression(Implication()(waitlevel),isHeld, f(oMu),waitlevel)
+    currentExpressionFactory.makeQuantifierExpression(Forall()(waitlevel),oVar,impl)(waitlevel)
+  }
+
+
+  protected def eqWaitlevel(sameAsWaitlevel : SourceLocation,waitlevel : SourceLocation, other : chalice.Expression) : Expression = {
+    // ∀ o:ref :: $CurrentThread.heldMap[o] ⇒ other == $CurrentThread.muMap[o]
+    withWaitlevel(waitlevel){ oMu =>
+      currentExpressionFactory.makeEqualityExpression(oMu,translateTerm(other),sameAsWaitlevel)
+    }
+  }
+
   protected def expressionTranslation : PartialFunction[chalice.Expression, Expression] = matchingExpression {
       case expression@chalice.Old(inner) =>
         currentExpressionFactory.makeOldExpression(translateExpression(inner))(expression)
+      case sameAsWaitlevel@chalice.Eq(chalice.MaxLockLiteral(),chalice.MaxLockLiteral()) =>
+        TrueExpression()(sameAsWaitlevel,List("waitlevel == waitlevel"))
+      case sameAsWaitlevel@chalice.Eq(waitlevel@chalice.MaxLockLiteral(),other) =>
+        eqWaitlevel(sameAsWaitlevel,waitlevel,other)
+      case sameAsWaitlevel@chalice.Eq(other,waitlevel@chalice.MaxLockLiteral()) =>
+        eqWaitlevel(sameAsWaitlevel,waitlevel,other)
       case expression@chalice.And(lhs,rhs) =>
         val lhsT = translateExpression(lhs)
         val rhsT = translateExpression(rhs)
@@ -54,6 +84,18 @@ trait ExpressionTranslator extends MemberEnvironment {
         val negCondExpr = currentExpressionFactory.makeUnaryExpression(Not()(ifThenElse),condExpr,ifThenElse)
         val neg = currentExpressionFactory.makeBinaryExpression(Implication()(ifThenElse),negCondExpr,elsExpr,ifThenElse)
         currentExpressionFactory.makeBinaryExpression(And()(ifThenElse),pos,neg,ifThenElse)
+      case f@chalice.LockBelow(chalice.MaxLockLiteral(),chalice.MaxLockLiteral()) =>
+        FalseExpression()(f,List("waitlevel << waitlevel")):Expression
+      case aboveWaitlevel@chalice.LockBelow(waitlevel@chalice.MaxLockLiteral(),other) =>
+        // ∀ o:ref :: $CurrentThread.heldMap[o] ⇒ $CurrentThread.muMap[o] << other
+        withWaitlevel(waitlevel){ oMu =>
+          currentExpressionFactory.makeDomainPredicateExpression(prelude.Mu().below,TermSequence(oMu,translateTerm(other)),aboveWaitlevel)
+        }
+      case belowWaitlevel@chalice.LockBelow(other,waitlevel@chalice.MaxLockLiteral()) =>
+        // ∀ o:ref :: $CurrentThread.heldMap[o] ⇒ other << $CurrentThread.muMap[o]
+        withWaitlevel(waitlevel){ oMu =>
+          currentExpressionFactory.makeDomainPredicateExpression(prelude.Mu().below,TermSequence(translateTerm(other),oMu),belowWaitlevel)
+        }
       case binary:chalice.BinaryExpr =>
         val (lhs,rhs) = (binary.E0,binary.E1)
         // binary.ExpectedXhsType is often null, use the "inferred" types for the operands instead

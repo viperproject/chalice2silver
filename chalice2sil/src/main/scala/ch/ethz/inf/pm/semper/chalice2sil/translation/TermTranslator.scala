@@ -15,11 +15,15 @@ import silAST.expressions.{PPredicatePermissionExpression, PredicatePermissionEx
   */
 trait TermTranslator extends MemberEnvironment with TypeTranslator {
 
-  final def translateTerm(expression : chalice.Expression) : Term = termTranslation(expression)
+  final def translateTerm(expression : chalice.Expression) : Term = termTranslation.orElse[chalice.Expression,Term]({
+    case x =>
+      report(messages.UnknownAstNode(x))
+      dummyTerm(x)
+  })(expression)
 
   protected final def matchingTerm(partialFunction : PartialFunction[chalice.Expression, Term]) = partialFunction
   
-  final def dummyTerm(location : SourceLocation) = currentExpressionFactory.makeIntegerLiteralTerm(27,location)
+  final def dummyTerm(location : SourceLocation) = currentExpressionFactory.makeIntegerLiteralTerm(27,location,List("Dummy term used to recover from error during translation."))
 
   protected def termTranslation : PartialFunction[chalice.Expression,Term] = matchingTerm {
     case rvalue@chalice.IntLiteral(i) =>
@@ -30,6 +34,13 @@ trait TermTranslator extends MemberEnvironment with TypeTranslator {
       currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.falseLiteral,TermSequence(),rvalue)
     case rvalue@chalice.LockBottomLiteral() =>
       currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Mu().lockBottom,TermSequence(),rvalue)
+    case rvalue@chalice.Holds(t) => {
+      val heldMap = currentExpressionFactory.makeFieldReadTerm(
+        environmentCurrentThreadTerm(rvalue),
+        prelude.Thread.heldMap,rvalue)
+      currentExpressionFactory.makeDomainFunctionApplicationTerm(
+        prelude.Map.HeldMap.get,TermSequence(heldMap,translateTerm(t)),rvalue): Term
+    }
     case variableExpr:chalice.VariableExpr =>
       currentExpressionFactory.makeProgramVariableTerm((programVariables(variableExpr.v)),variableExpr)
     case rvalue@chalice.Old(e) => currentExpressionFactory.makeOldTerm(translateTerm(e))(rvalue)

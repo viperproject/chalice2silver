@@ -17,6 +17,7 @@ class DerivedMemberEnvironment(methodEnvironment : MemberEnvironment)
   assert(!parentEnvironment.isInstanceOf[DerivedMemberEnvironment])
 
   override def environmentReadFractionTerm(sourceLocation : SourceLocation) = parentEnvironment.environmentReadFractionTerm(sourceLocation)
+  override def environmentCurrentThreadTerm(sourceLocation : SourceLocation) = parentEnvironment.environmentCurrentThreadTerm(sourceLocation)
 
   override def programVariables = parentEnvironment.programVariables
 

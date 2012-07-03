@@ -8,6 +8,7 @@ import silAST.expressions.terms.IntegerLiteralTerm
 import util.DerivedFactoryCache
 import silAST.programs.symbols.{ProgramVariable, PredicateFactory}
 import chalice.Variable
+import silAST.types.nullFunction
 
 /**
   * @author Christian Klauser
@@ -71,6 +72,12 @@ abstract class PredicateTranslator(environment : ProgramEnvironment,
     val reference = currentExpressionFactory.makeProgramVariableTerm(thisVariable,sourceLocation)
     currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Predicate().readFraction,
       TermSequence(idLiteral,reference),sourceLocation)
+  }
+
+  def environmentCurrentThreadTerm(sourceLocation : SourceLocation) = {
+    report(messages.LockingRelatedInPredicate(sourceLocation))
+    currentExpressionFactory.makeDomainFunctionApplicationTerm(nullFunction,TermSequence(),sourceLocation,List(
+      "$CurrentThread not available in predicates/invariants. A corresponding error message has been emitted."))
   }
 
   def currentExpressionFactory = predicateFactory

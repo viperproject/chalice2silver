@@ -7,6 +7,7 @@ import silAST.expressions.util.TermSequence
 import util.DerivedFactoryCache
 import chalice.Variable
 import silAST.programs.symbols.{FunctionFactory, ProgramVariable, PredicateFactory}
+import silAST.types.nullFunction
 
 /**
   * @author Christian Klauser
@@ -70,6 +71,12 @@ class FunctionTranslator(environment : ProgramEnvironment, val function : chalic
     val reference = currentExpressionFactory.makeProgramVariableTerm(thisVariable,sourceLocation)
     currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Function().readFraction,
       TermSequence(reference),sourceLocation)
+  }
+
+  def environmentCurrentThreadTerm(sourceLocation : SourceLocation) = {
+    report(messages.LockingRelatedInPredicate(sourceLocation))
+    currentExpressionFactory.makeDomainFunctionApplicationTerm(nullFunction,TermSequence(),sourceLocation,List(
+      "$CurrentThread not available in functions. A corresponding error message has been emitted."))
   }
 
   def currentExpressionFactory = functionFactory

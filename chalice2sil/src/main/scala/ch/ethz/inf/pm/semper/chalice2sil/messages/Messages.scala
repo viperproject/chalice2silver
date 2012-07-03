@@ -83,3 +83,12 @@ object TermInExpressionPosition extends MessageId(
     def data : Iterable[Any] = Array(expr,dataType)
   }
 }
+
+object LockingRelatedInPredicate extends MessageId(
+  Fault,
+  "ch.ethz.inf.pm.semper.chalice2sil.lockingRelatedInPredicate",
+  "Due to an internal limitation, Chalice2SIL cannot translate certain locking-related language constructs in predicates or invariants.") {
+  def apply(location : SourceLocation) = new Message(this,location) {
+    def data = Nil
+  }
+}

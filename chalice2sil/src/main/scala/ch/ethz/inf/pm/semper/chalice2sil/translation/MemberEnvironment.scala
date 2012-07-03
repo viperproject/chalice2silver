@@ -15,6 +15,7 @@ trait MemberEnvironment extends ProgramEnvironment {
   def programVariables : DerivedFactoryCache[chalice.Variable,String, ProgramVariable]
   def thisVariable : ProgramVariable
   def environmentReadFractionTerm(sourceLocation : SourceLocation) : Term
+  def environmentCurrentThreadTerm(sourceLocation : SourceLocation) : Term
   def currentExpressionFactory : ExpressionFactory
   def nameSequence : NameSequence
  
