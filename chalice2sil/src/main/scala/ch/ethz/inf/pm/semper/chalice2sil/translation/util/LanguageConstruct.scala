@@ -93,8 +93,8 @@ class LanguageConstruct(scope : ScopeTranslator, sourceLocation_ : SourceLocatio
     scope.currentBlock.appendInhale(expr,sourceLocation,takeComment())
   }
   
-  final def inhale(es : TraversableOnce[Expression]*) {
-    es.flatten.reduceOption(currentExpressionFactory.makeBinaryExpression(And()(sourceLocation),_,_,sourceLocation)) match {
+  final def inhale(es : Expression*) {
+    es.reduceOption(currentExpressionFactory.makeBinaryExpression(And()(sourceLocation),_,_,sourceLocation)) match {
       case Some(e) => inhale(e)
       case None => // don't append inhale
     }

@@ -5,25 +5,18 @@ import silAST.source.SourceLocation
 /**
   * @author Christian Klauser
   */
-class DerivedMemberEnvironment(methodEnvironment : MemberEnvironment)
-  extends DerivedProgramEnvironment(methodEnvironment)
+class DerivedMemberEnvironment(memberEnvironment : MemberEnvironment)
+  extends DerivedProgramEnvironment(memberEnvironment)
   with MemberEnvironment {
 
-  private val parentEnvironment : MemberEnvironment = methodEnvironment match {
-    case derived:DerivedMemberEnvironment => derived.parentEnvironment
-    case other => other
-  }
-  
-  assert(!parentEnvironment.isInstanceOf[DerivedMemberEnvironment])
+  override def environmentReadFractionTerm(sourceLocation : SourceLocation) = memberEnvironment.environmentReadFractionTerm(sourceLocation)
+  override def environmentCurrentThreadTerm(sourceLocation : SourceLocation) = memberEnvironment.environmentCurrentThreadTerm(sourceLocation)
 
-  override def environmentReadFractionTerm(sourceLocation : SourceLocation) = parentEnvironment.environmentReadFractionTerm(sourceLocation)
-  override def environmentCurrentThreadTerm(sourceLocation : SourceLocation) = parentEnvironment.environmentCurrentThreadTerm(sourceLocation)
+  override def programVariables = memberEnvironment.programVariables
 
-  override def programVariables = parentEnvironment.programVariables
+  override def thisVariable = memberEnvironment.thisVariable
 
-  override def thisVariable = parentEnvironment.thisVariable
+  override def currentExpressionFactory = memberEnvironment.currentExpressionFactory
 
-  override def currentExpressionFactory = parentEnvironment.currentExpressionFactory
-
-  override def nameSequence = parentEnvironment.nameSequence
+  override def nameSequence = memberEnvironment.nameSequence
 }

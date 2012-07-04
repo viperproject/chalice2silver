@@ -5,7 +5,8 @@ import chalice.{Channel, ASTNode}
 import silAST.source.SourceLocation
 import Severity._
 import silAST.types.DataType
-import silAST.expressions.terms.Term
+import silAST.expressions.terms.{PTerm, Term}
+import translation.LocationTranslator
 
 object ChannelsNotImplemented extends MessageId(
   Error,
@@ -57,6 +58,15 @@ object PermissionNotUnderstood extends MessageId(
   "Chalice2SIL does not understand the SIL permission amount %s.") {
   def apply(location : SourceLocation, permissionAmount : silAST.ASTNode) = new Message(this,location) {
     def data : Iterable[Any] = Array(permissionAmount)
+  }
+}
+
+object RdInQuantifier extends MessageId(
+  Error,
+  "ch.ethz.inf.pm.semper.chalice2sil.rdInQuantifier",
+  "Cannot translate fractional read permission rd(%s.%s, %s) in quantified expressions.") {
+  def apply(reference : PTerm, location : LocationTranslator, permissionAmount : PTerm) = new Message(this,reference.sourceLocation) {
+    def data = Array(reference,location,permissionAmount)
   }
 }
 

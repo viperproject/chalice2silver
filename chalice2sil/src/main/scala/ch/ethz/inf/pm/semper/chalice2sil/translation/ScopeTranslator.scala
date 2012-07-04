@@ -77,15 +77,21 @@ trait ScopeTranslator
         val conditionExpr = translatePExpression(codeTranslator,condition)
         //compile loop body
         val loop = cfgFactory.addLoopBlock(getNextName(),conditionExpr,stmt)
+        val loopTranslator = new LoopBodyTranslator(this,loop)
+
+        // SILAST requires that the loop invariant is compiled in the context of the
+        //  loop AST block, otherwise it will choke on quantified expressions
+        //  because the bound variable was registered to a different scope.
+        val invCodeTranslator = new loopTranslator.MemberCodeTranslator
         if(loopNode.Invs != Nil){
           loop.setInvariant(
             loopNode.Invs
-              .map(translatePExpression(codeTranslator,_))
-              .reduce(currentExpressionFactory.makePBinaryExpression(And()(loopNode),_,_,loopNode)))
+              .map(invCodeTranslator.translateExpression(_))
+              .reduce(currentExpressionFactory.makeBinaryExpression(And()(loopNode),_,_,loopNode)))
         } else {
           loop.setInvariant(TrueExpression()(loopNode))
         }
-        val loopTranslator = new LoopBodyTranslator(this,loop)
+
         loopTranslator.translateBody(loopTranslator.translateStatement(_,body))
 
         //integrate loop into CFG
@@ -150,9 +156,9 @@ trait ScopeTranslator
 
   protected abstract sealed class ReadCondition
 
-  protected final case class ReadImplication(lhs : PExpression, rhs : List[ReadCondition])
+  protected final case class ReadImplication(lhs : Expression, rhs : List[ReadCondition])
     extends ReadCondition
-    with Product2[PExpression, List[ReadCondition]] {
+    with Product2[Expression, List[ReadCondition]] {
     def _1 = lhs
     def _2 = rhs
   }
@@ -179,6 +185,14 @@ trait ScopeTranslator
         })
       ReadImplication(lhs, rs3)
   })
+
+  def collectRdNodes(rs : List[ReadCondition]) : Seq[ReadLocation] = {
+    def extract(r : ReadCondition) : Seq[ReadLocation] = r match {
+      case ReadImplication(_,rs2) => rs2.flatMap(extract)
+      case r2@ReadLocation(_,_,_) => List(r2)
+    }
+    rs.flatMap(extract)
+  }
 
   /**
     * Produces SIL code that determines the read permission fraction (`k`) for a call (synchronous or asynchronous)
@@ -208,7 +222,7 @@ trait ScopeTranslator
       val kPositive = permissionLT.apply(noPermission,callReadFractionTerm)
       val kOnlyRead = permissionLT.apply(aThousandTimes(callReadFractionTerm),fullPermission)
       val kSubfraction = permissionLT.apply(aThousandTimes(callReadFractionTerm),this.environmentReadFractionTerm(callNode))
-      inhale(List(kPositive,kOnlyRead,kSubfraction))
+      inhale(kPositive,kOnlyRead,kSubfraction)
   
       // Permission maps
       // `var m_0 : Map[(ref,int),Permission]`
@@ -227,7 +241,7 @@ trait ScopeTranslator
             List(callReadFractionTerm)
   
       val callSubstitution = currentExpressionFactory.makePProgramVariableSubstitution(calleeFactory.parameters.zip(argTerms).map(x => x._1 -> x._2).toSet)
-      def transplantExpression(e : PExpression) : PExpression = {
+      def transplantExpression(e : Expression) : Expression = {
         e.substitute(callSubstitution)
       }
       def transplantPTerm(t : PTerm) : PTerm = {
@@ -240,7 +254,7 @@ trait ScopeTranslator
         * @param expr The expression to analyse.
         * @return A list of extracted read conditions.
         */
-      def genReadCond(expr : Expression) : List[ReadCondition] = expr match {
+      def genReadCond(expr : Expression, isInQuantifier : Boolean = false) : List[ReadCondition] = expr match {
         case PermissionExpression(_,FullPermissionTerm()) => Nil
         case PermissionExpression(_,NoPermissionTerm()) => Nil
         case p@PermissionExpression(FieldLocation(reference:PTerm,field),pTerm:PTerm) =>
@@ -250,14 +264,11 @@ trait ScopeTranslator
         case PermissionExpression(nonReferenceTerm,_) =>
           report(messages.ContractNotUnderstood(expr))
           Nil
-        case BinaryExpression(Implication(),lhs:PExpression,rhs) =>
+        case BinaryExpression(Implication(),lhs:Expression,rhs) =>
           //use lhs as-is in implications
           List(ReadImplication(transplantExpression(lhs),genReadCond(rhs)))
-        case BinaryExpression(Implication(),_,_) =>
-          report(messages.PermissionNotUnderstood(callNode,expr))
-          Nil
         case BinaryExpression(And(),lhs,rhs) =>
-          List(lhs,rhs).map(genReadCond).flatten
+          List(lhs,rhs).map(genReadCond(_)).flatten
         case BinaryExpression(Or(),lhs,rhs) =>
           report(messages.PermissionNotUnderstood(callNode,expr))
           Nil
@@ -269,7 +280,17 @@ trait ScopeTranslator
           ))
         case  _:EqualityExpression
             | _:AtomicExpression
-            | _:UnaryExpression => Nil
+            | _:UnaryExpression
+            | _:DomainPredicateExpression => Nil
+        case QuantifierExpression(_,_,e) =>
+          val c = genReadCond(e,isInQuantifier = true)
+          if(!isInQuantifier){
+            val rds = collectRdNodes(c)
+            rds.foreach(r => report(messages.RdInQuantifier(r.reference,r.location,r.permissionAmount)))
+            Nil
+          } else {
+            c
+          }
         case _ =>
           report(messages.PermissionNotUnderstood(callNode,expr))
           Nil
@@ -324,14 +345,13 @@ trait ScopeTranslator
         }
   
         rs collect { case a@ReadImplication(_,_) => a } groupBy (_.lhs) foreach { i =>
-          silIf(i._1){
+          silIfGeneric(i._1,i._1.sourceLocation){
             appendCond(i._2.map(_.rhs).flatten)
           } end()
         }
       }
   
-      val readConds = calleeFactory.methodFactory.method.signature.precondition
-        .map(genReadCond _)
+      val readConds = calleeFactory.methodFactory.method.signature.precondition.map(genReadCond(_))
 
       def emitConditionCode(allowInexact : Boolean) {
         appendCond(filterCondByChecking(readConds.flatten.toList,allowInexact,callReadFractionTerm))
@@ -377,6 +397,8 @@ trait ScopeTranslator
     languageConstruct(callNode){ ctor =>
       import ctor._
 
+      comment("Begin asynchronous call to " + calleeFactory.methodFactory.name)
+
       // `token := new object`
       val tokenVar = programVariables(chaliceTokenVariable.v)
       val token : ProgramVariableTerm = tokenVar
@@ -389,11 +411,21 @@ trait ScopeTranslator
       (tokenVar!prelude.Token.joinable) <-- booleanTrue.p()
 
       //Determine read fraction
+      comment("Determine read fraction")
       val readFractionTerm = determineReadPermissionFraction(codeTranslator, callNode)
 
+      // Create new thread
+      comment("Create object to represent new thread.")
+      val threadVar = declareScopedVariable(callNode,getNextName("new_thread"),referenceType)
+      val newThreadTerm = currentExpressionFactory.makeProgramVariableTerm(threadVar,callNode)
+      threadVar <-- NewRef()
+      inhale( acc(newThreadTerm,prelude.Thread.heldMap,fullPermission),
+              acc(newThreadTerm,prelude.Thread.muMap,fullPermission)  )
+
       // Store state (arguments)
+      comment("Store arguments in token")
       val rcvrTerm = translatePTerm(codeTranslator, receiver)
-      val argTerms = rcvrTerm :: args.map(translatePTerm(codeTranslator,_)) ++ List(readFractionTerm)
+      val argTerms = rcvrTerm :: args.map(translatePTerm(codeTranslator,_)) ++ List(readFractionTerm, newThreadTerm)
 
       argTerms.zip(calleeFactory.callToken.args) foreach { a =>
         // `inhale acc(token.field,full);`
@@ -403,37 +435,42 @@ trait ScopeTranslator
       }
 
       //Store state (old(*))
+      comment("Store old(*) values in token")
       val callSiteSubstitution = currentExpressionFactory.makePProgramVariableSubstitution(calleeFactory.parameters.zip(argTerms).map(x => x._1 -> x._2).toSet)
       calleeFactory.callToken.oldTerms foreach { entry =>
         val oldNode = entry._1
         val tkField = entry._2
         val cp = new CombinedPrecondition(this,readFractionTerm)
-        val choiceVar = declareScopedVariable(callNode,getNextName("precondition_met"),booleanType)
-        val choice = booleanEvaluate.p(choiceVar)
 
         // `inhale acc(tk.field,full);`
         inhale(acc(tokenVar,tkField,fullPermission))
 
         // `var choice : Boolean
         // `inhale eval(choice) <=> precondition(e)
-        // `if(*) { inhale precondition(e); tk.field = e; }`
+        // `if(choice) { inhale precondition(e); tk.field = e; }`
 
         oldNode match {
-          case OldTermNode(OldTerm(inner:PTerm)) => {
+          case OldTermNode(OldTerm(inner:Term)) => {
             languageConstruct(inner.sourceLocation)( _ => {
               val innerLocal = inner.substitute(callSiteSubstitution)
-              val precondition  = removeSideEffects(cp.visitTerm(innerLocal,null))
-              inhale(Equivalence()(innerLocal.sourceLocation).t(choice, precondition))
-              silIf(choice,innerLocal.sourceLocation){
-                (tokenVar!tkField) <-- innerLocal
+              val precondition  = cp.visitTerm(innerLocal,null)
+              silIfGeneric(precondition,innerLocal.sourceLocation){
+                innerLocal match {
+                  case p:PTerm =>
+                    (tokenVar!tkField) <-- p
+                  case t:Term =>
+                    val tmp = declareScopedVariable(t.sourceLocation,getNextName("old_value"),t.dataType)
+                    inhale((tmp:Term) === t)
+                    (tokenVar!tkField) <-- tmp
+                }
               } end()
             })
           }
-          case OldExpressionNode(OldExpression(inner:PExpression)) => { languageConstruct(inner.sourceLocation)( _ => {
+          case OldExpressionNode(OldExpression(inner:Expression)) => { languageConstruct(inner.sourceLocation)( _ => {
             val innerLocal = inner.substitute(callSiteSubstitution)
-            inhale(Equivalence()(innerLocal.sourceLocation).t(choice,removeSideEffects(cp.visitExpression(innerLocal,null))))
-            silIf(choice,inner.sourceLocation){
-              silIf(innerLocal,callNode){
+            val precondition = cp.visitExpression(innerLocal,null)
+            silIfGeneric(precondition,inner.sourceLocation){
+              silIfGeneric(innerLocal,callNode){
                 (tokenVar!tkField) <-- booleanTrue.p()
               } els {
                 (tokenVar!tkField) <-- booleanFalse.p ()
@@ -449,7 +486,7 @@ trait ScopeTranslator
 
       // Finally: `exhale precondition(method)`, with parameters substituted
       if(calleeFactory.method.signature.precondition.size > 0)  {
-        comment("Finally exhale precondition of " + calleeFactory.name + ".")
+        comment("Actually \"perform\" the asynchronous call by exhaling the precondition of " + calleeFactory.name + ".")
         exhale(calleeFactory.method.signature.precondition.map(_.substitute(callSiteSubstitution)),
           Some("The precondition of method " + calleeFactory.name + ", defined at " + calleeFactory.method.signature.precondition.headOption.map(_.sourceLocation).getOrElse(calleeFactory.method.sourceLocation)),
           Some(astNodeToSourceLocation(callNode)))
@@ -463,17 +500,19 @@ trait ScopeTranslator
       import ctor._
 
       val (tokenVar,allocatedTemp) = translatePTerm(codeTranslator, callNode.token) match {
-        case ProgramVariableTerm(v) => (v,false)
-      case t =>
-        val v = temporaries.acquire(referenceType)
-        v <-- t
-        (v,true)
-    }
+          case ProgramVariableTerm(v) => (v,false)
+        case t =>
+          val v = temporaries.acquire(referenceType)
+          v <-- t
+          (v,true)
+      }
 
       val tokenTerm : PTerm = tokenVar
       val calleeFactory = methods(callNode.m)
       val tokenStorage = calleeFactory.callToken
       val resultTargets = callNode.lhs.map(ve => programVariables(ve.v))
+
+      comment("Begin joining of asynchronous call to method " + calleeFactory.methodFactory.name + " on token " + tokenTerm)
 
       // `exhale eval(token.joinable)`
       exhale(booleanEvaluate.apply(tokenTerm!prelude.Token.joinable))
@@ -509,18 +548,19 @@ trait ScopeTranslator
       }
 
       // inhale postcondition (with old(*) replaced)
+      comment("inhale postcondition with token fields substituted for arguments and old(*) expressions")
         val methodPostcondition = sig.postcondition
           .map(trans.transplant(_))
-        val resultAccess = tokenStorage.results
-          .map(acc(tokenTerm,_,fullPermission))
-        inhale(resultAccess,methodPostcondition)
+        inhale(methodPostcondition :_*)
 
       // assign all result fields to result variables
+      comment("Assign results")
       if(tokenStorage.results.size > 0){
         resultTargets.zip(resultTerms).foreach(t => t._1 <-- t._2)
       }
 
       // finally set `token.joinable := false`
+      comment("Set .joinable to false")
       (tokenVar!prelude.Token.joinable) <-- booleanFalse.p()
 
       if(allocatedTemp){
@@ -578,14 +618,16 @@ trait ScopeTranslator
   }
 
   protected def translateNew(codeTranslator : CodeTranslator, newObj : chalice.NewRhs, targetVar : ProgramVariable) {
-    currentBlock.appendNew(targetVar,referenceType,newObj)
+    currentBlock.appendNew(targetVar,referenceType,newObj,List("Create new object from class " + newObj.id))
     val refTerm = currentExpressionFactory.makeProgramVariableTerm(targetVar,newObj)
     val fullAccess = currentExpressionFactory.makeFullPermission(newObj)
-    newObj.typ.Fields foreach { cf =>
-      val field = fields(cf)
+    def addField(field : FieldTranslator) {
       currentBlock.appendInhale(
         currentExpressionFactory.makeFieldPermissionExpression(refTerm,field,fullAccess,newObj),newObj)
     }
+    newObj.typ.Fields foreach { cf => addField(fields(cf)) }
+    addField(prelude.Object.mu)
+
     newObj.initialization foreach  { init =>
       val rhsTerm = translatePTerm(codeTranslator,init.e)
       currentBlock.appendFieldAssignment(targetVar,fields(init.f),rhsTerm,init)
@@ -635,14 +677,58 @@ trait ScopeTranslator
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////      HELPER FUNCTIONS (TRANSLATION DSL)                              /////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  protected def silIf[T](cond : PExpression, conditionLocation : SourceLocation = noLocation)(thnBlock : => T) = new {
+
+  /**
+    * A condition with a general (possibly non-program) expression as it's guard.
+    * @param cond The guard of the condition
+    * @param condLocation The source location for this if-statement
+    * @param thnBlock Function that generates the code for the "then" block
+    * @tparam T The type of the value computed by the "then"-block generating code.
+    * @return An object with two methods: "end" and "els". Code will only be generated when either of them is called.
+    */
+  protected def silIfGeneric[T](cond : Expression, condLocation : SourceLocation)(thnBlock : => T) = new {
+    protected val conditionLocation = if(condLocation == noLocation) Some(cond.sourceLocation) else Some(condLocation)
+
     def els[U](elsBlock : => U) = new {
-      def end() = {
-        translateSilCondition[T, U](cond,() => thnBlock,Some(() => elsBlock),Some(conditionLocation))
+      def end() : (T,Option[U]) = {
+        cond match {
+          case p:PExpression => translateSilCondition[T,U](p,()=>thnBlock,Some(() => elsBlock),conditionLocation,None)
+          case _ =>  translateGenericSilCondition(Some(() => elsBlock))
+        }
       }
     }
-    def end() = {
-      translateSilCondition[T,Unit](cond,() => thnBlock,None,Some(conditionLocation))
+    def end() : T = {
+      val (t,_) = cond match {
+        case p:PExpression => translateSilCondition[T,Unit](p,() => thnBlock,None,conditionLocation,None)
+        case _ => translateGenericSilCondition(None)
+      }
+      t
+    }
+    def translateGenericSilCondition[U](elsBlock : Option[()=>U]) : (T,Option[U]) = {
+      // inhale eval(choice) <=> cond
+      // if(eval(choice)) { ... } else { ... }
+      val choiceVar = declareScopedVariable(cond.sourceLocation,getNextName("if"),prelude.Boolean.dataType)
+      val choiceTerm = currentExpressionFactory.makeProgramVariableTerm(choiceVar,cond.sourceLocation)
+      val choiceExpr : PExpression = currentExpressionFactory.makePDomainPredicateExpression(prelude.Boolean.eval,PTermSequence(choiceTerm),cond.sourceLocation)
+      currentBlock.appendInhale(
+        currentExpressionFactory.makeBinaryExpression(Equivalence()(cond.sourceLocation),
+          choiceExpr,
+          removeSideEffects(cond),cond.sourceLocation),cond.sourceLocation,List("Bind non-program expression to program variable for use in condition."))
+      translateSilCondition[T,U](choiceExpr,() => thnBlock,elsBlock,conditionLocation,None)
+    }
+  }
+
+  protected def silIf[T](cond : PExpression, condLocation : SourceLocation = noLocation)(thnBlock : => T) = new {
+    protected val conditionLocation = if(condLocation == noLocation) Some(cond.sourceLocation) else Some(condLocation)
+
+    def els[U](elsBlock : => U) = new {
+      def end() = {
+        translateSilCondition[T, U](cond,() => thnBlock,Some(() => elsBlock),conditionLocation)
+      }
+    }
+    def end() : T = {
+      val (t,_) = translateSilCondition[T,Unit](cond,() => thnBlock,None,conditionLocation)
+      t
     }
   }
 

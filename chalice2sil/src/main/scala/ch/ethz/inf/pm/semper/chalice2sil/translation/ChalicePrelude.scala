@@ -190,17 +190,26 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
       programEnvironment.fields.addExternal(ft)
       ft
     }
+
+    val dataType = referenceType
+  }
+
+  object Object extends SpecialObjectInfo {
+    // This special field represents the lock order for each object
+    // It's an exact match for the mu field in Chalice.
+    // DO NOT CHANGE THE NAME OF THIS FIELD
+    lazy val mu : FieldTranslator = defineSpecialField("mu",Mu().dataType)
   }
 
   object Token extends SpecialObjectInfo {
-    val dataType = referenceType
+    // This special fields on tokens indicates whether the token can still be joined.
+    // DO NOT CHANGE THE NAME OF THIS FIELD
     lazy val joinable : FieldTranslator = defineSpecialField("joinable",Boolean.dataType)
   }
 
   object Thread extends SpecialObjectInfo {
-    val dataType = referenceType
-    lazy val heldMap = defineSpecialField("heldMap",Map(referenceType,Boolean.dataType).dataType)
-    lazy val muMap = defineSpecialField("muMap",Map(referenceType,Mu().dataType).dataType)
+    lazy val heldMap = defineSpecialField("$Thread::heldMap",Map(referenceType,Boolean.dataType).dataType)
+    lazy val muMap = defineSpecialField("$Thread::muMap",Map(referenceType,Mu().dataType).dataType)
     val parameterName = "$currentThread"
   }
   

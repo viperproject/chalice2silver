@@ -2,7 +2,6 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import ch.ethz.inf.pm.semper.chalice2sil
 import chalice2sil._
-import collection.mutable.Stack
 import silAST.methods.implementations.BasicBlockFactory
 import silAST.source.SourceLocation
 import silAST.types._
@@ -15,6 +14,7 @@ import immutable.Set
 import quantification.{LogicalVariable, Forall}
 import util._
 import silAST.expressions.util.TermSequence
+import collection._
 
 class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     extends DerivedProgramEnvironment(st)
@@ -47,7 +47,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
 
     val oldFieldEnumerator  = new ExpressionVisitor[Null, immutable.Set[OldNode]] {
       override protected def merge(left : immutable.Set[OldNode], right : immutable.Set[OldNode]) = left union right
-      override protected def mergeMany(rs : Traversable[Set[OldNode]]) = rs.flatten.toSet
+      override protected def mergeMany(rs : Traversable[Set[OldNode]]) : Set[OldNode] = rs.flatten.toSet
       override protected def zero = immutable.Set()
 
       override def visitExpression(expression : Expression, arg : Null) : immutable.Set[OldNode] = expression match {
@@ -81,7 +81,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
 
   override val temporaries = new TemporaryVariableBroker(this)
 
-  val blockStack = new Stack[BasicBlockFactory]
+  val blockStack = new mutable.Stack[BasicBlockFactory]
   def currentExpressionFactory = blockStack.headOption.getOrElse(methodFactory)
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -114,12 +114,16 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       val currentThread = mf.addParameter(getNextName(prelude.Thread.parameterName),prelude.Thread.dataType,method)
       programVariables.addExternal(currentThread)
       val currentThreadTerm = mf.makeProgramVariableTerm(currentThread,method)
-      // requires currentThread != null && acc(currentThread.heldMap) && acc(currentThread.muMap)
+      // requires $CurrentThread != null && acc($CurrentThread.heldMap) && acc($CurrentThread.muMap)
+      val heldMapAccess = acc(currentThreadTerm,prelude.Thread.heldMap,fullPermission)
+      val muMapAccess = acc(currentThreadTerm,prelude.Thread.muMap,fullPermission)
       mf.addPrecondition(conjunction(
         Not()(method).t((currentThreadTerm:Term) === nullFunction.apply()),
-        acc(currentThreadTerm,prelude.Thread.heldMap,fullPermission),
-        acc(currentThreadTerm,prelude.Thread.muMap,fullPermission)
-      ),method)                ;
+        heldMapAccess,
+        muMapAccess
+      ),method)
+      // ensures acc($CurrentThread.heldMap) && acc($CurrentThread.muMap)
+      mf.addPostcondition(conjunction(heldMapAccess,muMapAccess),method)
 
       // there are more contracts mentioning currentthread in {{createContracts}}
 

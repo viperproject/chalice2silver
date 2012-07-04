@@ -129,6 +129,21 @@ trait ExpressionTranslator extends MemberEnvironment {
               .reduce[Expression](currentExpressionFactory.makeBinaryExpression(And()(expression),_,_,expression))
           }
         }
+      case expression@chalice.Access(fieldAccess@chalice.MemberAccess(objectReference,muName),permission)
+        if fieldAccess.typ.IsMu && muName == prelude.Object.mu.name => {
+        // translate `acc(x.mu,p) to `acc(x.mu,p) && $CurrentThread.muMap[x] == x.mu`
+        //  linking the muMap to the actual value of mu
+        val muMap = currentExpressionFactory.makeFieldReadTerm(environmentCurrentThreadTerm(fieldAccess),prelude.Thread.muMap,fieldAccess)
+        val objRefTerm = translateTerm(objectReference)
+        val link = currentExpressionFactory.makeEqualityExpression(
+          currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Map.MuMap.get,TermSequence(muMap,objRefTerm),fieldAccess),
+          currentExpressionFactory.makeFieldReadTerm(objRefTerm,prelude.Object.mu,fieldAccess),expression
+        )
+        currentExpressionFactory.makeBinaryExpression(And()(expression),
+          translateAccessExpression(permission)(currentExpressionFactory.makeFieldPermissionExpression(objRefTerm,prelude.Object.mu,_,expression)),
+          link,expression
+        )
+      } : Expression
       case ma@chalice.MemberAccess(target,_) if ma.isPredicate =>
         currentExpressionFactory.makePredicatePermissionExpression(translateTerm(target),predicates(ma.predicate),FullPermissionTerm()(ma,Nil),ma)
       case expression@chalice.Access(memberAccess, permission) if !memberAccess.isPredicate =>

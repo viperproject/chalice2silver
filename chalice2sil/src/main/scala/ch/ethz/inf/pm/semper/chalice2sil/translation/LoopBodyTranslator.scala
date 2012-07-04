@@ -2,8 +2,9 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import silAST.source.SourceLocation
 import silAST.types.DataType
-import collection.mutable.Stack
+import collection._
 import silAST.methods.implementations.{LoopBlockFactory, BasicBlockFactory}
+import silAST.expressions.ExpressionFactory
 
 /**
   * @author Christian Klauser
@@ -14,7 +15,8 @@ class LoopBodyTranslator(environment : ScopeTranslator, protected val loopBlockF
 
   def cfgFactory = loopBlockFactory.bodyFactory
 
-  val blockStack = new Stack[BasicBlockFactory]
+  val blockStack = new mutable.Stack[BasicBlockFactory]
+  override def currentExpressionFactory : ExpressionFactory = blockStack.headOption.getOrElse(loopBlockFactory)
 
   def temporaries = environment.temporaries
 
