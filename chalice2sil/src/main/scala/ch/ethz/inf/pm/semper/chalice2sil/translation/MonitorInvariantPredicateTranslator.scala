@@ -25,7 +25,7 @@ class MonitorInvariantPredicateTranslator(environment : ProgramEnvironment, chal
   /**
     * Translates the body of the predicate. Must be called exactly once.
     */
-  def translate() {
+  private[this] def translate() {
     programVariables.addExternal(thisVariable)
     val translator = new DefaultCodeTranslator(this) {
       override protected def readFraction(location : SourceLocation) = environmentReadFractionTerm(location)
@@ -41,4 +41,6 @@ class MonitorInvariantPredicateTranslator(environment : ProgramEnvironment, chal
       .getOrElse(TrueExpression()(sourceLocation,List("Class " + chaliceClass.id + " does not have a monitor invariant.")))
     predicateFactory.setExpression(expr)
   }
+
+  translate()
 }

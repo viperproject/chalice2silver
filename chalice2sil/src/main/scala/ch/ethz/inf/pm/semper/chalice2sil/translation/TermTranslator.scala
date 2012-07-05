@@ -34,13 +34,11 @@ trait TermTranslator extends MemberEnvironment with TypeTranslator {
       currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Boolean.falseLiteral,TermSequence(),rvalue)
     case rvalue@chalice.LockBottomLiteral() =>
       currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Mu().lockBottom,TermSequence(),rvalue)
-    case rvalue@chalice.Holds(t) => {
-      val heldMap = currentExpressionFactory.makeFieldReadTerm(
-        environmentCurrentThreadTerm(rvalue),
-        prelude.Thread.heldMap,rvalue)
-      currentExpressionFactory.makeDomainFunctionApplicationTerm(
-        prelude.Map.HeldMap.get,TermSequence(heldMap,translateTerm(t)),rvalue): Term
-    }
+    case rvalue@chalice.Holds(t) => translateHolds(t,rvalue)
+    case rvalue@chalice.RdHolds(t) =>
+      report(messages.RdLockNotSupported(rvalue))
+      // to recover, treat it like an ordinary holds
+      translateHolds(t,rvalue)
     case variableExpr:chalice.VariableExpr =>
       currentExpressionFactory.makeProgramVariableTerm((programVariables(variableExpr.v)),variableExpr)
     case rvalue@chalice.Old(e) => currentExpressionFactory.makeOldTerm(translateTerm(e))(rvalue)
@@ -95,6 +93,16 @@ trait TermTranslator extends MemberEnvironment with TypeTranslator {
         functions(functionApplication.f),
         TermSequence(args.map(translateTerm(_)):_*),functionApplication)
     case binary:chalice.BinaryExpr => translateBinaryExpression(binary)
+  }
+
+
+  protected def translateHolds(obj : chalice.Expression, location : SourceLocation) : Term = {
+    val heldMap = currentExpressionFactory.makeFieldReadTerm(
+      environmentCurrentThreadTerm(location),
+      prelude.Thread.heldMap, location)
+    currentExpressionFactory.makeDomainFunctionApplicationTerm(
+      prelude.Map.HeldMap.get, TermSequence(heldMap, translateTerm(obj)), location) : Term
+
   }
 
   def makePredicatePermissionExpression(location : Term, predicateFactory : PredicateFactory,permission : Term, sourceLocation : SourceLocation ) : PredicatePermissionExpression =

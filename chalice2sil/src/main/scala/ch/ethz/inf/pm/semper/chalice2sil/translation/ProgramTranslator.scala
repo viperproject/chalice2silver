@@ -82,7 +82,7 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
       case p:chalice.Predicate => predicates(p)
       case m:chalice.Method => methods(m)
       case f:chalice.Function => functions(f)
-      case i:chalice.MonitorInvariant => monitorInvariants(classNode) // idempotent, but makes sure that invariant is created lazily
+      case i:chalice.MonitorInvariant =>  // makes sure that invariant is created lazily
       case _ => // ignore other symbols
     }
   }
@@ -96,9 +96,6 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
   protected def translate(classNode: chalice.Class){
     // In Chalice2SIL, monitor invariants are not considered "members of a class"
     //  they are a "property of a class"
-    if(!classNode.MonitorInvariants.isEmpty){
-      monitorInvariants(classNode).translate();
-    }
 
     // Translate one member at a time
     classNode.members.foreach({
@@ -106,7 +103,7 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
         methods(m).translate()
       case f:chalice.Field => // nothing to do for fields at this time
       case p:chalice.Predicate =>
-        predicates(p).translate()
+        predicates(p).asInstanceOf[ChalicePredicateTranslator].translate()
       case f:chalice.Function =>
         functions(f).translate()
       case i:chalice.MonitorInvariant => () //handled separately above

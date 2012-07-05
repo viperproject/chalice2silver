@@ -11,6 +11,7 @@
       <w>dominators</w>
       <w>joinable</w>
       <w>klauser</w>
+      <w>lockbottom</w>
       <w>postcondition</w>
       <w>postconditions</w>
       <w>postorder</w>
@@ -22,6 +23,7 @@
       <w>tparam</w>
       <w>trie</w>
       <w>unary</w>
+      <w>unshare</w>
       <w>waitlevel</w>
     </words>
   </dictionary>

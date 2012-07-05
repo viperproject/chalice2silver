@@ -5,7 +5,7 @@ import silAST.expressions.util.{GTermSequence, PTermSequence, TermSequence}
 import silAST.expressions._
 import silAST.domains.{DomainFunction, DomainPredicate}
 import terms._
-import silAST.symbols.logical.{UnaryConnective, BinaryConnective, And}
+import silAST.symbols.logical.{Not, UnaryConnective, BinaryConnective, And}
 import silAST.programs.symbols.{PredicateFactory, ProgramVariable, Field}
 import ch.ethz.inf.pm.semper.chalice2sil._
 import translation.{PredicateTranslator, FieldTranslator, MemberEnvironment}
@@ -67,6 +67,8 @@ class LanguageConstructBase(val environment : MemberEnvironment, val sourceLocat
     def g(terms : GTerm*) : GDomainFunctionApplicationTerm = {
       currentExpressionFactory.makeGDomainFunctionApplicationTerm(function, GTermSequence(terms : _*), sourceLocation)
     }
+
+    def t(terms : Term*) : DomainFunctionApplicationTerm = apply(terms:_*)
   }
 
   final def perm(reference : Term, field : Field) = currentExpressionFactory.makePermTerm(reference, field)(sourceLocation)
@@ -89,6 +91,9 @@ class LanguageConstructBase(val environment : MemberEnvironment, val sourceLocat
     def !(f : FieldTranslator) : PFieldReadTerm = this.!(f.field)
 
     def ===(other:PTerm) : PEqualityExpression = currentExpressionFactory.makePEqualityExpression(term,other, sourceLocation)
+    def =/=(other:PTerm) : PExpression = currentExpressionFactory.makePUnaryExpression(Not()(sourceLocation),
+      currentExpressionFactory.makePEqualityExpression(term,other,sourceLocation)
+      ,sourceLocation)
   }
 
   final implicit def programVariableToTerm(variable : ProgramVariable) : ProgramVariableTerm = {
@@ -105,6 +110,9 @@ class LanguageConstructBase(val environment : MemberEnvironment, val sourceLocat
     def !(f : FieldTranslator) : FieldReadTerm = this.!(f.field)
 
     def ===(other:Term) : EqualityExpression = currentExpressionFactory.makeEqualityExpression(term,other,sourceLocation)
+    def =/=(other:Term) : Expression = currentExpressionFactory.makeUnaryExpression(Not()(sourceLocation),
+      currentExpressionFactory.makeEqualityExpression(term,other,sourceLocation)
+      ,sourceLocation)
   }
 
   implicit def intToLiteral(integer : Int) : Term = currentExpressionFactory.makeIntegerLiteralTerm(integer,sourceLocation)

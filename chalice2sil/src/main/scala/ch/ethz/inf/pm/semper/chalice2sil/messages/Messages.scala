@@ -102,3 +102,12 @@ object LockingRelatedInPredicate extends MessageId(
     def data = Nil
   }
 }
+
+object RdLockNotSupported extends MessageId(
+  Fault,
+  "ch.ethz.inf.pm.semper.chalice2sil.rdLockNotSupported",
+  "Rd-locks (acquire, release, lock) are not supported by chalice2sil.") {
+  def apply(location : SourceLocation) = new Message(this,location) {
+    def data = Nil
+  }
+}

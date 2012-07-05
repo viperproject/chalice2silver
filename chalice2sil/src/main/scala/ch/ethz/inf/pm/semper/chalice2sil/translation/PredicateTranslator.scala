@@ -25,7 +25,6 @@ abstract class PredicateTranslator(environment : ProgramEnvironment,
 {
   def sourceLocation : SourceLocation
   def createPredicateFactory() : PredicateFactory
-  def translate()
 
   val predicateFactory : PredicateFactory = createPredicateFactory()
 

@@ -12,6 +12,7 @@ import silAST.types._
 import silAST.methods.implementations.{CFGFactory, BasicBlockFactory}
 import silAST.expressions.util.{TermSequence, PTermSequence}
 import silAST.domains.{TypeVariableSubstitution, LogicalVariableSubstitution}
+import silAST.symbols.logical.quantification.Forall
 
 /**
   * @author Christian Klauser
@@ -22,6 +23,7 @@ trait ScopeTranslator
 { thisScopeTranslator =>
   def cfgFactory : CFGFactory
   def blockStack : mutable.Stack[BasicBlockFactory]
+  def environmentCurrentThreadVariable : ProgramVariable
   def temporaries : TemporaryVariableBroker
   def declareScopedVariable(sourceLocation : SourceLocation, uniqueName : String, dataType : DataType) : ProgramVariable
 
@@ -77,7 +79,7 @@ trait ScopeTranslator
         val conditionExpr = translatePExpression(codeTranslator,condition)
         //compile loop body
         val loop = cfgFactory.addLoopBlock(getNextName(),conditionExpr,stmt)
-        val loopTranslator = new LoopBodyTranslator(this,loop)
+        val loopTranslator = new LoopBodyTranslator(this,loop,environmentCurrentThreadVariable)
 
         // SILAST requires that the loop invariant is compiled in the context of the
         //  loop AST block, otherwise it will choke on quantified expressions
@@ -145,6 +147,26 @@ trait ScopeTranslator
       case callNode:chalice.JoinAsync => translateMethodJoin(callNode)
       case foldNode:chalice.Fold => translateFold(codeTranslator, foldNode)
       case unfoldNode:chalice.Unfold => translateUnfold(codeTranslator,unfoldNode)
+      case shareNode:chalice.Share =>
+        translateShare(codeTranslator,shareNode)
+      case unshareNode:chalice.Unshare =>
+        translateUnshare(codeTranslator,unshareNode)
+      case acquireNode:chalice.Acquire =>
+        val objTerm = translatePTerm(codeTranslator,acquireNode.obj)
+        translateAcquire(codeTranslator,objTerm,acquireNode,acquireNode.obj.typ)
+      case releaseNode:chalice.Release =>
+        val objTerm = translatePTerm(codeTranslator,releaseNode.obj)
+        translateRelease(codeTranslator,objTerm,releaseNode,releaseNode.obj.typ)
+      case rdAcquireNode:chalice.RdAcquire =>
+        report(messages.RdLockNotSupported(rdAcquireNode))
+        // to recover from this error, treat it like an ordinary acquire
+        val objTerm = translatePTerm(codeTranslator,rdAcquireNode.obj)
+        translateAcquire(codeTranslator,objTerm,rdAcquireNode,rdAcquireNode.obj.typ)
+      case rdReleaseNode:chalice.RdRelease =>
+        report(messages.RdLockNotSupported(rdReleaseNode))
+        // to recover from this error, treat it like an ordinary release
+        val objTerm = translatePTerm(codeTranslator,rdReleaseNode.obj)
+        translateRelease(codeTranslator,objTerm,rdReleaseNode,rdReleaseNode.obj.typ)
       case otherStmt => report(messages.UnknownAstNode(otherStmt))
     }
 
@@ -203,7 +225,8 @@ trait ScopeTranslator
     */
   def determineReadPermissionFraction(
                                        codeTranslator : CodeTranslator,
-                                       callNode : chalice.Statement { def obj : chalice.Expression;  def args : List[chalice.Expression]; def m : chalice.Callable }) : PTerm = {
+                                       callNode : chalice.Statement { def obj : chalice.Expression;  def args : List[chalice.Expression]; def m : chalice.Callable },
+                                       newThreadTerm : PTerm) : PTerm = {
     val args = callNode.args;
     val calleeFactory = methods(callNode.m.asInstanceOf[chalice.Method])
 
@@ -238,7 +261,7 @@ trait ScopeTranslator
       val argTerms =
         translatePTerm (codeTranslator, callNode.obj) ::
           args.map(translatePTerm(codeTranslator,_)) ++
-            List(callReadFractionTerm)
+            List(callReadFractionTerm,newThreadTerm)
   
       val callSubstitution = currentExpressionFactory.makePProgramVariableSubstitution(calleeFactory.parameters.zip(argTerms).map(x => x._1 -> x._2).toSet)
       def transplantExpression(e : Expression) : Expression = {
@@ -376,7 +399,8 @@ trait ScopeTranslator
 
     currentBlock.appendInhale(TrueExpression()(callNode),callNode,List("Begin synchronous call to " + calleeFactory.name + "."))
 
-    val readFractionTerm = determineReadPermissionFraction(codeTranslator,callNode)
+    val readFractionTerm = determineReadPermissionFraction(codeTranslator,callNode,
+      currentExpressionFactory.makeProgramVariableTerm(environmentCurrentThreadVariable,callNode))
 
     // Generate call statement
     val receiverTerm = translatePTerm(codeTranslator,receiver)
@@ -410,17 +434,17 @@ trait ScopeTranslator
       // `token.joinable := true`
       (tokenVar!prelude.Token.joinable) <-- booleanTrue.p()
 
-      //Determine read fraction
-      comment("Determine read fraction")
-      val readFractionTerm = determineReadPermissionFraction(codeTranslator, callNode)
-
       // Create new thread
       comment("Create object to represent new thread.")
       val threadVar = declareScopedVariable(callNode,getNextName("new_thread"),referenceType)
       val newThreadTerm = currentExpressionFactory.makeProgramVariableTerm(threadVar,callNode)
       threadVar <-- NewRef()
       inhale( acc(newThreadTerm,prelude.Thread.heldMap,fullPermission),
-              acc(newThreadTerm,prelude.Thread.muMap,fullPermission)  )
+        acc(newThreadTerm,prelude.Thread.muMap,fullPermission)  )
+
+      //Determine read fraction
+      comment("Determine read fraction")
+      val readFractionTerm = determineReadPermissionFraction(codeTranslator, callNode, newThreadTerm)
 
       // Store state (arguments)
       comment("Store arguments in token")
@@ -632,13 +656,225 @@ trait ScopeTranslator
       val rhsTerm = translatePTerm(codeTranslator,init.e)
       currentBlock.appendFieldAssignment(targetVar,fields(init.f),rhsTerm,init)
     }
+
+    // `obj.mu := lockbottom`
+    currentBlock.appendFieldAssignment(targetVar,prelude.Object.mu,
+      currentBlock.makePDomainFunctionApplicationTerm(prelude.Mu().lockBottom,PTermSequence(),newObj)
+      ,newObj,List("Fresh objects start out unshared (and unlocked)."))
+
+    // `$CurrentThread.heldMap[obj] := false`
+    val target = currentBlock.makeProgramVariableTerm(targetVar,newObj)
+    val currentThread = currentBlock.makeProgramVariableTerm(environmentCurrentThreadVariable,newObj)
+    val heldMap = currentBlock.makePFieldReadTerm(currentThread,prelude.Thread.heldMap,newObj)
+    val updatedHeldMap = currentBlock.makePDomainFunctionApplicationTerm(
+      prelude.Map.HeldMap.update,PTermSequence(
+        heldMap,
+        target,
+        currentBlock.makePDomainFunctionApplicationTerm(prelude.Boolean.falseLiteral,PTermSequence(),newObj)
+      ),newObj)
+    currentBlock.appendFieldAssignment(environmentCurrentThreadVariable,prelude.Thread.heldMap,updatedHeldMap,newObj)
+
+    // `$CurrentThread.muMap[obj] := obj.mu`
+    val muMap = currentBlock.makePFieldReadTerm(currentThread,prelude.Thread.muMap,newObj)
+    val updatedMuMap = currentBlock.makePDomainFunctionApplicationTerm(
+      prelude.Map.MuMap.update,PTermSequence(
+        muMap,
+        target,
+        currentBlock.makePFieldReadTerm(target,prelude.Object.mu,newObj)
+      ),newObj)
+    currentBlock.appendFieldAssignment(environmentCurrentThreadVariable,prelude.Thread.muMap,updatedMuMap,newObj)
+  }
+
+  def usingTermInVariable[T]( targetTerm : PTerm,
+                              location : SourceLocation)(translate : ProgramVariable => T){
+    targetTerm match {
+      case ProgramVariableTerm(v) => translate(v)
+      case term =>
+        temporaries.using(referenceType){ v =>
+          currentBlock.appendAssignment(v,term,location)
+          translate(v)
+        }
+    }
+  }
+
+  def translateShare(codeTranslator : CodeTranslator, shareNode : chalice.Share){
+    usingTermInVariable(translatePTerm(codeTranslator,shareNode.obj),shareNode){ targetVar =>
+      val targetTerm = currentExpressionFactory.makeProgramVariableTerm(targetVar,shareNode)
+      languageConstruct(shareNode){ ctor =>
+        import ctor._
+        val currentThread = environmentCurrentThreadVariable : PTerm
+
+        // `exhale target != null && target.mu == lockbottom`
+        comment("Share object: " + shareNode)
+        exhale(targetTerm =/= nullFunction.p(),"Object to be shared must not be null.")
+        exhale(targetTerm!prelude.Object.mu === prelude.Mu().lockBottom.p(),"Object might already be shared. An unshared object has `.mu == lockbottom`")
+
+        // check that bounds are correct (non-null and not contradicting)
+        val lowerBounds = shareNode.lowerBounds.map(codeTranslator.translateTerm(_))
+        val upperBounds = shareNode.upperBounds.map(codeTranslator.translateTerm(_))
+        val allBounds = lowerBounds++upperBounds
+
+        if(!allBounds.isEmpty){
+          comment("Ensure that none of the bounds are null and that all their mu fields are readable.")
+          for(b <- allBounds){
+            exhale(b =/= nullFunction.t(),"The share bound might be null",b.sourceLocation)
+            exhale(permissionLT.apply(noPermission,perm(b,prelude.Object.mu)),
+              "The mu field of the share bound might not be readable.",b.sourceLocation)
+          }
+          comment("Ensure that all lower bounds are larger than all upper bound")
+          for(lower <- lowerBounds; upper <- upperBounds){
+            exhale(prelude.Mu().below.apply(lower,upper),
+              "The lower bound at " + lower.sourceLocation + " might not be below the upper bound at " + upper.sourceLocation + ".",
+              lower.sourceLocation)
+          }
+        }
+
+        // determine mu
+        val muVar = declareScopedVariable(shareNode,getNextName("fresh_mu"),prelude.Mu().dataType)
+        val muTerm = muVar : PTerm;
+        {
+          comment("Determine value for fresh mu")
+          inhale(prelude.Mu().below.apply(prelude.Mu().lockBottom.t(),muTerm))
+
+          if(allBounds.isEmpty){
+            // there are no bounds ↔ assume that mu is above the current waitlevel
+            // `inhale ∀ o:ref :: eval($CurrentThread.heldMap[o]) ⇒ $CurrentThread.muMap[o] << mu`
+            val oVar = currentExpressionFactory.makeBoundVariable(getNextName("o"),referenceType,shareNode)
+            val o = currentExpressionFactory.makeBoundVariableTerm(oVar,shareNode)
+            inhale(currentExpressionFactory.makeQuantifierExpression(Forall()(shareNode),oVar,
+              currentExpressionFactory.makeBinaryExpression(Implication()(shareNode),
+                // `eval($CurrentThread.heldMap[o])`
+                prelude.Boolean.eval.apply(prelude.Map.HeldMap.get.t(currentThread!prelude.Thread.heldMap,o)),
+                // `$CurrentThread.muMap[o] << mu`
+                prelude.Mu().below.apply(prelude.Map.MuMap.get.t(currentThread!prelude.Thread.muMap,o),muTerm),
+              shareNode)
+            )(shareNode))
+          } else {
+            // assume that mu satisfies all bounds (we checked before that this doesn't introduce contradictions)
+            for(lower <- lowerBounds){
+              inhale(prelude.Mu().below.apply(lower!prelude.Object.mu,muTerm),lower.sourceLocation)
+            }
+            for(upper <- upperBounds){
+              inhale(prelude.Mu().below.apply(muTerm,upper!prelude.Object.mu),upper.sourceLocation)
+            }
+          }
+        }
+
+        // Finally assign mu
+        comment("Assign mu (to both the field and the map), set held to false")
+        (targetVar!prelude.Object.mu) <-- muTerm
+        (environmentCurrentThreadVariable!prelude.Thread.muMap) <--
+          prelude.Map.MuMap.update.p(currentThread!prelude.Thread.muMap,targetTerm,targetTerm!prelude.Object.mu)
+        (environmentCurrentThreadVariable!prelude.Thread.heldMap) <--
+          prelude.Map.HeldMap.update.p(currentThread!prelude.Thread.heldMap,targetTerm,prelude.Boolean.falseLiteral.p())
+
+        comment("Exhale monitor invariant")
+        val monitorInvariant = monitorInvariants(shareNode.obj.typ)
+        fold(targetVar,monitorInvariant,fullPermission)
+        exhale(acc(targetTerm,monitorInvariant,fullPermission))
+      }
+    }
+  }
+
+  def translateUnshare(codeTranslator : CodeTranslator, shareNode : chalice.Unshare){
+    usingTermInVariable(translatePTerm(codeTranslator,shareNode.obj),shareNode){ targetVariable =>
+      languageConstruct(shareNode){ ctor =>
+        import ctor._
+        val targetTerm = targetVariable:PTerm
+        val currentThread = environmentCurrentThreadVariable:PTerm
+
+        comment("Unshare object")
+        exhale(targetTerm =/= nullFunction.p(),
+          "Object to be unshared might be null",targetTerm.sourceLocation)
+        exhale(permissionGE.apply(fullPermission,perm(targetTerm,prelude.Object.mu)),
+          "Mu field of object to be unshared might not be writable",targetTerm.sourceLocation)
+        exhale(prelude.Mu().below.apply(prelude.Mu().lockBottom.t(),targetTerm!prelude.Object.mu),
+          "Object to be unshared might not be shared in the first place.",targetTerm.sourceLocation)
+        exhale(prelude.Boolean.eval.apply(prelude.Map.HeldMap.get.t(currentThread!prelude.Thread.heldMap,targetTerm)),
+          "Object to be unshared might not be locked.",targetTerm.sourceLocation)
+
+        comment("Update fields/maps")
+        // `obj.mu := lockbottom`
+        (targetVariable!prelude.Object.mu) <-- prelude.Mu().lockBottom.p()
+        // `$CurrentThread.heldMap[obj] := false`
+        (environmentCurrentThreadVariable!prelude.Thread.heldMap) <--
+          prelude.Map.HeldMap.update.p(currentThread!prelude.Thread.heldMap,targetTerm,prelude.Boolean.falseLiteral.p())
+        // `$CurrentThread.muMap[obj] := obj.mu`
+        (environmentCurrentThreadVariable!prelude.Thread.muMap) <--
+          prelude.Map.MuMap.update.p(currentThread!prelude.Thread.muMap,targetTerm,targetTerm!prelude.Object.mu)
+      }
+    }
+  }
+
+  def translateAcquire(codeTranslator : CodeTranslator, objTerm : PTerm, location : SourceLocation, chaliceClass : chalice.Class){
+      languageConstruct(location){ctor =>
+        import ctor._
+
+        val currentThread = environmentCurrentThreadVariable:PTerm
+
+        comment("Lock an object")
+        exhale(objTerm =/= nullFunction.p(),
+          "Object to be locked might be null",objTerm.sourceLocation)
+        exhale(permissionLT.apply(noPermission,perm(objTerm,prelude.Object.mu)),
+          "Mu field of the object to be locked might not be readable.", objTerm.sourceLocation)
+
+        // `exhale ∀ o:ref :: eval($CurrentThread.heldMap[o]) ⇒ $CurrentThread.muMap[o] << obj.mu`
+        exhale(codeTranslator.withWaitlevel(location){ waitlevel =>
+          prelude.Mu().below.apply(waitlevel, objTerm!prelude.Object.mu)
+        },"The mu field of the object to be locked might not be above the current thread's waitlevel.")
+
+        // Update the held map, the object is now locked
+        (environmentCurrentThreadVariable!prelude.Thread.heldMap) <--
+          prelude.Map.HeldMap.update.p(currentThread!prelude.Thread.heldMap,objTerm,prelude.Boolean.trueLiteral.p())
+
+        // finally inhale and unfold the invariant predicate
+        val monitorInvariant = monitorInvariants(chaliceClass)
+        inhale(acc(objTerm,monitorInvariant,fullPermission))
+        unfold(objTerm,monitorInvariant,fullPermission)
+      }
+  }
+
+  def translateRelease(codeTranslator : CodeTranslator, objTerm : PTerm, location : SourceLocation, chaliceClass : chalice.Class){
+    languageConstruct(location){ctor =>
+      import ctor._
+
+      val currentThread = environmentCurrentThreadVariable:PTerm
+
+      comment("Release the lock on an object")
+      exhale(objTerm =/= nullFunction.p(),
+        "Object to be released might be null",objTerm.sourceLocation)
+
+      exhale(prelude.Boolean.eval.apply(prelude.Map.HeldMap.get.t(currentThread!prelude.Thread.heldMap,objTerm)),
+        "Object to be released might not be locked in the first place.",objTerm.sourceLocation)
+
+      val monitorInvariant = monitorInvariants(chaliceClass)
+      fold(objTerm,monitorInvariant,fullPermission)
+      exhale(acc(objTerm,monitorInvariant,fullPermission))
+
+      (environmentCurrentThreadVariable!prelude.Thread.heldMap) <--
+        prelude.Map.HeldMap.update.p(currentThread!prelude.Thread.heldMap, objTerm, prelude.Boolean.falseLiteral.p())
+    }
+  }
+
+  def translateLock(codeTranslator : CodeTranslator, lockNode : chalice.Lock){
+    if(lockNode.rdLock){
+      report(messages.RdLockNotSupported(lockNode))
+      // just ignore the fact that this is a read-lock
+    }
+
+    val monitorVar = declareScopedVariable(lockNode,getNextName("lock"),referenceType)
+    currentBlock.appendAssignment(monitorVar,translatePTerm(codeTranslator,lockNode.obj),lockNode,List("lock statement, store monitor object in a temporary variable"))
+    val monitorTerm = currentBlock.makeProgramVariableTerm(monitorVar,lockNode)
+    translateAcquire(codeTranslator, monitorTerm,lockNode, lockNode.obj.typ)
+    translateStatements(codeTranslator,lockNode.b.ss)
+    translateRelease(codeTranslator, monitorTerm,lockNode, lockNode.obj.typ)
   }
 
   def translatePTerm(codeTranslator : CodeTranslator, expr : chalice.Expression) : PTerm = {
     codeTranslator.translateTerm(expr) match {
       case pt:PTerm => pt
       case t =>
-        assert(false,"Expected program term. Actual type: %s. Location: %s.".format(t.getClass,t.sourceLocation))
+        assert(assertion = false,message = "Expected program term. Actual type: %s. Location: %s.".format(t.getClass, t.sourceLocation))
         null
     }
   }
@@ -647,7 +883,7 @@ trait ScopeTranslator
     codeTranslator.translateExpression(expr) match {
       case pe:PExpression => pe
       case t =>
-        assert(false,"Expected program expression. Actual type: %s. Location: %s.".format(t.getClass,t.sourceLocation))
+        assert(assertion = false,message = "Expected program expression. Actual type: %s. Location: %s.".format(t.getClass, t.sourceLocation))
         null
     }
   }

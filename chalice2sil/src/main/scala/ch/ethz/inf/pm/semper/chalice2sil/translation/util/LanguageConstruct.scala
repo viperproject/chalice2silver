@@ -92,6 +92,10 @@ class LanguageConstruct(scope : ScopeTranslator, sourceLocation_ : SourceLocatio
   final def inhale(expr : Expression) {
     scope.currentBlock.appendInhale(expr,sourceLocation,takeComment())
   }
+
+  final def inhale(expr : Expression, customSourceLocation : SourceLocation) {
+    scope.currentBlock.appendInhale(expr,customSourceLocation,takeComment())
+  }
   
   final def inhale(es : Expression*) {
     es.reduceOption(currentExpressionFactory.makeBinaryExpression(And()(sourceLocation),_,_,sourceLocation)) match {

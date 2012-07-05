@@ -23,7 +23,7 @@ trait ExpressionTranslator extends MemberEnvironment {
 
   def translateExpression(e : chalice.Expression) : Expression = expressionTranslation(e)
 
-  protected def withWaitlevel(waitlevel : SourceLocation)(f : Function[Term,Expression]) = {
+  def withWaitlevel(waitlevel : SourceLocation)(f : Function[Term,Expression]) = {
     // ∀ o:ref :: $CurrentThread.heldMap[o] ⇒ f($CurrentThread.muMap[o])
     val heldMap = currentExpressionFactory.makeFieldReadTerm(environmentCurrentThreadTerm(waitlevel),prelude.Thread.heldMap,waitlevel)
     val oVar = currentExpressionFactory.makeBoundVariable(getNextName("o"),referenceType,waitlevel)
@@ -41,6 +41,7 @@ trait ExpressionTranslator extends MemberEnvironment {
 
   protected def eqWaitlevel(sameAsWaitlevel : SourceLocation,waitlevel : SourceLocation, other : chalice.Expression) : Expression = {
     // ∀ o:ref :: $CurrentThread.heldMap[o] ⇒ other == $CurrentThread.muMap[o]
+    // TODO This is just wrong (eqWaitlevel)
     withWaitlevel(waitlevel){ oMu =>
       currentExpressionFactory.makeEqualityExpression(oMu,translateTerm(other),sameAsWaitlevel)
     }

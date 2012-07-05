@@ -5,11 +5,12 @@ import silAST.types.DataType
 import collection._
 import silAST.methods.implementations.{LoopBlockFactory, BasicBlockFactory}
 import silAST.expressions.ExpressionFactory
+import silAST.programs.symbols.ProgramVariable
 
 /**
   * @author Christian Klauser
   */
-class LoopBodyTranslator(environment : ScopeTranslator, protected val loopBlockFactory : LoopBlockFactory)
+class LoopBodyTranslator(environment : ScopeTranslator, protected val loopBlockFactory : LoopBlockFactory, val environmentCurrentThreadVariable : ProgramVariable)
   extends DerivedMemberEnvironment(environment)
   with ScopeTranslator {
 
