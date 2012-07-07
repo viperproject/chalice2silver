@@ -405,7 +405,8 @@ trait ScopeTranslator
     // Generate call statement
     val receiverTerm = translatePTerm(codeTranslator,receiver)
     val destinationVars = destinations.map(vExpr => programVariables(vExpr.v))
-    val argTerms = args.map(translatePTerm(codeTranslator, _)) ++ List(readFractionTerm)
+    val argTerms = args.map(translatePTerm(codeTranslator, _)) ++
+      List(readFractionTerm, currentExpressionFactory.makeProgramVariableTerm(environmentCurrentThreadVariable,callNode))
     currentBlock.appendCall(
       currentBlock.makeProgramVariableSequence(destinationVars, callNode),
       receiverTerm,

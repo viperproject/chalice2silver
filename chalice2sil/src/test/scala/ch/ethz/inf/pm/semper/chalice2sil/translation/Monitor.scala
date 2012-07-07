@@ -7,7 +7,5 @@ import org.scalatest.matchers.ShouldMatchers
   * @author Christian Klauser
   */
 class Monitor extends ChaliceSuite with ShouldMatchers {
-  'emptyInvariant.chalice {
-    program.predicates should be ('empty)
-  }
+
 }

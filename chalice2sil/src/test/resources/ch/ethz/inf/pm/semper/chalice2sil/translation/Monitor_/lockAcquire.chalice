@@ -12,8 +12,7 @@ class C {
 
         acquire c;
         c.f := 6;
-        release c;
 
-        c.f := 7;   // @Error 630
+        release c;
     }
 }

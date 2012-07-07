@@ -93,17 +93,5 @@ class Basic extends ChaliceSuite with ShouldMatchers {
       fa.target.dataType should be (referenceType)
     })
   }
-  
-  'fullPermissionOwnField.chalice {
-    val mainOpt = program.methods.find(_.name == "Main::main")
-    
-    mainOpt should be ('defined)
-    
-    val main = mainOpt.get
-    val sig = main.signature
-    
-    sig.precondition should have length (3)
-    sig.postcondition should have length (1)
-  }
 
 }
