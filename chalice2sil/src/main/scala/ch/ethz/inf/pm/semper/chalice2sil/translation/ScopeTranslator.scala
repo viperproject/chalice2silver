@@ -642,6 +642,12 @@ trait ScopeTranslator
         .format(currentBlock.name,targetVariable,currentBlock.programVariables.mkString(", ")))
   }
 
+  /**
+    * Translates an object creation node ([[chalice.NewRhs]])
+    * @param codeTranslator the translator to use
+    * @param newObj the new object node
+    * @param targetVar the variable to assign the new object reference to
+    */
   protected def translateNew(codeTranslator : CodeTranslator, newObj : chalice.NewRhs, targetVar : ProgramVariable) {
     currentBlock.appendNew(targetVar,referenceType,newObj,List("Create new object from class " + newObj.id))
     val refTerm = currentExpressionFactory.makeProgramVariableTerm(targetVar,newObj)
@@ -663,27 +669,25 @@ trait ScopeTranslator
       currentBlock.makePDomainFunctionApplicationTerm(prelude.Mu().lockBottom,PTermSequence(),newObj)
       ,newObj,List("Fresh objects start out unshared (and unlocked)."))
 
-    // `$CurrentThread.heldMap[obj] := false`
     val target = currentBlock.makeProgramVariableTerm(targetVar,newObj)
     val currentThread = currentBlock.makeProgramVariableTerm(environmentCurrentThreadVariable,newObj)
-    val heldMap = currentBlock.makePFieldReadTerm(currentThread,prelude.Thread.heldMap,newObj)
-    val updatedHeldMap = currentBlock.makePDomainFunctionApplicationTerm(
-      prelude.Map.HeldMap.update,PTermSequence(
-        heldMap,
-        target,
-        currentBlock.makePDomainFunctionApplicationTerm(prelude.Boolean.falseLiteral,PTermSequence(),newObj)
-      ),newObj)
-    currentBlock.appendFieldAssignment(environmentCurrentThreadVariable,prelude.Thread.heldMap,updatedHeldMap,newObj)
+    val currentHeldMap = currentBlock.makePFieldReadTerm(currentThread,prelude.Thread.heldMap,newObj)
+    val currentMuMap = currentBlock.makePFieldReadTerm(currentThread,prelude.Thread.muMap,newObj)
 
-    // `$CurrentThread.muMap[obj] := obj.mu`
-    val muMap = currentBlock.makePFieldReadTerm(currentThread,prelude.Thread.muMap,newObj)
-    val updatedMuMap = currentBlock.makePDomainFunctionApplicationTerm(
-      prelude.Map.MuMap.update,PTermSequence(
-        muMap,
-        target,
-        currentBlock.makePFieldReadTerm(target,prelude.Object.mu,newObj)
-      ),newObj)
-    currentBlock.appendFieldAssignment(environmentCurrentThreadVariable,prelude.Thread.muMap,updatedMuMap,newObj)
+    // We can safely inhale this statement, because
+    //  a) obj is guaranteed to be fresh and unique
+    //  b) because we never generate anything like ∀ r:ref :: $CurrentThread.heldMap[r] == true
+    // `inhale $CurrentThread.helpMap[obj] == false`
+    currentBlock.appendInhale(currentExpressionFactory.makeEqualityExpression(
+      currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Map.HeldMap.get,TermSequence(currentHeldMap,target),newObj),
+      currentBlock.makePDomainFunctionApplicationTerm(prelude.Boolean.falseLiteral,PTermSequence(),newObj),
+      newObj),newObj)
+
+    // `inhale $CurrentThread.muMap[obj] == obj.mu`
+    currentBlock.appendInhale(currentExpressionFactory.makeEqualityExpression(
+      currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Map.MuMap.get,TermSequence(currentMuMap,target),newObj),
+      currentBlock.makeFieldReadTerm(target,prelude.Object.mu,newObj),
+      newObj),newObj)
   }
 
   def usingTermInVariable[T]( targetTerm : PTerm,

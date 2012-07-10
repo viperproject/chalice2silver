@@ -26,7 +26,7 @@ trait Environment {
   /**
    * Returns the globally unique name of a method.
    */
-  def fullMethodName(m : chalice.Method) = m.Parent.id + "::" + m.id
+  def fullMethodName(m : chalice.Method) : String = m.Parent.id + "::" + m.id
 
   /**
    * Returns the globally unique name of a field.
