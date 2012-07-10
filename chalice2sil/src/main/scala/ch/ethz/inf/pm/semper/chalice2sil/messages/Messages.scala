@@ -5,7 +5,7 @@ import chalice.{Channel, ASTNode}
 import silAST.source.SourceLocation
 import Severity._
 import silAST.types.DataType
-import silAST.expressions.terms.{PTerm, Term}
+import silAST.expressions.terms.{LogicalVariableTerm, PTerm, Term}
 import translation.LocationTranslator
 
 object ChannelsNotImplemented extends MessageId(
@@ -31,6 +31,15 @@ object UnknownAstNode extends MessageId(
       s.take(limit-1)  + "…"
     else
       s
+  }
+}
+
+object FreeVariableInOld extends MessageId(
+  Error,
+  "ch.ethz.inf.pm.semper.chalice2sil.freeVariableInOld",
+  "Chalice2SIL cannot handle free variables in old expressions and terms. Offending variable: %s") {
+  def apply(variableTerm : LogicalVariableTerm) = new Message(this,variableTerm.sourceLocation) {
+    def data = Array(variableTerm)
   }
 }
 

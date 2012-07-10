@@ -183,35 +183,47 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     }
 
     val heldMapTerm : Term = currentExpressionFactory.makeFieldReadTerm(environmentCurrentThreadTerm(method),prelude.Thread.heldMap,method)
-    def heldLookup(ref : Term) : Term = {
-      currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Map.HeldMap.get,TermSequence(heldMapTerm,ref),ref.sourceLocation)
+    def heldLookup(ref : Term, customHeldMapTerm : Option[Term] = None) : Term = {
+      currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Map.HeldMap.get,
+        TermSequence(customHeldMapTerm.getOrElse(heldMapTerm),ref),ref.sourceLocation)
     }
 
     val muMapTerm : Term = currentExpressionFactory.makeFieldReadTerm(environmentCurrentThreadTerm(method),prelude.Thread.muMap,method)
-    def muLookup(ref : Term) : Term = {
-      currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Map.MuMap.get,TermSequence(muMapTerm,ref),ref.sourceLocation)
+    def muLookup(ref : Term, customMuMapTerm : Option[Term] = None) : Term = {
+      currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Map.MuMap.get,
+        TermSequence(customMuMapTerm.getOrElse(muMapTerm),ref),ref.sourceLocation)
     }
 
-    //  ∀ o : ref :: ¬isLockChanged(o) ⇒ old(currentThread.heldMap[o]) == currentThread.heldMap[o]
+    //  ∀ o : ref :: ¬isLockChanged(o) ⇒ old(currentThread.heldMap)[o] == currentThread.heldMap[o]
     forallReferencesInPostcondition(o =>
       exceptIsLockChanged(o,
         currentExpressionFactory.makeEqualityExpression(
-          currentExpressionFactory.makeOldTerm(heldLookup(o))(method),
+          heldLookup(o,Some(currentExpressionFactory.makeOldTerm(heldMapTerm)(method))),
           heldLookup(o),method
         )))
 
-    // ∀ o : ref :: ¬isLockChanged(o) ⇒ (currentThread.heldMap[o] ⇒ old(currentThread.muMap[o]) == currentThread.muMap[o]))
+    // ∀ o : ref :: ¬isLockChanged(o) ⇒ (currentThread.heldMap[o] ⇒ old(currentThread.muMap)[o] == currentThread.muMap[o]))
     forallReferencesInPostcondition(o =>
       exceptIsLockChanged(o,
         currentExpressionFactory.makeBinaryExpression(Implication()(method),
           currentExpressionFactory.makeDomainPredicateExpression(prelude.Boolean.eval,TermSequence(heldLookup(o)),method),
-          currentExpressionFactory.makeEqualityExpression(currentExpressionFactory.makeOldTerm(muLookup(o))(method,Nil),muLookup(o),method),
+          currentExpressionFactory.makeEqualityExpression(
+              muLookup(o,Some(currentExpressionFactory.makeOldTerm(muMapTerm)(method,Nil))),
+              muLookup(o),
+            method),
           method,Nil
         )
       )
     )
-
     methodFactory.finalizeSignature()
+
+    // Verify that no old(*) expressions appear inside ∀ or ∃ quantifiers. Chalice2SIL cannot deal with that
+    methodFactory.method.signature
+      .postcondition
+      .map(util.ContractFormChecker(_))
+      .reduceOption(_ ++ _)
+      .getOrElse(Set())
+      .foreach(report(_))
   }
 
   createContracts();
