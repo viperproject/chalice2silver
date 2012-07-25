@@ -28,6 +28,7 @@ class TemporaryVariableBroker(environment : ScopeTranslator) {
     }
   }
 
+  def isTemporary(variable : ProgramVariable) : Boolean = knownTemporaryVariables contains variable
 
   def release(variable : ProgramVariable) {
     require(knownTemporaryVariables contains variable,

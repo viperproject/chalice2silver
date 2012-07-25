@@ -425,7 +425,12 @@ trait ScopeTranslator
       comment("Begin asynchronous call to " + calleeFactory.methodFactory.name)
 
       // `token := new object`
-      val tokenVar = programVariables(chaliceTokenVariable.v)
+      val tokenVar =
+        if(chaliceTokenVariable == null)
+          temporaries.acquire(referenceType)
+        else
+          programVariables(chaliceTokenVariable.v)
+
       val token : ProgramVariableTerm = tokenVar
       tokenVar <-- NewRef()
 
@@ -516,6 +521,9 @@ trait ScopeTranslator
           Some("The precondition of method " + calleeFactory.name + ", defined at " + calleeFactory.method.signature.precondition.headOption.map(_.sourceLocation).getOrElse(calleeFactory.method.sourceLocation)),
           Some(astNodeToSourceLocation(callNode)))
       }
+
+      if(temporaries.isTemporary(tokenVar))
+        temporaries.release(tokenVar)
     }
   }
   
@@ -574,9 +582,10 @@ trait ScopeTranslator
 
       // inhale postcondition (with old(*) replaced)
       comment("inhale postcondition with token fields substituted for arguments and old(*) expressions")
-        val methodPostcondition = sig.postcondition
-          .map(trans.transplant(_))
-        inhale(methodPostcondition :_*)
+      comment("(also add permissions to the token fields holding the return values)")
+      val methodPostcondition = sig.postcondition
+        .map(trans.transplant(_))
+      inhale(tokenStorage.results.map(r => acc(tokenTerm,r,fullPermission))  ++ methodPostcondition :_*)
 
       // assign all result fields to result variables
       comment("Assign results")
