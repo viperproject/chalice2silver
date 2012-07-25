@@ -64,6 +64,26 @@
 \input{lib/haskell.tex}
 \input{lib/chalice.tex}
 \input{lib/sil.tex}
+
+\lstnewenvironment{code}
+    {\lstset{}%
+      \csname lst@SetFirstLabel\endcsname}
+    {\csname lst@SaveFirstLabel\endcsname}
+\lstset{
+      basicstyle=\small\ttfamily,
+      flexiblecolumns=false,
+      basewidth={0.5em,0.45em},
+      tabsize=2,
+      frame=single
+%      literate={+}{{$+$}}1 {/}{{$/$}}1 {*}{{$*$}}1 {=}{{$=$}}1
+%               {>}{{$>$}}1 {<}{{$<$}}1 {\\}{{$λ$}}1
+%               {\\\\}{{\char`\\\char`\\}}1
+%               {->}{{$\rightarrow$}}2 {>=}{{$≥$}}2 {<-}{{$\leftarrow$}}2
+%               {<=}{{$≤$}}2 {=>}{{$\Rightarrow$}}2 
+%               {\ .}{{$\circ$}}2 {\ .\ }{{$\circ$}}2
+%               {>>}{{>>}}2 {>>=}{{>>=}}2
+%               {|}{{$\mid$}}1               
+    }
 \lstset{tabsize=2}
 
 %=========================================
@@ -112,10 +132,23 @@
 \begin{document}
 \maketitle
 
-\include{src/introduction}
-\include{src/sil-lang}
-\include{src/translation}
-\include{src/evaluation}
-\include{src/conclusion}
+\begin{sketch}
+\begin{itemize}
+\item Use either \lstinline!acc(x.f,write)! (SIL toString) or \lstinline!acc(x.f,full)! (SIL API), not both!
+\item Don't use abbreviated read fraction syntax \lstinline!rd(x.f)!, ever.
+\end{itemize}
+\end{sketch}
+
+\input{src/introduction.tex}
+
+\section{Background}
+	\input{src/chalice-lang.tex}
+	\input{src/sil-lang.tex}
+
+\input{src/translation.tex}
+
+\input{src/evaluation.tex}
+
+\input{src/conclusion.tex}
 
 \end{document}

@@ -67,20 +67,3 @@
 }
 
 \lstloadlanguages{Haskell}
-\lstnewenvironment{code}
-    {\lstset{}%
-      \csname lst@SetFirstLabel\endcsname}
-    {\csname lst@SaveFirstLabel\endcsname}
-\lstset{
-      basicstyle=\small\ttfamily,
-      flexiblecolumns=false,
-      basewidth={0.5em,0.45em},
-%      literate={+}{{$+$}}1 {/}{{$/$}}1 {*}{{$*$}}1 {=}{{$=$}}1
-%               {>}{{$>$}}1 {<}{{$<$}}1 {\\}{{$λ$}}1
-%               {\\\\}{{\char`\\\char`\\}}1
-%               {->}{{$\rightarrow$}}2 {>=}{{$≥$}}2 {<-}{{$\leftarrow$}}2
-%               {<=}{{$≤$}}2 {=>}{{$\Rightarrow$}}2 
-%               {\ .}{{$\circ$}}2 {\ .\ }{{$\circ$}}2
-%               {>>}{{>>}}2 {>>=}{{>>=}}2
-%               {|}{{$\mid$}}1               
-    }

@@ -9,12 +9,6 @@ High-level overview + including focus areas
 \end{sketch}
 
 \subsection{Fractional Read Permissions}\label{sct:frp}
-\begin{sketch}
-High-level description of how read-fractions are translated in Boogie \\
-SIL call node versus same approach as Boogie-encoding \\
-Explain how read-permissions are translated
-\end{sketch}
-
 To SIL, permissions are just another data type. 
 The SIL prelude only defines a set of constructors (like no permission, full permission) and some operators and predicates (like permission addition, subtraction, equality, comparison). 
 In particular, it does not specify how permissions are represented. 
@@ -161,13 +155,13 @@ We could expand implications in the precondition twice: once for initializing ou
 We start out with two fresh map variables $m$ and $m_0$. The former, $m$, is the permission map we are going to update while constraining $k_c$, whereas $m_0$ represents the state of the permission map immediately before the method call. 
 We let the SIL verifier assume that the two maps are identical initially and later add more information about $m$'s initial state by providing assumptions about $m_0$.
 
-\begin{lstlisting}[language=sil]
+\begin{lstlisting}[language=sil,float,caption={Translation sketch for a method call involving fractional read permissions and the precondition \lstinline:acc(r.val,rd) && p ==> acc(r.val):},label=lst:rdcall]
 var k_c : Permission
 var m : Map[Pair[ref, Integer], Permission];
 var m_0 : Map[Pair[ref, Integer], Permission];
 assume 0 < k_c && 1000*k_c < k_m;
 assume m == m_0;
---/* acc(r.val,rd) */
+// acc(r.val,rd)
 assume m_0[(r,1)] == perm(r.val);
 assert 0 < m[(r,1)];
 assume k_c < m[(r,1)];
@@ -179,27 +173,175 @@ if(p){
 	assume k_c < m[(r,1)];
 	m[(r,1)] := m[(r,1)] - k_c;
 }
+// finally, the actual call
 call () := m(r,p,k_c);
 \end{lstlisting}
 
-
-\subsection{Fork-Join}\label{sct:fj}
 \begin{sketch}
-Explain translation of fork-join.
-Explain how read-fraction tracking works identically to the synchronous case
-How context of fork is captured for use in join
-Problems with old(.) expressions. 
+Formal-ish translation rules for method call here? 
+\[
+	T\ch{P \land Q} = \sil{T\ch{P}\text{\lstinline!; !}\ T\ch{Q}}
+\]
+\[
+	T\ch{P ⇒ Q} = \sil{\text{\lstinline!if!}\left(T\ch{P}\right) \left\{ T\ch{Q} \right\}}
+\]
+etc.
+\end{sketch}
+
+After $k_c$ is sufficiently constrained, we just emit a call to our target method. 
+The SIL verifier will have to 
+	exhale the precondition (giving away the permissions it mentions), 
+	havoc heap locations that the caller has lost all permissions to, 
+	then inhale the postcondition (receiving permissions it mentions) 
+	and finally assign results to local variables as necessary.
+
+
+\subsection{Asynchronous method calls (Fork-Join)}\label{sct:fj}
+\begin{sketch}
+\begin{itemize}
+\item Explain translation of fork-join.
+\item Explain how read-fraction tracking works identically to the synchronous case
+\item How context of fork is captured for use in join
+\item Problems with old(.) expressions. 
+\end{itemize}
+
+\end{sketch}
+At this time, SIL only provides synchronous call statements. 
+We therefore have to fall back to just exhaling the precondition on fork and inhaling the postcondition on join. 
+The challenging aspect of verifying asynchronous method calls is establishing the link between a join and the corresponding fork.
+Old expressions, in particular, are difficult to capture in SIL without a dedicated call statement.
+
+\subsubsection{Translation of \lstinline!fork!}\label{sct:fjfork}
+
+The translation of the Chalice \lstinline!fork! statement seems, at least at first, relatively straightforward: Exhale the method's precondition and create a token object with a boolean field called ``\lstinline!joinable!'' set to \lstinline!true!.
+But how would we then translate the corresponding \lstinline!join! statement(s)? The method's postcondition is formulated in terms of the method's return values and parameters.
+In general we no longer have access to the latter.
+The \lstinline!join! might happen in a different method, but even if it occurs in the same method as the \lstinline!fork!, the heap and the values of local variables could have changed in the meantime.
+Ideally, we could somehow capture the entire program state and store it in or associate it with the token at the \lstinline!fork! statement.
+At the \lstinline!join! statement, we would then evaluate (inhale) the method's postcondition in terms of that program state.
+
+Sadly, SIL currently has no such mechanism. 
+It does have old expressions for use in postconditions, but they only carry a special meaning in conjunction with the synchronous SIL \lstinline!call! statement.
+Fortunately, we don't actually need to capture the entire program heap. 
+The set of values missing at the \lstinline!join! site are the arguments and the values of old expressions. 
+Since the size of this set is constant and known statically, we can use ghost fields on the token to ``transport'' these values from the \lstinline!fork! site to the \lstinline!join! site.
+
+Chalice2SIL generates one ghost field for each method argument and one ghost field for each \lstinline!old! expression in the method's postcondition. 
+Just before the \lstinline!exhale! statement of a \lstinline!join!, it assigns the effective arguments to the argument ghost fields of the token. It then evaluates the old expressions of the method's postcondition and assigns the results to the corresponding ghost fields. 
+
+There is just one more complication to take care of: \lstinline!old! expressions can appear on the right-hand-side of implications, where they might only be defined part of the time (missing permissions and null references). 
+Unfortunately, just expanding implications into if-statements, like we did when constraining $k_c$, is not an option because the left-hand-side of the implication could be a return value. 
+Instead, we walk over each \lstinline!old! expression and generate a set of conditions that need to be satisfied for the expression to be defined at the \lstinline!fork! site. 
+
+\begin{sketch}
+formal-ish set of rules for the ``defined-ness-condition'' (good name for that?)
+\[
+	D\sil{x.f} = D\sil{x} ∧ \sil{x \neq \text{\lstinline!null!}} ∧ \sil{\text{\lstinline!perm!}\left(x.f\right)}
+\]
+\end{sketch}
+
+\begin{sketch}
+Need to mention that $k_c$ is computed in exactly the same way as for synchronous calls?
+\end{sketch}
+
+\begin{lstlisting}[float,caption={Example of fork and join of method with a possibly undefined \lstinline!old! expression.},label=lst:fjexample,language=chalice,numbers=left]
+class Cell { var f : int; }
+class SuperCell { var cell : Cell; }
+
+class Main {
+    method parallel(d : SuperCell) returns (r: bool)
+        requires d != null ==> acc(d.cell, rd) && d.cell != null 
+				                    && acc(d.cell.f, rd) && d.cell.f == 5
+        ensures r == (d != null)
+        ensures r ==> old(d.cell.f == 5)
+        ensures r ==> (acc(d.cell, rd) && acc(d.cell.f, rd))
+    {
+          r := d != null;
+    }
+
+    method main(d : SuperCell, c : Cell)
+        requires acc(d.cell) && acc(c.f)
+        ensures acc(d.cell) && acc(c.f)
+    {
+        var r : bool;
+        d.cell := c;
+        c.f := 5;
+        fork tk := parallel(d)
+        assert c.f == 5; // still have read-access
+        join r := tk;
+        assert r;
+    }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[float,caption={Translation of the \lstinline!fork! statement on line 22 in listing \ref{lst:fjexample}.},label=lst:fjexamplefork,language=sil]
+var tk : ref;
+tk := new ref;
+inhale acc(tk.joinable,write);
+tk.joinable := true;
+// constrain k_c, the read fraction for this call 
+...
+// store arguments in token
+inhale acc(tk.this,write);
+tk.this := this;
+inhale acc(tk.d,write);
+tk.d := d;
+inhale acc(tk.k_m,write);
+tk.k_m := k_c;
+//store old values in token
+inhale acc(tk.old1,write);
+if(d != null && 0 < perm(d.cell) && d.cell != null && 0 < perm(d.cell.f)){
+	tk.old1 := (d.cell.f == 5);
+}
+// "perform" the asynchronous call by exhaling the callee's precondition
+exhale this != null && 0 < k_c && k_c < write &&
+       d != null ==> acc(d.cell, k_c) && d.cell != null 
+				          && acc(d.cell.f, k_c) && d.cell.f == 5
+\end{lstlisting}
+ 
+\subsubsection{Translation of \lstinline!join!}\label{sct:fjjoin}
+With most of the hard work done when the thread was forked, the translation of a \lstinline!join! statement is relatively straightforward.
+First, we must assert that the token is still \lstinline!joinable! (we also need write-access to that field in order to set it to false). 
+Then we inhale the method's postcondition using the ghost fields on the token as substitutions for the arguments and old expressions. 
+Finally, we have to assign the results of the asynchronous computation to the variables indicated by the Chalice programmer.
+
+A detail worth mentioning is the representation of results for the \lstinline!inhale! statement. 
+Chalice2SIL also creates ghost fields on the token for results. 
+Since a token is only ever joined once, we can safely inhale the permissions to access those result fields. 
+Conceptually, by joining with the current thread, the forked thread transfers access to its results along with all other permissions from its postcondition.
+
+Alternatively, we could have used fresh local variables to represent result values. The only advantage that ghost fields provide, is that we \emph{don't} need to introduce new variables.
+
+\begin{lstlisting}[float,caption={Translation of the \lstinline!join! statement on line 24 in listing \ref{lst:fjexample}.},label=lst:fjexamplejoin,language=sil]
+exhale tk.joinable // SIL verifier also needs to assert that tk != null;
+inhale acc(tk.r,write) && tk.r == (tk.d != null)
+   &&  tk.r ==> tk.old1
+   &&  tk.r ==> acc(tk.d.cell, tk.k_m) && acc(tk.d.cell.f, tk.k_m);
+r := tk.r;
+tk.joinable := false;
+\end{lstlisting}
+
+\subsubsection{Limitations of the current fork-join implementation}\label{sct:fjlimits}
+\begin{sketch}
+\begin{itemize}
+\item join in separate method works, but information is very limited
+\item why \lstinline!eval! expr was not implemented
+\end{itemize}
 \end{sketch}
 
 \subsection{Predicates and Functions}\label{sct:pf}
 \begin{sketch}
-1:1 correspondence between Chalice and SIL
-Explain global predicate- and function-Fractions
+\begin{itemize}
+	\item 1:1 correspondence between Chalice and SIL
+	\item Explain global predicate- and function-Fractions
+\end{itemize}
 \end{sketch}
 
 \subsection{Monitors with Deadlock Avoidance}\label{sct:mon}
 \begin{sketch}
-Explain global monitor fraction
-Too high-level for Mu: why establishing the correspondence between x.mu and waitlevel is difficult
-Explain the solution: muMap, heldMap and the \$CurrentThread object.
+\begin{itemize}
+\item Explain global monitor fraction
+\item Too high-level for Mu: why establishing the correspondence between x.mu and waitlevel is difficult
+\item Explain the solution: muMap, heldMap and the \$CurrentThread object.
+\end{itemize}
 \end{sketch}
