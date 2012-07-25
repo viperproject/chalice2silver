@@ -1,0 +1,18 @@
+class M {
+    method work() returns (y:int)
+        ensures y == 2 || y == 5
+    {
+        y := 5;
+    }
+
+    method main(tk : token<M.work>)
+        requires tk != null && acc(tk.joinable) && tk.joinable
+        ensures acc (tk.joinable) && !tk.joinable
+    {
+        var a : int;
+
+        join a := tk;
+
+        assert 2 <= a && a <= 5;
+    }
+}

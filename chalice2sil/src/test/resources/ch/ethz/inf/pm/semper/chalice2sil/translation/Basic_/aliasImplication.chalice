@@ -1,0 +1,10 @@
+class C {
+    var f : int;
+    method deAlias(x : C, y : C)
+        requires x != null && rd(x.f)
+        requires y != null && rd(y.f)
+        ensures x == y ==> acc(x.f,2*rd)
+        ensures x != y ==> rd(x.f) && rd(y.f)
+    {
+    }
+}

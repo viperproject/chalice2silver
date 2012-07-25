@@ -1,0 +1,53 @@
+class C {
+    var f : int;
+    method deAlias(x : C, y : C)
+        requires x != null && rd(x.f)
+        requires y != null && rd(y.f)
+        ensures x == y ==> acc(x.f,2*rd)
+        ensures x != y ==> rd(x.f) && rd(y.f)
+    {
+    }
+
+    method reflex(a : C)
+        requires a != null
+        requires acc(a.f)
+        ensures acc(a.f)
+    {
+        a.f := 5;
+
+        call deAlias(a,a);
+
+        assert a.f == 5;
+    }
+
+    method rdReflex(a : C, k : int)
+            requires a != null
+            requires rd(a.f)
+            requires a.f == k
+            ensures rd(a.f)
+    {
+        call deAlias(a,a);
+
+        assert a.f == k;
+    }
+
+    method twoPath(x : C, y : C, a : int, b : int)
+        requires x != null
+        requires y != null
+        requires rd(x.f)
+        requires acc(y.f,100-rd)
+        requires x.f == a
+        requires y.f == b
+    {
+        call deAlias(x,y);
+
+        if(x == y){
+            assert a == b;
+            x.f := 5;
+        } else {
+            // should still hold
+            assert x.f == a;
+            assert y.f == b;
+        }
+    }
+}
