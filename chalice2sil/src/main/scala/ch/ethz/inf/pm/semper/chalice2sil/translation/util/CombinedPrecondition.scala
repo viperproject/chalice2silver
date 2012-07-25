@@ -33,7 +33,7 @@ class CombinedPrecondition(environment : MemberEnvironment, val readFractionTerm
         // `lhs ⇒ rhsPrecondition`
         val rhsBranch = currentExpressionFactory.makeBinaryExpression(Implication()(expression.sourceLocation),lhs,rhsPrecondition,expression.sourceLocation)
         // `lhsPrecondition ∧ (lhs ⇒ rhsPrecondition)`
-        currentExpressionFactory.makeBinaryExpression(And()(expression.sourceLocation),lhsPrecondition,rhsBranch,expression.sourceLocation)
+        merge(lhsPrecondition,rhsBranch)
       }
     case _ => super.visitExpression(expression,arg)
   }
@@ -48,8 +48,9 @@ class CombinedPrecondition(environment : MemberEnvironment, val readFractionTerm
         currentExpressionFactory.makeDomainFunctionApplicationTerm(nullFunction,TermSequence(),term.sourceLocation),term.sourceLocation)
       // `¬(x == null)`
       val notNull = currentExpressionFactory.makeUnaryExpression(Not()(term.sourceLocation),eqNull,term.sourceLocation)
-      // `¬(x == null) ∧ acc(x.f,k)`
-      currentExpressionFactory.makeBinaryExpression(And()(term.sourceLocation),notNull,hasReadAccess,term.sourceLocation)
+
+      // `combinedPrecondition(x) ∧ ¬(x == null) ∧ acc(x.f,k)`
+      mergeMany(Seq(visitTerm(receiver,arg),notNull,hasReadAccess))
     case DomainFunctionApplicationTerm(f,ts) if ts.size == 2 && f == booleanImplication =>
       val lhsTerm = ts(0)
       val rhsTerm = ts(1);
@@ -62,7 +63,7 @@ class CombinedPrecondition(environment : MemberEnvironment, val readFractionTerm
         // `eval(lhs) ⇒ rhsPrecondition`
         val rhsBranch = currentExpressionFactory.makeBinaryExpression(Implication()(term.sourceLocation),lhsCond,rhsPrecondition,term.sourceLocation)
         // `lhsPrecondition ∧ (eval(lhs) ⇒ rhsPrecondition)`
-        currentExpressionFactory.makeBinaryExpression(And()(term.sourceLocation),lhsPrecondition,rhsBranch,term.sourceLocation)
+        merge(lhsPrecondition,rhsBranch)
       }
     case IfThenElseTerm(cond,thn,els) =>
       val condPrecondition = visitTerm(cond,arg)
@@ -77,10 +78,8 @@ class CombinedPrecondition(environment : MemberEnvironment, val readFractionTerm
         val notCondExpr = currentExpressionFactory.makeUnaryExpression(Not()(term.sourceLocation),condExpr,term.sourceLocation)
         // `¬cond ⇒ elsPrecondition`
         val elsBranch = currentExpressionFactory.makeBinaryExpression(Implication()(term.sourceLocation),notCondExpr,elsPrecondition,term.sourceLocation)
-        // `(cond ⇒ thnPrecondition) ∧ (¬cond ⇒ elsPrecondition)`
-        val branches = currentExpressionFactory.makeBinaryExpression(And()(term.sourceLocation),thnBranch,elsBranch,term.sourceLocation)
         // finally: `condPrecondition ∧ (cond ⇒ thnPrecondition) ∧ (¬cond ⇒ elsPrecondition)`
-        currentExpressionFactory.makeBinaryExpression(And()(term.sourceLocation),condPrecondition,branches,term.sourceLocation)
+        mergeMany(Seq(condPrecondition, thnBranch, elsBranch))
       }
     case _ => super.visitTerm(term,arg)
   }

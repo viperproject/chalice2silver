@@ -155,7 +155,7 @@ abstract class ChaliceSuite extends FunSuite { //
                 fail("Detected fatal result from Silicon: %s".format(result))
               }
               expectedResults foreach { e =>
-                fail("Expected result %s.".format(e))
+                fail("Expected result %s but no such message was emitted.".format(e))
               }
             } finally {
               program = null
