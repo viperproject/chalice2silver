@@ -4,8 +4,8 @@
 \lstdefinelanguage{sil} {
 	basicstyle=\ttfamily,
 	sensitive=true,
-	morecomment=[l][\color{gray_ulisses}\ttfamily]{//},
-	morecomment=[s][\color{gray_ulisses}\ttfamily]{\{/*}{*/\}},
+	morecomment=[l][\color{gray_ulisses}]{//},
+	morecomment=[s][\color{gray_ulisses}]{/*}{*/},
 	morestring=[b]",
 	stringstyle=\color{red},
 	showstringspaces=false,
@@ -16,7 +16,7 @@
 	showtabs=false,
 	emph=
 	{[1]
-		Integer,Permission,Map,Pair,Predicate,Sequemce
+		Integer,Permission,Map,Pair,Predicate,Sequence,Mu
 	},
 	emphstyle={[1]\color{darkgreen}},
 	emph=
@@ -26,7 +26,7 @@
 	emphstyle={[2]\color{darkgreen}},
 	emph=
 	{[3]
-		program,field,domain,axiom,function,method,implementation,ref
+		program,field,predicate,domain,axiom,function,method,implementation,ref,inhale,exhale,call,assume,assert,perm,acc,full,requires,ensures
 	},
 	emphstyle={[3]\color{blue}\textbf}
-}
+}[strings,emph,comments]
