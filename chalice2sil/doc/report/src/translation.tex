@@ -313,7 +313,7 @@ Conceptually, by joining with the current thread, the forked thread transfers ac
 Alternatively, we could have used fresh local variables to represent result values. The only advantage that ghost fields provide, is that we \emph{don't} need to introduce new variables.
 
 \begin{lstlisting}[float,caption={Translation of the \lstinline!join! statement on line 24 in listing \ref{lst:fjexample}.},label=lst:fjexamplejoin,language=sil]
-exhale tk.joinable // SIL verifier also needs to assert that tk != null;
+exhale tk.joinable // SIL verifier also needs to assert that tk != null
 inhale acc(tk.r,write) && tk.r == (tk.d != null)
    &&  tk.r ==> tk.old1
    &&  tk.r ==> acc(tk.d.cell, tk.k_m) && acc(tk.d.cell.f, tk.k_m);
@@ -321,10 +321,84 @@ r := tk.r;
 tk.joinable := false;
 \end{lstlisting}
 
+The accessibility of all the other ghost fields on the token requires a bit more work. 
+Naturally, tokens can also be passed to other threads and joined there. 
+The requirement that the joining thread has exclusive access to the \lstinline!joinable! field ensures that only one thread can join on a given token. 
+Now, while the ghost fields on the token might be invisible to the Chalice programmer, SIL does not distinguish between ghost fields and ordinary fields in any way.
+We need to make sure that every method that tries to access any of the ghost fields actually has permissions to do so.
+
+Fortunately, ghost fields on a token are only accessed when we also have permission to access the \lstinline!joinable! field on that token and it is the Chalice programmer's burden to ensure that a thread has this permission when attempting to join on a token. 
+If we could somehow link the amount of permission a thread has to each of the ghost fields to the amount of permission it holds to \lstinline!joinable!, we would always end up with a sufficient amount of permission for the ghost fields.
+
+While SIL provides no built-in support for linking fields together accessibility-wise, we can achieve a similar effect by translating every accessibility predicate for \lstinline!joinable! as an accessibility predicate for that \emph{and} all ghost fields (with the same amount of permission for each). That way, we can be sure that whenever a thread holds full permissions to a \lstinline!joinable! field, it also holds full permissions to all ghost fields on the token. More formally, given a token $t$, a permission amount $p$, ghost fields $a_1 \cdots a_k$ (the arguments) and $o_1 \cdots o_n$ (evaluated old expressions), we apply the following transformation:
+
+\begin{align*}
+	&\sil{\acc{t.\text{\lstinline!joinable!, p}}} \\
+	&\qquad\text{becomes}\qquad \\
+	&\left\ldbrack\acc{t.\text{\lstinline!joinable!}, p} \land \acc{t.\text{\lstinline!this!}, p}\ \land \right. \\
+  &\land\ \acc{t.a_1, p} \land \acc{t.a_2, p} \land \cdots \land \acc{t.a_k, p}\ \land \\ 
+	&\left. \land\ \acc{t.o_1, p} \land \acc{t.o_2, p} \cdots \acc{t.o_n} \right\rdbrack_{\text{SIL}}
+\end{align*}
+
 \subsubsection{Limitations of the current fork-join implementation}\label{sct:fjlimits}
+Joining a thread seems deceptively simple when done in the same method the thread was originally forked from. 
+This is because the verifier has seen the assignments to the token ghost fields first hand. 
+When a thread is joined in a separate method, however, that context is not available because both Silicon and the Boogie-based implementation verify each method in complete isolation.
+
+For just joining a thread in a separate method, the programmer needs to pass both the token and write access to the token's \lstinline!joinable! field to the method that performs the joining 
+and ensure that the thread has not been joined already.
+Unfortunately, the postcondition of an asynchronous method call joined this way is next to useless, because the verifier has no information about the context of the method call. 
+Specifically, the verifier doesn't know anything about the receiver or any of the arguments originally passed to the thread. 
+As a consequence, any clause of the postcondition that mentions the \lstinline!this! pointer or an argument is useless to the verifier.
+
+\begin{lstlisting}[float,caption={Limitations with joining in separate methods},label=lst:joinseparatethis,language=chalice]
+class Main{
+    var f : int;
+    method work()
+        requires acc(this.f)
+        ensures acc(this.f)
+    {
+    }
+
+    method main()
+        requires acc(this.f)
+        ensures acc(this.f)
+    {
+        fork tk := work();
+        call client(tk, this);
+    }
+
+    method client(tk : token<Main.work>, obj : Main)
+        requires acc(tk.joinable) && tk.joinable
+        ensures acc(obj.f) // might not hold
+    {
+        join tk;
+    }
+}
+\end{lstlisting}
+
+Listing \ref{lst:joinseparatethis} demonstrates a simple program that fails to verify because the context of the forked thread is lost when the token is transferred to the callee (\lstinline!client!). 
+The verifier will complain that there might not be enough permission to satisfy \lstinline!acc(obj.f)!, because it doesn't know that the \lstinline!this! pointer used to call \lstinline!work! refers to the same object as \lstinline!obj!.
+We would like to tell the verifier more about how our token was created. 
+
+\begin{lstlisting}[language=chalice]
+        requires tk.thisPtr == obj //not valid Chalice expression
+\end{lstlisting}
+
+While the previous example is not valid Chalice code, there is a mechanism that can be used to create similar specifications. Listing \ref{lst:joineval} shows how the \lstinline!eval! expression can be used to provide the verifier with the information necessary to prove that the method satisfies its postcondition. 
+
+\begin{lstlisting}[float,caption={\lstinline!eval! expression in Chalice},label=lst:joineval,language=chalice]
+method client(tk : token<Main.work>, obj : Main)
+        requires acc(tk.joinable) && tk.joinable
+        requires eval(tk.fork this.work(), this == obj)
+        ensures acc(obj.f)
+    { join tk; }
+\end{lstlisting}
+
+An $\ch{\text{\lstinline!eval!}\left(r.a, e\right)}$ expression consists of three parts: the ``context'' $c$ (the token in our case), the description of the ``\emph{eval state}'' $a$ and an expression $e$ to be evaluated in that state. In our case, we specify a ``\emph{call state}'' of the form $\ch{\text{\lstinline!fork!}\ r.m\left(a_1, a_2, \cdots, a_k\right)}$. Here $r$ denotes the receiver of the asynchronous method call, $m$ is the name of the method called and $a_i$ stand for the arguments originally passed to the method.
+
 \begin{sketch}
 \begin{itemize}
-\item join in separate method works, but information is very limited
 \item why \lstinline!eval! expr was not implemented
 \end{itemize}
 \end{sketch}
