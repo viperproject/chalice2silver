@@ -1,9 +1,12 @@
 syntax: glob
 silast/*
 .svn
-*.log
-*.synctex.gz
-*.aux
+doc/**/*.log
+doc/**/*.synctex.gz
+doc/**/*.aux
+doc/**/*.bbl
+doc/**/*.blg
+doc/**/*.out
 ~$*.*
 *.synctex.gz(busy)
 *.orig

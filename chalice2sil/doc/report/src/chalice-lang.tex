@@ -3,13 +3,44 @@
 % !TEX root = ../chalice2sil_report_klauserc.tex
 
 \subsection{Chalice}
+
 \begin{sketch}
 \begin{itemize}
 \item Goals/general ideas of Chalice: Permission-based, modular
+\end{itemize}
+\end{sketch}
+
+Chalice is a research programming language with the goal of helping programmers detect bugs in their concurrent programs. As with Spec\#, the programmer provides annotations that specify how they intend the program to behave.
+These annotations appear in the form of object invariants, loop invariants and method pre- and postconditions.
+A verification tool can take such a Chalice program and check statically that it never violates any of the conditions established by the programmer.
+
+The original implementation of the automatic static program verifier for Chalice generates a program in the intermediate verification language Boogie \cite{ByECD+06}.
+A second tool, conveniently also called Boogie, takes this intermediate code and generates verification conditions to be solved by an SMT solver.
+In its default configuration, Boogie forwards its output to Z3 \cite{dMB08}.
+
+
+\begin{sketch}
+\begin{itemize}
 \item Inhale, Exhale, Havoc, terms used in Boogie implementation
+\end{itemize}
+\end{sketch}
+\begin{sketch}
+\begin{itemize}
 \item Methods
+\end{itemize}
+\end{sketch}
+\begin{sketch}
+\begin{itemize}
 \item Fork+Join
+\end{itemize}
+\end{sketch}
+\begin{sketch}
+\begin{itemize}
 \item Predicates + Functions
+\end{itemize}
+\end{sketch}
+\begin{sketch}
+\begin{itemize}
 \item Monitors
 \end{itemize}
 \end{sketch}

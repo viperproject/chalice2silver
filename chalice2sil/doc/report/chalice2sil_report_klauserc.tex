@@ -28,8 +28,9 @@
 \usepackage{fancyhdr}
 \usepackage{listings}
 \usepackage{color}
+\usepackage{graphicx} % support the \includegraphics command and options
+\usepackage[colorlinks=true,citecolor=darkgreen]{hyperref}
 \setlength{\textwidth}{145mm}
-
 
 % =====================================================
 % ===== META INFORMATION ==============================
@@ -57,9 +58,6 @@
 \fancyhead[L]{}%
 \fancyhead[R]{}%
 \fancyfoot[C]{\thepage}%
-
-\usepackage{graphicx} % support the \includegraphics command and options
-\usepackage{pdflscape}
 
 \input{lib/haskell.tex}
 \input{lib/chalice.tex}
@@ -151,5 +149,8 @@
 \input{src/evaluation.tex}
 
 \input{src/conclusion.tex}
+
+\bibliographystyle{alpha}
+\bibliography{lib/chalice_related}
 
 \end{document}
