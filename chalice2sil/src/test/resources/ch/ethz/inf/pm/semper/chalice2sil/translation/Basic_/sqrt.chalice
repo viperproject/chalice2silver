@@ -1,0 +1,13 @@
+class Math {
+    method ISqrt(n: int) returns (res: int)
+        requires 0 <= n;
+        ensures res * res <= n && n < (res+1) * (res+1);
+    {
+        res := 0;
+        while ((res + 1) * (res + 1) <= n)
+            invariant res * res <= n;
+        {
+            res := res + 1;
+        }
+    }
+}

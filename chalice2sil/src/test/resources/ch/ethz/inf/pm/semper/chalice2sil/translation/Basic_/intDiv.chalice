@@ -1,0 +1,44 @@
+class Program {
+    method intDiv(a : int, b : int) returns (c : int)
+        ensures c*b <= a && a < (c+1)*b;
+    {
+        c := 0;
+        while(!(c*b <= a && a < (c+1)*b))
+        {
+            c := c + 1;
+        }
+    }
+
+    method intDivFast(a : int, b : int) returns (c : int)
+        requires 0 <= a && 0 < b;
+        ensures c*b <= a && a < (c+1)*b;
+    {
+        c := 0;
+        var t : int := a;
+        while(b <= t)
+            invariant 0 <= t
+            invariant t == (a - c*b)
+        {
+            t := t - b;
+            c := c + 1;
+        }
+    }
+
+    method intDivEx(a : int, b : int) returns (c : int)
+            requires 0 < b;
+            ensures c*b <= a;
+            ensures a < (c+1)*b;
+        {
+            if(a < 0) {
+                call c := intDivFast(-a,b);
+                if(c*b < -a) {
+                    c := -c - 1;
+                } else {
+                    c := -c;
+                }
+            } else {
+               call c := intDivFast(a,b);
+               assert c*b <= a && a < (c+1)*b;
+            }
+        }
+}
