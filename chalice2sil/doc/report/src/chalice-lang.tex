@@ -3,13 +3,6 @@
 % !TEX root = ../chalice2sil_report_klauserc.tex
 
 \subsection{Chalice}
-
-\begin{sketch}
-\begin{itemize}
-\item Goals/general ideas of Chalice: Permission-based, modular
-\end{itemize}
-\end{sketch}
-
 Chalice is a research programming language with the goal of helping programmers detect bugs in their concurrent programs. As with Spec\#, the programmer provides annotations that specify how they intend the program to behave.
 These annotations appear in the form of object invariants, loop invariants and method pre- and postconditions.
 A verification tool can take such a Chalice program and check statically that it never violates any of the conditions established by the programmer.
@@ -18,6 +11,159 @@ The original implementation of the automatic static program verifier for Chalice
 A second tool, conveniently also called Boogie, takes this intermediate code and generates verification conditions to be solved by an SMT solver.
 In its default configuration, Boogie forwards its output to Z3 \cite{dMB08}.
 
+\begin{lstlisting}[language=Chalice,float,caption={Loop invariants, pre- and post conditions in a Chalice program},label=lst:simpleseqchalice]
+class Program {
+  method intDiv(a : int, b : int) returns (c : int)
+    requires 0 <= a && 0 < b;
+    ensures c*b <= a && a < (c+1)*b;
+  {
+    c := 0;
+    var r : int := a;
+    while(b <= r)
+      invariant 0 <= r && r == (a - c*b)
+    {
+      r := r - b;
+      c := c + 1;
+    }
+  }
+}
+\end{lstlisting}
+
+Listing \ref{lst:simpleseqchalice} demonstrates how we can implement integer division and have the verifier ensure that our implementation is correct.
+Our solution repeatedly subtracts the denominator \lstinline!b! until the rest \lstinline!r! becomes smaller than \lstinline!b!. 
+Because this exact algorithm only works for positive numerators and denominators, the method \lstinline[language=chalice]!requires! that the numerator \lstinline!a! is not negative and that the denominator is strictly positive.
+
+Similarly, we specify what the method is supposed to do: the \lstinline[language=Chalice]!ensures! clause tells the verifier that, when our method is ready to return, the resulting quotient \lstinline!c! must be the largest integer for which $c \cdot b \leq a$ still holds.
+If the verifier cannot show that this postcondition holds for all invocations of this method that satisfy the precondition, it will reject the program.
+
+The final bit of annotation in this example is the \lstinline[language=Chalice]!invariant! on the \lstinline[language=Chalice]!while! loop. 
+A loop invariant is a predicate that needs to hold immediately before the loop is entered and after every iteration, including the last one where the loop condition is already false.
+This annotation helps the verifier understand the effects of the loop without knowing how many iterations of the loop would happen at runtime.
+
+\subsubsection{Permissions}
+
+What sets Chalice apart from other languages for program verification is its handling of concurrent access to heap locations. 
+Whenever a thread wants to read from or write to a heap location it requires read or write permissions to that location, respectively.
+
+\begin{lstlisting}[language=Chalice,float,caption={Chalice example of object creation and (write) accessibility predicates.},label={lst:chaliceexampleaccnew}]
+class Cell { var f : int }
+class Program {
+ 	method clone(c : Cell) returns (d : Cell)
+    requires c != null && acc(c.f)
+    ensures acc(c.f)
+    ensures d != null && acc(d.f) && d.f == c.f
+  {
+    d := new Cell;
+    d.f := c.f;
+  }
+}
+\end{lstlisting}
+
+As an over-approximation of the set of permissions a thread will have at runtime, Chalice tracks permissions for each method invocation (stack frame, activation record). 
+That way, the verifier can verify method bodies in complete isolation of one another. 
+The programmer thus has to specify which heap locations need to be accessible for each method.
+In Listing \ref{lst:chaliceexampleaccnew}, we use \emph{accessibility predicates} of the form \lstinline!acc(receiver.field)! in the method's pre- and postcondition. 
+\lstinline!acc(c.f)! in the precondition allows us to refer to \lstinline!c.f! in the method body. 
+The accessibility predicates in the postcondition, on the other hand, represent permissions that the method will have to ``return'' to its caller upon completion.
+This is a consequence of treating methods as if they would each be executed in their own thread.
+Conceptually, the caller passes the permission requested by the callee's precondition on to the callee.
+Similarly, the caller receives the permissions mentioned in the callee's postcondition when the call returns.
+
+\begin{lstlisting}[float,language=Chalice,caption={Calling \lstinline!Program::clone! (extension of Listing \ref{lst:chaliceexampleaccnew})},label={lst:chaliceuseclonefail},numbers=left]
+class Program {  
+	//...
+  method main()
+  {
+    var c : Cell :=  new Cell;
+    c.f := 5;
+    var d : Cell;
+    call d := clone(c);
+    assert d.f == 5; // will fail, c.f might have changed
+  }
+}
+\end{lstlisting}
+
+Listing \ref{lst:chaliceuseclonefail} demonstrates how our \lstinline!clone! method could be used. 
+Unfortunately, the assertion on line 9 will fail, as the verifier has to assume that \lstinline!clone! might have changed the value stored in \lstinline!c.f!.
+While we might change augment the postcondition of \lstinline!clone! with the requirement that \lstinline!c.f == old(c.f)! (the vaue of \lstinline!c.f! at method return must be the same as it was on method entry), there is a much more elegant solution to this problem: \emph{read-only permissions}.
+
+\subsubsection{Percentage Permissions}
+When Chalice was originally created, the programmer could specify read-only permissions as \emph{integer percentages} of the full (write) permission. 
+\lstinline!acc(x.f,100)! would be the same as \lstinline!acc(x.f)!, i.e. grant write access, whereas \lstinline!acc(x.f,50)! would only grant read access to the heap location \lstinline!x.f!.
+The verifier would keep track of the exact amount of permission a method holds to each heap location, so that write-access is restored when a method manages to get 100\% permission amount together, after having handed out parts of it to other methods or threads.
+
+While percentage permissions are very easy to understand, they have the serious drawback that the number of percentage points of permission a method receives to a certain location, essentially determine the maximum number of threads with (shared) read access that method could spawn.
+That is a violation of the procedural abstraction that methods are inteded to provide.
+
+\subsubsection{Counting Permissions}
+Another drawback of percentage permissions is, that it is difficult to deal with a dynamic number of thread to distribute read access over.
+Accessibility predicates using counting permissions are written as \lstinline!rd(x.f,1)! and denote an arbitrarily small but still positive (non-zero) amount of permission $\varepsilon$. 
+Permission amounts equal to multiples of $\varepsilon$ can be written as \lstinline!rd(x.f,n)!, but by definition any finite number of epsilon permissions is still smaller than 1\% of permission.
+This also means that a method that holds at least 1\% of permission, can alway call a method that only requires $n\cdot{}\varepsilon$ of permission.
+
+Unfortunately, counting permissions (often also referred to as \emph{``epsilon permissions''}) still cause method specifications to leak implementation details. 
+An epsilon permission cannot be split up further, thus a method that acquires, say, $2 \varepsilon$ of permission to a heap location cannot spawn more than two threads with read access to that heap location.
+
+\subsubsection{Fractional (Read) Permissions}
+In order to regain procedural abstraction \cite{HLMS11} added an entirely new kind of permission to Chalice: the fractional read permission. 
+The idea is to allow for ``rational'' fractions of permission because, unlike epsilon or percentage permissions, those could always be divided further. 
+Composability would still be an issue, even with rational permissions. 
+A method that requires $\tfrac{1}{107}$ of permission could still not be called from a method that only has $\tfrac{1}{137}$, even though the fractions passed around the entire system could almost alway be re-scaled to make that call possible.
+Thus, instead of forcing the programmer to choose a fixed amount of permission ahead of time, all accessibility predicates involving fractional permissions are kept \emph{abstract}.
+
+The programmer writes \lstinline!acc(x.f,rd)! to denote an abstract (read-only) accessibility predicate to the heap location \lstinline!x.f!. 
+The amount of permission denoted by \lstinline!rd! is not static. 
+When used in a method specification, the \lstinline!rd! can represent a different amount of permission for each method invocation.
+
+To make fractional permissions actually useful, Chalice applies certain constraints to the amount of permission involved in \lstinline!acc(x.f,rd)!. 
+A common idiom in Chalice are methods that return the exact same premissions they acquired in the precondition back to the caller via the postcondition.
+When a method requires \lstinline!acc(x.f,rd)! and then ensures \lstinline!(x.f,rd)!, we would want these two amounts of permission to be the same. 
+That way, a caller that started out with write access to \lstinline!x.f! gets back the exact amount of permission it gave to our method.
+
+Chalice restricts read fractions in method specifications even further: all fractional read permissions in a method contract refer to the same amount of permission (but that amount can still differ between method invocations).
+This restriction accounts for the limited information about aliasing available statically and also makes the implementation of fractional read permissions more straightforward.
+
+\begin{lstlisting}[language=Chalice,float,caption={Corrected example using abstract read permissions},label={lst:chaliceabstractread},numbers=left]
+class Cell { var f : int }
+class Program {
+ 	method clone(c : Cell) returns (d : Cell)
+    requires c != null && acc(c.f,rd)
+    ensures acc(c.f,rd)
+    ensures d != null && acc(d.f) && d.f == c.f
+  {
+    d := new Cell;
+    d.f := c.f;
+  }
+
+  method main()
+  {
+    var c : Cell :=  new Cell;
+    c.f := 5;
+    var d : Cell;
+    call d := clone(c);
+    assert d.f == 5; // will now succeed
+		c.f := 7; // we still have write access
+  }
+}
+\end{lstlisting}
+
+Listing \ref{lst:chaliceabstractread} shows the corrected version of our example above (Listings \ref{lst:chaliceexampleaccnew} and \ref{lst:chaliceuseclonefail}) using (abstract) read permissions (\lstinline!acc(c.f,rd)! in lines 4 and 5). 
+Note that we don't need to tell the verifier that \lstinline!c.f! won't change separately, because it uses permissions to determine what locations can be modifed by the method call to \lstinline!clone!.
+
+\subsubsection{Fork-Join}
+As a language devoted to encoding concurrent programs, Chalice has a built-in mechanism for creating new threads and waiting for threads to complete in the familiar \emph{fork-join} model.
+Replacing the \lstinline[language=Chalice]!call! keyword in a (synchronous) method call with \lstinline[language=Chalice]!fork! causes that method to be executed in a newly spawned thread.
+As with a synchronous method call, the caller must satisfy the callee's precondition and will give all permissions mentioned in that precondition.
+
+\begin{lstlisting}[language=Chalice]
+fork tok := x.m(argument1, argument2, ..., argumentn);
+// do something else
+join result1, result2, ..., resultn := tok;
+\end{lstlisting}
+
+While just forking off threads might work for some scenarios, most of the time the caller will want to collect the results computed by its worker threads at some point.
+To that end, the \lstinline[language=Chalice]!fork! statement will return a \emph{token} that the programmer can use to have the calling method wait for the thread associated with the token to complete.
+The permissions mentioned in the postcondition of the method used to spawn off the worker thread will also be transferred back to the caller at that point.
 
 \begin{sketch}
 \begin{itemize}
