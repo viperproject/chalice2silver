@@ -50,7 +50,7 @@ function Run-Chalice(
 	}
 }
 
-function Run-Chalice2SIL([Parameter()][Switch] $WhatIf, [Parameter(Position=0)] $firstArg = "-help",
+function Run-Chalice2SIL([Parameter()][Switch] $WhatIf, [Parameter(Position=0)] $firstArg = "--help",
 	[Parameter(ValueFromRemainingArguments = $true)] $remainingArgs){
 
 	$sd = $__chalice2sil_env_sd;

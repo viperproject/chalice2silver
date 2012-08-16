@@ -40,6 +40,7 @@ if(-not (Test-Path $boogie)){
 if(-not (Test-Path silicon)){
     "Checking out Silicon to $silicon"
     svn checkout https://svn.inf.ethz.ch/svn/pmueller/pm-group/projects/semper/SymbExEngine/trunk/Silicon "$silicon" --quiet
+    cp $sbtjar,$sbt $silicon;
 }
 
 # Check out SILAST
