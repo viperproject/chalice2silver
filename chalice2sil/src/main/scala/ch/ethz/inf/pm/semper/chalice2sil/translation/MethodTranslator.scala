@@ -15,6 +15,7 @@ import quantification.{LogicalVariable, Forall}
 import util._
 import silAST.expressions.util.TermSequence
 import collection._
+import mutable.ArrayBuffer
 
 class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     extends DerivedProgramEnvironment(st)
@@ -113,36 +114,56 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       // thread object
       val currentThread = mf.addParameter(getNextName(prelude.Thread.parameterName),prelude.Thread.dataType,method)
       programVariables.addExternal(currentThread)
-      val currentThreadTerm = mf.makeProgramVariableTerm(currentThread,method)
-      // requires $CurrentThread != null && acc($CurrentThread.heldMap) && acc($CurrentThread.muMap)
-      val heldMapAccess = acc(currentThreadTerm,prelude.Thread.heldMap,fullPermission)
-      val muMapAccess = acc(currentThreadTerm,prelude.Thread.muMap,fullPermission)
-      mf.addPrecondition(conjunction(
-        Not()(method).t((currentThreadTerm:Term) === nullFunction.apply()),
-        heldMapAccess,
-        muMapAccess
-      ),method)
-      // ensures acc($CurrentThread.heldMap) && acc($CurrentThread.muMap)
-      mf.addPostcondition(conjunction(heldMapAccess,muMapAccess),method)
 
-      // there are more contracts mentioning currentthread in {{createContracts}}
+      // contracts mentioning CurrentThread are located in createContracts below
 
       k
     }
   }
   
   val environmentReadFractionVariable = createSignature()
-  def environmentReadFractionTerm(sourceLocation : SourceLocation) = currentExpressionFactory.makeProgramVariableTerm(environmentReadFractionVariable,sourceLocation)
 
   val environmentCurrentThreadVariable = methodFactory.inputProgramVariables.find(_.name.startsWith(prelude.Thread.parameterName)).get
-  def environmentCurrentThreadTerm(sourceLocation : SourceLocation) = currentExpressionFactory.makeProgramVariableTerm(environmentCurrentThreadVariable,sourceLocation)
 
   private[this] def createContracts() {
     val contractTranslator = new DefaultCodeTranslator(this){
       override protected def readFraction(location : SourceLocation) = environmentReadFractionTerm(location)
     }
 
-    // Add pre- and postconditions
+    val location : SourceLocation = method
+
+    // Step 1: Create pre- and postconditions for $CurrentThread
+    //  This needs to happen *before* the user's pre- and postconditions are handled,
+    //  because they might refer to $CurrentThread.muMap and $CurrentThread.heldMap.
+    //  Otherwise, we wouldn't have access to these fields.
+    pureLanguageConstruct(location){ ctor =>
+      import ctor._
+
+      val currentThreadTerm = environmentCurrentThreadTerm(location)
+      methodFactory.addPrecondition(conjunction(
+        Not()(method).t((currentThreadTerm : Term) === nullFunction.apply()),
+        acc(currentThreadTerm, prelude.Thread.heldMap, fullPermission),
+        acc(currentThreadTerm, prelude.Thread.muMap, fullPermission)
+      ), method)
+
+      // Create postcondition for $CurrentThread
+      //  (the same specification is used for loop invariants)
+      val heldMapTerm : Term = currentThreadTerm!prelude.Thread.heldMap
+      val muMapTerm : Term = currentThreadTerm!prelude.Thread.muMap
+
+      val lockChanged : List[Term] = method.Spec.collect({
+        case chalice.LockChange(es) => es.map(contractTranslator.translateTerm(_))
+      }).flatten
+
+      val oldMuMap = currentExpressionFactory.makeOldTerm(muMapTerm)(location, Nil)
+      val oldHeldMap = currentExpressionFactory.makeOldTerm(heldMapTerm)(location,Nil)
+
+      generateThreadInvariants(location, lockChanged, oldHeldMap, oldMuMap) foreach {x =>
+        methodFactory.addPostcondition(x._1,x._2)
+      }
+    }
+
+    // Add pre- and postconditions from original Chalice source code
     method.spec.foreach(spec => spec match {
       case chalice.Precondition(e) =>
         val precondition = contractTranslator.translateExpression(e)
@@ -154,67 +175,6 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       case otherSpec => report(messages.UnknownAstNode(otherSpec))
     })
 
-    // Add constraints about currentThread.heldMap and currentThread.muMap
-//    (forall o: ref ::   (0<eh[o, held]) == (0<h[o, held])) &&
-//    (forall o: ref ::   (0<h[o, held]) ==> eh[o, mu] == h[o, mu]) &&
-//    (forall o: ref ::    h[o, held] == eh[o, held])
-    def forallReferencesInPostcondition(f : Function[Term,Expression]) = {
-      val qObjVar = methodFactory.makeBoundVariable(getNextName("o"),referenceType,method)
-      methodFactory.addPostcondition(methodFactory.makeQuantifierExpression(Forall()(method),qObjVar,
-        f(currentExpressionFactory.makeBoundVariableTerm(qObjVar,method))
-      )(method,Nil),method)
-    }
-
-    val lockChanged = method.Spec.collect({case chalice.LockChange(es) => es.map(contractTranslator.translateTerm(_))}).flatten
-    def isLockChanged(term : Term) : Expression = {
-      lockChanged.map(lc => currentExpressionFactory.makeEqualityExpression(term,lc,lc.sourceLocation):Expression).
-        reduceOption((l,r) => currentExpressionFactory.makeBinaryExpression(And()(l.sourceLocation),l,r,l.sourceLocation)).
-        getOrElse(FalseExpression()(term.sourceLocation,Nil))
-    }
-    def exceptIsLockChanged(obj : Term, expr : Expression) = {
-      isLockChanged(obj) match {
-        case FalseExpression() => expr
-        case test =>
-          currentExpressionFactory.makeBinaryExpression(Implication()(test.sourceLocation),
-            currentExpressionFactory.makeUnaryExpression(Not()(test.sourceLocation),test,test.sourceLocation),
-            expr,
-            test.sourceLocation)
-      }
-    }
-
-    val heldMapTerm : Term = currentExpressionFactory.makeFieldReadTerm(environmentCurrentThreadTerm(method),prelude.Thread.heldMap,method)
-    def heldLookup(ref : Term, customHeldMapTerm : Option[Term] = None) : Term = {
-      currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Map.HeldMap.get,
-        TermSequence(customHeldMapTerm.getOrElse(heldMapTerm),ref),ref.sourceLocation)
-    }
-
-    val muMapTerm : Term = currentExpressionFactory.makeFieldReadTerm(environmentCurrentThreadTerm(method),prelude.Thread.muMap,method)
-    def muLookup(ref : Term, customMuMapTerm : Option[Term] = None) : Term = {
-      currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Map.MuMap.get,
-        TermSequence(customMuMapTerm.getOrElse(muMapTerm),ref),ref.sourceLocation)
-    }
-
-    //  ∀ o : ref :: ¬isLockChanged(o) ⇒ old(currentThread.heldMap)[o] == currentThread.heldMap[o]
-    forallReferencesInPostcondition(o =>
-      exceptIsLockChanged(o,
-        currentExpressionFactory.makeEqualityExpression(
-          heldLookup(o,Some(currentExpressionFactory.makeOldTerm(heldMapTerm)(method))),
-          heldLookup(o),method
-        )))
-
-    // ∀ o : ref :: ¬isLockChanged(o) ⇒ (currentThread.heldMap[o] ⇒ old(currentThread.muMap)[o] == currentThread.muMap[o]))
-    forallReferencesInPostcondition(o =>
-      exceptIsLockChanged(o,
-        currentExpressionFactory.makeBinaryExpression(Implication()(method),
-          currentExpressionFactory.makeDomainPredicateExpression(prelude.Boolean.eval,TermSequence(heldLookup(o)),method),
-          currentExpressionFactory.makeEqualityExpression(
-              muLookup(o,Some(currentExpressionFactory.makeOldTerm(muMapTerm)(method,Nil))),
-              muLookup(o),
-            method),
-          method,Nil
-        )
-      )
-    )
     methodFactory.finalizeSignature()
 
     // Verify that no old(*) expressions appear inside ∀ or ∃ quantifiers. Chalice2SIL cannot deal with that

@@ -1,0 +1,26 @@
+class Cell { var f : int }
+class Main {
+    method multiply(cell : Cell, x : int) returns (y : int)
+        requires cell != null && acc(cell.f,rd)
+        requires 0 <= x;
+        ensures acc(cell.f,rd)
+    {
+        y := 0;
+        var i : int := 0;
+        while(i < x)
+            invariant acc(cell.f,rd)
+            invariant y == i*cell.f
+        {
+            call y := add(cell,y);
+            i := i + 1;
+        }
+    }
+
+    method add(cell : Cell, x : int) returns (y:int)
+        requires cell != null && acc(cell.f,rd)
+        ensures acc(cell.f,rd)
+        ensures y == x+cell.f;
+    {
+        y := x + cell.f;
+    }
+}

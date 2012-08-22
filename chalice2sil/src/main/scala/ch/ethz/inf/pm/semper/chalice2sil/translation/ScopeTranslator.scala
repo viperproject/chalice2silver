@@ -6,13 +6,33 @@ import silAST.source.{noLocation, SourceLocation}
 import collection._
 import translation.util._
 import silAST.expressions.terms._
-import silAST.symbols.logical.{Equivalence, Or, And, Implication}
+import silAST.symbols.logical._
 import silAST.expressions._
 import silAST.types._
 import silAST.methods.implementations.{CFGFactory, BasicBlockFactory}
 import silAST.expressions.util.{TermSequence, PTermSequence}
 import silAST.domains.{TypeVariableSubstitution, LogicalVariableSubstitution}
 import silAST.symbols.logical.quantification.Forall
+import silAST.expressions.UnaryExpression
+import scala.Some
+import silAST.expressions.QuantifierExpression
+import silAST.symbols.logical.And
+import silAST.expressions.OldExpression
+import silAST.expressions.DomainPredicateExpression
+import silAST.symbols.logical.Or
+import terms.DomainFunctionApplicationTerm
+import silAST.expressions.TrueExpression
+import silAST.symbols.logical.Implication
+import terms.FieldLocation
+import terms.FullPermissionTerm
+import terms.NoPermissionTerm
+import terms.OldTerm
+import terms.PredicateLocation
+import silAST.expressions.FalseExpression
+import silAST.symbols.logical.Equivalence
+import silAST.expressions.EqualityExpression
+import silAST.expressions.BinaryExpression
+import terms.ProgramVariableTerm
 
 /**
   * @author Christian Klauser
@@ -21,13 +41,17 @@ trait ScopeTranslator
   extends MemberEnvironment
   with TypeTranslator
 { thisScopeTranslator =>
-  def cfgFactory : CFGFactory
-  def blockStack : mutable.Stack[BasicBlockFactory]
-  def environmentCurrentThreadVariable : ProgramVariable
+  protected def cfgFactory : CFGFactory
+  protected def blockStack : mutable.Stack[BasicBlockFactory]
+  protected def environmentCurrentThreadVariable : ProgramVariable
+  protected def environmentReadFractionVariable : ProgramVariable
   def temporaries : TemporaryVariableBroker
   def declareScopedVariable(sourceLocation : SourceLocation, uniqueName : String, dataType : DataType) : ProgramVariable
 
   final type CodeTranslator = ExpressionTranslator with TermTranslator with PermissionTranslator
+
+  override def environmentReadFractionTerm(sourceLocation : SourceLocation) : Term = currentExpressionFactory.makeProgramVariableTerm(environmentReadFractionVariable,sourceLocation)
+  override def environmentCurrentThreadTerm(sourceLocation : SourceLocation) : Term = currentExpressionFactory.makeProgramVariableTerm(environmentCurrentThreadVariable,sourceLocation)
 
   class ProgramVariableManager extends DerivedFactoryCache[chalice.Variable,  String, ProgramVariable] {
     protected def deriveKey(p : chalice.Variable) = p.UniqueName
@@ -76,31 +100,7 @@ trait ScopeTranslator
         } end ()
       case chalice.BlockStmt(ss) => translateStatements(codeTranslator, ss)
       case loopNode@chalice.WhileStmt(condition,_,_,lockChange,body) =>
-        val conditionExpr = translatePExpression(codeTranslator,condition)
-        //compile loop body
-        val loop = cfgFactory.addLoopBlock(getNextName(),conditionExpr,stmt)
-        val loopTranslator = new LoopBodyTranslator(this,loop,environmentCurrentThreadVariable)
-
-        // SILAST requires that the loop invariant is compiled in the context of the
-        //  loop AST block, otherwise it will choke on quantified expressions
-        //  because the bound variable was registered to a different scope.
-        val invCodeTranslator = new loopTranslator.MemberCodeTranslator
-        if(loopNode.Invs != Nil){
-          loop.setInvariant(
-            loopNode.Invs
-              .map(invCodeTranslator.translateExpression(_))
-              .reduce(currentExpressionFactory.makeBinaryExpression(And()(loopNode),_,_,loopNode)))
-        } else {
-          loop.setInvariant(TrueExpression()(loopNode))
-        }
-
-        loopTranslator.translateBody(loopTranslator.translateStatement(_,body))
-
-        //integrate loop into CFG
-        currentBlock.setGoto(loop,stmt)
-        val nextBlock = basicBlocks(getNextName("after_while"))
-        loop.setGoto(nextBlock,stmt)
-        continueWith(nextBlock)
+        translateLoop(loopNode, codeTranslator)
       case a@chalice.LocalVar(v,rhsOpt) =>
         rhsOpt match {
           case None => //nothing to do
@@ -176,6 +176,96 @@ trait ScopeTranslator
       .format(stmt))
   }
 
+
+  protected def translateLoop(loopNode : chalice.WhileStmt, codeTranslator : ScopeTranslator.this.type#CodeTranslator) {
+    val condition : chalice.Expression = loopNode.guard
+    val body : chalice.BlockStmt = loopNode.body
+    // A loop is represented by a single CFG node, which wraps the CFG of the loop body and carries the loop
+    //  condition and invariant.
+    // In many ways, a loop behaves like a method call where the pre- and postcondition is the invariant.
+    // Consequently, we need to constrain a new read fraction and make sure the invariants
+    // surrounding the $CurrentThread maps are upheld.
+
+    // Step 1: Constrain a fresh read fraction variable for the loop body
+    // This basically works like a method call but in order to re-use
+    //  the read fraction code from method call sites, we need to take a small detour:
+    // We translate the invariants (the equivalent of the precondition in the method call case)
+    //  using the read fraction term of the current scope (not the loop's scope). This is because
+    //  the loop read fraction term is not known at this point.
+    // We use a program variable substitution to replace the (wrong) outer scope read fraction
+    //  with the loop body read fraction.
+
+    // 1.1 Use the *current* code translator to translate the invariants
+    val invariantsForConstraints = loopNode.Invs.map(codeTranslator.translateExpression(_))
+
+    // 1.2 Create the substitution for the read fraction. Have all other variables map to themselves
+    val createFractionSubstitution = (loopReadFractionTerm : PTerm) => {
+      currentExpressionFactory.makePProgramVariableSubstitution(currentBlock.programVariables.collect({
+        case p if p == environmentReadFractionVariable => (p, loopReadFractionTerm)
+        case p => (p, currentExpressionFactory.makeProgramVariableTerm(p, loopNode))
+      }).toSet) : PProgramVariableSubstitution
+    }
+
+    val loopReadFractionVariable = determineReadPermissionFraction(
+      loopNode,
+      codeTranslator, // we're still in the "outer" scope (not the loop's scope)
+      invariantsForConstraints,
+      createFractionSubstitution,
+      currentExpressionFactory.makeProgramVariableTerm(environmentCurrentThreadVariable,loopNode) // keep the current thread
+    )
+
+    // Step 2: For the $CurrentThread-related loop invariants, we need to save the state of the mu and held map
+    //  at the beginning (= before) the loop
+    temporaries.using(prelude.Map.HeldMap.dataType, prelude.Map.MuMap.dataType) {
+      (oldHeldMapVariable, oldMuMapVariable) =>
+
+        languageConstruct(loopNode) {
+          ctor =>
+            import ctor._
+
+            oldHeldMapVariable <-- ((environmentCurrentThreadVariable:PTerm) ! prelude.Thread.heldMap)
+            oldMuMapVariable <-- ((environmentCurrentThreadVariable:PTerm) ! prelude.Thread.muMap)
+
+        }
+
+        // Step 3: Create the loop node and the corresponding translation infrastructure ("the loop's scope")
+        val loop = cfgFactory.addLoopBlock(getNextName(), translatePExpression(codeTranslator, condition), loopNode)
+        val loopTranslator = new
+            LoopBodyTranslator(this, loop, environmentCurrentThreadVariable, loopReadFractionVariable)
+        val invCodeTranslator = new loopTranslator.MemberCodeTranslator
+
+        // Step 4: Generate $CurrentThread-related invariants
+        //  Note how we translate the terms (lockchange and "old" maps) in the loop's scope.
+        val currentThreadRelatedInvariants = generateThreadInvariants(loopNode,
+          loopNode.lkch.map(invCodeTranslator.translateTerm(_)),
+          loop.makeProgramVariableTerm(oldHeldMapVariable, loopNode),
+          loop.makeProgramVariableTerm(oldMuMapVariable, loopNode)).map(x => x._1)
+
+        // Step 5: Translate programmer supplied loop invariants again, but this time
+        //  in the loop's scope. It is not enough to use our substitution from step 1,
+        //  because SIL scoping also affects bound variables for use in quantifiers.
+        val loopInvariants = loopNode.Invs.map(invCodeTranslator.translateExpression(_))
+
+        // Step 6: Assign the invariant. Since SIL loops only have a single invariant expression,
+        //  we concatenate our collection of invariants with &&.
+        // Note: it is important that the $CurrentThread-related invariants come first,
+        //  otherwise the user's conditions won't have access to the held and mu map.
+        loop.setInvariant((currentThreadRelatedInvariants ++ loopInvariants)
+          .reduce(currentExpressionFactory.makeBinaryExpression(And()(loopNode), _, _, loopNode)))
+
+        // Step 7: Translate the loop's body.
+        //  This happens almost in complete isolation, but it is important that the body is translated before we
+        //  release our hold on the temporary variables used to hold the old states of the mu and held map.
+        loopTranslator.translateBody(loopTranslator.translateStatement(_, body))
+
+        // Step 8: As the last step, we connect the CFG nodes
+        currentBlock.setGoto(loop, loopNode)
+        val nextBlock = basicBlocks(getNextName("after_while"))
+        loop.setGoto(nextBlock, loopNode)
+        continueWith(nextBlock)
+    }
+  }
+
   protected abstract sealed class ReadCondition
 
   protected final case class ReadImplication(lhs : Expression, rhs : List[ReadCondition])
@@ -226,44 +316,68 @@ trait ScopeTranslator
   def determineReadPermissionFraction(
                                        codeTranslator : CodeTranslator,
                                        callNode : chalice.Statement { def obj : chalice.Expression;  def args : List[chalice.Expression]; def m : chalice.Callable },
-                                       newThreadTerm : PTerm) : PTerm = {
-    val args = callNode.args;
+                                       newThreadTerm : PTerm) : ProgramVariable = {
+
     val calleeFactory = methods(callNode.m.asInstanceOf[chalice.Method])
 
-    languageConstruct(callNode){ ctor =>
+    // Translate arguments and create mapping from parameter variables to these terms
+    val callSubstitution = (callReadFractionTerm : PTerm) => {
+      val argTerms =
+        translatePTerm (codeTranslator, callNode.obj) ::
+          callNode. args.map(translatePTerm(codeTranslator,_)) ++
+            List(callReadFractionTerm,newThreadTerm)
+      currentExpressionFactory.makePProgramVariableSubstitution(calleeFactory.parameters.zip(argTerms).map(x => x._1 -> x._2).toSet)
+    }
+
+    determineReadPermissionFraction(callNode:SourceLocation,codeTranslator,calleeFactory.method.signature.precondition,callSubstitution,newThreadTerm)
+  }
+
+  /**
+    * Produces SIL code that determines the read permission fraction (`k`) for an arbitrary set of conditions.
+    * This method might introduce new SIL blocks into the CFG. Some parts of the supplied condition will be
+    * asserted (such as non-nullness of receivers), but no permission transfer takes place.
+    * @param location The source location to use for the generated code.
+    * @param codeTranslator The translator to use for the receiver and the arguments.
+    * @param conditions The set of conditions act as a guide to constraining `k`.
+    * @param callSubstitutionFactory Given the term for the newly constrained `k`,
+    *                                creates a program variable substitution to be applied to each of the conditions.
+    * @param newThreadTerm The thread the conditions belong to. If the thread doesn't change, supply the current thread.
+    * @return the program variable that represents the chosen `k`.
+    */
+  def determineReadPermissionFraction(
+    location : SourceLocation,
+    codeTranslator : CodeTranslator,
+    conditions : Seq[Expression],
+    callSubstitutionFactory : PTerm => PProgramVariableSubstitution,  newThreadTerm : PTerm) : ProgramVariable = {
+
+    languageConstruct(location){ ctor =>
       import ctor._
     
       //Read (fractional) permissions
-      val callReadFractionVariable = declareScopedVariable(callNode, getNextName("k"), permissionType) // a unique variable for every method invocation
+      val callReadFractionVariable = declareScopedVariable(location, getNextName("k"), permissionType) // a unique variable for every method invocation
       val callReadFractionTerm : PTerm = callReadFractionVariable
       // `inhale 0 < k ∧ k < full ∧ (1000*k) < method_k`
       //    The factor 1000 is a hack that is also present in the Boogie-encoding.
       //    It "simulates" the fact that read permissions are really small and can be split off many, many times
       def aThousandTimes(t : Term) = currentExpressionFactory.makeDomainFunctionApplicationTerm(
         permissionIntegerMultiplication, TermSequence(1000,t),
-        callNode,List("This \"hack\" ensures that we can give away many small read permission fractions."))
+        location,List("This \"hack\" ensures that we can give away many small read permission fractions."))
       val kPositive = permissionLT.apply(noPermission,callReadFractionTerm)
       val kOnlyRead = permissionLT.apply(aThousandTimes(callReadFractionTerm),fullPermission)
-      val kSubfraction = permissionLT.apply(aThousandTimes(callReadFractionTerm),this.environmentReadFractionTerm(callNode))
+      val kSubfraction = permissionLT.apply(aThousandTimes(callReadFractionTerm),this.environmentReadFractionTerm(location))
       inhale(kPositive,kOnlyRead,kSubfraction)
   
       // Permission maps
       // `var m_0 : Map[(ref,int),Permission]`
-      val originalPermMapVar = declareScopedVariable(callNode,getNextName("m0"),prelude.Map.PermissionMap.dataType)
+      val originalPermMapVar = declareScopedVariable(location,getNextName("m0"),prelude.Map.PermissionMap.dataType)
       val originalPermMapTerm = originalPermMapVar : PTerm
       // `var m : Map[(ref,int),Permission]`
-      val permMapVar = declareScopedVariable(callNode,getNextName("m"),prelude.Map.PermissionMap.dataType)
+      val permMapVar = declareScopedVariable(location,getNextName("m"),prelude.Map.PermissionMap.dataType)
       val permMapTerm = permMapVar : PTerm
       // `inhale m = m_0`
       inhale(permMapTerm === originalPermMapTerm)
   
-      // Translate arguments and create mapping from parameter variables to these terms
-      val argTerms =
-        translatePTerm (codeTranslator, callNode.obj) ::
-          args.map(translatePTerm(codeTranslator,_)) ++
-            List(callReadFractionTerm,newThreadTerm)
-  
-      val callSubstitution = currentExpressionFactory.makePProgramVariableSubstitution(calleeFactory.parameters.zip(argTerms).map(x => x._1 -> x._2).toSet)
+      val callSubstitution = callSubstitutionFactory(callReadFractionTerm)
       def transplantExpression(e : Expression) : Expression = {
         e.substitute(callSubstitution)
       }
@@ -293,13 +407,13 @@ trait ScopeTranslator
         case BinaryExpression(And(),lhs,rhs) =>
           List(lhs,rhs).map(genReadCond(_)).flatten
         case BinaryExpression(Or(),lhs,rhs) =>
-          report(messages.PermissionNotUnderstood(callNode,expr))
+          report(messages.PermissionNotUnderstood(location,expr))
           Nil
         case BinaryExpression(Equivalence(),lhs,rhs) =>
           // Interpret A ↔ B ≡ (A → B) ∧ (B → A)
           genReadCond(conjunction(
-            Implication()(callNode).t(lhs,rhs),
-            Implication()(callNode).t(rhs,lhs)
+            Implication()(location).t(lhs,rhs),
+            Implication()(location).t(rhs,lhs)
           ))
         case  _:EqualityExpression
             | _:AtomicExpression
@@ -315,7 +429,7 @@ trait ScopeTranslator
             c
           }
         case _ =>
-          report(messages.PermissionNotUnderstood(callNode,expr))
+          report(messages.PermissionNotUnderstood(location,expr))
           Nil
       }
   
@@ -325,21 +439,21 @@ trait ScopeTranslator
         * @param rs the list of read permission conditions to implement.
         */
       def appendCond(rs : List[ReadCondition]){
-        val combined = new CombinedPrecondition(this,this.environmentReadFractionTerm(callNode))
+        val combined = new CombinedPrecondition(this,this.environmentReadFractionTerm(location))
         rs foreach {
           case ReadLocation(reference,field:FieldTranslator,perm) =>
-            val originalPermMapTerm = currentExpressionFactory.makeProgramVariableTerm(originalPermMapVar, callNode)
-            val permMapTerm = currentExpressionFactory.makeProgramVariableTerm(permMapVar, callNode)
+            val originalPermMapTerm = currentExpressionFactory.makeProgramVariableTerm(originalPermMapVar, location)
+            val permMapTerm = currentExpressionFactory.makeProgramVariableTerm(permMapVar, location)
   
-            val currentActualPermission = currentExpressionFactory.makePermTerm(reference,field)(callNode)
+            val currentActualPermission = currentExpressionFactory.makePermTerm(reference,field)(location)
             temporaries.using(prelude.Pair.Location.dataType){ locationVar =>
-              val location = currentExpressionFactory.makeProgramVariableTerm(locationVar, callNode)
-  
+              val heapLocation = currentExpressionFactory.makeProgramVariableTerm(locationVar, location)
+
               // Assert the precondition of the reference.
               combined.visitTerm(reference,null) match {
                 case TrueExpression() => // `exhale true` only confuses
                 case definedness => exhale(removeSideEffects(definedness),
-                  "The precondition of " + callNode.m.Id + " mentions a location that might not be defined. (Null reference of insufficient permission to field)",
+                  "The specification mentions a location that might not be defined. (Null reference of insufficient permission to field)",
                   reference.sourceLocation)
               }
               
@@ -348,9 +462,9 @@ trait ScopeTranslator
               locationVar <-- field.locationLiteral(currentExpressionFactory, reference.asInstanceOf[PTerm])
   
               // `inhale  get(m_0,(ref,field)) = perm(ref,field)` where (ref,field) = location
-              inhale((prelude.Map.PermissionMap.get.apply(originalPermMapTerm,location))===(currentActualPermission))
+              inhale((prelude.Map.PermissionMap.get.apply(originalPermMapTerm,heapLocation))===(currentActualPermission))
 
-              val currentVirtualPermission = prelude.Map.PermissionMap.get.p(permMapTerm,location)
+              val currentVirtualPermission = prelude.Map.PermissionMap.get.p(permMapTerm,heapLocation)
 
               // `exhale 0 < get(m,(ref,field))`
               exhale(permissionLT.apply(noPermission,currentVirtualPermission), "Permission to " + field.field + " might not be positive.")
@@ -360,7 +474,7 @@ trait ScopeTranslator
   
               // `m := set(m,(ref,field),get(m,(ref,field)) - perm)`
               val nextVirtualPermission = permissionSubtraction.p(currentVirtualPermission,perm)
-              permMapVar <-- (prelude.Map.PermissionMap.update.p(permMapTerm,location,nextVirtualPermission))
+              permMapVar <-- (prelude.Map.PermissionMap.update.p(permMapTerm,heapLocation,nextVirtualPermission))
             }
           case ReadLocation(_,p:PredicateTranslator,_) =>
             report(messages.ContractNotUnderstood(p.predicateFactory.predicate))
@@ -374,7 +488,7 @@ trait ScopeTranslator
         }
       }
   
-      val readConds = calleeFactory.methodFactory.method.signature.precondition.map(genReadCond(_))
+      val readConds = conditions.map(genReadCond(_))
 
       def emitConditionCode(allowInexact : Boolean) {
         appendCond(filterCondByChecking(readConds.flatten.toList,allowInexact,callReadFractionTerm))
@@ -383,7 +497,7 @@ trait ScopeTranslator
       comment("Collect constraints on the method call site fraction.")
       emitConditionCode(allowInexact = true)
   
-      callReadFractionTerm
+      callReadFractionVariable
     }
   }
 
@@ -399,8 +513,8 @@ trait ScopeTranslator
 
     currentBlock.appendInhale(TrueExpression()(callNode),callNode,List("Begin synchronous call to " + calleeFactory.name + "."))
 
-    val readFractionTerm = determineReadPermissionFraction(codeTranslator,callNode,
-      currentExpressionFactory.makeProgramVariableTerm(environmentCurrentThreadVariable,callNode))
+    val readFractionTerm = currentExpressionFactory.makeProgramVariableTerm(determineReadPermissionFraction(codeTranslator,callNode,
+      currentExpressionFactory.makeProgramVariableTerm(environmentCurrentThreadVariable,callNode)),callNode)
 
     // Generate call statement
     val receiverTerm = translatePTerm(codeTranslator,receiver)
@@ -450,7 +564,7 @@ trait ScopeTranslator
 
       //Determine read fraction
       comment("Determine read fraction")
-      val readFractionTerm = determineReadPermissionFraction(codeTranslator, callNode, newThreadTerm)
+      val readFractionTerm  : PTerm = determineReadPermissionFraction(codeTranslator, callNode, newThreadTerm)
 
       // Store state (arguments)
       comment("Store arguments in token")
@@ -922,6 +1036,92 @@ trait ScopeTranslator
 
   class MemberCodeTranslator extends DefaultCodeTranslator(thisScopeTranslator) {
     override protected def readFraction(location : SourceLocation) = environmentReadFractionTerm(location)
+  }
+
+  protected def generateThreadInvariants(
+                                          location : SourceLocation,
+                                          lockChanged : scala.List[Term],
+                                          oldHeldMap : Term,
+                                          oldMuMap : Term) : Seq[(Expression,SourceLocation)] = {
+    pureLanguageConstruct(location) {
+      ctor =>
+        import ctor._
+
+        val mapStateConditions = mutable.ArrayBuffer[(Expression,SourceLocation)]()
+
+        val heldMapTerm : Term = environmentCurrentThreadTerm(location)!prelude.Thread.heldMap
+        val muMapTerm : Term = environmentCurrentThreadTerm(location)!prelude.Thread.muMap
+
+        val currentThreadTerm = environmentCurrentThreadTerm(location)
+
+        // Handle $CurrentThread
+        // requires $CurrentThread != null && acc($CurrentThread.heldMap) && acc($CurrentThread.muMap)
+        val heldMapAccess = acc(currentThreadTerm, prelude.Thread.heldMap, fullPermission)
+        val muMapAccess = acc(currentThreadTerm, prelude.Thread.muMap, fullPermission)
+
+        // ensures acc($CurrentThread.heldMap) && acc($CurrentThread.muMap)
+        mapStateConditions += ((conjunction(heldMapAccess, muMapAccess), location))
+
+        // Add constraints about currentThread.heldMap and currentThread.muMap
+        def forallReferencesInPostcondition(f : Function[Term, Expression]) = {
+          val qObjVar = currentExpressionFactory.makeBoundVariable(getNextName("o"), referenceType, location)
+          val q : Expression = currentExpressionFactory.makeQuantifierExpression(Forall()(location), qObjVar,
+            f(currentExpressionFactory.makeBoundVariableTerm(qObjVar, location))
+          )(location, Nil)
+          mapStateConditions.+=((q, location))
+        }
+
+        def isLockChanged(term : Term) : Expression = {
+          lockChanged.map(lc => currentExpressionFactory.makeEqualityExpression(term, lc, lc.sourceLocation) : Expression).
+            reduceOption((l, r) => currentExpressionFactory.makeBinaryExpression(And()(l.sourceLocation), l, r, l.sourceLocation)).
+            getOrElse(FalseExpression()(term.sourceLocation, Nil))
+        }
+        def exceptIsLockChanged(obj : Term, expr : Expression) = {
+          isLockChanged(obj) match {
+            case FalseExpression() => expr
+            case test =>
+              currentExpressionFactory.makeBinaryExpression(Implication()(test.sourceLocation),
+                currentExpressionFactory.makeUnaryExpression(Not()(test.sourceLocation), test, test.sourceLocation),
+                expr,
+                test.sourceLocation)
+          }
+        }
+
+        def heldLookup(ref : Term, customHeldMapTerm : Option[Term] = None) : Term = {
+          currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Map.HeldMap.get,
+            TermSequence(customHeldMapTerm.getOrElse(heldMapTerm), ref), ref.sourceLocation)
+        }
+        def muLookup(ref : Term, customMuMapTerm : Option[Term] = None) : Term = {
+          currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Map.MuMap.get,
+            TermSequence(customMuMapTerm.getOrElse(muMapTerm), ref), ref.sourceLocation)
+        }
+
+        //  ∀ o : ref :: ¬isLockChanged(o) ⇒ old(currentThread.heldMap)[o] == currentThread.heldMap[o]
+        forallReferencesInPostcondition(o => {
+          exceptIsLockChanged(o,
+            currentExpressionFactory.makeEqualityExpression(
+              heldLookup(o, Some(oldHeldMap)),
+              heldLookup(o), location
+            ))
+        })
+
+        // ∀ o : ref :: ¬isLockChanged(o) ⇒ (currentThread.heldMap[o] ⇒ old(currentThread.muMap)[o] == currentThread.muMap[o]))
+        forallReferencesInPostcondition(o => {
+          exceptIsLockChanged(o,
+            currentExpressionFactory.makeBinaryExpression(Implication()(location),
+              currentExpressionFactory.makeDomainPredicateExpression(prelude.Boolean.eval, TermSequence(heldLookup(o)), location),
+              currentExpressionFactory.makeEqualityExpression(
+                muLookup(o, Some(oldMuMap)),
+                muLookup(o),
+                location),
+              location, Nil
+            )
+          )
+        }
+        )
+
+        mapStateConditions
+    }
   }
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

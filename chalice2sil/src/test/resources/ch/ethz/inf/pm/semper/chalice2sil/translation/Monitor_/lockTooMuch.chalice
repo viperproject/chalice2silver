@@ -3,7 +3,8 @@ class C {
 
     invariant acc(f);
 
-    method main(){
+    method main(){  // @Error 310 // postcondition won't hold since we unlock too much.
+                                  // Ideally we'd have a more accurate error message.
         var c : C;
         c := new C;
         c.f := 5;

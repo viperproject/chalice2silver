@@ -48,4 +48,15 @@ class TemporaryVariableBroker(environment : ScopeTranslator) {
       release(temp)
     }
   }
+
+  def using[T](dataType1 : DataType, dataType2 : DataType)(f : (ProgramVariable,ProgramVariable) => T) : T = {
+    val temp1 = acquire(dataType1)
+    val temp2 = acquire(dataType2)
+    try {
+      f(temp1,temp2)
+    } finally {
+      release(temp1)
+      release(temp2)
+    }
+  }
 }

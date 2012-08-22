@@ -9,8 +9,13 @@ import silAST.programs.symbols.ProgramVariable
 
 /**
   * @author Christian Klauser
+  * @param environmentReadFractionVariable The read fraction specific to this loop body.
   */
-class LoopBodyTranslator(environment : ScopeTranslator, protected val loopBlockFactory : LoopBlockFactory, val environmentCurrentThreadVariable : ProgramVariable)
+class LoopBodyTranslator(
+                          environment : ScopeTranslator,
+                          protected val loopBlockFactory : LoopBlockFactory,
+                          override protected val environmentCurrentThreadVariable : ProgramVariable,
+                          override protected val environmentReadFractionVariable : ProgramVariable)
   extends DerivedMemberEnvironment(environment)
   with ScopeTranslator {
 
