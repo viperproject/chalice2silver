@@ -10,6 +10,8 @@ import io.Source
 import java.nio.file.{Path, Files, Paths}
 import ch.ethz.inf.pm.silicon.interfaces.ResultWithMessage
 import silAST.source.SourceLocation
+import runtime.ScalaRunTime
+import java.util.Locale
 
 /**
   * Author: Christian Klauser
@@ -100,12 +102,15 @@ abstract class ChaliceSuite extends FunSuite { //
         opts.chaliceFiles += filePath.toString
         opts.printSil = true
 
+        val beforeChalice = System.currentTimeMillis()
         Chalice2Sil.invokeChalice(opts) match {
           case None =>
             fail("Chalice failed to parse/typecheck file %s. See Stdout for more details.".format(fileName))
           case Some(p) =>
+            val afterChalice = System.currentTimeMillis()
             val translator = Chalice2Sil.createTranslator(opts,p)
             val (silProgram, silMessages) = translator.translate(p)
+            val afterSIL = System.currentTimeMillis()
 
             Console.out.println(silProgram.toString())
 
@@ -118,12 +123,17 @@ abstract class ChaliceSuite extends FunSuite { //
             Predef.assert(results == null, "results is still assigned.")
 
             Console.out.println("Passing SIL program to Silicon")
+            var beforeSilicon : Long = 0
+            var afterSilicon : Long = 0
             val siliconResults = {
-              val config = new Config(z3exe = DefaultConfig.z3path.toAbsolutePath.toString)
+              val config = new Config(z3exe = DefaultConfig.z3path.toAbsolutePath.toString,logLevel="ERROR")
 
+              beforeSilicon = System.currentTimeMillis()
               val silicon = new Silicon(config)
 
-              silicon.execute(silProgram)
+              val r = silicon.execute(silProgram)
+              afterSilicon = System.currentTimeMillis()
+              r
             }
             // results have already been printed
             
@@ -162,6 +172,11 @@ abstract class ChaliceSuite extends FunSuite { //
               messages = null
               environment = null
               results = null
+
+              // print timings
+              Console.err.println("Chalice: %d  ms".format(afterChalice-beforeChalice))
+              Console.err.println("Chalice2SIL: %d  ms".format(afterSIL - afterChalice))
+              Console.err.println("Silicon: %d  ms".format(afterSilicon- beforeSilicon))
             }
         }
       }

@@ -38,7 +38,7 @@ function Run-Chalice(
 	
 	if($WhatIf){
 		echo $eargs
-		echo "$sbt `"run $eargs`""
+		echo "$sbt `"run-main chalice.Chalice $eargs`""
 	} else {
         $ErrorActionPreference = "Continue";
 		pushd $Chalice;
@@ -50,7 +50,7 @@ function Run-Chalice(
 	}
 }
 
-function Run-Chalice2SIL([Parameter()][Switch] $WhatIf, [Parameter(Position=0)] $firstArg = "--help",
+function Run-Chalice2SIL([Parameter()][Switch] $WhatIf, [Parameter(Position=0)] $firstArg,
 	[Parameter(ValueFromRemainingArguments = $true)] $remainingArgs){
 
 	$sd = $__chalice2sil_env_sd;
@@ -63,6 +63,7 @@ function Run-Chalice2SIL([Parameter()][Switch] $WhatIf, [Parameter(Position=0)] 
 		echo $eargs
 		echo "$sbt `"run $eargs`""
 	} else {
+        echo "run $eargs";
 		& $sbt "run $eargs"
 	}
 }

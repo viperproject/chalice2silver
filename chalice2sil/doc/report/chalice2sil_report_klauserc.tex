@@ -105,9 +105,14 @@
 \newenvironment{sketch}{\begin{mdframed}[backgroundcolor=Salmon,hidealllines=true]}{\end{mdframed}}
 \newcommand{\ldbrack}{⟦}
 \newcommand{\rdbrack}{⟧}
-\newcommand{\ch}[1]{\left\ldbrack{}#1\right\rdbrack_\text{Ch}}
-\newcommand{\sil}[1]{\left\ldbrack{}#1\right\rdbrack_\text{SIL}}
+\newcommand{\ch}[1]{\ensuremath{{\left\ldbrack{}#1\right\rdbrack}_\text{Ch}}}
+\newcommand{\openSIL}[1]{\left\ldbrack{}#1\right.}
+\newcommand{\closeSIL}[1]{{\left.#1\right\rdbrack{}}_\text{SIL}}
+\newcommand{\sil}[1]{\ensuremath{{\left\ldbrack{}#1\right\rdbrack}_\text{SIL}}}
 \newcommand{\acc}[1]{\ensuremath{\text{\lstinline!acc!}\left(#1\right)}}
+\newcommand{\inhale}[1]{\ensuremath{\text{\lstinline[language=SIL]!inhale!}\ #1}}
+\newcommand{\exhale}[1]{\ensuremath{\text{\lstinline[language=SIL]!exhale!}\ #1}}
+\newcommand{\semicolon}{\ensuremath{\text{\lstinline!; !}}}
 
 %=========================================
 
@@ -144,7 +149,7 @@
 	\input{src/chalice-lang.tex}
 	%\input{src/sil-lang.tex}
 
-%\input{src/translation.tex}
+\input{src/translation.tex}
 
 %\input{src/evaluation.tex}
 

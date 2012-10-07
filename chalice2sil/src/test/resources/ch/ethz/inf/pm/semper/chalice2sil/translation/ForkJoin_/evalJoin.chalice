@@ -17,7 +17,7 @@ class Main{
 
     method client(tk : token<Main.work>, obj : Main)
         requires acc(tk.joinable) && tk.joinable
-        requires eval(tk.fork this.work(), this == obj)
+        requires eval(tk.fork this.work(), true)
         ensures acc(obj.f)
     {
         join tk;

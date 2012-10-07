@@ -9,14 +9,14 @@ High-level overview + including focus areas
 \end{sketch}
 
 \subsection{Fractional Read Permissions}\label{sct:frp}
-To SIL, permissions are just another data type. 
-The SIL prelude only defines a set of constructors (like no permission, full permission) and some operators and predicates (like permission addition, subtraction, equality, comparison). 
+To SIL, permission amounts are just another data type. 
+The SIL prelude only defines a set of constructors (such as no permission, full permission) and some operators and predicates (such as permission addition, subtraction, equality, comparison). 
 In particular, it does not specify how permissions are represented. 
 This aligns well with the abstract nature in which fractional permissions are written by the programmer.
-Like with previous verification backends for Chalice, concrete permission amounts associated with fractional read permissions (\lstinline!acc(x.f,rd)!) are never chosen but only constrained. 
-This also means that two textual occurrences of \lstinline!acc(x.f,rd)! do usually not represent the same amount of permission.
+As with previous verification backends for Chalice, concrete permission amounts associated with fractional read permissions (\lstinline!acc(x.f,rd)!) are never chosen but only constrained. 
+This also means that two textual occurrences of \lstinline!acc(x.f,rd)! in different parts generally do not represent the same amount of permission.
 
-This makes fractional permissions very flexible. 
+Not choosing a fixed permission amount for abstract read permissions makes them very flexible.
 As long as a thread holds any positive amount of permission to a location, we know that we can give away a smaller fraction to a second thread and thereby enable both threads to read that location.
 Unfortunately, that amount of flexibility would also make fractional read permissions very hard to use, since every mention of a read permission could theoretically refer to a different amount of permission.
 Chalice, therefore, imposes additional constraints on fractional permissions involved in method contracts, predicates, and monitors.
@@ -51,7 +51,6 @@ class Register {
 \end{lstlisting}
 
 For verifying the callee in listing \ref{lst:actorref}, the Boogie-based implementation introduces a fresh variable permission variable $k_m$, constrains it to be a read-permission ($0<k_m<\text{full}$) and uses it in pre- and postconditions whenever it encounters the abstract permission amount \lstinline!rd!. 
-Of course, $k_m$ remains constant throughout the entire body of a method.
 
 \begin{lstlisting}[float,caption={Handling of fractional read permissions by the Boogie-based Chalice verifier.},label=lst:fraccalleeb]
 procedure act(r : Register)
@@ -67,9 +66,14 @@ procedure act(r : Register)
 Notice how the Boogie-based encoding of Chalice in listing \ref{lst:fraccalleeb} does not make use of the pre- and postcondition mechanism provided by Boogie. 
 This is primarily because Boogie does not have a concept of inhaling and exhaling of permissions. 
 Not so with SIL, which features pre- and postconditions that are aware of access predicates. 
-When you call a method in SIL, the precondition is properly exhaled and the postcondition inhaled afterwards.
+Conceptually, when you ``call'' a method in SIL, the precondition is properly exhaled and the postcondition inhaled afterwards.
 
 However, using SIL preconditions also means that we can't just make up a new variable $k_m$, instead it becomes a ``ghost'' parameter and introduces an additional precondition. This makes a lot of sense, since the value $k_m$ is always specific to one call of a method.
+
+In the actual Boogie-based encoding, the upper bound on \lstinline!k_m! is even lower to give the programmer more flexibility. 
+Currently, \lstinline!k_m! is assumed to be smaller than a thousandth of \lstinline[language=Chalice]!1%!.
+This allows the programmer to for instance specify a method that requires \lstinline[language=Chalice]!acc(x.f,rd)! twice, effectively demanding at least \lstinline!2*k_m! permission to \lstinline!x.f!.
+The exact ratio was chosen arbitrarily and could always be lowered, but has so far worked well for most examples.
 
 \begin{lstlisting}[float,caption={Handling of fractional read permissions by the Chalice2SIL translator},label=lst:fraccallees,language=SIL]
 method Actor::act(r : Register, k_m : Permission)
@@ -114,6 +118,7 @@ exhale acc(x.f,rd)
 
 Both exhale statements cause $k_c$ to be constrained to the amount of permission held to $x.f$. 
 Since exhale has the “side-effect” of giving away the mentioned permissions, this $k_c$ will be constrained further by the second exhale statement.
+
 Additionally, access predicates can be guarded by implications. 
 In that case, the Boogie-based Chalice implementation translates 
 \begin{lstlisting}[language=Chalice]
@@ -130,14 +135,6 @@ if(P)
 At this point we could have decided not to use SIL's built-in call statement and instead encode synchronous method calls as a series of exhale statements, followed by inhaling the callee's postcondition. 
 While that would have been equivalent from a verification perspective, we would still be throwing away information: the original program's call graph.
 
-\begin{sketch}
-\begin{lstlisting}[language=Chalice]
-method m(r : Register, p : bool)
-	requires acc(r.val, rd) && (p ==> acc(r.val, rd))
-	...	
-\end{lstlisting}
-\end{sketch}
-
 In order to still use SIL's call statement, we need to keep track of the “remaining” permissions while constraining $k_c$ without actually giving away these permissions, otherwise the verification of the call statement would fail. 
 We cannot simply create a copy of the permission mask as a whole and have exhale operate on that instead. 
 SIL at least allows us to look up individual entries of the permission mask via the \lstinline!perm(x.f)! term. 
@@ -148,7 +145,7 @@ At this time, SIL has no reified field identifiers.
 So in order to distinguish locations (pair of an object reference and a field), the Chalice2SIL translator assigns a unique integer number to each field in the program. 
 
 The only way to populate this map, is to ``copy'' the current state of the actual permission mask entry by entry via the \lstinline!perm(x.f)! term. 
-Unfortunately, we can't do this in one big ``initialization'' block, since some of the object reference expression that occur on the right-hand-side of implications might not be defined outside of that implication. 
+Unfortunately, we can't do this in one big ``initialization'' block, since some of the object reference expressions that occur on the right-hand-side of implications might not be defined outside of that implication. 
 
 We could expand implications in the precondition twice: once for initializing our permission map, and once to actually simulate the exhales and constraining of $k_c$, but there is a more concise way.
 
@@ -177,17 +174,6 @@ if(p){
 call () := m(r,p,k_c);
 \end{lstlisting}
 
-\begin{sketch}
-Formal-ish translation rules for method call here? 
-\[
-	T\ch{P \land Q} = \sil{T\ch{P}\text{\lstinline!; !}\ T\ch{Q}}
-\]
-\[
-	T\ch{P ⇒ Q} = \sil{\text{\lstinline!if!}\left(T\ch{P}\right) \left\{ T\ch{Q} \right\}}
-\]
-etc.
-\end{sketch}
-
 After $k_c$ is sufficiently constrained, we just emit a call to our target method. 
 The SIL verifier will have to 
 	exhale the precondition (giving away the permissions it mentions), 
@@ -195,6 +181,94 @@ The SIL verifier will have to
 	then inhale the postcondition (receiving permissions it mentions) 
 	and finally assign results to local variables as necessary.
 
+\begin{figure}
+\begin{align*}
+	k_m &: \text{read fraction selected for the surrounding scope} \\
+	e &: \text{terms} \\
+	P,Q &: \text{expressions} \\
+	p,q 	&: \text{permission amount} \\
+	f 	&: \text{field} \\
+	n 	&: \text{integer} \\
+	g 	&: \text{function} \\
+	G 	&: \text{precondition of $g$} \\
+	x_1,\dotsc,x_n &: \text{parameters of $g$} \\
+	m[e] &: \text{look up map entry with key $e$ in map $m$} \\
+	P[x/e] &: \text{$P$, but with $e$ substituted for $x$}
+\end{align*}
+\caption{Meaning of names used below.}
+\end{figure}
+
+\begin{figure}
+\begin{align*}
+	E\ch{\acc{e.f,p}} &= \sil{\text{\lstinline[language=SIL]!perm!}\left(E\ch{e},f\right) < E\ch{p}} \\
+	E\ch{e} &\text{ translates expression $e$ to SIL terms and expressions} \\
+	\begin{split}
+	R\ch{P} &= \openSIL{\vphantom{\ch{P}}} \\
+		&\text{\lstinline[language=SIL]!var! } k_c,m,m_0 \semicolon\\
+		&\inhale{0 < k_c \land k_c*1000 < k_m}\semicolon \\
+		&\inhale{m = m_0}\semicolon \\
+		& \closeSIL{T\ch{P}}
+	\end{split} \\
+	T\ch{P \land Q} &= \sil{T\ch{P}\text{\lstinline!; !}\ T\ch{Q}} \\
+	T\ch{e ⇒ Q} &= \sil{\text{\lstinline[language=Chalice]!if!}\left(E\ch{e}\right) \left\{ T\ch{Q} \right\}}	 \\
+	\begin{split}
+	T\ch{\acc{x.f,p}} &= \text{if}\; H(E\ch{p},\text{false})\quad \openSIL{ \vphantom{\ch{P}} } \\
+										&\exhale{D\ch{x}} \semicolon \\
+										&\inhale{m_0\left[\left(E\ch{x},f\right)\right] = \text{\lstinline[language=SIL]!perm!}\left(E\ch{e},f\right) \semicolon} \\
+										&\exhale{0 < m\left[\left(E\ch{x},f\right)\right]} \semicolon \\
+										&\inhale{E\ch{p} < m\left[\left(E\ch{x},f\right)\right]} \semicolon \\
+										&\closeSIL{m\left[\left(E\ch{x},f\right)\right] := m\left[\left(E\ch{x},f\right)\right] - E\ch{p}}
+	\end{split} \\
+	T\ch{\acc{x.f,p}} &= \text{otherwise}\quad \sil{ \text{\lstinline!skip!} }
+\end{align*}
+\caption{Translation schemes. $R$ generates code that constrains a fresh $k_c$ according to the method precondition/loop invariant $P$. $T$ recursively translates $P$ to constrain $k_c$.}
+\end{figure}
+
+\begin{figure}
+\begin{align*}
+	H(p * q,h) 	&= H(p,h) \land H(q,h) \\
+	H(p + q,h) 	&= H(p,h) \land H(q,h) \\
+	H(p - q,h) 	&= H(p,h) \land H(q,¬h) \\
+	H(p * n,h) 	&= H(p,h) \\
+	H(k_m,h)		&= ¬h \\
+	H(\_,h) &= \text{false}
+\end{align*}
+\caption{Helper function that determines whether a permission amount expression can be used to constrain $k_c$.}
+\end{figure}
+
+\begin{figure}
+\begin{align*}
+	D\ch{P ⇒ Q} &= \sil{D\ch{P} \land \left(E\ch{P} ⇒ D\ch{Q}\right)} \\
+	\begin{split}
+		D\ch{\text{\lstinline[language=Chalice]!if!}\left(e\right)\ P\ \text{\lstinline[language=Chalice]!else! } Q} &= 
+		\openSIL{D\ch{e} \land \left(E\ch{e} ⇒ D\ch{P}\right)} \\
+		&\closeSIL{\qquad\land\left(¬E\ch{e} ⇒ D\ch{Q}\right)}
+	\end{split} \\
+	\begin{split}
+	D\ch{e.f} &= \openSIL{D\ch{e} \land ¬\left(E\ch{e} = \text{\lstinline!null!}\right)} \\
+						&\closeSIL{\qquad \land\; 0 < \text{\lstinline[language=SIL]!perm!}\left(E\ch{e},f\right)}
+	\end{split} \\
+	\begin{split}
+	D\ch{e.g\left(a_1, \dotsc, a_n\right)} &= \openSIL{D\ch{e} \land ¬\left(E\ch{e} = \text{\lstinline[language=Chalice]!null!}\right)} \\
+						&\closeSIL{\qquad \land\; E\ch{G\left[\text{\lstinline[language=Chalice]!this!}/e,x_1/a_1,\dotsc,x_n/a_n\right]}}
+	\end{split}
+\end{align*}
+\caption{Translation scheme for ensuring the definedness of an expression.}
+\end{figure}
+
+\begin{figure}
+\begin{align*}
+\begin{split}
+	F\ch{\text{\lstinline[language=Chalice]!old!}\left(e\right)} &= \openSIL{ \vphantom{\ch{P}} } \\
+		& \inhale{\acc{t.f_e,\text{\lstinline!write!}}} \\
+		& \text{\lstinline[language=Chalice]!if!}\left(D\ch{e}\right) \{ \\
+		& \quad t.f_e := E\ch{e} \\
+		& \}
+\end{split} \\
+F\ch{P} &= \text{descend into $P$ to find all \lstinline[language=Chalice]!old! expressions and terms}
+\end{align*}
+\caption{Assign \lstinline[language=Chalice]!old!$(e)$ value to its own field $f_e$, if $e$ is defined.}
+\end{figure}
 
 \subsection{Asynchronous method calls (Fork-Join)}\label{sct:fj}
 \begin{sketch}
@@ -213,7 +287,7 @@ Old expressions, in particular, are difficult to capture in SIL without a dedica
 
 \subsubsection{Translation of \lstinline!fork!}\label{sct:fjfork}
 
-The translation of the Chalice \lstinline!fork! statement seems, at least at first, relatively straightforward: Exhale the method's precondition and create a token object with a boolean field called ``\lstinline!joinable!'' set to \lstinline!true!.
+The translation of the Chalice \lstinline!fork! statement seems, at least at first, relatively straightforward: exhale the method's precondition and create a token object with a boolean field called ``\lstinline!joinable!'' set to \lstinline!true!.
 But how would we then translate the corresponding \lstinline!join! statement(s)? The method's postcondition is formulated in terms of the method's return values and parameters.
 In general we no longer have access to the latter.
 The \lstinline!join! might happen in a different method, but even if it occurs in the same method as the \lstinline!fork!, the heap and the values of local variables could have changed in the meantime.
@@ -221,16 +295,16 @@ Ideally, we could somehow capture the entire program state and store it in or as
 At the \lstinline!join! statement, we would then evaluate (inhale) the method's postcondition in terms of that program state.
 
 Sadly, SIL currently has no such mechanism. 
-It does have old expressions for use in postconditions, but they only carry a special meaning in conjunction with the synchronous SIL \lstinline!call! statement.
+It does have \lstinline[language=SIL]!old! expressions but they are hardwired to refer to the pre-state of the surrounding method (the state immediately prior to a call to that method).
 Fortunately, we don't actually need to capture the entire program heap. 
-The set of values missing at the \lstinline!join! site are the arguments and the values of old expressions. 
-Since the size of this set is constant and known statically, we can use ghost fields on the token to ``transport'' these values from the \lstinline!fork! site to the \lstinline!join! site.
+The set of values that might be missing at the \lstinline!join! site are the arguments and the values of old expressions. 
+Since this includes at most all arguments and old expression, we can generate a ghost field on the token to ``transport'' each of values from the \lstinline!fork! site to the \lstinline!join! site.
 
 Chalice2SIL generates one ghost field for each method argument and one ghost field for each \lstinline!old! expression in the method's postcondition. 
 Just before the \lstinline!exhale! statement of a \lstinline!join!, it assigns the effective arguments to the argument ghost fields of the token. It then evaluates the old expressions of the method's postcondition and assigns the results to the corresponding ghost fields. 
 
 There is just one more complication to take care of: \lstinline!old! expressions can appear on the right-hand-side of implications, where they might only be defined part of the time (missing permissions and null references). 
-Unfortunately, just expanding implications into if-statements, like we did when constraining $k_c$, is not an option because the left-hand-side of the implication could be a return value. 
+Unfortunately, just expanding implications into if-statements, like we did when constraining $k_c$, is not an option because the left-hand-side of the implication could be a return value, which is of course only available at the \lstinline!join! site.
 Instead, we walk over each \lstinline!old! expression and generate a set of conditions that need to be satisfied for the expression to be defined at the \lstinline!fork! site. 
 
 \begin{sketch}
@@ -244,7 +318,7 @@ formal-ish set of rules for the ``defined-ness-condition'' (good name for that?)
 Need to mention that $k_c$ is computed in exactly the same way as for synchronous calls?
 \end{sketch}
 
-\begin{lstlisting}[float,caption={Example of fork and join of method with a possibly undefined \lstinline!old! expression.},label=lst:fjexample,language=chalice,numbers=left]
+\begin{lstlisting}[float,caption={Example of Chalice program featuring fork and join of method with a possibly undefined \lstinline!old! expression.},label=lst:fjexample,language=chalice,numbers=left]
 class Cell { var f : int; }
 class SuperCell { var cell : Cell; }
 
@@ -396,6 +470,8 @@ method client(tk : token<Main.work>, obj : Main)
 \end{lstlisting}
 
 An $\ch{\text{\lstinline!eval!}\left(r.a, e\right)}$ expression consists of three parts: the ``context'' $c$ (the token in our case), the description of the ``\emph{eval state}'' $a$ and an expression $e$ to be evaluated in that state. In our case, we specify a ``\emph{call state}'' of the form $\ch{\text{\lstinline!fork!}\ r.m\left(a_1, a_2, \cdots, a_k\right)}$. Here $r$ denotes the receiver of the asynchronous method call, $m$ is the name of the method called and $a_i$ stand for the arguments originally passed to the method.
+
+
 
 \begin{sketch}
 \begin{itemize}

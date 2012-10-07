@@ -33,6 +33,10 @@ trait PermissionTranslator extends TermTranslator {
     case f@chalice.Frac(chalice.IntLiteral(100)) => currentExpressionFactory.makeFullPermission(f)
     case f@chalice.Frac(n) => currentExpressionFactory.makePercentagePermission(translateTerm(n),f)
     case k@chalice.Epsilon => readFraction(k)
+    case k@chalice.ForkEpsilon(token) =>
+      assert(token.typ.IsToken,"Expected type of operand in rd(token) to be a token.")
+      val calleeFactory = methods(token.typ.asInstanceOf[chalice.TokenClass].method)
+      currentExpressionFactory.makeFieldReadTerm(translateTerm(token), calleeFactory.callToken.readFraction,k)
     case k@chalice.MethodEpsilon => readFraction(k)    //only one of these three is relevant at any given time
     case k@chalice.PredicateEpsilon(_) => readFraction(k)
     case k@chalice.MonitorEpsilon(_) => readFraction(k)

@@ -439,7 +439,7 @@ trait ScopeTranslator
         * @param rs the list of read permission conditions to implement.
         */
       def appendCond(rs : List[ReadCondition]){
-        val combined = new CombinedPrecondition(this,this.environmentReadFractionTerm(location))
+        val combined = new DefinednessConditions(this,this.environmentReadFractionTerm(location))
         rs foreach {
           case ReadLocation(reference,field:FieldTranslator,perm) =>
             val originalPermMapTerm = currentExpressionFactory.makeProgramVariableTerm(originalPermMapVar, location)
@@ -469,7 +469,7 @@ trait ScopeTranslator
               // `exhale 0 < get(m,(ref,field))`
               exhale(permissionLT.apply(noPermission,currentVirtualPermission), "Permission to " + field.field + " might not be positive.")
 
-              // `inhale k < get(m,(ref,field))`
+              // `inhale perm < get(m,(ref,field))`
               inhale(permissionLT.apply(perm,currentVirtualPermission))
   
               // `m := set(m,(ref,field),get(m,(ref,field)) - perm)`
@@ -584,14 +584,14 @@ trait ScopeTranslator
       calleeFactory.callToken.oldTerms foreach { entry =>
         val oldNode = entry._1
         val tkField = entry._2
-        val cp = new CombinedPrecondition(this,readFractionTerm)
+        val cp = new DefinednessConditions(this,readFractionTerm)
 
         // `inhale acc(tk.field,full);`
         inhale(acc(tokenVar,tkField,fullPermission))
 
         // `var choice : Boolean
         // `inhale eval(choice) <=> precondition(e)
-        // `if(choice) { inhale precondition(e); tk.field = e; }`
+        // `if(choice) { tk.field = e; }`
 
         oldNode match {
           case OldTermNode(OldTerm(inner:Term)) => {
@@ -715,24 +715,6 @@ trait ScopeTranslator
         temporaries.release(tokenVar)
       }
     }
-  }
-
-  def removeSideEffects(expr : Expression) : Expression = {
-    val remover = new ExpressionTransplantation(this) {
-      def translateProgramVariable(variable : ProgramVariable) = 
-        currentExpressionFactory.makeProgramVariableTerm(variable, variable.sourceLocation)
-
-      override def transplant(expression : Expression) = expression match {
-        case PermissionExpression(FieldLocation(ref,field),amount) =>
-          // `amount ≤ perm(ref,field)`
-          currentExpressionFactory.makeDomainPredicateExpression(
-            permissionLE,TermSequence(amount,
-              currentExpressionFactory.makePermTerm(ref,field)(expression)
-          ),expression)
-        case _ => super.transplant(expression)
-      }
-    }
-    remover.transplant(expr)
   }
 
   def translateAssert(expr : chalice.Expression) {

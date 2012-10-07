@@ -9,11 +9,18 @@ import silAST.expressions.util.{PTermSequence, TermSequence}
 import silAST.expressions.terms.{PTerm, Term}
 import silAST.programs.symbols.PredicateFactory
 import silAST.expressions.{PPredicatePermissionExpression, PredicatePermissionExpression}
+import collection.immutable.Stack
+import silAST.symbols.logical.quantification.LogicalVariable
+import chalice.Permission
 
 /**
   * @author Christian Klauser
   */
-trait TermTranslator extends MemberEnvironment with TypeTranslator {
+trait TermTranslator extends MemberEnvironment with TypeTranslator { outerTranslator =>
+
+  // Requirements
+  protected def translatePermission(permission : chalice.Permission) : Term
+  protected def lookupLogicalVariable(name : String) : Option[LogicalVariable]
 
   final def translateTerm(expression : chalice.Expression) : Term = termTranslation.orElse[chalice.Expression,Term]({
     case x =>
@@ -40,7 +47,14 @@ trait TermTranslator extends MemberEnvironment with TypeTranslator {
       // to recover, treat it like an ordinary holds
       translateHolds(t,rvalue)
     case variableExpr:chalice.VariableExpr =>
-      currentExpressionFactory.makeProgramVariableTerm((programVariables(variableExpr.v)),variableExpr)
+      // first look up the name as a logical (quantified) variable
+      lookupLogicalVariable(variableExpr.v.UniqueName) match {
+        case Some(logical) =>
+          currentExpressionFactory.makeBoundVariableTerm(logical,variableExpr)
+        case None =>
+          // otherwise, treat as program variable
+          currentExpressionFactory.makeProgramVariableTerm((programVariables(variableExpr.v)),variableExpr)
+      }
     case rvalue@chalice.Old(e) => currentExpressionFactory.makeOldTerm(translateTerm(e))(rvalue)
     case access@chalice.MemberAccess(rcvr,_) if !access.isPredicate =>
       assert(access.f != null,"Chalice MemberAccess node (%s) is not linked to a field.".format(access))
@@ -95,7 +109,6 @@ trait TermTranslator extends MemberEnvironment with TypeTranslator {
     case binary:chalice.BinaryExpr => translateBinaryExpression(binary)
   }
 
-
   protected def translateHolds(obj : chalice.Expression, location : SourceLocation) : Term = {
     val heldMap = currentExpressionFactory.makeFieldReadTerm(
       environmentCurrentThreadTerm(location),
@@ -105,7 +118,7 @@ trait TermTranslator extends MemberEnvironment with TypeTranslator {
 
   }
 
-  def makePredicatePermissionExpression(location : Term, predicateFactory : PredicateFactory,permission : Term, sourceLocation : SourceLocation ) : PredicatePermissionExpression =
+  protected def makePredicatePermissionExpression(location : Term, predicateFactory : PredicateFactory,permission : Term, sourceLocation : SourceLocation ) : PredicatePermissionExpression =
     (location,permission) match {
     case (pLocation : PTerm,pPermission : PTerm) => currentExpressionFactory.makePPredicatePermissionExpression(pLocation,predicateFactory,pPermission,sourceLocation)
     case _ => currentExpressionFactory.makePredicatePermissionExpression(location,predicateFactory,permission,sourceLocation)
@@ -131,7 +144,4 @@ trait TermTranslator extends MemberEnvironment with TypeTranslator {
         dummyTerm(binary)
     }
   }
-
-  def translatePermission(permission : chalice.Permission) : Term
-
 }

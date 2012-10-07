@@ -4,26 +4,27 @@ import operators.Lookup._
 import silAST.expressions.{TrueExpression, FalseExpression, Expression}
 import silAST.expressions.util.TermSequence
 import silAST.symbols.logical.{Not, And, Or, Implication}
-import ch.ethz.inf.pm.semper.chalice2sil.translation.util.PureLanguageConstruct
-import silAST.symbols.logical.quantification.{Forall, Exists}
+import silAST.symbols.logical.quantification.{LogicalVariable, Quantifier, Forall, Exists}
 import silAST.types.{referenceType, permissionLT, permissionType, DataType}
-import ch.ethz.inf.pm.semper.chalice2sil._
 import silAST.expressions.terms.{FullPermissionTerm, Term}
 import silAST.source.SourceLocation
+import ch.ethz.inf.pm.semper.chalice2sil.translation.util.PureLanguageConstruct
+import ch.ethz.inf.pm.semper.chalice2sil._
+import chalice.{Type, Permission}
+import collection.mutable
 
 /**
   * @author Christian Klauser
   */
-trait ExpressionTranslator extends MemberEnvironment {
+trait ExpressionTranslator extends MemberEnvironment with TypeTranslator { outerTranslator =>
   protected def translateTerm(exprNode :  chalice.Expression ) : Term
-  protected def translateClassRef(classRef : chalice.Class) : DataType
   protected def translatePermission(permission : chalice.Permission) : Term
-  
   protected final def matchingExpression(partialFunction : PartialFunction[chalice.Expression, Expression]) : PartialFunction[chalice.Expression, Expression] = partialFunction
 
-  def translateExpression(e : chalice.Expression) : Expression = expressionTranslation(e)
+  protected lazy val expressionTranslationHandler = expressionTranslation orElse fallbackToTerms orElse missingTranslation
+  final def translateExpression(e : chalice.Expression) : Expression = expressionTranslationHandler(e)
 
-  def withWaitlevel(waitlevel : SourceLocation)(f : Function[Term,Expression]) = {
+  final def withWaitlevel(waitlevel : SourceLocation,quantifier : Option[Quantifier] = None)(f : Function[Term,Expression]) = {
     // ∀ o:ref :: $CurrentThread.heldMap[o] ⇒ f($CurrentThread.muMap[o])
     val heldMap = currentExpressionFactory.makeFieldReadTerm(environmentCurrentThreadTerm(waitlevel),prelude.Thread.heldMap,waitlevel)
     val oVar = currentExpressionFactory.makeBoundVariable(getNextName("o"),referenceType,waitlevel)
@@ -35,16 +36,25 @@ trait ExpressionTranslator extends MemberEnvironment {
     val muMap = currentExpressionFactory.makeFieldReadTerm(environmentCurrentThreadTerm(waitlevel),prelude.Thread.muMap,waitlevel)
     val oMu = currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Map.MuMap.get,TermSequence(muMap,oVarTerm),waitlevel)
     val impl = currentExpressionFactory.makeBinaryExpression(Implication()(waitlevel),isHeld, f(oMu),waitlevel)
-    currentExpressionFactory.makeQuantifierExpression(Forall()(waitlevel),oVar,impl)(waitlevel)
+    currentExpressionFactory.makeQuantifierExpression(quantifier.getOrElse(Forall()(waitlevel)),oVar,impl)(waitlevel)
   }
-
-
   protected def eqWaitlevel(sameAsWaitlevel : SourceLocation,waitlevel : SourceLocation, other : chalice.Expression) : Expression = {
-    // ∀ o:ref :: $CurrentThread.heldMap[o] ⇒ other == $CurrentThread.muMap[o]
-    // TODO This is just wrong (eqWaitlevel)
-    withWaitlevel(waitlevel){ oMu =>
+    // other == max {o | o:ref, $CurrentThread.heldMap[o]}
+    //  <==>
+    // (∃ o:ref :: $CurrentThread.heldMap[o] ⇒ other == $CurrentThread.muMap[o])
+    //  && (∀ o:ref :: $CurrentThread.heldMap[o] ⇒ !(other < $CurrentThread.muMap[o]))
+    val maxIsHeld = withWaitlevel(sameAsWaitlevel,Some(Exists()(sameAsWaitlevel))){ oMu =>
       currentExpressionFactory.makeEqualityExpression(oMu,translateTerm(other),sameAsWaitlevel)
     }
+    val isSupremum = withWaitlevel(sameAsWaitlevel){ oMu =>
+      currentExpressionFactory.makeUnaryExpression(Not()(sameAsWaitlevel)
+        ,currentExpressionFactory.makeDomainPredicateExpression(prelude.Mu().below,TermSequence(
+          translateTerm(other),oMu
+        ),sameAsWaitlevel)
+        ,sameAsWaitlevel)
+    }
+
+    currentExpressionFactory.makeBinaryExpression(And()(sameAsWaitlevel),maxIsHeld,isSupremum,sameAsWaitlevel)
   }
 
   protected def expressionTranslation : PartialFunction[chalice.Expression, Expression] = matchingExpression {
@@ -163,11 +173,44 @@ trait ExpressionTranslator extends MemberEnvironment {
           translatePermission(predicateAccess.perm), unfolding)
         currentExpressionFactory.makeUnfoldingExpression(
           permissionExpr,translateExpression(body),unfolding)
-      case boolExpr if boolExpr.typ == chalice.BoolClass =>
-        val boolTerm = translateTerm(boolExpr)
-        currentExpressionFactory.makeDomainPredicateExpression(prelude.Boolean.eval,TermSequence(boolTerm),boolExpr)
-
-  } orElse missingTranslation
+      case eval@chalice.Eval(forkState@chalice.CallState(token,receiver,_,args),chalice.BoolLiteral(true)) =>
+        // just associate the receiver and args with the corresponding fields on the token
+        val mf = methods(forkState.m)
+        // create pairs  (SIL term, token field)
+        val pairs = ((receiver :: args).zip(mf.callToken.args)).map(pair =>
+          (translateTerm(pair._1),pair._2))
+        // create equations (SIL term == tokenTerm.tokenField)
+        val tokenTerm = translateTerm(token)
+        val eqns = pairs.map(pair =>
+          currentExpressionFactory.makeEqualityExpression(pair._1,currentExpressionFactory.makeFieldReadTerm(tokenTerm,pair._2.field,token),eval):Expression)
+        // connect equations with && (we can safely use reduce, since the receiver == token.receiver will always be included)
+        eqns.reduce(currentExpressionFactory.makeBinaryExpression(And()(eval),_,_,eval))
+      case eval:chalice.Eval =>
+        report(messages.GeneralEvalNotImplemented(eval))
+        dummyExpr(currentExpressionFactory,eval)
+      case quantification@chalice.TypeQuantification(q,_,_,e,null) =>
+        val quantifier = q match {
+          case chalice.Exists => Exists()(quantification)
+          case chalice.Forall => Forall()(quantification)
+        }
+        // recursively traverse the list of quantified variables.
+        //  - on descent, create the logical variables and add them to a map
+        //  - at the end, use that map to translate the quantifier body
+        //  - on ascent, wrap the expression from the previous level in a quantifier expression
+        def applyQuantifier(variablesLeft : List[chalice.Variable], boundVariables : Map[String,LogicalVariable]) : Expression = variablesLeft match {
+          case v :: vs =>
+            val t = translateTypeExpr(v.t)
+            val bv = currentExpressionFactory.makeBoundVariable(v.UniqueName,t,v)
+            currentExpressionFactory.makeQuantifierExpression(
+              quantifier,bv,applyQuantifier(vs,boundVariables + (bv.name -> bv)))(quantification)
+          case Nil =>
+            withScope(boundVariables){ translateExpression(e) }
+        }
+        applyQuantifier(quantification.variables,Map.empty)
+      case node:chalice.Quantification =>
+        report(messages.SequenceQuantificationNotImplemented(node))
+        dummyExpr(currentExpressionFactory,node)
+  }
   
   protected def translateAccessExpression(permission : chalice.Permission)(body : Term => Expression) : Expression = permission match {
     case s@chalice.Star =>
@@ -183,11 +226,30 @@ trait ExpressionTranslator extends MemberEnvironment {
     case amount => body(translatePermission(amount))
   }
 
+  protected def fallbackToTerms = matchingExpression {
+    case boolExpr if boolExpr.typ == chalice.BoolClass =>
+      val boolTerm = translateTerm(boolExpr)
+      currentExpressionFactory.makeDomainPredicateExpression(prelude.Boolean.eval,TermSequence(boolTerm),boolExpr)
+      // Warning: this code is duplicated in quantifierBodyTranslator below
+  }
+
   protected def missingTranslation[E] = new PartialFunction[chalice.Expression,E] {
     def isDefinedAt(e : chalice.Expression) = false
     def apply(expression : chalice.Expression) = {
       report(messages.UnknownAstNode(expression))
       dummyExpr(currentExpressionFactory,expression).asInstanceOf[E]
+    }
+  }
+
+  protected def quantifierScopes : mutable.Stack[Map[String,LogicalVariable]]
+  final def lookupLogicalVariable(name : String) : Option[LogicalVariable] =
+    quantifierScopes.map(_.get(name)).collectFirst({case Some(x) => x})
+  final def withScope[T](scope : Map[String,LogicalVariable])(body :  => T) : T = {
+    quantifierScopes.push(scope)
+    try {
+      body
+    } finally {
+      quantifierScopes.pop()
     }
   }
 }

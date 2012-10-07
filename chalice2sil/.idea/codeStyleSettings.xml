@@ -8,7 +8,6 @@
           <option name="WRAP_BEFORE_WITH_KEYWORD" value="true" />
           <option name="NOT_CONTINUATION_INDENT_FOR_PARAMS" value="true" />
           <option name="SPACE_BEFORE_TYPE_COLON" value="true" />
-          <option name="USE_SCALADOC2_FORMATTING" value="true" />
         </ScalaCodeStyleSettings>
         <XML>
           <option name="XML_LEGACY_SETTINGS_IMPORTED" value="true" />

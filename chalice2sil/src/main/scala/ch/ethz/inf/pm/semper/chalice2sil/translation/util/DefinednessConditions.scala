@@ -1,7 +1,8 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation.util
 
-import ch.ethz.inf.pm.semper.chalice2sil._
-import silAST.source.noLocation
+import ch.ethz.inf.pm.semper.chalice2sil
+import chalice2sil._
+import silAST.source.{SourceLocation, noLocation}
 import silAST.expressions.util.TermSequence
 import translation._
 import silAST.expressions._
@@ -12,7 +13,7 @@ import silAST.types._
 /**
   * @author Christian Klauser
   */
-class CombinedPrecondition(environment : MemberEnvironment, val readFractionTerm : Term)
+class DefinednessConditions(environment : MemberEnvironment, val readFractionTerm : Term)
   extends DerivedMemberEnvironment(environment)
   with ExpressionVisitor[Null, Expression] {
 
@@ -39,10 +40,15 @@ class CombinedPrecondition(environment : MemberEnvironment, val readFractionTerm
   }
 
   override def visitTerm(term : Term, arg : Null) : Expression = term match {
-    case FieldReadTerm(FieldLocation(receiver,field)) =>
-      // A field access `x.f` requires `x != null ∧ acc(x.f,k)`, k is the current read permission fraction
-      // `acc(x.f,k)`
-      val hasReadAccess = currentExpressionFactory.makeFieldPermissionExpression(receiver,field,readFractionTerm,term.sourceLocation)
+    case FieldReadTerm(loc@FieldLocation(receiver,field)) =>
+      // A field access `x.f` requires `x != null ∧ 0 < perm(x.f)`
+      // `0 < perm(x.f)`
+      val hasReadAccess = currentExpressionFactory.makeDomainPredicateExpression(permissionLT,
+        TermSequence(
+          currentExpressionFactory.makeNoPermission(term.sourceLocation),
+          currentExpressionFactory.makePermTerm(receiver,field)(term.sourceLocation)
+        ),term.sourceLocation)
+
       // `x == null`
       val eqNull = currentExpressionFactory.makeEqualityExpression(receiver,
         currentExpressionFactory.makeDomainFunctionApplicationTerm(nullFunction,TermSequence(),term.sourceLocation),term.sourceLocation)
@@ -51,6 +57,21 @@ class CombinedPrecondition(environment : MemberEnvironment, val readFractionTerm
 
       // `combinedPrecondition(x) ∧ ¬(x == null) ∧ acc(x.f,k)`
       mergeMany(Seq(visitTerm(receiver,arg),notNull,hasReadAccess))
+    case FunctionApplicationTerm(receiver,function,args) =>
+      // A function application `x.f(args...)` requires `x != null ∧ precondition(f,args...)`
+
+      // `x == null`
+      val eqNull = currentExpressionFactory.makeEqualityExpression(receiver,
+        currentExpressionFactory.makeDomainFunctionApplicationTerm(nullFunction,TermSequence(),term.sourceLocation),term.sourceLocation)
+      // `¬(x == null)`
+      val notNull = currentExpressionFactory.makeUnaryExpression(Not()(term.sourceLocation),eqNull,term.sourceLocation)
+
+      // precondition(f,args..) (without side effects)
+      val subs = currentExpressionFactory.makeProgramVariableSubstitution(
+        function.signature.parameters.zip(args).toSet)
+      val preconditions = function.signature.precondition.map(x => removeSideEffects(x.substitute(subs)))
+
+      mergeMany(Seq(notNull) ++ preconditions)
     case DomainFunctionApplicationTerm(f,ts) if ts.size == 2 && f == booleanImplication =>
       val lhsTerm = ts(0)
       val rhsTerm = ts(1);

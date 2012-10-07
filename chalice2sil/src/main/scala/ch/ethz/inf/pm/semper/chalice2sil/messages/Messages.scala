@@ -9,11 +9,30 @@ import silAST.expressions.terms.{LogicalVariableTerm, PTerm, Term}
 import translation.LocationTranslator
 
 object ChannelsNotImplemented extends MessageId(
-  Error,
+  Fault,
   "ch.ethz.inf.pm.semper.chalice2sil.channelsNotImplemented",
   "Could not translate definition of channel %s.") {
   def apply(channel : Channel) = new Message(this,channel) {
     def data: Iterable[Any] = Array(channel.channelId)
+  }
+}
+
+object GeneralEvalNotImplemented extends MessageId(
+  Fault,
+  "ch.ethz.inf.pm.semper.chalice2sil.generalEvalNotImplemented",
+  "Chalice2SIL currently only understands eval(token.fork receiver.m(args...), true). Other forms of the eval " +
+    "expression are not supported. Offending expression: %s.") {
+  def apply(eval : chalice.Eval) = new Message(this,eval) {
+    def data : Iterable[Any] = Array(eval)
+  }
+}
+
+object SequenceQuantificationNotImplemented extends MessageId(
+  Fault,
+  "ch.ethz.inf.pm.semper.chalice2sil.sequenceQuantificationNotSupported",
+  "Chalice2SIL currently does not understand quantification over sequences. Offending expression: %s.") {
+  def apply(eval : chalice.Quantification) = new Message(this,eval) {
+    def data : Iterable[Any] = Array(eval)
   }
 }
 
