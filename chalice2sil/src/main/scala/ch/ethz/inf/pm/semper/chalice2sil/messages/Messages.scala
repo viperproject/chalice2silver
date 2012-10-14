@@ -89,6 +89,15 @@ object PermissionNotUnderstood extends MessageId(
   }
 }
 
+object PermissionTooComplicatedForPredicateOrFunction extends MessageId(
+  Error,
+  "ch.ethz.inf.pm.semper.chalice2sil.permissionTooComplicatedForPredicateOrFunction",
+  "Chalice2SIL can only handle full or abstract read permission amounts in predicates and functions.") {
+  def apply(permissionAmount : chalice.Permission) = new Message(this, permissionAmount) {
+    def data : Iterable[Any] = Array(permissionAmount)
+  }
+}
+
 object RdInQuantifier extends MessageId(
   Error,
   "ch.ethz.inf.pm.semper.chalice2sil.rdInQuantifier",

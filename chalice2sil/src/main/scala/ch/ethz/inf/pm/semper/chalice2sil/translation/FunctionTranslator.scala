@@ -5,9 +5,10 @@ import chalice2sil._
 import silAST.source.SourceLocation
 import silAST.expressions.util.TermSequence
 import util.DerivedFactoryCache
-import chalice.Variable
 import silAST.programs.symbols.{FunctionFactory, ProgramVariable, PredicateFactory}
 import silAST.types.nullFunction
+import silAST.expressions.terms.Term
+import silAST.expressions.Expression
 
 /**
   * @author Christian Klauser
@@ -38,7 +39,7 @@ class FunctionTranslator(environment : ProgramEnvironment, val function : chalic
         * @param p The prototype to derive a key from.
         * @return the key for the prototype
         */
-      protected def deriveKey(p : Variable) = p.UniqueName
+      protected def deriveKey(p : chalice.Variable) = p.UniqueName
 
 
       /**
@@ -57,7 +58,7 @@ class FunctionTranslator(environment : ProgramEnvironment, val function : chalic
         * @param p  The prototype to create the value from.
         * @return The value to be added to the cache.
         */
-      protected def construct(p : Variable) = throw new
+      protected def construct(p : chalice.Variable) = throw new
           UnsupportedOperationException("Functions cannot define new program variables. Missing variable mapping for " + p.id + " : " + p.t.typ)
     }
     functionFactory.parameters.foreach(cache.addExternal)
@@ -93,6 +94,27 @@ class FunctionTranslator(environment : ProgramEnvironment, val function : chalic
       override protected def readFraction(location : SourceLocation) = environmentReadFractionTerm(location)
 
       override protected def termTranslation = resultTranslation orElse super.termTranslation
+
+      protected override def translateAccessExpression(permission : chalice.Permission)(body : Term => Expression) : Expression = permission match {
+        case chalice.Star
+           | chalice.Full
+           | chalice.Frac(chalice.IntLiteral(100)) => {
+          // Can keep these as-is
+          super.translateAccessExpression(permission)(body)
+        }
+        case chalice.Epsilon
+           | chalice.MethodEpsilon
+           | chalice.ForkEpsilon(_)
+           | chalice.PredicateEpsilon(_) => {
+          // Convert to rd*(...)
+          super.translateAccessExpression(chalice.Star)(body)
+        }
+        case x => {
+          // Don't know how to convert
+          report(messages.PermissionTooComplicatedForPredicateOrFunction(x))
+          dummyExpr(currentExpressionFactory,x)
+        }
+      }
 
       private val resultTranslation = matchingTerm {
         case r@chalice.Result() => currentExpressionFactory.makeProgramVariableTerm(resultVariable,r)
