@@ -4,8 +4,9 @@ class Triggers
 {
   var next : Triggers // to allow recursive definitions
   
-  predicate valid { acc(next) && next != null && next.valid } // intentionally doesn't terminate - allows function definitions to be unknown
- 
+  predicate valid { true } // intentionally doesn't terminate - allows function definitions to be unknown
+  //predicate valid { acc(next) && next != null && next.valid } // intentionally doesn't terminate - allows function definitions to be unknown
+
   function f(x,y,z : int):bool
     requires valid
   {

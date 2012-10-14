@@ -5,14 +5,6 @@ import silAST.source.SourceLocation
 import silAST.symbols.logical.And
 import silAST.expressions.TrueExpression
 
-/**
-  * Created with IntelliJ IDEA.
-  * User: Christian
-  * Date: 18/06/12
-  * Time: 16:20
-  * To change this template use File | Settings | File Templates.
-  */
-
 class MonitorInvariantPredicateTranslator(environment : ProgramEnvironment, chaliceClass : chalice.Class, id : Int)
   extends PredicateTranslator(environment,id) {
 

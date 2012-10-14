@@ -1,3 +1,5 @@
+// Successfully verified by Syxc (0 errors)
+
 class Main {
     var f : int;
     var g : int;

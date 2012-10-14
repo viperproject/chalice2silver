@@ -16,7 +16,8 @@ class C {
   
   method finish(tk: token<C.processing>)
     requires acc(x,100-rd(tk));
-    requires acc(tk.joinable) && tk.joinable && tk != null;
+    //requires acc(tk.joinable) && tk.joinable && tk != null;
+    requires tk != null && acc(tk.joinable) && tk.joinable;
     requires eval(tk.fork this.processing(), true);
     ensures acc(x);
   {

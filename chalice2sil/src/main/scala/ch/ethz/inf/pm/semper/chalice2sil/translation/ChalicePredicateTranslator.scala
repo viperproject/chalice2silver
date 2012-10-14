@@ -3,14 +3,6 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
 import ch.ethz.inf.pm.semper.chalice2sil._
 import silAST.source.SourceLocation
 
-/**
-  * Created with IntelliJ IDEA.
-  * User: Christian
-  * Date: 18/06/12
-  * Time: 16:14
-  * To change this template use File | Settings | File Templates.
-  */
-
 class ChalicePredicateTranslator(environment : ProgramEnvironment, val predicate : chalice.Predicate, id : Int)
   extends PredicateTranslator(environment,id) {
   /**

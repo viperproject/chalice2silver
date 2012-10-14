@@ -1,0 +1,26 @@
+class Cell {
+  var f : int
+  function equals(o : Cell) : bool
+    requires rd(f)
+    requires o != null ==> rd(o.f)
+  { o != null && f == o.f }
+}
+class Program {
+  method clone(c : Cell) returns (d : Cell)
+    requires c != null && acc(c.f,rd)
+    ensures acc(c.f,rd)
+    ensures d != null && acc(d.f) && c.equals(d)
+  {
+    d := new Cell;
+    d.f := c.f;
+  }
+
+  method main()
+  {
+    var c : Cell :=  new Cell;
+    c.f := 5;
+    var d : Cell;
+    call d := clone(c);
+    assert d.f == 5;
+  }
+}
