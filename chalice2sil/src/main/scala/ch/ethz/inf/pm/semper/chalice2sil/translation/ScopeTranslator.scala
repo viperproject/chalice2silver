@@ -396,6 +396,10 @@ trait ScopeTranslator
         case PermissionExpression(_,NoPermissionTerm()) => Nil
         case p@PermissionExpression(FieldLocation(reference:PTerm,field),pTerm:PTerm) =>
           List(ReadLocation(transplantPTerm(reference),fields.lookup(field.name),transplantPTerm(pTerm)))
+        case p@PermissionExpression(_,LogicalVariableTerm(_))=> {
+          // ignore rd*
+          Nil
+        }
         case p@PermissionExpression(PredicateLocation(reference:PTerm,pred),pTerm:PTerm) =>
           List(ReadLocation(transplantPTerm(reference),predicates.lookup(pred.name),transplantPTerm(pTerm)))
         case PermissionExpression(nonReferenceTerm,_) =>
