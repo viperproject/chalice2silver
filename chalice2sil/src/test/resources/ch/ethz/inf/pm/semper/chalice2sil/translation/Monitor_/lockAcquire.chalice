@@ -9,10 +9,10 @@ class C {
         c.f := 5;
 
         share c;
-
+        // cannot access c.f here
         acquire c;
         c.f := 6;
-
         release c;
+        // c.f inaccessible again
     }
 }

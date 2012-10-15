@@ -8,8 +8,7 @@ These annotations appear in the form of object invariants, loop invariants and m
 A verification tool can take such a Chalice program and check statically that it never violates any of the conditions established by the programmer.
 
 The original implementation of the automatic static program verifier for Chalice generates a program in the intermediate verification language Boogie \cite{ByECD+06}.
-A second tool, conveniently also called Boogie, takes this intermediate code and generates verification conditions to be solved by an SMT solver.
-In its default configuration, Boogie forwards its output to Z3 \cite{dMB08}.
+A second tool, conveniently also called Boogie, takes this intermediate code and generates verification conditions to be solved by an SMT solver, such as Z3 \cite{dMB08}.
 
 \begin{lstlisting}[language=Chalice,float,caption={Loop invariants, pre- and post conditions in a Chalice program},label=lst:simpleseqchalice]
 class Program {
@@ -165,28 +164,145 @@ While just forking off threads might work for some scenarios, most of the time t
 To that end, the \lstinline[language=Chalice]!fork! statement will return a \emph{token} that the programmer can use to have the calling method wait for the thread associated with the token to complete.
 The permissions mentioned in the postcondition of the method used to spawn off the worker thread will also be transferred back to the caller at that point.
 
+\subsubsection{Information Hiding through functions and predicates}
+A major shortcoming of pre- and postconditions as presented so far, is that they often ``leak'' implementation details. 
+One example of this happening is the \lstinline!clone! method from listing \ref{lst:chaliceabstractread}. 
+It ensures that the values from the old object are copied over to the newly created object, but in the process tells the caller that there is exactly one field, called \lstinline!f! on those objects. 
+Should the definition of class \lstinline!Cell! ever change, sifting through the entire program and updating specifications is going to be in order.
+What the programmer wanted to say is, that the two objects are ``\emph{equal}''. 
+
+\begin{lstlisting}[language=Chalice,float,caption={Alternative definition of \lstinline!Cell! using functions.},label={lst:chaliceequalsfunc}]
+class Cell {
+  var f : int
+  function equals(o : Cell) : bool
+    requires acc(f,rd)
+    requires o != null ==> acc(o.f,rd)
+  { o != null && f == o.f }
+}
+\end{lstlisting}
+
+\textbf{Functions} help cut down code repetition and put an abstraction layer between the implementation of a method and its clients. 
+Listing \ref{lst:chaliceequalsfunc} presents an alternative definition of \lstinline!Cell! that exposes the equality testing function \lstinline!equals!. 
+Below is a corresponding signature for the method \lstinline!clone! that uses this function. 
+If we were to add a new field to \lstinline!Cell! now, callers of \lstinline!clone! would no longer see a change in the method's signature.
+
+\begin{lstlisting}[language=Chalice]
+method clone(c : Cell) returns (d : Cell)
+    requires c != null && acc(c.f,rd)
+    ensures acc(c.f,rd)
+    ensures d != null && acc(d.f) && c.equals(d)
+\end{lstlisting}
+
+Notice how the \lstinline!equals! function does \emph{not} have a postcondition that describes the function's result or ``returns'' permissions back to the caller. 
+This is because functions are little more than abbreviations of common expressions. 
+In order to be used in pre- and postconditions, they are forbidden from changing any state, which is why the programmer doesn't have explicitly return permissions to the function's caller. 
+This happens automatically.
+
+\textbf{Predicates}, on the other hand, are a way to abstract over not just values but also over accessibility. 
+Additionally, unlike functions, they are treated as abstract entities unless the programmer explicitly ``unfolds'' them to apply their definition.
+When a method requires a predicate in its precondition, it will not automatically get the permissions (and other assertions) ``contained'' in the predicate because at that point, the predicate acts like a black box.
+The method can pass the predicate to other methods or threads and it behaves much like a permission to a memory location: it cannot be duplicated and once given away, it's gone.
+
+Given a predicate, the programmer can use the \lstinline[language=Chalice]!unfold! statement to ``trade'' the predicate for its definition. 
+The current thread will receive all permissions ``contained'' in the predicate and gets to assume any other assertions associated with the predicate.
+After the programmer is done operating on the predicate's contents, they can use \lstinline[language=Chalice]!fold! to ``trade'' access permissions in exchange for the predicate.
+
+\begin{lstlisting}[language=Chalice,float,caption={Using the predicate \lstinline!valid! to hide the representation of \lstinline!Indentation!},label={lst:chalicepredicate}]
+class Indentation {
+    var count : int;
+
+    predicate valid
+    { acc(count) && 0 <= count }
+
+    function getCount() : int
+        requires valid;
+    { unfolding valid in count }
+
+    method increase(amount : int)
+        requires valid && 0 <= amount;
+        ensures valid;
+        ensures old(getCount()) + amount == getCount();
+    {
+        unfold valid;
+        count := count + amount;
+        fold valid;
+    }
+}
+\end{lstlisting}
+
+Listing \ref{lst:chalicepredicate} additionally demonstrates the \lstinline[language=Chalice]!unfolding! expression syntax used to temporarily getting access to the contents of a predicate.
+
+\subsubsection{Monitors (locks)}
+Using just fork-join, it is impossible for threads to communicate with one another. 
+They can only produce a result and all of their memory writes only become visible when they return the exclusive write permissions back to their caller.
+To handle more realistic scenarios, such as concurrent access to a shared queue, Chalice comes with \emph{monitors} that allow for exclusive locking of a shared resource.
+For each class, the programmer can define a \emph{monitor invariant} that represents the ``resources'' that the monitor is supposed to manage access to. 
+As with predicates, this definition can consist of both accessibility predicates and ordinary boolean assertions.
+
+\begin{lstlisting}[language=Chalice,float,caption={Example of the life-cycle an object can go through in Chalice},label={lst:chalicemoncycle}]
+class C {
+    var f : int;
+
+    invariant acc(f);
+
+    method main(){
+        var c : C := new C;
+        c.f := 5;
+        share c;
+        acquire c; c.f := 7; release c;
+				// cannot access c.f here
+        acquire c; c.f := 6; unshare c;
+        assert c.f == 6;
+    }
+}
+\end{lstlisting}
+
+Initially, objects are not available for locking via the monitor mechanism.
+When the programmer \emph{shares} an object with other threads using the \lstinline[language=Chalice]!share! statement, the access permissions associated with the invariant get stored in the monitor (similar to \lstinline[language=Chalice]!fold! for predicates).
+Threads that subsequently \lstinline[language=Chalice]!acquire! the lock on this \emph{shared} object will receive the contents of the monitor (similar to \lstinline[language=Chalice]!unfold!).
+The object is now \emph{locked} and can be made available to other threads via the \lstinline[language=Chalice]!release! statement (similar to \lstinline[language=Chalice]!fold!, again).
+The programmer can also revert the conversion to a \emph{shared} object by using the \lstinline[language=Chalice]!unshare! statement (similar to \lstinline[language=Chalice]!unfold!, again). Listing \ref{lst:chalicemoncycle} demonstrates these statements with a single thread.
+
+As with monitors in Java and C\#, in order to guarantee mutual exclusion, threads that reach an \lstinline[language=Chalice]!acquire! statement are blocked until the monitor can grant them the exclusive lock.
+With such a simple blocking mechanism comes the risk of deadlocks (thread 1 waiting for monitor $b$, currently held by thread 2, which is waiting for monitor $a$, currently held by thread 1).
+
+To solve this problem, the Chalice verifier makes sure that locks are acquired in a fixed order.
+The programmer can assign a \emph{locking level} to a monitor, ensuring that the lock on that monitor can only be acquired when that locking level is \emph{higher} than the locking level of all other locks held by the current thread.
+Whether one locking level is higher than another, is determined by a strict partial order that we denote as $<<$.
+The \lstinline[language=Chalice]!share! statement seen above optionally accepts clauses of the form $\text{\lstinline[language=Chalice]!between !}\ldots\text{\lstinline[language=Chalice]!and !}\ldots$, $\text{\lstinline[language=Chalice]!above !}\ldots$ or $\text{\lstinline[language=Chalice]!below !}\ldots$ to constrain the \emph{lock level} at which the monitor is installed.
+If such a clause is missing, Chalice chooses \lstinline!above waitlevel!, which means that the lock level is higher than the highest lock level of all locks currently held by the thread (we refer to this maximum as a thread's \emph{wait level}).
+
+\begin{lstlisting}[language=Chalice,float,caption={Example of deadlock-prevention},label={lst:chalicedeadlockprevention}]
+class C {
+    var f : int;
+    invariant acc(f);
+
+    method main() {
+        var a := new C;
+        share a;
+        var b := new C;
+        share b above a;
+
+				acquire a; acquire b;
+				release b; release a;
+
+        acquire b;
+        acquire a; // illegal
+    }
+}
+\end{lstlisting}
+
+In listing \ref{lst:chalicedeadlockprevention}, we create two objects \lstinline!a! and \lstinline!b! and share them. 
+The lock level of \lstinline!a! defaults to \lstinline!above waitlevel! and the programmer explicitly declare the lock level of \lstinline!b! to be \lstinline!above a!.
+This means that if a thread plans to lock both \lstinline!a! and \lstinline!b!, it will have to first lock on \lstinline!a! then \lstinline!b!.
+Should the programmer try to lock objects in the opposite order, on \lstinline[language=Chalice]!acquire a! the thread's wait level would already be at the lock level of \lstinline!b!, which is above \lstinline!a!'s.
+
+Lock levels are implemented via a special field called \lstinline!mu! of type \lstinline!Mu! (the type of lock levels), available on every object. 
+The \lstinline!mu! field is assigned during \lstinline[language=Chalice]!share! and \lstinline[language=Chalice]!unshare! operations and needs to be read-able for acquiring the lock.
+
+\subsubsection{Details on the Boogie-based Chalice verifier}
 \begin{sketch}
-\begin{itemize}
-\item Inhale, Exhale, Havoc, terms used in Boogie implementation
-\end{itemize}
+Is ``Inhale, exhale and havoc'' a better title for this section?
 \end{sketch}
-\begin{sketch}
-\begin{itemize}
-\item Methods
-\end{itemize}
-\end{sketch}
-\begin{sketch}
-\begin{itemize}
-\item Fork+Join
-\end{itemize}
-\end{sketch}
-\begin{sketch}
-\begin{itemize}
-\item Predicates + Functions
-\end{itemize}
-\end{sketch}
-\begin{sketch}
-\begin{itemize}
-\item Monitors
-\end{itemize}
-\end{sketch}
+
+In order to verify Chalice programs, the Boogie-based verifier permission transfer is modelled by two operations: \emph{inhale} and \emph{exhale}. 

@@ -1,8 +1,8 @@
 class Cell {
   var f : int
   function equals(o : Cell) : bool
-    requires rd(f)
-    requires o != null ==> rd(o.f)
+    requires acc(f,rd)
+    requires o != null ==> acc(o.f,rd)
   { o != null && f == o.f }
 }
 class Program {
