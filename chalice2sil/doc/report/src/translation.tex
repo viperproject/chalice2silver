@@ -221,7 +221,7 @@ The SIL verifier will have to
 	\end{split} \\
 	T\ch{\acc{x.f,p}} &= \text{otherwise}\quad \sil{ \text{\lstinline!skip!} }
 \end{align*}
-\caption{Translation schemes. $R$ generates code that constrains a fresh $k_c$ according to the method precondition/loop invariant $P$. $T$ recursively translates $P$ to constrain $k_c$.}
+\caption{Translation schemes. $R$ generates code that constrains a fresh $k_c$ according to the method precondition/loop invariant $P$. $T$ recursively translates $P$ to constraint $k_c$.}
 \end{figure}
 
 \begin{figure}
@@ -469,8 +469,19 @@ method client(tk : token<Main.work>, obj : Main)
     { join tk; }
 \end{lstlisting}
 
-An $\ch{\text{\lstinline!eval!}\left(r.a, e\right)}$ expression consists of three parts: the ``context'' $c$ (the token in our case), the description of the ``\emph{eval state}'' $a$ and an expression $e$ to be evaluated in that state. In our case, we specify a ``\emph{call state}'' of the form $\ch{\text{\lstinline!fork!}\ r.m\left(a_1, a_2, \cdots, a_k\right)}$. Here $r$ denotes the receiver of the asynchronous method call, $m$ is the name of the method called and $a_i$ stand for the arguments originally passed to the method.
+An $\ch{\text{\lstinline!eval!}\left(r.a, e\right)}$ expression consists of three parts: the ``context'' $c$ (the token in our case), the description of the ``\emph{eval state}'' $a$ and an expression $e$ to be evaluated in that state. In our case, we specify a ``\emph{call state}'' of the form $\ch{\text{\lstinline!fork!}\ r.m\left(a_1, a_2, \cdots, a_k\right)}$. 
+Here $r$ denotes the receiver of the asynchronous method call, $m$ is the name of the method called and $a_i$ stand for the arguments originally passed to the method.
 
+Chalice2SIL supports a very limited form of the \lstinline[language=Chalice]!eval! expression which covers exactly the use-case outlined above. 
+As long as the \lstinline[language=Chalice]!eval! expression binds to a \lstinline[language=Chalice]!fork! token and has \lstinline[language=Chalice]!true! as its second operand $e$, Chalice2SIL translates it as follows:
+
+\begin{align*}
+	V\ch{\text{\lstinline[language=Chalice]!eval!}(t.\text{\lstinline[language=Chalice]!fork!}\ \ r.m(a_1, a_2, \cdots, a_k), \text{\lstinline[language=Chalice]!true!})} &= \openSIL{} E\ch{t} \neq \text{\lstinline[language=SIL]!null!}  \\ 
+	&\ \land E\ch{t}.\text{\lstinline!this!} = E\ch{r} \\ 
+	&\ \land E\ch{t}.a_1 = E\ch{a_1} \\ 
+	&\qquad \vdots \\
+	&\left.\ \land E\ch{t}.a_k = E\ch{a_k} \right\rdbrack_\text{SIL}
+\end{align*}
 
 
 \begin{sketch}
