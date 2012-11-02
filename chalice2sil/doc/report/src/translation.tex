@@ -365,6 +365,20 @@ r := tk.r;
 tk.joinable := false;
 \end{lstlisting}
 
+\begin{figure}
+\begin{align*}
+\begin{split}
+	F\ch{\text{\lstinline[language=Chalice]!old!}\left(e\right)} &= \openSIL{ \vphantom{\ch{P}} } \\
+		& \inhale{\acc{t.f_e,\text{\lstinline!write!}}} \\
+		& \text{\lstinline[language=Chalice]!if!}\left(D\ch{e}\right) \{ \\
+		& \quad t.f_e := E\ch{e} \\
+		& \}
+\end{split} \\
+F\ch{P} &= \text{descend into $P$ to find all \lstinline[language=Chalice]!old! expressions and terms}
+\end{align*}
+\caption{Assign \lstinline[language=Chalice]!old!$(e)$ value to its own field $f_e$, if $e$ is defined.}
+\end{figure}
+
 The accessibility of all the other ghost fields on the token requires a bit more work. 
 Naturally, tokens can also be passed to other threads and joined there. 
 The requirement that the joining thread has exclusive access to the \lstinline!joinable! field ensures that only one thread can join on a given token. 
@@ -383,20 +397,6 @@ While SIL provides no built-in support for linking fields together accessibility
   &\land\ \acc{t.a_1, p} \land \acc{t.a_2, p} \land \cdots \land \acc{t.a_k, p}\ \land \\ 
 	&\left. \land\ \acc{t.o_1, p} \land \acc{t.o_2, p} \cdots \acc{t.o_n} \right\rdbrack_{\text{SIL}}
 \end{align*}
-
-\begin{figure}
-\begin{align*}
-\begin{split}
-	F\ch{\text{\lstinline[language=Chalice]!old!}\left(e\right)} &= \openSIL{ \vphantom{\ch{P}} } \\
-		& \inhale{\acc{t.f_e,\text{\lstinline!write!}}} \\
-		& \text{\lstinline[language=Chalice]!if!}\left(D\ch{e}\right) \{ \\
-		& \quad t.f_e := E\ch{e} \\
-		& \}
-\end{split} \\
-F\ch{P} &= \text{descend into $P$ to find all \lstinline[language=Chalice]!old! expressions and terms}
-\end{align*}
-\caption{Assign \lstinline[language=Chalice]!old!$(e)$ value to its own field $f_e$, if $e$ is defined.}
-\end{figure}
 
 \subsubsection{Limitations of the current fork-join implementation}\label{sct:fjlimits}
 Joining a thread seems deceptively simple when done in the same method the thread was originally forked from. 
@@ -509,8 +509,24 @@ As a  result, Chalice2SIL translates permissions in function preconditions as \l
 	\ch{\acc{x.f, rd*}}\ =\ \sil{\exists a, 0 < a < \text{\lstinline!write!}.\ \ \acc{x.f,a}}
 \]
 
-
 \subsection{Monitors with Deadlock Avoidance}\label{sct:mon}
+As with predicates, the permissions stored in a monitor need to be fixed and cannot be chosen every time we lock over an object. 
+Otherwise we'd have to track what amount of permission the monitor holds onto at any point in the program. 
+So, as with predicates, we define an uninterpreted function that represents the fraction of permission that the verifier uses whenever it encounters an abstract fractional read permission in a monitor.
+To make mixing monitors and predicates easier, we use the same global fraction for monitors as we used for predicates.
+
+The really difficult part, however, is the implementation of the locking and deadlock prevention itself.  
+In this section we present our partial solution in the hope that it will help in finding a working implementation of deadlock avoidance in SIL, or failing that, in the hope that it at least serves as a demonstration of the limits of SIL.
+
+\subsubsection{Deadlock Prevention and Locking}
+For locking and deadlock prevention we need to add two kinds of information to each object: a boolean indicating whether the object in question is locked and a \emph{mu} value that indicates the object's position in the locking order.
+To recapitulate, mu values are part of the partially ordered set \emph{(Mu,<<)}.
+Only one concrete value exists: \emph{lockbottom}, the single smallest element of Mu. All other values of Mu are kept abstract and only described in terms of their $<<$-relation to one another. 
+
+The key idea behind deadlock prevention in Chalice, that a thread can only acquire a lock on monitor/object $m$ if it is clear that that monitor/object is higher in the locking order than any other monitor that that thread already has a lock on.
+In more concrete terms, locking is allowed when $\forall o \in \text{objects}.\ \ o=m \lor o.mu \ll m.mu$.
+
+
 \begin{sketch}
 \begin{itemize}
 \item Explain global monitor fraction
