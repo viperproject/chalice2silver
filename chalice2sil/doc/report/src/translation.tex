@@ -520,17 +520,70 @@ In this section we present our partial solution in the hope that it will help in
 
 \subsubsection{Deadlock Prevention and Locking}
 For locking and deadlock prevention we need to add two kinds of information to each object: a boolean indicating whether the object in question is locked and a \emph{mu} value that indicates the object's position in the locking order.
-To recapitulate, mu values are part of the partially ordered set \emph{(Mu,<<)}.
-Only one concrete value exists: \emph{lockbottom}, the single smallest element of Mu. All other values of Mu are kept abstract and only described in terms of their $<<$-relation to one another. 
+To recapitulate, mu values are part of the partially ordered set \emph{$(Mu,\ll)$}.
+Only one concrete value exists: \emph{lockbottom}, the single smallest element of Mu. All other values of Mu are kept abstract and only described in terms of their $\ll$-relation to one another. 
 
 The key idea behind deadlock prevention in Chalice, that a thread can only acquire a lock on monitor/object $m$ if it is clear that that monitor/object is higher in the locking order than any other monitor that that thread already has a lock on.
-In more concrete terms, locking is allowed when $\forall o \in \text{objects}.\ \ o=m \lor o.mu \ll m.mu$.
+In more concrete terms, locking is allowed when $\forall o \in \text{objects}.\ \ o=m \lor ¬\text{\lstinline[language=Chalice]!holds!}(o) \lor o.\text{\lstinline!mu!} \ll m.mu$.
 
+To use this expression in a SIL assertion (an exhale statement prior to acquiring a lock), we need to make sure that the relevant locations are well defined. 
+To ensure that we can access \lstinline!m.mu!, we first check $m \neq \text{\lstinline[language=Chalice]!null!}\ \land\ 0 < \text{\lstinline[language=SIL]!perm!}(m.\text{\lstinline!mu!})$. 
+But then we run into the problem that we cannot possibly require access to the \lstinline!mu!-fields on all objects $o$. One could try guard references to $o.\text{\lstinline!mu!}$ with an implication: \[
+	0 < \text{\lstinline!perm!}(o.\text{\lstinline!mu!}) \Rightarrow ¬\text{\lstinline!holds!}(o) \lor o.\text{\lstinline!mu!} \ll m.mu
+\]
+Unfortunately that is not correct. 
+While a method needs read-access to the \lstinline!mu! field to acquire the lock on an object $o_1$, it can then give away all permissions to fields of $o_1$ (it could fork a thread and hand complete control over that object to the forked thread), while still holding the lock on the monitor associated with $o_1$.
+With the assertion above, temporarily not having any permission to access to $o_1.\text{\lstinline!mu!}$ would allow us to acquire the lock on a monitor that is not higher in the locking order than $o_1$.
+
+We need to associate each object with a \lstinline!mu! and a flag that indicates whether the object's monitor is acquire by the current thread. 
+The only mechanism that SIL provides for associating information with an object are fields but using fields is not an option.
+The Boogie-based implementation uses additional masks and that is what we will try to emulate in our approach.
+
+We add another hidden parameter to each method, the \lstinline!\$CurrentThread: ref!. 
+This object has two fields \lstinline!heldMap! and \lstinline!muMap!, mapping from references to boolean values and from references to mu values, respectively.
+Via their preconditions, each method gets to assume the following:
+\begin{align*}
+ \text{\lstinline!currentThread!} \neq \text{\lstinline!null!}\ &\land\ \acc{\text{\lstinline!currentThread!}.\text{\lstinline!heldMap!},\text{\lstinline!write!}} \\
+	&\land\ \acc{\text{\lstinline!currentThread!}.\text{\lstinline!muMap!},\text{\lstinline!write!}}
+\end{align*}
+
+However, the \lstinline!mu! field is not an implementation detail of Chalice2SIL or the Boogie-based Chalice verifier, but an actual field that the user of Chalice has to take into consideration when dealing with monitors. 
+The greatest challenge is thus to keep what the verifier knows about the \lstinline!muMap! and what it knows about \lstinline!mu! fields in synchrony.
+To that end, every occurrence of an accessibility predicate that mentions \lstinline!mu! will be translated according to the following rule:
+\[
+	\ch{\acc{x.\text{\lstinline!mu!},a}} = \sil{\acc{x.\text{\lstinline!mu!}, a} \land \text{\lstinline!currentThread!}.\text{\lstinline!muMap!}[x] = x.\text{\lstinline!mu!}}
+\]
+This makes sure that whenever we gain access to an \lstinline!mu! field, we also get a matching entry in the \lstinline!currentThread!'s \text{\lstinline!muMap!}. 
+Or, conversely, whenever we give away permission to a \lstinline!mu! field, we must also ensure that the \lstinline!muMap! is up to date.
 
 \begin{sketch}
-\begin{itemize}
-\item Explain global monitor fraction
-\item Too high-level for Mu: why establishing the correspondence between x.mu and waitlevel is difficult
-\item Explain the solution: muMap, heldMap and the \$CurrentThread object.
-\end{itemize}
+newobj
 \end{sketch}
+\begin{sketch}
+share
+\end{sketch}
+\begin{sketch}
+ acquire
+\end{sketch}
+\begin{sketch}
+release
+\end{sketch}
+\begin{sketch}
+unshare
+\end{sketch}
+
+In the postcondition of each method, we make sure that the \lstinline!mu! and \lstinline!help! maps are in a consistent state.
+The programmer uses the \lstinline[language=Chalice]!lockchange! declaration to list all objects it changed the lock state of. 
+Without any \lstinline[language=Chalice]!lockchange! declarations, all method postcondition contain the following assertions:
+\begin{align*}
+	&\acc{\text{\lstinline!currentThread!}.\text{\lstinline!heldMap!},\text{\lstinline[language=SIL]!write!}} \land \acc{\text{\lstinline!currentThread!}.\text{\lstinline!muMap!},\text{\lstinline[language=SIL]!write!}} \\
+	&\land\ \forall o_c \in  \text{objects}.\ \ \text{\lstinline[language=Chalice]!old!}\left(\text{\lstinline!currentThread!}.\text{\lstinline!heldMap!}\right)[o_c] = \text{\lstinline!currentThread!}.\text{\lstinline!heldMap!}[o_c] \\
+	&\land\ \forall o_d \in \text{objects}.\ \ \left(\text{\lstinline!currentThread!}.\text{\lstinline!heldMap!}[o_d]\right) \Rightarrow \\
+	&\qquad \text{\lstinline[language=Chalice]!old!}\left(\text{\lstinline!currentThread!}.\text{\lstinline!muMap!}[o_d]\right) = \text{\lstinline!currentThread!}.\text{\lstinline!muMap!}[o_d]
+\end{align*}
+The second line demands that the locking state of any object must not have been changed. 
+The last two lines ensure that the lock level of anything that is currently locked doesn't change.
+When the user adds \lstinline[language=Chalice]!lockchange! declarations, the bodies of the last two quantifiers are guarded by an implication similar to:
+\[
+	o \notin \text{\lstinline!lockchange!} \Rightarrow \text{body\ldots}
+\]
