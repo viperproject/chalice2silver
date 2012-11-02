@@ -14,6 +14,7 @@
 %\usepackage{multicol}
 \usepackage[usenames,dvipsnames]{xcolor}
 \usepackage{mdframed}
+\usepackage{syntax}
 
 
 \setmainfont{Cambria} % set the main body font (\textrm), assumes Cambria is installed
@@ -26,12 +27,8 @@
 \usepackage{fullpage}
 %\usepackage{bussproofs}
 \usepackage{fancyhdr}
-\usepackage[parfill]{parskip} 
-\usepackage{titlesec}
 \usepackage{listings}
-\usepackage{syntax}
-\usepackage{float}
-%\usepackage{color}
+\usepackage{color}
 \usepackage{graphicx} % support the \includegraphics command and options
 \usepackage[colorlinks=true,citecolor=darkgreen]{hyperref}
 \setlength{\textwidth}{145mm}
@@ -88,10 +85,6 @@
     }
 \lstset{tabsize=2}
 
-\newfloat{grammarListingFloat}{hbpt}{gl.aux}
-\floatname{grammarListingFloat}{Grammar Listing}
-\newenvironment{grammarListing}{\begin{grammarListingFloat}\synshorts}{\synshortsoff\end{grammarListingFloat}}
-
 %=========================================
 
 \newcommand{\abs}[1]{{\left\lvert#1\right\rvert}}
@@ -124,6 +117,8 @@
 
 %=========================================
 
+\usepackage[parfill]{parskip} 
+\usepackage{titlesec}
 %\titleformat{\section}[display]{\normalfont\Large\bfseries}{Problem \thesection:}{1em}{}
 \titleformat{\section}{\normalfont\Large\bfseries\sffamily}{\metaSectionPrefix \thesection\ }{0.5em}{}
 \titleformat{\subsection}{\normalfont\large\bfseries\sffamily}{\thesubsection}{0.5em}{}
@@ -149,19 +144,17 @@
 \end{itemize}
 \end{sketch}
 
-%\input{src/introduction.tex}
+\input{src/introduction.tex}
 
 \section{Background}
-%	\input{src/chalice-lang.tex}\
-\newpage
-
+	\input{src/chalice-lang.tex}
 	\input{src/sil-lang.tex}
 
-%\input{src/translation.tex}
+\input{src/translation.tex}
 
-%\input{src/evaluation.tex}
+\input{src/evaluation.tex}
 
-%\input{src/conclusion.tex}
+\input{src/conclusion.tex}
 
 \bibliographystyle{alpha}
 \bibliography{lib/chalice-related}

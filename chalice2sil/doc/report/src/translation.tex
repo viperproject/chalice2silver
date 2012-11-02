@@ -200,6 +200,18 @@ The SIL verifier will have to
 
 \begin{figure}
 \begin{align*}
+	H(p * q,h) 	&= H(p,h) \land H(q,h) \\
+	H(p + q,h) 	&= H(p,h) \land H(q,h) \\
+	H(p - q,h) 	&= H(p,h) \land H(q,¬h) \\
+	H(p * n,h) 	&= H(p,h) \\
+	H(k_m,h)		&= ¬h \\
+	H(\_,h) &= \text{false}
+\end{align*}
+\caption{Helper function that determines whether a permission amount expression can be used to constrain $k_c$.}
+\end{figure}
+
+\begin{figure}
+\begin{align*}
 	E\ch{\acc{e.f,p}} &= \sil{\text{\lstinline[language=SIL]!perm!}\left(E\ch{e},f\right) < E\ch{p}} \\
 	E\ch{e} &\text{ translates expression $e$ to SIL terms and expressions} \\
 	\begin{split}
@@ -221,65 +233,10 @@ The SIL verifier will have to
 	\end{split} \\
 	T\ch{\acc{x.f,p}} &= \text{otherwise}\quad \sil{ \text{\lstinline!skip!} }
 \end{align*}
-\caption{Translation schemes. $R$ generates code that constrains a fresh $k_c$ according to the method precondition/loop invariant $P$. $T$ recursively translates $P$ to constraint $k_c$.}
-\end{figure}
-
-\begin{figure}
-\begin{align*}
-	H(p * q,h) 	&= H(p,h) \land H(q,h) \\
-	H(p + q,h) 	&= H(p,h) \land H(q,h) \\
-	H(p - q,h) 	&= H(p,h) \land H(q,¬h) \\
-	H(p * n,h) 	&= H(p,h) \\
-	H(k_m,h)		&= ¬h \\
-	H(\_,h) &= \text{false}
-\end{align*}
-\caption{Helper function that determines whether a permission amount expression can be used to constrain $k_c$.}
-\end{figure}
-
-\begin{figure}
-\begin{align*}
-	D\ch{P ⇒ Q} &= \sil{D\ch{P} \land \left(E\ch{P} ⇒ D\ch{Q}\right)} \\
-	\begin{split}
-		D\ch{\text{\lstinline[language=Chalice]!if!}\left(e\right)\ P\ \text{\lstinline[language=Chalice]!else! } Q} &= 
-		\openSIL{D\ch{e} \land \left(E\ch{e} ⇒ D\ch{P}\right)} \\
-		&\closeSIL{\qquad\land\left(¬E\ch{e} ⇒ D\ch{Q}\right)}
-	\end{split} \\
-	\begin{split}
-	D\ch{e.f} &= \openSIL{D\ch{e} \land ¬\left(E\ch{e} = \text{\lstinline!null!}\right)} \\
-						&\closeSIL{\qquad \land\; 0 < \text{\lstinline[language=SIL]!perm!}\left(E\ch{e},f\right)}
-	\end{split} \\
-	\begin{split}
-	D\ch{e.g\left(a_1, \dotsc, a_n\right)} &= \openSIL{D\ch{e} \land ¬\left(E\ch{e} = \text{\lstinline[language=Chalice]!null!}\right)} \\
-						&\closeSIL{\qquad \land\; E\ch{G\left[\text{\lstinline[language=Chalice]!this!}/e,x_1/a_1,\dotsc,x_n/a_n\right]}}
-	\end{split}
-\end{align*}
-\caption{Translation scheme for ensuring the definedness of an expression.}
-\end{figure}
-
-\begin{figure}
-\begin{align*}
-\begin{split}
-	F\ch{\text{\lstinline[language=Chalice]!old!}\left(e\right)} &= \openSIL{ \vphantom{\ch{P}} } \\
-		& \inhale{\acc{t.f_e,\text{\lstinline!write!}}} \\
-		& \text{\lstinline[language=Chalice]!if!}\left(D\ch{e}\right) \{ \\
-		& \quad t.f_e := E\ch{e} \\
-		& \}
-\end{split} \\
-F\ch{P} &= \text{descend into $P$ to find all \lstinline[language=Chalice]!old! expressions and terms}
-\end{align*}
-\caption{Assign \lstinline[language=Chalice]!old!$(e)$ value to its own field $f_e$, if $e$ is defined.}
+\caption{Translation schemes. $R$ generates code that constrains a fresh $k_c$ according to the method precondition/loop invariant $P$. $T$ recursively translates $P$ to constraint $k_c$. $D\ch{x}$ determines whether $x$ is well-defined. See figure \ref{fig:trans.definedness}.}
 \end{figure}
 
 \subsection{Asynchronous method calls (Fork-Join)}\label{sct:fj}
-\begin{sketch}
-\begin{itemize}
-\item Explain translation of fork-join.
-\item Explain how read-fraction tracking works identically to the synchronous case
-\item How context of fork is captured for use in join
-\item Problems with old(.) expressions. 
-\end{itemize}
-
-\end{sketch}
 At this time, SIL only provides synchronous call statements. 
 We therefore have to fall back to just exhaling the precondition on fork and inhaling the postcondition on join. 
 The challenging aspect of verifying asynchronous method calls is establishing the link between a join and the corresponding fork.
@@ -307,12 +264,25 @@ There is just one more complication to take care of: \lstinline!old! expressions
 Unfortunately, just expanding implications into if-statements, like we did when constraining $k_c$, is not an option because the left-hand-side of the implication could be a return value, which is of course only available at the \lstinline!join! site.
 Instead, we walk over each \lstinline!old! expression and generate a set of conditions that need to be satisfied for the expression to be defined at the \lstinline!fork! site. 
 
-\begin{sketch}
-formal-ish set of rules for the ``defined-ness-condition'' (good name for that?)
-\[
-	D\sil{x.f} = D\sil{x} ∧ \sil{x \neq \text{\lstinline!null!}} ∧ \sil{\text{\lstinline!perm!}\left(x.f\right)}
-\]
-\end{sketch}
+\begin{figure}
+\begin{align*}
+	D\ch{P ⇒ Q} &= \sil{D\ch{P} \land \left(E\ch{P} ⇒ D\ch{Q}\right)} \\
+	\begin{split}
+		D\ch{\text{\lstinline[language=Chalice]!if!}\left(e\right)\ P\ \text{\lstinline[language=Chalice]!else! } Q} &= 
+		\openSIL{D\ch{e} \land \left(E\ch{e} ⇒ D\ch{P}\right)} \\
+		&\closeSIL{\qquad\land\left(¬E\ch{e} ⇒ D\ch{Q}\right)}
+	\end{split} \\
+	\begin{split}
+	D\ch{e.f} &= \openSIL{D\ch{e} \land ¬\left(E\ch{e} = \text{\lstinline!null!}\right)} \\
+						&\closeSIL{\qquad \land\; 0 < \text{\lstinline[language=SIL]!perm!}\left(E\ch{e},f\right)}
+	\end{split} \\
+	\begin{split}
+	D\ch{e.g\left(a_1, \dotsc, a_n\right)} &= \openSIL{D\ch{e} \land ¬\left(E\ch{e} = \text{\lstinline[language=Chalice]!null!}\right)} \\
+						&\closeSIL{\qquad \land\; E\ch{G\left[\text{\lstinline[language=Chalice]!this!}/e,x_1/a_1,\dotsc,x_n/a_n\right]}}
+	\end{split}
+\end{align*}
+\caption{Translation scheme for ensuring the definedness of an expression.}\label{fig:trans.definedness}
+\end{figure}
 
 \begin{sketch}
 Need to mention that $k_c$ is computed in exactly the same way as for synchronous calls?
@@ -414,6 +384,20 @@ While SIL provides no built-in support for linking fields together accessibility
 	&\left. \land\ \acc{t.o_1, p} \land \acc{t.o_2, p} \cdots \acc{t.o_n} \right\rdbrack_{\text{SIL}}
 \end{align*}
 
+\begin{figure}
+\begin{align*}
+\begin{split}
+	F\ch{\text{\lstinline[language=Chalice]!old!}\left(e\right)} &= \openSIL{ \vphantom{\ch{P}} } \\
+		& \inhale{\acc{t.f_e,\text{\lstinline!write!}}} \\
+		& \text{\lstinline[language=Chalice]!if!}\left(D\ch{e}\right) \{ \\
+		& \quad t.f_e := E\ch{e} \\
+		& \}
+\end{split} \\
+F\ch{P} &= \text{descend into $P$ to find all \lstinline[language=Chalice]!old! expressions and terms}
+\end{align*}
+\caption{Assign \lstinline[language=Chalice]!old!$(e)$ value to its own field $f_e$, if $e$ is defined.}
+\end{figure}
+
 \subsubsection{Limitations of the current fork-join implementation}\label{sct:fjlimits}
 Joining a thread seems deceptively simple when done in the same method the thread was originally forked from. 
 This is because the verifier has seen the assignments to the token ghost fields first hand. 
@@ -483,20 +467,48 @@ As long as the \lstinline[language=Chalice]!eval! expression binds to a \lstinli
 	&\left.\ \land E\ch{t}.a_k = E\ch{a_k} \right\rdbrack_\text{SIL}
 \end{align*}
 
-
-\begin{sketch}
-\begin{itemize}
-\item why \lstinline!eval! expr was not implemented
-\end{itemize}
-\end{sketch}
+This small extension is just expressive enough to associate tokens with parts of the context they were forked from, allowing the joining method to actually take advantage of the postcondition of the forked method.
 
 \subsection{Predicates and Functions}\label{sct:pf}
-\begin{sketch}
-\begin{itemize}
-	\item 1:1 correspondence between Chalice and SIL
-	\item Explain global predicate- and function-Fractions
-\end{itemize}
-\end{sketch}
+Predicates and functions were part of SIL since its inception, in a form that very much resembles the functions and predicates from Chalice. 
+As a result, the translation of functions and predicates from Chalice to SIL is relatively straightforward. 
+
+\subsubsection{Predicates}
+
+In contrast to abstract fractional read permissions in methods (\lstinline[language=Chalice]!rd!), which can assume a different value for each invocation, the fraction used in predicates remains fixed. 
+This is essential to ensure that the predicate holds the same amount of permission regardless of where it was folded. 
+Otherwise the user would have to specify exactly how much permission a predicate contains, which rather defeats the purpose of predicates (information hiding).
+
+Abstract read permissions mentioned in predicates are thus fixed.
+To implement this, we define an uninterpreted constant function \lstinline[language=SIL]!globalPredicateReadFraction()! and declare that this global read fraction is strictly positive and less than full/write permission.
+
+It is possible that, in the future, we'd like to have different fractions for different predicates or even different fractions for each combination of object (this-pointer) and predicate. 
+To support this scenario, we don't insert references to \lstinline[language=SIL]!globalPredicateReadFraction()! directly into the generated SIL program and instead use an intermediate function \lstinline[language=SIL]!predicateReadFraction(int,ref)!, also uninterpreted.
+Analogously to the ``field identifiers'' that we used to index into our copy of the permission mask when we constrain the read permission fraction for method calls, we generate unique ``predicate identifiers'' to distinguish between different predicates on the same object.
+However, at the moment every SIL program that Chalice2SIL generates also contains an axiom that makes predicate read fractions effectively global:
+\[
+	\forall i,r.\ \ \text{\lstinline!predicateReadFraction(i,r)!}\ =\ \text{\lstinline!globalPredicateReadFraction()!}
+\]
+This constraint makes it easier to transfer abstract read permissions between predicates, giving \lstinline[language=Chalice]!acc(x.f,rd)! a fixed meaning across all predicates. 
+Outside of predicates, the user can refer to the same amount of permission by explicitly mentioning the predicate in an argument to the abstract read permission. 
+Given two object references $x$ and $y$, a field $f$, a predicate $p$ and a corresponding predicate identifier $i_p$, Chalice2SIL translates an accessibility predicate that involves an abstract read fractions for predicates as follows:
+\begin{align*}
+	\ch{\acc{x.f,\text{\lstinline[language=Chalice]!rd!}(y.p)}} &= \sil{\acc{E\ch{x.f}, \text{\lstinline!predicateReadFraction!}(i_p,E\ch{y})}}
+\end{align*}
+
+\subsubsection{Functions}
+Ideally, we would want to encode abstract read permissions in functions the same way we encode them when they occur in method pre/postconditions: Constraining a different fraction for each call site.
+Unfortunately, the technique we used for read fractions in method calls would not work for function calls, because our solution is based on ``mutating'' a data structure in an imperative fashion. 
+Function calls can occur in method pre/postconditions and even inside other function bodies.
+All of those contexts are pure, and thereby inherently incompatible with how abstract read permission fractions are fixed for method calls.
+
+But functions being pure also gives us more freedom since we don't have to make the distinction between read permissions and read-write permissions (functions aren't allowed to modify the heap anyway). 
+Similarly, as functions always automatically return the same amount of permission that they received, it doesn't really matter exactly ``how much'' permission a function has, only to which heap locations it has access.
+As a  result, Chalice2SIL translates permissions in function preconditions as \lstinline[language=Chalice]!rd*!, which means ``any read-permission''.
+\[
+	\ch{\acc{x.f, rd*}}\ =\ \sil{\exists a, 0 < a < \text{\lstinline!write!}.\ \ \acc{x.f,a}}
+\]
+
 
 \subsection{Monitors with Deadlock Avoidance}\label{sct:mon}
 \begin{sketch}
