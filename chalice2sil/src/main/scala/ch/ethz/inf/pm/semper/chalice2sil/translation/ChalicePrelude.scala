@@ -11,7 +11,7 @@ import silAST.domains._
 import silAST.types._
 import silAST.symbols.logical.quantification.{LogicalVariable, Forall}
 import util.{FactoryHashCache, NameSequence}
-import silAST.expressions.terms.{IntegerLiteralTerm, DTerm}
+import silAST.expressions.terms.{NoPermissionTerm, FullPermissionTerm, IntegerLiteralTerm, DTerm}
 import scala.Tuple1
 import silAST.symbols.logical.quantification.Forall
 
@@ -224,6 +224,18 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
       factory.addDomainAxiom("globalPredicateReadFraction",
         ∀(integerType,referenceType, (pred,ref) => readFraction(pred,ref) ≡ globalReadFraction())
       ,loc)
+
+      // `0 < globalPredicateReadFraction`
+      factory.addDomainAxiom("predicateFractionIsReadPermission", pApp(permissionLT,
+          NoPermissionTerm()(loc,List()),
+          globalReadFraction()),
+        loc)
+
+      // `1000*globalPredicateReadFraction < write`
+      factory.addDomainAxiom("predicateFractionIsSmall",pApp(permissionLT,
+          fApp(permissionIntegerMultiplication,1000,globalReadFraction()),
+          FullPermissionTerm()(loc,List())),
+        loc)
     }
 
     class PredicateDomainInfo() extends DomainInfo() {

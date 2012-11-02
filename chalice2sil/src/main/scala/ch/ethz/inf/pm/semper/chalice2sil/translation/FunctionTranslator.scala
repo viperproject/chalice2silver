@@ -9,6 +9,7 @@ import silAST.programs.symbols.{FunctionFactory, ProgramVariable, PredicateFacto
 import silAST.types.nullFunction
 import silAST.expressions.terms.Term
 import silAST.expressions.Expression
+import chalice.Epsilons
 
 /**
   * @author Christian Klauser
@@ -105,6 +106,7 @@ class FunctionTranslator(environment : ProgramEnvironment, val function : chalic
         case chalice.Epsilon
            | chalice.MethodEpsilon
            | chalice.ForkEpsilon(_)
+           | chalice.Epsilons(_)
            | chalice.PredicateEpsilon(_) => {
           // Convert to rd*(...)
           super.translateAccessExpression(chalice.Star)(body)
