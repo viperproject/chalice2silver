@@ -11,7 +11,10 @@ import silAST.expressions.PermissionExpression
 import silAST.programs.symbols.ProgramVariable
 import silAST.methods.implementations.FieldAssignmentStatement
 import silAST.expressions.terms.{FullPermissionTerm, ProgramVariableTerm, FieldReadTerm, LiteralTerm}
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
 
+@RunWith(classOf[JUnitRunner])
 class Basic extends ChaliceSuite with ShouldMatchers {
 
   // COMMON
