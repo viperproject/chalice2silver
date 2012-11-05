@@ -143,7 +143,7 @@ abstract class ChaliceSuite extends FunSuite { //
             val (silProgram, silMessages) = translator.translate(p)
             val afterSIL = System.currentTimeMillis()
 
-            Console.out.println(silProgram.toString())
+            //Console.out.println(silProgram.toString())
 
             silMessages.view.filter(_.severity.indicatesFailure).foreach(m => fail("Detected message that indicates failure: %s".format(m)))
 
@@ -157,7 +157,7 @@ abstract class ChaliceSuite extends FunSuite { //
             var beforeSilicon : Long = 0
             var afterSilicon : Long = 0
             val siliconResults = {
-              val config = new Config(z3exe = DefaultConfig.z3path.toAbsolutePath.toString,logLevel="ERROR")
+              val config = new Config(z3exe = DefaultConfig.z3path.toAbsolutePath.toString, logLevel="ERROR")
 
               beforeSilicon = System.currentTimeMillis()
               val silicon = new Silicon(config)
