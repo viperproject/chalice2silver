@@ -42,6 +42,8 @@ libraryDependencies += "pm.inf.ethz.ch" %% "silicon" %  "0.1-SNAPSHOT"
 
 libraryDependencies += "default" %% "chalice" %  "1.0"
 
+libraryDependencies += "junit" % "junit" % "4.8.1" % "test"
+
 // [Malte 2012-02-06]
 //   Added the following two logging dependencies. Silicon depends on them,
 //   and hence fails to run when invoked from Chalice2SIL.
