@@ -480,8 +480,11 @@ trait ScopeTranslator
               val nextVirtualPermission = permissionSubtraction.p(currentVirtualPermission,perm)
               permMapVar <-- (prelude.Map.PermissionMap.update.p(permMapTerm,heapLocation,nextVirtualPermission))
             }
-          case ReadLocation(_,p:PredicateTranslator,_) =>
-            report(messages.ContractNotUnderstood(p.predicateFactory.predicate))
+          case ReadLocation(_,p:PredicateTranslator,FullPermissionTerm()) => {
+            //access with full permission can be ignored. Would fail later if illegal.
+          }
+          case ReadLocation(loc,p:PredicateTranslator,am) =>
+            report(messages.PredicateScalingNotSupported(loc,p.predicateFactory.predicate,am))
           case _ =>
         }
   
@@ -773,10 +776,11 @@ trait ScopeTranslator
       currentBlock.appendFieldAssignment(targetVar,fields(init.f),rhsTerm,init)
     }
 
-    // `obj.mu := lockbottom`
-    currentBlock.appendFieldAssignment(targetVar,prelude.Object.mu,
-      currentBlock.makePDomainFunctionApplicationTerm(prelude.Mu().lockBottom,PTermSequence(),newObj)
-      ,newObj,List("Fresh objects start out unshared (and unlocked)."))
+    // `inhale obj.mu == lockbottom`
+    currentBlock.appendInhale(currentExpressionFactory.makeEqualityExpression(
+      currentExpressionFactory.makeFieldReadTerm(refTerm,prelude.Object.mu,newObj),
+      currentExpressionFactory.makePDomainFunctionApplicationTerm(prelude.Mu().lockBottom,PTermSequence(),newObj),newObj),
+      newObj,List("New objects are unshared initially."))
 
     val target = currentBlock.makeProgramVariableTerm(targetVar,newObj)
     val currentThread = currentBlock.makeProgramVariableTerm(environmentCurrentThreadVariable,newObj)

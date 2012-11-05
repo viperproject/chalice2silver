@@ -1,5 +1,192 @@
-% !TEX TS-program = xelatex
+% !TEX TS-program = xelatex+makeindex+bibtex
 % !TEX encoding = UTF-8
 % !TEX root = ../chalice2sil_report_klauserc.tex
 
 \subsection{Semper Intermediate Language (SIL)}
+The Semper Intermediate Language is a verification language aimed at the verification of concurrent programs using a methodology based on Chalice.
+As its name suggests, SIL is the intermediate language to be used by the various tools that are part of the semper project.  
+
+Much of SIL's design is oriented around Chalice's core elements: methods, permissions and accessibility predicates. 
+This also means that SIL programs are encoded on a much higher level of abstraction than the same programs in less focused verification languages, such as Boogie.
+As an example: the Boogie-based verifier for Chalice needs to represent permissions as a pair of integers (the number of epsilons and the percentage) whereas in SIL there is a dedicated and built-in data type and associated value constructor functions for permissions.
+
+In this section, we will give an overview of the syntactical structure of SIL programs, diving into more detail where the design of SIL deviates significantly from Chalice.
+At this time SIL is mostly intended as an ``exchange format'' and thus has no fixed semantics associated with it.
+Also, SIL doesn't currently have a serialised/text form and SIL programs only exist as syntax trees in memory.
+As a result we use our own ad-hoc textual representation for SIL program snippets in this report.
+
+%\begin{grammar}
+%<NonTerminal> ::= 'keyword-or-punctuation' <terminal> (<Grouped> | <Alternatives>) 
+%	\alt <MoreAlternatives> [ <Optional> ] \{ <ZeroOrMore> \}
+%\end{grammar}
+
+
+\newcommand{\synrep}[2]{\{ #1 #2 $\cdots$ \}}
+
+%\begin{grammar}
+%<Repetition> ::= [ <Entity> \{ <Separator> <Entity> \} ]
+%
+%<Repetition> ::= \synrep{\synt{Entity}}{\synt{Separator}} 
+%\end{grammar}
+
+\subsubsection{SIL Program Structure}
+Each SIL program has a name (\synt{program-id}) and comes with a number of \emph{domain}, \emph{field}, \emph{function}, \emph{predicate} and \emph{method definitions}.
+While SIL is certainly aimed at the verification of object oriented programs, it isn't actually necessary to distinguish between the types of references to objects created from different classes.
+As a direct result, fields, functions, predicates and methods are not ``contained'' in any form of class definition.
+
+\begin{grammar}
+<Program> ::= 'program' <program-id> \\ 
+ \{<Domain>\} \\
+\{<Field>\} \\
+ \{<Function>\} \\
+ \{<Predicate>\} \\
+ \{<Method>\} 
+\end{grammar}
+
+Field and predicate definitions, apart from the fact that they are no tied to a nominal class, are fairly straightforward. Fields consist of a name and a data type and predicates consist of a name and an expression. 
+As with Chalice, this predicate expression can contain both accessibility predicates and ordinary boolean predicates.
+Field and predicate names must each be unique within a SIL program.
+
+\begin{grammar}
+<Field> :: 'field' <field-id> ':' <DataType>
+
+<Predicate> ::= 'predicate' <pred-id> '=' <Expr>
+\end{grammar}
+
+Functions, again, are similar to their Chalice counterparts.
+They consist of a name, a parameter list, a result type, some preconditions and an implementation.
+Note how an \synt{Expr} is expected for the preconditions and a \synt{Term} for the function's body.
+That is SIL distinguishing syntactically between assertions/formulae (\synt{Expr}) and expressions that represent a value (\synt{Term}).
+\begin{grammar}
+<Function> ::= 'function' <id> ( \synrep{\synt{Param}}{,} ) : <DataType> \\
+	<Contract> '=' <Term>
+
+<Param> ::= <id> : <DataType>
+
+<Contract> ::= \{ 'requires' <Expr> \} \{ 'ensures' <Expr> \}
+\end{grammar}
+
+Methods in SIL have a name (unique among all methods in the program), input and output parameters and a set of pre- and postconditions. 
+Every SIL method always has a parameter called \lstinline[language=SIL]!this! of type \lstinline[language=SIL]!ref! in the first position, which represents the \lstinline[language=Chalice]!this! pointer in object oriented languages. 
+Having the \lstinline[language=SIL]!this! pointer as an ordinary parameter makes tools that consume SIL programs a bit simpler.
+Each method can have multiple implementations that must all share the exact same parameters, pre- and postconditions.
+For source languages with virtual methods, the to-SIL-translator would create a method for each ``method slot'' (vtable slot) and add an implementation for each concrete implementation encountered in the program.
+\begin{grammar}
+<Method> ::= 'method' <method-id> ( \synrep{\synt{Param}}{,} ) : ( \synrep{\synt{Result}}{,} )\\
+ <Contract> \{ <Impl> \}
+
+<Result> ::= <Param>
+
+<Impl> ::= 'implementation' <method-id> <Cfg>
+\end{grammar}
+
+Method bodies in SIL are represented as a control-flow graph. 
+This is mostly because SIL is intended as a format for exchanging programs between the tools that make up Semper as opposed to an actual computer languages used by humans.
+Whether an eventual textual representation would retain this form, is not clear at this point.
+
+Unusual about SIL's control-flow graph is that loops are loops are not flattened into basic blocks but retained as a sort of composite block.
+A loop block consists of the loop condition, an invariant and a nested control-flow graph for the loop's body.
+\begin{grammar}
+<Cfg> ::= '\{' \{ <VarDecl> \} \{ <Block> \} '\}'
+
+<VarDecl> ::= 'var' <var-id> : <DataType>
+
+<Block> ::= <BasicBlock>
+	\alt <LoopBlock>
+
+<LoopBlock> ::= 'while' <PExpr> [ 'invariant' Expr ] 'do' <Cfg>
+
+<BasicBlock> ::= <label>: '\{' \{ <Stmt> \} <ControlFlow> '\}'
+
+<ControlFlow> ::= 'goto' <label>
+	\alt 'halt'
+	\alt 'if' <PExpr> 'then goto' <label> 'else goto' <label>
+\end{grammar}
+
+At the end of every block there is a single control-flow statement that indicates how control is transferred to other blocks.
+
+\subsubsection{SIL Statements}
+
+\begin{grammar}
+<Stmt> ::= <var-id> ':=' <PTerm>
+	\alt <var-id>.<field-id> ':=' <PTerm>
+	\alt <var-id> ':= new' <DataType>
+	\alt	$\vdots$
+\end{grammar}
+\begin{grammar}
+<Stmt> ::= $\vdots$
+	\alt (\synrep{\synt{var-id}}{,}) ':=' <PTerm>.<method-id>(\synrep{\synt{PTerm}}{,})
+	\alt $\vdots$
+\end{grammar}
+\begin{grammar}
+<Stmt> ::= $\vdots$
+	\alt 'inhale' <Expr>
+	\alt 'exhale' <Expr>
+	\alt $\vdots$
+\end{grammar}
+\begin{grammar}
+<Stmt> ::= $\vdots$
+	\alt 'fold' <Term>.<pred-id> 'by' <Term>
+	\alt 'unfold' <Term>.<pred-id>
+\end{grammar}
+
+\subsubsection{SIL Expressions and Terms}
+\begin{grammar}
+<Expr> ::= 'acc' (<Location>, <Term>)
+	\alt 'old' ( <Expr> )
+	\alt 'unfolding' <Term>.<pred-id> 'by' <Term> 'in' <Expr>
+	\alt <Term> == <Term>
+	\alt <unary-op> <Expr>
+	\alt <binary-op> <Expr>
+	\alt <dom-pred-id>(\synrep{\synt{Term}}{,})
+	\alt ∀ <logical-var-id> : <DataType> :: (<Expr>)
+	\alt ∃ <logical-var-id> : <DataType> :: (<Expr>)
+
+<Location> ::= <Term>.<field-id>
+	\alt <Term>.<pred-id>
+\end{grammar}
+
+\begin{grammar}
+<Term> ::= 'if' <Term> 'then' <Term> 'else' <Term>
+	\alt <var-id>
+	\alt <logical-var-id>
+	\alt 'old'( <Term> )
+	\alt <func-id>( \synrep{\synt{Term}}{,} )
+	\alt <dom-func-id>( \synrep{\synt{Term}}{,} )
+	\alt 'unfolding' <Term>.<pred-id> 'by' <Term> 'in' <Term>
+	\alt (<Term>) : <DataType>
+	\alt <Term>.<field-id>
+	\alt 'perm'( <Location> )
+	\alt 'write'
+	\alt '0'
+	\alt  'E'
+	\alt <integer-literal>
+\end{grammar}
+
+We simplified the presentation of the term and expression grammar for this section and attached the full rules in appendix \ref{apdx:grammar}.
+
+\subsubsection{SIL Domains and Types}
+A data type in SIL is either \lit{ref}, the type of all object references, a domain type or a type variable (only for data types in domain templates).
+Object references in SIL are treated as potentially having all fields in the SIL program. In practice, only the fields that a method/function has access to, are relevant.
+For statically types programming languages, it's the responsibility of the to-SIL-translator to make sure that input programs are type error free.
+\begin{grammar}
+<DataType> 
+	::=  <var-type>
+	\alt <dom-type>
+	\alt 'ref'
+\end{grammar}
+
+In addition to the built-in value domains for integers, booleans and permissions, SIL allows its users to define their own value domains, with (uninterpreted) constructor functions, predicates over values of that domain and their axioms. Domain definitions can come with type parameters, making them templates for concrete domains (similar to C\# generics).
+\begin{grammar}
+<Domain> ::= 'domain' <dom-id> [ <DomainParameters> ] '\{' <DomainDef> '\}'
+
+<DomainDef> ::= \{ <DomainFunction >\} \{ <DomainPredicate> \} \{ <DomainAxiom> \}
+
+<DomainFunction> ::= 'function' <dom-func-id> ( \synrep{\synt{DataType}}{,} ) : <DataType>
+
+<DomainPredicate> ::= 'predicate' <dom-pred-id> ( \synrep{\synt{DataType}}{,} )
+
+<DomainAxiom> ::= 'axiom' <id> '=' <DExpr>
+
+<DomainParameters> ::= '[' \synrep{\synt{DataType}}{,} ']'
+\end{grammar}

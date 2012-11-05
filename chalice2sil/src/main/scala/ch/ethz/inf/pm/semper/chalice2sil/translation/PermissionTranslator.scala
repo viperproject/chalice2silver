@@ -38,8 +38,18 @@ trait PermissionTranslator extends TermTranslator {
       val calleeFactory = methods(token.typ.asInstanceOf[chalice.TokenClass].method)
       currentExpressionFactory.makeFieldReadTerm(translateTerm(token), calleeFactory.callToken.readFraction,k)
     case k@chalice.MethodEpsilon => readFraction(k)    //only one of these three is relevant at any given time
-    case k@chalice.PredicateEpsilon(_) => readFraction(k)
-    case k@chalice.MonitorEpsilon(_) => readFraction(k)
+    case k@chalice.PredicateEpsilon(Some(e@chalice.MemberAccess(ref,_))) =>
+      currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Predicate().readFraction,TermSequence(
+          currentExpressionFactory.makeIntegerLiteralTerm(predicates(e.predicate).id,k),
+          translateTerm(ref)
+      ),k)
+    case k@chalice.PredicateEpsilon(None) =>
+      currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Predicate().globalReadFraction,TermSequence(),k)
+    case k@chalice.MonitorEpsilon(Some(ref)) =>
+      currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Monitor().readFraction,
+        TermSequence(translateTerm(ref)),k)
+    case k@chalice.MonitorEpsilon(None) =>
+      currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Monitor().globalReadFraction,TermSequence(),k)
     case e@chalice.Epsilons(intExpr) =>
          currentExpressionFactory.makeDomainFunctionApplicationTerm(
            permissionIntegerMultiplication,TermSequence(translateTerm(intExpr), currentExpressionFactory.makeEpsilonPermission(e)),e)

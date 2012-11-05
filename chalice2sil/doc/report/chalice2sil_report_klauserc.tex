@@ -1,4 +1,4 @@
-% !TEX TS-program = xelatex
+% !TEX TS-program = xelatex+makeindex+bibtex
 % !TEX encoding = UTF-8
 
 \documentclass[11pt,a4paper]{article} % use larger type; default would be 10pt
@@ -14,6 +14,7 @@
 %\usepackage{multicol}
 \usepackage[usenames,dvipsnames]{xcolor}
 \usepackage{mdframed}
+\usepackage{syntax}
 
 
 \setmainfont{Cambria} % set the main body font (\textrm), assumes Cambria is installed
@@ -155,7 +156,9 @@
 
 \input{src/conclusion.tex}
 
+\input{src/appendix.tex}
+
 \bibliographystyle{alpha}
-\bibliography{lib/chalice_related}
+\bibliography{lib/chalice-related}
 
 \end{document}

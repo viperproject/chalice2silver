@@ -62,6 +62,14 @@ object FreeVariableInOld extends MessageId(
   }
 }
 
+object PredicateScalingNotSupported extends MessageId(Fault,"ch.ethz.inf.pm.semper.chalice2sil.predicateScalingNotSupported",
+  "Chalice2SIL does not fully support predicate scaling. acc(%s.%s, %s)") {
+  def apply(location : silAST.expressions.terms.Term, pred : silAST.programs.symbols.Predicate, amount : silAST.expressions.terms.Term) =
+    new Message(this, location.sourceLocation) {
+    def data = Array(location, pred.name, amount,pred)
+  }
+}
+
 object ContractNotUnderstood extends MessageId(
   Fault,
 "ch.ethz.inf.pm.semper.chalice2sil.contractNotUnderstood",
