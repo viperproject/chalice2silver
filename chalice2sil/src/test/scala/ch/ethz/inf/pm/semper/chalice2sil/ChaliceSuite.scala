@@ -153,7 +153,7 @@ abstract class ChaliceSuite extends FunSuite { //
             Predef.assert(environment == null, "environment is still assigned.")
             Predef.assert(results == null, "results is still assigned.")
 
-            Console.out.println("Passing SIL program to Silicon")
+            //Console.out.println("Passing SIL program to Silicon")
             var beforeSilicon : Long = 0
             var afterSilicon : Long = 0
             val siliconResults = {
@@ -202,9 +202,9 @@ abstract class ChaliceSuite extends FunSuite { //
               results = null
 
               // print timings
-              Console.err.println("Chalice: %d  ms".format(afterChalice-beforeChalice))
-              Console.err.println("Chalice2SIL: %d  ms".format(afterSIL - afterChalice))
-              Console.err.println("Silicon: %d  ms".format(afterSilicon- beforeSilicon))
+              //Console.err.println("Chalice: %d  ms".format(afterChalice-beforeChalice))
+              //Console.err.println("Chalice2SIL: %d  ms".format(afterSIL - afterChalice))
+              //Console.err.println("Silicon: %d  ms".format(afterSilicon- beforeSilicon))
             }
         }
       }

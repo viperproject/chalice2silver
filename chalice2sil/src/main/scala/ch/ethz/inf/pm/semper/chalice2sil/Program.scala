@@ -23,12 +23,6 @@ object Program {
     chOptsBuilder ++= opts.chaliceFiles
     val chOpts = chOptsBuilder.result()
 
-    println("Forwarding to Chalice (" + chOpts.length + ")")
-    chOpts.foreach((s) => {
-      print(" "); print(s)
-    })
-    println();
-
     val chaliceParams = Chalice.parseCommandLine(chOpts) match {
       case Some(p) => p
       case None =>
