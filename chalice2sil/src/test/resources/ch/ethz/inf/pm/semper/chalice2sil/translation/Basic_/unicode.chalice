@@ -1,9 +1,0 @@
-  class α {
-    var β: int
-
-    method test()
-      requires rd(β)
-    {
-      β := β + 1 /* @Error 630 */
-    }
-  }
