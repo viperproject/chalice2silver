@@ -1,9 +1,9 @@
-% !TEX TS-program = xelatex
+% !TEX TS-program = xelatex+makeindex+bibtex
 % !TEX encoding = UTF-8
 % !TEX root = ../chalice2sil_report_klauserc.tex
 
-\subsection{Chalice}
-Chalice is a research programming language with the goal of helping programmers detect bugs in their concurrent programs. 
+\subsection{Chalice}\label{sct:chalice}
+Chalice \cite{LMS09,LM09} is a research programming language with the goal of helping programmers detect bugs in their concurrent programs. 
 As with most languages aimed at automatic static verification (e.g, Spec\#), the programmer provides annotations that specify how they intend the program to behave.
 These annotations appear in the form of monitor invariants, loop invariants and method pre- and postconditions.
 A verification tool can take such a Chalice program and check statically that it never violates any of the conditions established by the programmer.
@@ -130,6 +130,7 @@ That way, a caller that started out with write access to \lstinline!x.f! gets ba
 
 Chalice restricts read fractions in method specifications even further: all fractional read permissions in a method contract, even to different heap locations, refer to the same amount of permission (but that amount can still differ between method invocations).
 This restriction accounts for the limited information about aliasing available statically and also makes the implementation of fractional read permissions more straightforward.
+
 
 \begin{lstlisting}[language=Chalice,float,caption={Corrected example using abstract read permissions},label={lst:chaliceabstractread},numbers=left]
 class Cell { var f : int }

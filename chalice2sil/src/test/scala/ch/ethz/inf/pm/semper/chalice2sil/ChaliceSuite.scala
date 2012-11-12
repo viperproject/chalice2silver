@@ -110,7 +110,12 @@ abstract class ChaliceSuite extends FunSuite { //
         for(line <- Source.fromFile(path.toUri,scala.io.Codec.UTF8.name).getLines()){
           val mat = expectedErrorFormat.pattern.matcher(line)
           while(mat.find()){
-            val code = Integer.parseInt(mat.group(1))
+            val rawCode = mat.group(1)
+            val code = if(rawCode == "*") {
+                0
+              } else {
+                Integer.parseInt(mat.group(1))
+              }
             expectedResults += ExpectedSiliconMessage(lineNum, code)
           }
           if(ignoreFormat.findFirstIn(line).isDefined){
@@ -157,7 +162,9 @@ abstract class ChaliceSuite extends FunSuite { //
             var beforeSilicon : Long = 0
             var afterSilicon : Long = 0
             val siliconResults = {
-              val config = new Config(z3exe = DefaultConfig.z3path.toAbsolutePath.toString,logLevel="ERROR")
+              //val config = new Config(z3exe = DefaultConfig.z3path.toAbsolutePath.toString,logLevel="ERROR")
+              val config = new Config(z3exe = DefaultConfig.z3path.toAbsolutePath.toString)
+
 
               beforeSilicon = System.currentTimeMillis()
               val silicon = new Silicon(config)
@@ -179,7 +186,7 @@ abstract class ChaliceSuite extends FunSuite { //
               val unexpected = results.map({
                 case wm:ch.ethz.inf.pm.silicon.interfaces.ResultWithMessage =>
                   expectedResults
-                    .find(e => e.code == wm.message.code && lineFromLoc(wm.message.loc) == e.line) match {
+                    .find(e => (e.code == 0 || e.code == wm.message.code) && lineFromLoc(wm.message.loc) == e.line) match {
                     case Some(m) =>
                       expectedResults -= m
                       None
@@ -216,7 +223,7 @@ abstract class ChaliceSuite extends FunSuite { //
       case Some(locationFormat(line,col)) => Integer.parseInt(line)
     }
 
-    private val expectedErrorFormat = "@Error (\\d+)".r
+    private val expectedErrorFormat = "@Error (\\d+|\\*)".r
     private val ignoreFormat = "@Ignore".r
   }
 

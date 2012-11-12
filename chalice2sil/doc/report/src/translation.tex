@@ -1,4 +1,4 @@
-% !TEX TS-program = xelatex
+% !TEX TS-program = xelatex+makeindex+bibtex
 % !TEX encoding = UTF-8
 % !TEX root = ../chalice2sil_report_klauserc.tex
 
@@ -122,11 +122,11 @@ Since exhale has the “side-effect” of giving away the mentioned permissions,
 Additionally, access predicates can be guarded by implications. 
 In that case, the Boogie-based Chalice implementation translates 
 \begin{lstlisting}[language=Chalice]
-exhale P ==> acc(x.f, rd) 
+exhale b ==> acc(x.f, rd) 
 \end{lstlisting}
 as
 \begin{lstlisting}[language=Chalice]
-if(P) 
+if(b) 
 { 
 	exhale acc(x.f, rd);
 }
@@ -136,9 +136,10 @@ At this point we could have decided not to use SIL's built-in call statement and
 While that would have been equivalent from a verification perspective, we would still be throwing away information: the original program's call graph.
 
 In order to still use SIL's call statement, we need to keep track of the “remaining” permissions while constraining $k_c$ without actually giving away these permissions, otherwise the verification of the call statement would fail. 
-We cannot simply create a copy of the permission mask as a whole and have exhale operate on that instead. 
-SIL at least allows us to look up individual entries of the permission mask via the \lstinline!perm(x.f)! term. 
-We use that ability to manually create and maintain a permission map of our own. 
+We cannot simply create a copy of the permission mask as a whole and have exhale operate on that instead because SIL considers the permission mask an implementation detail and thus doesn't expose it.
+SIL at least allows us to look up individual entries of the permission mask via the \lstinline[language=SIL]!perm(x.f)! term. 
+\lstinline[language=SIL]!perm(x.f)! represents the amount of permission the current thread holds for the location $x.f$.
+We use that feature to manually create and maintain a permission mask of our own. 
 
 Like the permission mask in the Boogie-encoding of Chalice, this data structure must map heap locations, represented as pairs of an object reference and a field identifier, to permission amounts. 
 At this time, SIL has no reified field identifiers. 
@@ -184,8 +185,8 @@ The SIL verifier will have to
 \begin{figure}
 \begin{align*}
 	k_m &: \text{read fraction selected for the surrounding scope} \\
-	e &: \text{terms} \\
-	P,Q &: \text{expressions} \\
+	e &: \text{program expressions} \\
+	P,Q &: \text{assertions} \\
 	p,q 	&: \text{permission amount} \\
 	f 	&: \text{field} \\
 	n 	&: \text{integer} \\
@@ -204,8 +205,8 @@ The SIL verifier will have to
 	H(p + q,h) 	&= H(p,h) \land H(q,h) \\
 	H(p - q,h) 	&= H(p,h) \land H(q,¬h) \\
 	H(p * n,h) 	&= H(p,h) \\
-	H(k_m,h)		&= ¬h \\
-	H(\_,h) &= \text{false}
+	H(k_m,h)		&= ¬h \qquad k_m\ \text{is abstract fraction}\\
+	H(p,h) &= \text{false} \qquad \text{otherwise}
 \end{align*}
 \caption{Helper function that determines whether a permission amount expression can be used to constrain $k_c$.}
 \end{figure}
@@ -244,7 +245,7 @@ Old expressions, in particular, are difficult to capture in SIL without a dedica
 
 \subsubsection{Translation of \lstinline!fork!}\label{sct:fjfork}
 
-The translation of the Chalice \lstinline!fork! statement seems, at least at first, relatively straightforward: exhale the method's precondition and create a token object with a boolean field called ``\lstinline!joinable!'' set to \lstinline!true!.
+The translation of the Chalice \lstinline!fork! statement seems, at least at first, relatively straightforward: constrain a fresh $k_c$ to be used as the fractional read permission amount, exactly as we did for the synchronous method call, then exhale the method's precondition and finally create a token object with a boolean field called ``\lstinline!joinable!'' set to \lstinline!true!.
 But how would we then translate the corresponding \lstinline!join! statement(s)? The method's postcondition is formulated in terms of the method's return values and parameters.
 In general we no longer have access to the latter.
 The \lstinline!join! might happen in a different method, but even if it occurs in the same method as the \lstinline!fork!, the heap and the values of local variables could have changed in the meantime.
@@ -259,10 +260,36 @@ Since this includes at most all arguments and old expression, we can generate a 
 
 Chalice2SIL generates one ghost field for each method argument and one ghost field for each \lstinline!old! expression in the method's postcondition. 
 Just before the \lstinline!exhale! statement of a \lstinline!join!, it assigns the effective arguments to the argument ghost fields of the token. It then evaluates the old expressions of the method's postcondition and assigns the results to the corresponding ghost fields. 
+The translation scheme $F$ presented in figure \ref{fig:old-for-fork} shows how this is done.
+
+\begin{figure}
+\begin{align*}
+\begin{split}
+	F\ch{\text{\lstinline[language=Chalice]!old!}\left(e\right)} &= \openSIL{ \vphantom{\ch{P}} } \\
+		& \inhale{\acc{t.f_e,\text{\lstinline!write!}}} \\
+		& \text{\lstinline[language=Chalice]!if!}\left(D\ch{e}\right) \{ \\
+		& \quad \text{\lstinline[language=SIL]!var!}\ b_e : \text{\lstinline[language=SIL]!bool!}\semicolon \\
+		& \quad \inhale{\text{\lstinline!eval!}(b_e) == E\ch{e}}\semicolon \\
+		& \quad t.f_e := b_e \\
+		& \} \closeSIL{\vphantom{\left(\ch{P}\right)}} \qquad \text{if $e$ is an assertion}\\
+	F\ch{\text{\lstinline[language=Chalice]!old!}\left(e\right)} &= \openSIL{ \vphantom{\ch{P}} } \\
+		& \inhale{\acc{t.f_e,\text{\lstinline!write!}}} \\
+		& \text{\lstinline[language=Chalice]!if!}\left(D\ch{e}\right) \{ \\
+		& \quad t.f_e := E\ch{e} \\
+		& \} \closeSIL{\vphantom{\left(\ch{P}\right)}} \qquad \text{otherwise}
+\end{split} \\
+F\ch{P\ \text{\lstinline[language=Chalice]!&&!}\ Q}  &= \sil{F\ch{P}\semicolon{}F\ch{Q}} \\
+F\ch{P} &= \text{analogous}
+\end{align*}
+\caption{$F$ recursively descends into an expression looking for old expressions \lstinline[language=Chalice]!old!$(e)$. Adds a corresponding field $f_e$ to the token $t$ and, if the expression is well-defined at that point, evaluates $e$ and assigns the result to $f_e$.}
+\label{fig:old-for-fork}
+\end{figure}
 
 There is just one more complication to take care of: \lstinline!old! expressions can appear on the right-hand-side of implications, where they might only be defined part of the time (missing permissions and null references). 
 Unfortunately, just expanding implications into if-statements, like we did when constraining $k_c$, is not an option because the left-hand-side of the implication could be a return value, which is of course only available at the \lstinline!join! site.
 Instead, we walk over each \lstinline!old! expression and generate a set of conditions that need to be satisfied for the expression to be defined at the \lstinline!fork! site. 
+These are similar to the defined-ness conditions in \cite[p12]{Smans:2012:IDF:2160910.2160911}, which also appear in the Boogie-based Chalice verifier. 
+Figure \ref{fig:trans.definedness} shows the most important rules for generating definedness conditions $D\ch{e}$ for an expression $e$.
 
 \begin{figure}
 \begin{align*}
@@ -283,10 +310,6 @@ Instead, we walk over each \lstinline!old! expression and generate a set of cond
 \end{align*}
 \caption{Translation scheme for ensuring the definedness of an expression.}\label{fig:trans.definedness}
 \end{figure}
-
-\begin{sketch}
-Need to mention that $k_c$ is computed in exactly the same way as for synchronous calls?
-\end{sketch}
 
 \begin{lstlisting}[float,caption={Example of Chalice program featuring fork and join of method with a possibly undefined \lstinline!old! expression.},label=lst:fjexample,language=chalice,numbers=left]
 class Cell { var f : int; }
@@ -364,20 +387,6 @@ inhale acc(tk.r,write) && tk.r == (tk.d != null)
 r := tk.r;
 tk.joinable := false;
 \end{lstlisting}
-
-\begin{figure}
-\begin{align*}
-\begin{split}
-	F\ch{\text{\lstinline[language=Chalice]!old!}\left(e\right)} &= \openSIL{ \vphantom{\ch{P}} } \\
-		& \inhale{\acc{t.f_e,\text{\lstinline!write!}}} \\
-		& \text{\lstinline[language=Chalice]!if!}\left(D\ch{e}\right) \{ \\
-		& \quad t.f_e := E\ch{e} \\
-		& \}
-\end{split} \\
-F\ch{P} &= \text{descend into $P$ to find all \lstinline[language=Chalice]!old! expressions and terms}
-\end{align*}
-\caption{Assign \lstinline[language=Chalice]!old!$(e)$ value to its own field $f_e$, if $e$ is defined.}
-\end{figure}
 
 The accessibility of all the other ghost fields on the token requires a bit more work. 
 Naturally, tokens can also be passed to other threads and joined there. 
@@ -475,15 +484,15 @@ As a result, the translation of functions and predicates from Chalice to SIL is 
 
 \subsubsection{Predicates}
 
-In contrast to abstract fractional read permissions in methods (\lstinline[language=Chalice]!rd!), which can assume a different value for each invocation, the fraction used in predicates remains fixed. 
+In contrast to abstract fractional read permissions (\lstinline[language=Chalice]!rd!) in methods, which can assume a different value for each invocation, the fraction used in predicates remains fixed. 
 This is essential to ensure that the predicate holds the same amount of permission regardless of where it was folded. 
 Otherwise the user would have to specify exactly how much permission a predicate contains, which rather defeats the purpose of predicates (information hiding).
 
-Abstract read permissions mentioned in predicates are thus fixed.
-To implement this, we define an uninterpreted constant function \lstinline[language=SIL]!globalPredicateReadFraction()! and declare that this global read fraction is strictly positive and less than full/write permission.
+Abstract read permissions mentioned in predicates are thus interpreted by a fixed permission amount.
+To implement this, we define an uninterpreted constant function \lstinline[language=SIL]!globalPredicateReadFraction()! and declare that this global read fraction is strictly positive and less than the full/write permission amount.
 
 It is possible that, in the future, we'd like to have different fractions for different predicates or even different fractions for each combination of object (this-pointer) and predicate. 
-To support this scenario, we don't insert references to \lstinline[language=SIL]!globalPredicateReadFraction()! directly into the generated SIL program and instead use an intermediate function \lstinline[language=SIL]!predicateReadFraction(int,ref)!, also uninterpreted.
+To support this scenario, we don't insert references to \lstinline[language=SIL]!globalPredicateReadFraction()! directly into the generated SIL program. Instead, we use an intermediate function \lstinline[language=SIL]!predicateReadFraction(int,ref)!; also uninterpreted.
 Analogously to the ``field identifiers'' that we used to index into our copy of the permission mask when we constrain the read permission fraction for method calls, we generate unique ``predicate identifiers'' to distinguish between different predicates on the same object.
 However, at the moment every SIL program that Chalice2SIL generates also contains an axiom that makes predicate read fractions effectively global:
 \[
@@ -497,50 +506,58 @@ Given two object references $x$ and $y$, a field $f$, a predicate $p$ and a corr
 \end{align*}
 
 \subsubsection{Functions}
-Ideally, we would want to encode abstract read permissions in functions the same way we encode them when they occur in method pre/postconditions: Constraining a different fraction for each call site.
-Unfortunately, the technique we used for read fractions in method calls would not work for function calls, because our solution is based on ``mutating'' a data structure in an imperative fashion. 
+Ideally, we would want to encode abstract read permissions in functions the same way we encode them when they occur in method pre/postconditions: constraining a different fraction for each call site.
+Unfortunately, the technique we used for read fractions in method calls would not work for function calls, because for our solution we need to create and then destructively update our own copy of the permission mask.
 Function calls can occur in method pre/postconditions and even inside other function bodies.
-All of those contexts are pure, and thereby inherently incompatible with how abstract read permission fractions are fixed for method calls.
+All of those contexts are pure, which means that we cannot introduce and then update new ``local'' variables.
 
-But functions being pure also gives us more freedom since we don't have to make the distinction between read permissions and read-write permissions (functions aren't allowed to modify the heap anyway). 
+But functions being pure also gives us more freedom, since we don't have to make the distinction between read permissions and read-write permissions (functions aren't allowed to modify the heap anyway). 
 Similarly, as functions always automatically return the same amount of permission that they received, it doesn't really matter exactly ``how much'' permission a function has, only to which heap locations it has access.
-As a  result, Chalice2SIL translates permissions in function preconditions as \lstinline[language=Chalice]!rd*!, which means ``any read-permission''.
+As a  result, Chalice2SIL translates non-write permission amounts in function preconditions as \lstinline[language=Chalice]!rd*!, which means ``any read-permission''.
 \[
 	\ch{\acc{x.f, rd*}}\ =\ \sil{\exists a, 0 < a < \text{\lstinline!write!}.\ \ \acc{x.f,a}}
 \]
 
 \subsection{Monitors with Deadlock Avoidance}\label{sct:mon}
-As with predicates, the permissions stored in a monitor need to be fixed and cannot be chosen every time we lock over an object. 
-Otherwise we'd have to track what amount of permission the monitor holds onto at any point in the program. 
+As with predicates, the permissions stored in a monitor need to be fixed and cannot be chosen every time we over an object. 
+Otherwise we'd have to track the amount of permission the monitor holds onto at any point in the program. 
 So, as with predicates, we define an uninterpreted function that represents the fraction of permission that the verifier uses whenever it encounters an abstract fractional read permission in a monitor.
 To make mixing monitors and predicates easier, we use the same global fraction for monitors as we used for predicates.
 
 The really difficult part, however, is the implementation of the locking and deadlock prevention itself.  
 In this section we present our partial solution in the hope that it will help in finding a working implementation of deadlock avoidance in SIL, or failing that, in the hope that it at least serves as a demonstration of the limits of SIL.
 
-\subsubsection{Deadlock Prevention and Locking}
+\subsubsection{Approach to Deadlock Prevention and Locking}
 For locking and deadlock prevention we need to add two kinds of information to each object: a boolean indicating whether the object in question is locked and a \emph{mu} value that indicates the object's position in the locking order.
 To recapitulate, mu values are part of the partially ordered set \emph{$(Mu,\ll)$}.
 Only one concrete value exists: \emph{lockbottom}, the single smallest element of Mu. All other values of Mu are kept abstract and only described in terms of their $\ll$-relation to one another. 
 
 The key idea behind deadlock prevention in Chalice, that a thread can only acquire a lock on monitor/object $m$ if it is clear that that monitor/object is higher in the locking order than any other monitor that that thread already has a lock on.
-In more concrete terms, locking is allowed when $\forall o \in \text{objects}.\ \ o=m \lor ¬\text{\lstinline[language=Chalice]!holds!}(o) \lor o.\text{\lstinline!mu!} \ll m.mu$.
+In more concrete terms, locking is allowed when $\forall o \in \text{objects}.\ \ o\neq{}m \Rightarrow \left( \text{\lstinline[language=Chalice]!holds!}(o) \Rightarrow o.\text{\lstinline!mu!} \ll m.mu \right)$.
 
-To use this expression in a SIL assertion (an exhale statement prior to acquiring a lock), we need to make sure that the relevant locations are well defined. 
+To use this expression in a SIL assertion (an exhale statement prior to acquiring a lock), we need to make sure that the heap locations it mentions ($o.\text{\lstinline!mu!}$ and $m.\text{\lstinline!mu!}$) are defined, that these locations are readable.
 To ensure that we can access \lstinline!m.mu!, we first check $m \neq \text{\lstinline[language=Chalice]!null!}\ \land\ 0 < \text{\lstinline[language=SIL]!perm!}(m.\text{\lstinline!mu!})$. 
-But then we run into the problem that we cannot possibly require access to the \lstinline!mu!-fields on all objects $o$. One could try guard references to $o.\text{\lstinline!mu!}$ with an implication: \[
+But then we run into the problem that we cannot possibly require access to the \lstinline!mu!-fields on all objects $o$. 
+One could try to use $0 < \text{\lstinline!perm!}(o.\text{\lstinline!mu!})$ to make sure that $o.\text{\lstinline!mu!}$ is only accessed when we the location is readable:
+ \[
 	0 < \text{\lstinline!perm!}(o.\text{\lstinline!mu!}) \Rightarrow ¬\text{\lstinline!holds!}(o) \lor o.\text{\lstinline!mu!} \ll m.mu
 \]
 Unfortunately that is not correct. 
 While a method needs read-access to the \lstinline!mu! field to acquire the lock on an object $o_1$, it can then give away all permissions to fields of $o_1$ (it could fork a thread and hand complete control over that object to the forked thread), while still holding the lock on the monitor associated with $o_1$.
-With the assertion above, temporarily not having any permission to access to $o_1.\text{\lstinline!mu!}$ would allow us to acquire the lock on a monitor that is not higher in the locking order than $o_1$.
+With the implication in the assertion above, we are really \emph{filtering} out object references for which we do not have access to the \lstinline!mu! field.
+Temporarily not having any permission to access to $o_1.\text{\lstinline!mu!}$ would allow us to acquire the lock on a monitor that is not higher in the locking order than $o_1$.
+Instead our assertion should be quantified over \emph{all} object references $o$, whether we have access to $o.\text{\lstinline!mu!}$ or not.
 
 We need to associate each object with a \lstinline!mu! and a flag that indicates whether the object's monitor is acquire by the current thread. 
 The only mechanism that SIL provides for associating information with an object are fields but using fields is not an option.
 The Boogie-based implementation uses additional masks and that is what we will try to emulate in our approach.
+\newcommand{\heldMap}{\ensuremath{\text{\lstinline!heldMap!}}}
+\newcommand{\muMap}{\ensuremath{\text{\lstinline!muMap!}}}
 
-We add another hidden parameter to each method, the \lstinline!\$CurrentThread: ref!. 
-This object has two fields \lstinline!heldMap! and \lstinline!muMap!, mapping from references to boolean values and from references to mu values, respectively.
+We add another hidden parameter to each method, the \lstinline!currentThread: ref!. 
+This object has two fields \heldMap{} and \muMap, mapping from references to boolean values and from references to mu values, respectively.
+For any object reference $o$, we use $\heldMap[o]$ to indicate whether the object $o$ is locked by the current thread at the moment.
+We use $\muMap[o]$ instead of $o.\text{\lstinline!mu!}$ inside quantifiers to get around the issue of $o.\text{\lstinline!mu!}$ not being readable.
 Via their preconditions, each method gets to assume the following:
 \begin{align*}
  \text{\lstinline!currentThread!} \neq \text{\lstinline!null!}\ &\land\ \acc{\text{\lstinline!currentThread!}.\text{\lstinline!heldMap!},\text{\lstinline!write!}} \\
@@ -556,23 +573,90 @@ To that end, every occurrence of an accessibility predicate that mentions \lstin
 This makes sure that whenever we gain access to an \lstinline!mu! field, we also get a matching entry in the \lstinline!currentThread!'s \text{\lstinline!muMap!}. 
 Or, conversely, whenever we give away permission to a \lstinline!mu! field, we must also ensure that the \lstinline!muMap! is up to date.
 
-\begin{sketch}
-newobj
-\end{sketch}
-\begin{sketch}
-share
-\end{sketch}
-\begin{sketch}
- acquire
-\end{sketch}
-\begin{sketch}
-release
-\end{sketch}
-\begin{sketch}
-unshare
-\end{sketch}
+With this infrastructure, the implementation of locking-related operations is relatively straightforward. 
+For the examples that follow, we assume that we have a class $C$ with a single \lstinline[language=Chalice]!int! field $f$.
+\begin{description}
+\item[Object creation] $\ch{o\ \text{\lstinline[language=Chalice]!:= new !}\ C}$ is translated as 
 
-In the postcondition of each method, we make sure that the \lstinline!mu! and \lstinline!help! maps are in a consistent state.
+\begin{lstlisting}[label=lst:monnewobj,language=sil]
+o := new ref;
+inhale acc(o.f,write);
+inhale acc(o.mu,write);
+inhale o.mu == lockbottom;
+inhale currentThread.heldMap[o] == false;
+inhale currentThread.muMap[o] == o.mu;
+\end{lstlisting}
+It is safe to \lstinline[language=SIL]!inhale! (assume) facts about \lstinline!currentThread.muMap[o]! since \lstinline[language=Chalice]!new! \lstinline[language=Chalice]!ref! is guaranteed to result in an object reference that didn't exist before.
+We can be sure that we don't introduce contradictions that way.
+
+\item[Share an object] 
+$\ch{\text{\lstinline[language=Chalice]!share!}\ o\ \text{\lstinline[language=Chalice]!above!}\ a\ \text{\lstinline[language=Chalice]!below!}\ b}$ is translated as
+
+\begin{lstlisting}[label=lst:monshare,language=sil]
+exhale o != null;
+exhale o.mu == lockbottom;
+// Ensure bounds are defined
+exhale a != null && b != null;
+exhale 0 < perm(a.mu) && 0 < perm(b.mu);
+exhale a << b; // Upper bound might be below lower bound
+// Determine value for fresh mu
+var m : Mu;
+inhale lockbottom << m;
+inhale a << m;
+inhale m << b;
+// Assign mu (to both the field and the map), set held to false
+o.mu := m;
+currentThread.muMap[o] := o.mu;
+currentThread.heldMap[o] := false;
+exhale <monitor-invariant>;
+\end{lstlisting}
+Other forms of Chalice's \lstinline[language=Chalice]!share! statement allow the programmer to specify multiple upper and lower bounds or omit them altogether. 
+If no lower bound is specified, the current \emph{lock level} is used as the lower bound, that is, the object is shared with a \lstinline!mu! that is greater than the \lstinline!mu! of any object for which the thread currently holds a lock.
+
+\item[Acquire a lock]
+$\ch{\text{\lstinline[language=Chalice]!acquire!}\ o}$ is translated as
+
+\begin{lstlisting}[label=lst:monacquire,language=sil]
+exhale o != null;
+exhale 0 < perm(o.mu);
+// o must have been shared above current waitlevel
+exhale forall h : ref :: currentThread.heldMap[h] ==> 
+                                       currentThread.muMap[h] << o.mu;
+currentThread.heldMap[o] := true;
+inhale <monitor-invariant>;
+\end{lstlisting}
+
+\item[Release a lock]
+$\ch{\text{\lstinline[language=Chalice]!release!}\ o}$ is translated as
+
+\begin{lstlisting}[label=lst:monrelease,language=sil]
+exhale o != null;
+exhale currentThread.heldMap[o];
+exhale <monitor-invariant>;
+currentThread.heldMap[o] := false;
+\end{lstlisting}
+
+\item[Unshare an object]
+$\ch{\text{\lstinline[language=Chalice]!unshare!}\ o}$ is translated as
+
+\begin{lstlisting}[label=lst:monunshare,language=sil]
+exhale o != null;
+exhale write <= perm(o.mu);
+exhale lockbottom << o.mu; // ensures o is shared
+exhale currentThread.heldMap[o]; // o is locked
+// Update fields/maps
+o.mu := lockbottom;
+currentThread.heldMap[o] := false;
+currentThread.muMap[o] = o.mu;
+\end{lstlisting}
+
+\item[Forking a thread]
+Chalice2SIL creates a new thread object for the forked thread and initialises its \muMap with the contents with the contents of \lstinline!currentThread!'s \muMap.
+Since the \heldMap only represents the locks held by the \emph{current thread} we do \emph{copy} anything from \lstinline!currentThread!'s \heldMap.
+
+\end{description}
+
+In the postcondition of each method, we make sure that the \lstinline!mu! and \lstinline!held! maps are in a consistent state.
 The programmer uses the \lstinline[language=Chalice]!lockchange! declaration to list all objects it changed the lock state of. 
 Without any \lstinline[language=Chalice]!lockchange! declarations, all method postcondition contain the following assertions:
 \begin{align*}
@@ -587,3 +671,82 @@ When the user adds \lstinline[language=Chalice]!lockchange! declarations, the bo
 \[
 	o \notin \text{\lstinline!lockchange!} \Rightarrow \text{body\ldots}
 \]
+
+\subsubsection{Limitations of the current Implementation}
+As mentioned above, the current implementation is not correct in some cases. 
+We identified two major problems: one where we lose information about \lstinline!mu!, preventing us from successfully verifying a correct program, and one where  we retain too much information about \lstinline!mu!, causing the verification to be potentially unsound.
+
+Listing \ref{lst:lostmu} presents an example of the former. 
+In that program we create two objects \lstinline!x! and \lstinline!y! and share them in such a way that locks on \lstinline!x! always have to be acquired before \lstinline!y! (lines 8 and 9).
+When we call the method \lstinline!nop! on line 11, we temporarily give away all permissions to \lstinline!currentThread.muMap!.
+This means that the verifier must assume that the contents of the heap location \lstinline!currentThread.muMap! have changed completely.
+When the verifier reaches the second \lstinline[language=Chalice]!acquire! statement on line 13, it will assert the following:
+\begin{lstlisting}[language=SIL]
+forall h : ref :: currentThread.heldMap[h] ==> 
+                                           currentThread.muMap[h] << y.mu;
+\end{lstlisting}
+Since there is only one locked object at the moment, the verifier effectively checks 
+\begin{lstlisting}
+currentThread.muMap[x] << y.mu
+\end{lstlisting}
+It remembers that \lstinline!x.mu << y.mu!, but has lost all information about \lstinline!muMap[x]!.
+As a result, the assertion will fail.
+
+\begin{lstlisting}[float,caption={Losing information about \lstinline!mu!.},label=lst:lostmu,language=chalice,numbers=left]
+class C {
+    var f : int;
+    invariant acc(f);
+    method nop(){}
+    method main()
+    {
+        var x := new C; var y := new C;
+        share x;        
+        share y above x;
+
+        call nop();
+        acquire x;
+        acquire y;      release y;
+        release x;
+    }
+} // Using Syxc: Verification finished in 0.63s with 0 error(s)
+\end{lstlisting}
+
+We can work around this limitation by explicitly mentioning \lstinline!x.mu! in an accessibility predicate on the pre- and postcondition of method \lstinline!nop!.
+That causes the assertion \lstinline!x.mu == currentThread.muMap[x]! to be included in the pre- and postcondition of the translated SIL method.
+
+\begin{lstlisting}[float,caption={Modified method \lstinline!nop! from listing \ref{lst:lostmu}, causes verification to succeed.},label=lst:lostmufixed,language=chalice]
+method nop(x : C)
+    requires acc(x.mu,rd)
+    ensures  acc(x.mu,rd)
+{ }
+\end{lstlisting}
+
+In listing \ref{lst:havoconfork} we first acquire the lock on \lstinline!x! and then fork a new thread, giving away write permission to \lstinline!x.mu!.
+When we try to \lstinline!acquire y! on line 17, the verifier tries to assert the same expression as in the last example, only here this causes an outdated value for \lstinline!currentThread.muMap[x]! to be used. 
+Since all permissions to the heap location \lstinline!x.mu! have been given away as part of the \lstinline[language=Chalice]!fork! statement in line 16, \lstinline!x.mu! might no longer have the same value.
+
+\begin{lstlisting}[float,caption={Keeping too much information about \lstinline!mu!.},label=lst:havoconfork,language=chalice,numbers=left]
+class C {
+    var f : int;
+    invariant acc(f);
+    method unrelated(x : C)
+        requires x != null && acc(x.mu)
+        ensures acc(x.mu)
+        lockchange x
+    { }
+
+    method main()
+    {
+        var x := new C; var y := new C;
+        share x;
+        share y above x;
+        acquire x;
+        fork unrelated(x);
+        acquire y;     release y;
+        release x;
+    }
+}// Using Syxc: Error 1280: 17.17: Acquiring y failed. waitlevel << mu might not hold.
+\end{lstlisting}
+
+Both issues are related to the problem of finding a method's \emph{frame}, figuring out which locations a method cannot access or modify.
+In the first case, we are missing the fact that the method \lstinline!nop! \emph{cannot change} \lstinline!x.mu!, whereas in the second case we ignore the fact that the method \lstinline!unrelated! could potentially have changed \lstinline!x.mu! by the time we arrive at the \lstinline[language=Chalice]!acquire y! statement.

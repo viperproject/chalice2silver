@@ -1,6 +1,6 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
-import silAST.programs.symbols.ProgramVariable
+import silAST.programs.symbols.{Field, ProgramVariable}
 import ch.ethz.inf.pm.semper.chalice2sil._
 import silAST.source.{noLocation, SourceLocation}
 import collection._
@@ -568,6 +568,7 @@ trait ScopeTranslator
       threadVar <-- NewRef()
       inhale( acc(newThreadTerm,prelude.Thread.heldMap,fullPermission),
         acc(newThreadTerm,prelude.Thread.muMap,fullPermission)  )
+      (threadVar!prelude.Thread.muMap) <-- (environmentCurrentThreadVariable!prelude.Thread.muMap.field)
 
       //Determine read fraction
       comment("Determine read fraction")

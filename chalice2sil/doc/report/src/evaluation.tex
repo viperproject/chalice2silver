@@ -2,19 +2,99 @@
 % !TEX encoding = UTF-8
 % !TEX root = ../chalice2sil_report_klauserc.tex
 
-\section{Evaluation}
+\section{Evaluation}\label{sct:eval}
 
-\subsection{Chalice2SIL+Silicon versus Syxc}
+\subsection{SIL as a translation target/verification intermediate language}
+One of the primary goals of writing Chalice2SIL was to gather experience working with SIL, both as a translation target and as a verification intermediate language. 
+
+\subsubsection{Encoding of loops}
+At the time we started this project, SIL did not have a dedicated \lstinline[language=Chalice]!while! loop node. 
+Instead, programs would be encoded as a flat directed graph of basic blocks: a control-flow graph (CFG).
+Loops were encoded as cycles with the ``backwards'' pointing edge explicitly marked (so that tools could traverse the CFG as an acyclic graph by ignoring those back edges).
+Unfortunately, Silicon -- our verifier for SIL -- can currently only handle \lstinline[language=Chalice]!while! as they appear in Chalice. 
+In those early days, Silicon would pattern match against the CFG to find \lstinline[language=Chalice]!while! loops and extract their components (condition, invariant, body), essentially lifting the program back up to the abstraction level of Chalice in terms of control flow.
+If Chalice, which only supports \lstinline[language=Chalice]!while! loops, were the only source language that SIL ever had to support, this approach would have been fine.
+But since the idea behind SIL was to eventually have multiple front ends, we decided to capture the fact that we currently can only verify \lstinline[language=Chalice]!while! loops in the language.
+As a result a explicit loop node was added to the SIL control-flow graph.
+
+\subsubsection{Syntactic distinction between assertions and program expressions}
+Currently, SIL distinguishes between assertions (logic formulae and accessibility predicates) and program expressions on a syntactic level. 
+Some language elements require assertions as operands (e.g., \lstinline[language=SIL]!exhale!) while others only accept program expressions (e.g., method arguments).
+In the current implementation of the SIL abstract syntax tree (AST), there are two distinct and unrelated types: the type of assertions and the type of program expression.
+Having the Scala compiler enforce that we never construct a SIL program where an accessibility predicate is used as a method argument is nice in theory, but proved to be more cumbersome than necessary in practice.
+
+\begin{description}
+\item[Only a partial solution] It is still possible to write translators that try to create illegal assertions and will fail due to runtime\footnote{In the context of $X$-to-SIL-translators, ``runtime'' refers to the execution of the translator.} checks built into the SIL AST.
+While it would seem better to check as many properties statically as possible, only ending up with partial checks can result in a false sense of security. The SIL AST API is not exception-free and translators should be prepared deal with exceptions.
+\item[Code duplication] Logical formulae and program expressions have a lot in common, e.g. logical operators or literal values. 
+Distinguishing between a program-level \lstinline[language=Chalice]!true! and and an assertion-level \lstinline[language=Chalice]!true! has little benefit and at the same means that both producers and consumers of SIL need to have two pieces of code that handle boolean literals.
+Since the Scala types of assertions and program expressions are unrelated, there is absolutely no opportunity for code reuse.
+\item[Translation from Chalice] The Chalice compiler does not distinguish between assertions and program expressions on a syntactical level and instead enforces restrictions on where certain expressions can appear in semantic checks during type checking. Unfortunately, this makes syntax driven translation from Chalice to SIL highly ambiguous. The translator will come across many Chalice expressions where it is not a priori clear whether to translate them as SIL assertions or as SIL program expressions. For instance \ch{5 == 3} can be translated using the equality assertion \sil{\text{\lstinline[language=SIL]!5 == 3!}} or by first applying the integer equality domain function \lstinline!intEQ! and then lifting the resulting boolean program value up to assertion-level using the boolean domain predicate \lstinline!eval!: \sil{\text{\lstinline[language=SIL]!eval(intEQ(5,3))!}}.
+
+Not all expressions can be translated either way and to find out which translation scheme is the correct one. 
+This can mean that a translator needs to walk through Chalice expressions twice, either just trying both translation schemes in turn or first analysing the expression and then deciding on a translation scheme to use.
+
+\item[Need to convert]
+For Chalice2SIL it was sometimes necessary to convert between assertions and program expressions.
+One example of this are expressions of the form \ch{\text{\lstinline[language=SIL]!old!}(e)} where $e$ translates to a SIL assertion. 
+When a method with such an \lstinline[language=SIL]!old! expression in its precondition is forked, conceptually, the expression $e$ is evaluated and its ``value'' (\lstinline[language=Chalice]!true! or \lstinline[language=Chalice]!false!) stored in a field on the fork-token.
+Because the right-hand side of an assignment needs to be a program expression in SIL, we first have to create a fresh boolean variable  and associate the truth value of that variable with the assertion:
+\begin{lstlisting}[language=SIL]
+var b : bool;
+inhale eval(b) == e
+\end{lstlisting}
+
+This can always be done and thus making the translator (and later the verifier) jump through these hoops seems pointless.
+
+\item[Naming]
+In the actual implementation of the SIL AST, assertions are called \emph{expressions} and program expressions are called \emph{terms}. 
+While the implementation uses this terminology very consistently, the terms fail to convey the key difference between assertions and program expressions, resulting in a lot of puzzled faces in conversations with people who are not intimately familiar with SIL's design.
+\end{description}
+
+\subsubsection{PTerms vs. DTerms vs. GTerms vs. Terms}
+SIL makes another distinction on the syntactic level that we think is better handled as a semantic check.
+To make sure that domain axioms don't contain AST nodes that are illegal in the context of a domain (such as references to heap locations), SIL has four types to represent program expressions.
+\begin{description}
+\item[DTerm] ``Domain'' terms represent the set of all program expressions that are legal in domain axiom specifications. References to quantifier variables are one example.
+\item[PTerm] ``Program'' terms represent the set of all program expressions that are legal in actual program code (such as the right-hand side of assignment statements). Heap references are one example.
+\item[GTerm] ``General' terms represent the set of all program expressions that are legal in \emph{all} contexts.  Integer literals are one example.
+\item[Term] Represent the set of all program expressions. Examples include the full permission amount \lstinline[language=SIL]!write! or the permission mask lookup $\text{\lstinline[language=SIL]!perm!}\left(x.f\right)$.
+\end{description}
+Even though the SIL AST implementation uses Scala traits to capture the subset relationships between these sets, there is still an enormous amount of code duplication.
+For instance, it is not enough to have one node type for domain function applications. 
+Because you need to restrict the set from which the function application node draws its arguments, there is one domain function application node type for each of the four sets: \texttt{GDomainFunctionApplication}, \texttt{DDomainFunctionApplication}, \texttt{PDomainFunctionApplication} and \texttt{DomainFunctionApplication}.
+
+Luckily, the subset types are all subtypes of \lstinline!DomainFunctionApplication! which allows for code reuse when \emph{consuming} (pattern matching) these data structures. 
+When it comes to \emph{generating} theses node, however, we essentially had two options. 
+One option was to duplicate a lot of code (e.g., have separate translation schemes for \lstinline!DDomainFunctionApplication! and \lstinline!PDomainFunctionApplication!).
+We chose to translate to the most specific type whenever possible (e.g., if all arguments of a domain function application are \lstinline!DTerm!s themselves, create a \lstinline!DDomainFunctionApplication!) but return \lstinline!Term!s to accommodate for all Chalice program expressions.
+In cases where \lstinline!PTerm!s are required instead of \lstinline!Term!s, we attempt to downcast to \lstinline!PTerm!.
+
+The fact that even the SIL AST implementation itself employs this technique indicates that maybe in this case runtime checks (running during translation of a program to SIL) are better suited than trying to encode these constraints in the Scala type system.
+
+The SIL AST implementation makes a similar distinction for assertions. 
+There are \texttt{GExpression}s, \lstinline!DExpression!s, \lstinline!PExpression!s and \lstinline!Expression!s. 
+We included a more complete grammar listing in appendix  \label{apdx:grammar}.
+
+\subsubsection{Capturing state in SIL}
+A pattern that often appears in the Boogie-based implementation of Chalice, is that one would make a copy of the heap and permission mask (both are ordinary variables from Boogie's perspective) then perform a series of operations and assertions on that copy (e.g., inhale, exhale).
+Describing programs on a higher level of abstraction, SIL does not allow anything similar.
+The \lstinline[language=Chalice]!perm! expression is about as close as we get to the permission mask.
+
+Re-implementing the permission mask as we did to constrain the read fractions (section \ref{sct:meth}) seems incredibly wasteful since most tools that  work on SIL will have a concept of a permission map, maybe even specialised code to deal with them and all they see are manipulations of an abstract data structure (the map created by the Chalice2SIL translation), described by a couple of axioms.
+So far this hasn't been a problem, though.
+
+A similar issue is how we currently handle \lstinline[language=Chalice]!old! expression for fork/join.
+What we would ideally like to do is to capture the program state at the point where a thread is forked off and then associate that state with the token.
+Later when we \lstinline[language=Chalice]!join! on the token, we just evaluate the \lstinline[language=Chalice]!old! expression in the state associate with the token. 
+We would not have to worry about the definedness of \lstinline[language=Chalice]!old! expressions at the point where we fork the token.
+
+Chalice has other features where old state is being referenced. 
+History constraints on monitor invariants and general \lstinline[language=Chalice]!eval! expressions are examples.
+
+\subsection{Chalice2SIL+Silicon compared to Syxc}
 \begin{sketch}
 Compare Chalice2SIL+Silicon with Syxc (how complete is Chalice2SIL)
 \end{sketch}
 
-\subsection{SIL as a translation target/verification intermediate language}
-\begin{sketch}
-\begin{itemize}
-\item Term/Expression distinction (technical)
-\item P-expressions/terms versus non-P-expressions/terms (technical)
-\item control flow (need for a while loop construct)
-\item Some way of capturing state (more general old expression, "transaction"-like scopes)
-\end{itemize}
-\end{sketch}
+
