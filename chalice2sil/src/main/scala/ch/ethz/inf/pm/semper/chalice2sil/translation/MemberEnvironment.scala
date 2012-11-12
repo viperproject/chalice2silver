@@ -1,14 +1,14 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
-import silAST.programs.symbols.ProgramVariable
-import silAST.methods.MethodFactory
-import silAST.methods.implementations.{ImplementationFactory, BasicBlockFactory}
+import semper.sil.ast.programs.symbols.ProgramVariable
+import semper.sil.ast.methods.MethodFactory
+import semper.sil.ast.methods.implementations.{ImplementationFactory, BasicBlockFactory}
 import util._
-import silAST.expressions.{PermissionExpression, Expression, ExpressionFactory}
-import silAST.source.SourceLocation
-import silAST.expressions.terms.{FieldLocation, Term}
-import silAST.types.permissionLE
-import silAST.expressions.util.TermSequence
+import semper.sil.ast.expressions.{PermissionExpression, Expression, ExpressionFactory}
+import semper.sil.ast.source.SourceLocation
+import semper.sil.ast.expressions.terms.{FieldLocation, Term}
+import semper.sil.ast.types.permissionLE
+import semper.sil.ast.expressions.util.TermSequence
 
 /**
   *

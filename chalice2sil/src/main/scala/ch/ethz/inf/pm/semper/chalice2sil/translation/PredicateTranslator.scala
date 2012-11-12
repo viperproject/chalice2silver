@@ -2,13 +2,13 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import ch.ethz.inf.pm.semper.chalice2sil
 import chalice2sil._
-import silAST.source.SourceLocation
-import silAST.expressions.util.TermSequence
-import silAST.expressions.terms.IntegerLiteralTerm
+import semper.sil.ast.source.SourceLocation
+import semper.sil.ast.expressions.util.TermSequence
+import semper.sil.ast.expressions.terms.IntegerLiteralTerm
 import util.DerivedFactoryCache
-import silAST.programs.symbols.{ProgramVariable, PredicateFactory}
+import semper.sil.ast.programs.symbols.{ProgramVariable, PredicateFactory}
 import chalice.Variable
-import silAST.types.nullFunction
+import semper.sil.ast.types.nullFunction
 
 /**
   * @author Christian Klauser

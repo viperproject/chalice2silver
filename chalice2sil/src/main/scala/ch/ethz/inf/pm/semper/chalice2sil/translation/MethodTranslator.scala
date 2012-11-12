@@ -2,18 +2,18 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import ch.ethz.inf.pm.semper.chalice2sil
 import chalice2sil._
-import silAST.methods.implementations.BasicBlockFactory
-import silAST.source.SourceLocation
-import silAST.types._
-import silAST.programs.symbols.ProgramVariable
-import silAST.expressions.terms._
-import silAST.expressions._
-import silAST.symbols.logical._
+import semper.sil.ast.methods.implementations.BasicBlockFactory
+import semper.sil.ast.source.SourceLocation
+import semper.sil.ast.types._
+import semper.sil.ast.programs.symbols.ProgramVariable
+import semper.sil.ast.expressions.terms._
+import semper.sil.ast.expressions._
+import semper.sil.ast.symbols.logical._
 import collection.immutable
 import immutable.Set
 import quantification.{LogicalVariable, Forall}
 import util._
-import silAST.expressions.util.TermSequence
+import semper.sil.ast.expressions.util.TermSequence
 import collection._
 import mutable.ArrayBuffer
 

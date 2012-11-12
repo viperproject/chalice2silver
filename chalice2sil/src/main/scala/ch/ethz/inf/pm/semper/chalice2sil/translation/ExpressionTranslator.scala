@@ -1,13 +1,13 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import operators.Lookup._
-import silAST.expressions.{TrueExpression, FalseExpression, Expression}
-import silAST.expressions.util.TermSequence
-import silAST.symbols.logical.{Not, And, Or, Implication}
-import silAST.symbols.logical.quantification.{LogicalVariable, Quantifier, Forall, Exists}
-import silAST.types.{referenceType, permissionLT, permissionType, DataType}
-import silAST.expressions.terms.{FullPermissionTerm, Term}
-import silAST.source.SourceLocation
+import semper.sil.ast.expressions.{TrueExpression, FalseExpression, Expression}
+import semper.sil.ast.expressions.util.TermSequence
+import semper.sil.ast.symbols.logical.{Not, And, Or, Implication}
+import semper.sil.ast.symbols.logical.quantification.{LogicalVariable, Quantifier, Forall, Exists}
+import semper.sil.ast.types.{referenceType, permissionLT, permissionType, DataType}
+import semper.sil.ast.expressions.terms.{FullPermissionTerm, Term}
+import semper.sil.ast.source.SourceLocation
 import ch.ethz.inf.pm.semper.chalice2sil.translation.util.PureLanguageConstruct
 import ch.ethz.inf.pm.semper.chalice2sil._
 import chalice.{Type, Permission}

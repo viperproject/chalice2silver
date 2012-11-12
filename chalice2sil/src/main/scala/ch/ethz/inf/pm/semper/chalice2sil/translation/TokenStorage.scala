@@ -1,6 +1,6 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
-import silAST.expressions.OldExpression
+import semper.sil.ast.expressions.OldExpression
 
 /**
   * @author Christian Klauser

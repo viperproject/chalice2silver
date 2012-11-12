@@ -2,13 +2,13 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation.util
 
 import ch.ethz.inf.pm.semper.chalice2sil
 import chalice2sil._
-import silAST.source.{SourceLocation, noLocation}
-import silAST.expressions.util.TermSequence
+import semper.sil.ast.source.{SourceLocation, noLocation}
+import semper.sil.ast.expressions.util.TermSequence
 import translation._
-import silAST.expressions._
-import silAST.symbols.logical.{Not, Implication, And}
+import semper.sil.ast.expressions._
+import semper.sil.ast.symbols.logical.{Not, Implication, And}
 import terms._
-import silAST.types._
+import semper.sil.ast.types._
 
 /**
   * @author Christian Klauser

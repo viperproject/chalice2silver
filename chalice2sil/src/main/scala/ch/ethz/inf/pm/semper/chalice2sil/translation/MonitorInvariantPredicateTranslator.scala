@@ -1,9 +1,9 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import ch.ethz.inf.pm.semper.chalice2sil._
-import silAST.source.SourceLocation
-import silAST.symbols.logical.And
-import silAST.expressions.TrueExpression
+import semper.sil.ast.source.SourceLocation
+import semper.sil.ast.symbols.logical.And
+import semper.sil.ast.expressions.TrueExpression
 
 class MonitorInvariantPredicateTranslator(environment : ProgramEnvironment, chaliceClass : chalice.Class, id : Int)
   extends PredicateTranslator(environment,id) {

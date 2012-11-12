@@ -3,11 +3,11 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
 import collection._
 import ch.ethz.inf.pm.semper.chalice2sil
 import chalice2sil._
-import silAST.programs.Program
-import silAST.source.SourceLocation
+import semper.sil.ast.programs.Program
+import semper.sil.ast.source.SourceLocation
 import java.lang.String
-import silAST.programs.symbols.{FunctionFactory, PredicateFactory}
-import silAST.types.DataType
+import semper.sil.ast.programs.symbols.{FunctionFactory, PredicateFactory}
+import semper.sil.ast.types.DataType
 import util.{DerivedFactoryCache, FactoryHashCache}
 
 /**

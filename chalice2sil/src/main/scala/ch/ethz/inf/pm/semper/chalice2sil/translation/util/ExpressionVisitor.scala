@@ -2,7 +2,7 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation.util
 
 import ch.ethz.inf.pm.semper.chalice2sil
 import chalice2sil._
-import silAST.expressions._
+import semper.sil.ast.expressions._
 import terms._
 
 
@@ -12,7 +12,7 @@ import terms._
   * @tparam R type of visit results
   */
 trait ExpressionVisitor[A, R] {
-  import silAST.expressions.PermissionExpression
+  import semper.sil.ast.expressions.PermissionExpression
 
   def visitExpression(expression : Expression, arg : A) : R = expression match {
     case BinaryExpression(op, lhs, rhs) =>

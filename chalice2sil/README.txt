@@ -135,7 +135,7 @@ impose some restrictions on how your directory structure is laid out.
 
       -f class name | --forward-sil class name
             Forwards the translated SIL program to the 
-            `public static main(silAST.Program)` method of the specified class.
+            `public static main(semper.sil.ast.Program)` method of the specified class.
             When no -f switch is given, Chalice2SIL forwards the program to
             Silicon.
 

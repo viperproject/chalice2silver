@@ -1,6 +1,6 @@
 package ch.ethz.inf.pm.semper.chalice2sil
 
-import silAST.programs.{Program => SilProgram}
+import semper.sil.ast.programs.{Program => SilProgram}
 import ch.ethz.inf.pm.semper.chalice2sil.{Program => Chalice2Sil}
 import scala.collection.JavaConversions._
 import org.scalatest._
@@ -9,7 +9,7 @@ import ch.ethz.inf.pm.silicon.{Silicon, Config}
 import io.Source
 import java.nio.file.{Path, Files, Paths}
 import ch.ethz.inf.pm.silicon.interfaces.ResultWithMessage
-import silAST.source.SourceLocation
+import semper.sil.ast.source.SourceLocation
 import runtime.ScalaRunTime
 import java.util.Locale
 

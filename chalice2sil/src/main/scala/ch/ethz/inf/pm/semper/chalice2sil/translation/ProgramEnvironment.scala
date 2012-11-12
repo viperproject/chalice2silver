@@ -1,11 +1,11 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import operators.Lookup
-import silAST.programs.ProgramFactory
-import silAST.methods.MethodFactory
-import silAST.domains.{Domain, DomainPredicate, DomainFunction}
-import silAST.types.{DataType, referenceDomain, permissionDomain, integerDomain}
-import silAST.programs.symbols.{FunctionFactory, PredicateFactory}
+import semper.sil.ast.programs.ProgramFactory
+import semper.sil.ast.methods.MethodFactory
+import semper.sil.ast.domains.{Domain, DomainPredicate, DomainFunction}
+import semper.sil.ast.types.{DataType, referenceDomain, permissionDomain, integerDomain}
+import semper.sil.ast.programs.symbols.{FunctionFactory, PredicateFactory}
 import util.{DerivedFactoryCache, FactoryCache}
 
 /**

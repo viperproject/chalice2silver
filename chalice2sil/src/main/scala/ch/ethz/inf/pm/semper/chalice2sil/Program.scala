@@ -5,7 +5,7 @@ import scopt._
 import chalice.{Chalice,PrintProgram}
 import translation.ProgramTranslator
 import java.io.File
-import silAST.source.noLocation
+import semper.sil.ast.source.noLocation
 import ch.ethz.inf.pm.silicon.Config._
 import ch.ethz.inf.pm.silicon.{Silicon, Config}
 
@@ -76,7 +76,7 @@ object Program {
     translator
   }
   
-  def translateToSil(opts : ProgramOptions, program : scala.List[chalice.TopLevelDecl]) : (silAST.programs.Program , Seq[Message])= {
+  def translateToSil(opts : ProgramOptions, program : scala.List[chalice.TopLevelDecl]) : (semper.sil.ast.programs.Program , Seq[Message])= {
     if(opts.verbose)
       Console.out.println("Beginning translation of Chalice program to SIL.")
 
@@ -93,7 +93,7 @@ object Program {
       opt("v","verbose","Prints additional information about the translation/verification process.",{progOpts.verbose = true })
       opt("p","print-sil","Prints the translated program in SIL.",{progOpts.printSil = true})
       opt("f","forward-sil","class name",
-        "Forwards the translated SIL program to the `public static main(silAST.Program)` method of the specified class.",
+        "Forwards the translated SIL program to the `public static main(semper.sil.ast.Program)` method of the specified class.",
         (c:String) => { progOpts.forwardSil = Some(c) })
       opt("z3","z3-path","Custom path to Z3.",p => {progOpts.z3path = Some(p)})
 
@@ -168,7 +168,7 @@ object Program {
         }
       case Some(className) => 
         val classT = java.lang.Class.forName(className)
-        val method = classT.getMethod("main",classOf[silAST.programs.Program])
+        val method = classT.getMethod("main",classOf[semper.sil.ast.programs.Program])
         method.invoke(null,silProgram.asInstanceOf[AnyRef])
     }
   }

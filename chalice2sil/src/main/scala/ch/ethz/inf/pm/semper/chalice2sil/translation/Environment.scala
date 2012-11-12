@@ -1,7 +1,7 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
-import silAST.expressions.ExpressionFactory
-import silAST.source.SourceLocation
+import semper.sil.ast.expressions.ExpressionFactory
+import semper.sil.ast.source.SourceLocation
 import math.BigInt._
 import ch.ethz.inf.pm.semper.chalice2sil.{Message, ProgramOptions}
 import collection.mutable.{SynchronizedSet, Buffer}
@@ -19,7 +19,7 @@ trait Environment {
       onNewMessage.foreach(_(m))
   }
 
-  def dummyExpr(ef:ExpressionFactory, location : SourceLocation):silAST.expressions.Expression = {
+  def dummyExpr(ef:ExpressionFactory, location : SourceLocation):semper.sil.ast.expressions.Expression = {
     ef.makeEqualityExpression(ef.makeIntegerLiteralTerm(13,location),ef.makeIntegerLiteralTerm(37,location),location)
   }
 

@@ -6,11 +6,11 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import ch.ethz.inf.pm.semper.chalice2sil.{ChaliceSuite}
 import org.scalatest.matchers.{MatchResult, BeMatcher, ShouldMatchers}
-import silAST.types.{referenceType, integerType}
-import silAST.expressions.PermissionExpression
-import silAST.programs.symbols.ProgramVariable
-import silAST.methods.implementations.FieldAssignmentStatement
-import silAST.expressions.terms.{FullPermissionTerm, ProgramVariableTerm, FieldReadTerm, LiteralTerm}
+import semper.sil.ast.types.{referenceType, integerType}
+import semper.sil.ast.expressions.PermissionExpression
+import semper.sil.ast.programs.symbols.ProgramVariable
+import semper.sil.ast.methods.implementations.FieldAssignmentStatement
+import semper.sil.ast.expressions.terms.{FullPermissionTerm, ProgramVariableTerm, FieldReadTerm, LiteralTerm}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 

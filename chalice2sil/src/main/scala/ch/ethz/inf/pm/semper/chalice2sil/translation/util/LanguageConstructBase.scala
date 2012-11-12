@@ -1,12 +1,12 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation.util
 
-import silAST.source.SourceLocation
-import silAST.expressions.util.{GTermSequence, PTermSequence, TermSequence}
-import silAST.expressions._
-import silAST.domains.{DomainFunction, DomainPredicate}
+import semper.sil.ast.source.SourceLocation
+import semper.sil.ast.expressions.util.{GTermSequence, PTermSequence, TermSequence}
+import semper.sil.ast.expressions._
+import semper.sil.ast.domains.{DomainFunction, DomainPredicate}
 import terms._
-import silAST.symbols.logical.{Not, UnaryConnective, BinaryConnective, And}
-import silAST.programs.symbols.{PredicateFactory, ProgramVariable, Field}
+import semper.sil.ast.symbols.logical.{Not, UnaryConnective, BinaryConnective, And}
+import semper.sil.ast.programs.symbols.{PredicateFactory, ProgramVariable, Field}
 import ch.ethz.inf.pm.semper.chalice2sil._
 import translation.{PredicateTranslator, FieldTranslator, MemberEnvironment}
 

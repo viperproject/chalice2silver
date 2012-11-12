@@ -1,12 +1,12 @@
 package ch.ethz.inf.pm.silast
 
 import org.scalatest.FunSuite
-import silAST.programs.{ProgramFactory, Program}
-import silAST.source.noLocation
-import silAST.types.{DataTypeSequence, integerType, referenceType}
+import semper.sil.ast.programs.{ProgramFactory, Program}
+import semper.sil.ast.source.noLocation
+import semper.sil.ast.types.{DataTypeSequence, integerType, referenceType}
 import org.scalatest.matchers.ShouldMatchers
-import silAST.domains.DomainFunction
-import silAST.expressions.util.TermSequence
+import semper.sil.ast.domains.DomainFunction
+import semper.sil.ast.expressions.util.TermSequence
 
 /**
   * @author Christian Klauser

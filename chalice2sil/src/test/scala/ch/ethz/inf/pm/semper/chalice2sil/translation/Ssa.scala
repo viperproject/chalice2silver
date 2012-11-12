@@ -1,7 +1,7 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import ch.ethz.inf.pm.semper.chalice2sil.ChaliceSuite
-import silAST.programs.symbols.ProgramVariable
+import semper.sil.ast.programs.symbols.ProgramVariable
 import org.scalatest.matchers.{MatchResult, BeMatcher, ShouldMatchers}
 
 class Ssa extends ChaliceSuite with ShouldMatchers {

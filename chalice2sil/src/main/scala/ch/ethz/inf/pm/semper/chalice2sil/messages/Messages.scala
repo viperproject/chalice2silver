@@ -2,10 +2,10 @@ package ch.ethz.inf.pm.semper.chalice2sil.messages
 
 import ch.ethz.inf.pm.semper.chalice2sil._
 import chalice.{Channel, ASTNode}
-import silAST.source.SourceLocation
+import semper.sil.ast.source.SourceLocation
 import Severity._
-import silAST.types.DataType
-import silAST.expressions.terms.{LogicalVariableTerm, PTerm, Term}
+import semper.sil.ast.types.DataType
+import semper.sil.ast.expressions.terms.{LogicalVariableTerm, PTerm, Term}
 import translation.LocationTranslator
 
 object ChannelsNotImplemented extends MessageId(
@@ -64,7 +64,7 @@ object FreeVariableInOld extends MessageId(
 
 object PredicateScalingNotSupported extends MessageId(Fault,"ch.ethz.inf.pm.semper.chalice2sil.predicateScalingNotSupported",
   "Chalice2SIL does not fully support predicate scaling. acc(%s.%s, %s)") {
-  def apply(location : silAST.expressions.terms.Term, pred : silAST.programs.symbols.Predicate, amount : silAST.expressions.terms.Term) =
+  def apply(location : semper.sil.ast.expressions.terms.Term, pred : semper.sil.ast.programs.symbols.Predicate, amount : semper.sil.ast.expressions.terms.Term) =
     new Message(this, location.sourceLocation) {
     def data = Array(location, pred.name, amount,pred)
   }
@@ -74,7 +74,7 @@ object ContractNotUnderstood extends MessageId(
   Fault,
 "ch.ethz.inf.pm.semper.chalice2sil.contractNotUnderstood",
 "Chalice2SIL does not understand the contract expression %s.") {
-  def apply(node : silAST.ASTNode) = new Message(this,node.sourceLocation) {
+  def apply(node : semper.sil.ast.ASTNode) = new Message(this,node.sourceLocation) {
     def data = Array(node)
   }
 }
@@ -92,7 +92,7 @@ object PermissionNotUnderstood extends MessageId(
   Fault,
   "ch.ethz.inf.pm.semper.chalice2sil.permissionNotUnderstood",
   "Chalice2SIL does not understand the SIL permission amount %s.") {
-  def apply(location : SourceLocation, permissionAmount : silAST.ASTNode) = new Message(this,location) {
+  def apply(location : SourceLocation, permissionAmount : semper.sil.ast.ASTNode) = new Message(this,location) {
     def data : Iterable[Any] = Array(permissionAmount)
   }
 }

@@ -2,13 +2,13 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import ch.ethz.inf.pm.semper.chalice2sil
 import chalice2sil._
-import silAST.source.SourceLocation
-import silAST.expressions.util.TermSequence
+import semper.sil.ast.source.SourceLocation
+import semper.sil.ast.expressions.util.TermSequence
 import util.DerivedFactoryCache
-import silAST.programs.symbols.{FunctionFactory, ProgramVariable, PredicateFactory}
-import silAST.types.nullFunction
-import silAST.expressions.terms.Term
-import silAST.expressions.Expression
+import semper.sil.ast.programs.symbols.{FunctionFactory, ProgramVariable, PredicateFactory}
+import semper.sil.ast.types.nullFunction
+import semper.sil.ast.expressions.terms.Term
+import semper.sil.ast.expressions.Expression
 import chalice.Epsilons
 
 /**

@@ -1,8 +1,8 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation.util
 
-import silAST.programs.symbols.ProgramVariable
-import silAST.types.DataType
-import silAST.source.noLocation
+import semper.sil.ast.programs.symbols.ProgramVariable
+import semper.sil.ast.types.DataType
+import semper.sil.ast.source.noLocation
 import ch.ethz.inf.pm.semper.chalice2sil.translation.ScopeTranslator
 
 /**

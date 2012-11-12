@@ -1,10 +1,10 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation.util
 
-import silAST.source.SourceLocation
-import silAST.programs.symbols.{Field, ProgramVariable}
+import semper.sil.ast.source.SourceLocation
+import semper.sil.ast.programs.symbols.{Field, ProgramVariable}
 import ch.ethz.inf.pm.semper.chalice2sil.translation.{FieldTranslator, MemberEnvironment}
 import ch.ethz.inf.pm.semper.chalice2sil._
-import silAST.expressions._
+import semper.sil.ast.expressions._
 import terms._
 
 

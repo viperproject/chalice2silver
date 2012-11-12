@@ -2,16 +2,16 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation.util
 
 import ch.ethz.inf.pm.semper.chalice2sil._
 import translation._
-import silAST.source.SourceLocation
+import semper.sil.ast.source.SourceLocation
 import collection.TraversableOnce
-import silAST.expressions.util.PTermSequence
-import silAST.methods.{MethodFactory, Method}
+import semper.sil.ast.expressions.util.PTermSequence
+import semper.sil.ast.methods.{MethodFactory, Method}
 
-import silAST.types.referenceType
-import silAST.expressions.Expression
-import silAST.symbols.logical.And
-import silAST.programs.symbols.{PredicateFactory, ProgramVariable, Field}
-import silAST.expressions.terms.{Term, PTerm}
+import semper.sil.ast.types.referenceType
+import semper.sil.ast.expressions.Expression
+import semper.sil.ast.symbols.logical.And
+import semper.sil.ast.programs.symbols.{PredicateFactory, ProgramVariable, Field}
+import semper.sil.ast.expressions.terms.{Term, PTerm}
 
 
 /**

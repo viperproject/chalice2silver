@@ -2,9 +2,9 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation.util
 
 import ch.ethz.inf.pm.semper.chalice2sil
 import chalice2sil._
-import silAST.expressions.{OldExpression, QuantifierExpression, Expression}
-import silAST.symbols.logical.quantification.LogicalVariable
-import silAST.expressions.terms.{LogicalVariableTerm, Term}
+import semper.sil.ast.expressions.{OldExpression, QuantifierExpression, Expression}
+import semper.sil.ast.symbols.logical.quantification.LogicalVariable
+import semper.sil.ast.expressions.terms.{LogicalVariableTerm, Term}
 
 /*
 Copyright (c) 2012, Christian Klauser

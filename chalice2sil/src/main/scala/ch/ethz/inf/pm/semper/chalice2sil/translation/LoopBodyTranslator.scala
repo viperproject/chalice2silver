@@ -1,11 +1,11 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
-import silAST.source.SourceLocation
-import silAST.types.DataType
+import semper.sil.ast.source.SourceLocation
+import semper.sil.ast.types.DataType
 import collection._
-import silAST.methods.implementations.{LoopBlockFactory, BasicBlockFactory}
-import silAST.expressions.ExpressionFactory
-import silAST.programs.symbols.ProgramVariable
+import semper.sil.ast.methods.implementations.{LoopBlockFactory, BasicBlockFactory}
+import semper.sil.ast.expressions.ExpressionFactory
+import semper.sil.ast.programs.symbols.ProgramVariable
 
 /**
   * @author Christian Klauser

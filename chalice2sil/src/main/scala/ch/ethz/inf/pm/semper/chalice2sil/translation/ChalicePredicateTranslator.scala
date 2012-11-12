@@ -1,7 +1,7 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import ch.ethz.inf.pm.semper.chalice2sil._
-import silAST.source.SourceLocation
+import semper.sil.ast.source.SourceLocation
 
 class ChalicePredicateTranslator(environment : ProgramEnvironment, val predicate : chalice.Predicate, id : Int)
   extends PredicateTranslator(environment,id) {

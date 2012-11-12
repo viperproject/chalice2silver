@@ -1,6 +1,6 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation.util
 
-import silAST.methods.implementations.BasicBlockFactory
+import semper.sil.ast.methods.implementations.BasicBlockFactory
 
 /**
   * Author: Christian Klauser

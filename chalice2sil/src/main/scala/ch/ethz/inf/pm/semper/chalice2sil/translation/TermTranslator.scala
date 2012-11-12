@@ -1,16 +1,16 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import operators.Lookup.Success
-import silAST.source.SourceLocation
+import semper.sil.ast.source.SourceLocation
 import math.BigInt._
 import ch.ethz.inf.pm.semper.chalice2sil._
-import silAST.types.nullFunction
-import silAST.expressions.util.{PTermSequence, TermSequence}
-import silAST.expressions.terms.{PTerm, Term}
-import silAST.programs.symbols.PredicateFactory
-import silAST.expressions.{PPredicatePermissionExpression, PredicatePermissionExpression}
+import semper.sil.ast.types.nullFunction
+import semper.sil.ast.expressions.util.{PTermSequence, TermSequence}
+import semper.sil.ast.expressions.terms.{PTerm, Term}
+import semper.sil.ast.programs.symbols.PredicateFactory
+import semper.sil.ast.expressions.{PPredicatePermissionExpression, PredicatePermissionExpression}
 import collection.immutable.Stack
-import silAST.symbols.logical.quantification.LogicalVariable
+import semper.sil.ast.symbols.logical.quantification.LogicalVariable
 import chalice.Permission
 
 /**

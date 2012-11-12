@@ -1,16 +1,16 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation.util
 
-import silAST.programs.symbols.ProgramVariable
-import silAST.ASTNode
-import silAST.source.SourceLocation
-import silAST.expressions._
+import semper.sil.ast.programs.symbols.ProgramVariable
+import semper.sil.ast.ASTNode
+import semper.sil.ast.source.SourceLocation
+import semper.sil.ast.expressions._
 import ch.ethz.inf.pm.semper.chalice2sil
 import chalice2sil._
 import terms._
 import translation.{MemberEnvironment, DerivedMemberEnvironment}
-import silAST.expressions.util.TermSequence
+import semper.sil.ast.expressions.util.TermSequence
 import collection.immutable
-import silAST.symbols.logical.quantification.LogicalVariable
+import semper.sil.ast.symbols.logical.quantification.LogicalVariable
 
 /**
   * @author Christian Klauser

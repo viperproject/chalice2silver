@@ -2,10 +2,10 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import ch.ethz.inf.pm.semper.chalice2sil._
 
-import silAST.expressions.terms.Term
-import silAST.source.SourceLocation
-import silAST.expressions.util.TermSequence
-import silAST.types.{permissionAddition, permissionSubtraction, permissionMultiplication, permissionIntegerMultiplication}
+import semper.sil.ast.expressions.terms.Term
+import semper.sil.ast.source.SourceLocation
+import semper.sil.ast.expressions.util.TermSequence
+import semper.sil.ast.types.{permissionAddition, permissionSubtraction, permissionMultiplication, permissionIntegerMultiplication}
 
 /**
   * @author Christian Klauser

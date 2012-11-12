@@ -1,9 +1,9 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
-import silAST.expressions.terms.OldTerm
-import silAST.types.{booleanType, DataType}
-import silAST.expressions.{PProgramVariableSubstitution, OldExpression}
-import silAST.ASTNode
+import semper.sil.ast.expressions.terms.OldTerm
+import semper.sil.ast.types.{booleanType, DataType}
+import semper.sil.ast.expressions.{PProgramVariableSubstitution, OldExpression}
+import semper.sil.ast.ASTNode
 
 /**
   * @author Christian Klauser

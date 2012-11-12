@@ -1,8 +1,8 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
-import silAST.expressions.ExpressionFactory
-import silAST.expressions.terms.PTerm
-import silAST.expressions.util.PTermSequence
+import semper.sil.ast.expressions.ExpressionFactory
+import semper.sil.ast.expressions.terms.PTerm
+import semper.sil.ast.expressions.util.PTermSequence
 
 trait LocationTranslator extends ProgramEnvironment {
 

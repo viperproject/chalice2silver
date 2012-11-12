@@ -36,7 +36,7 @@ libraryDependencies += "org.scalatest" %% "scalatest" % "1.8" % "test" withJavad
 
 libraryDependencies += "com.github.scopt" %% "scopt" % "2.0.1"
 
-libraryDependencies += "pm.inf.ethz.ch" %% "silast" %  "0.1-SNAPSHOT"
+libraryDependencies += "pm.inf.ethz.ch" %% "sil" %  "0.1-SNAPSHOT"
 
 libraryDependencies += "pm.inf.ethz.ch" %% "silicon" %  "0.1-SNAPSHOT"
 

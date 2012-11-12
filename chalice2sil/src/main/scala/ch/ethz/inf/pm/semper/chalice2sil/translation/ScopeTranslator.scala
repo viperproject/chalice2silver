@@ -1,37 +1,37 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
-import silAST.programs.symbols.ProgramVariable
+import semper.sil.ast.programs.symbols.ProgramVariable
 import ch.ethz.inf.pm.semper.chalice2sil._
-import silAST.source.{noLocation, SourceLocation}
+import semper.sil.ast.source.{noLocation, SourceLocation}
 import collection._
 import translation.util._
-import silAST.expressions.terms._
-import silAST.symbols.logical._
-import silAST.expressions._
-import silAST.types._
-import silAST.methods.implementations.{CFGFactory, BasicBlockFactory}
-import silAST.expressions.util.{TermSequence, PTermSequence}
-import silAST.domains.{TypeVariableSubstitution, LogicalVariableSubstitution}
-import silAST.symbols.logical.quantification.Forall
-import silAST.expressions.UnaryExpression
+import semper.sil.ast.expressions.terms._
+import semper.sil.ast.symbols.logical._
+import semper.sil.ast.expressions._
+import semper.sil.ast.types._
+import semper.sil.ast.methods.implementations.{CFGFactory, BasicBlockFactory}
+import semper.sil.ast.expressions.util.{TermSequence, PTermSequence}
+import semper.sil.ast.domains.{TypeVariableSubstitution, LogicalVariableSubstitution}
+import semper.sil.ast.symbols.logical.quantification.Forall
+import semper.sil.ast.expressions.UnaryExpression
 import scala.Some
-import silAST.expressions.QuantifierExpression
-import silAST.symbols.logical.And
-import silAST.expressions.OldExpression
-import silAST.expressions.DomainPredicateExpression
-import silAST.symbols.logical.Or
+import semper.sil.ast.expressions.QuantifierExpression
+import semper.sil.ast.symbols.logical.And
+import semper.sil.ast.expressions.OldExpression
+import semper.sil.ast.expressions.DomainPredicateExpression
+import semper.sil.ast.symbols.logical.Or
 import terms.DomainFunctionApplicationTerm
-import silAST.expressions.TrueExpression
-import silAST.symbols.logical.Implication
+import semper.sil.ast.expressions.TrueExpression
+import semper.sil.ast.symbols.logical.Implication
 import terms.FieldLocation
 import terms.FullPermissionTerm
 import terms.NoPermissionTerm
 import terms.OldTerm
 import terms.PredicateLocation
-import silAST.expressions.FalseExpression
-import silAST.symbols.logical.Equivalence
-import silAST.expressions.EqualityExpression
-import silAST.expressions.BinaryExpression
+import semper.sil.ast.expressions.FalseExpression
+import semper.sil.ast.symbols.logical.Equivalence
+import semper.sil.ast.expressions.EqualityExpression
+import semper.sil.ast.expressions.BinaryExpression
 import terms.ProgramVariableTerm
 
 /**
@@ -387,7 +387,7 @@ trait ScopeTranslator
   
       // Generate assumptions and conditions on fraction
       /**
-        * Walks over an [[silAST.expressions.Expression]] and extracts just read permission assertions and implications.
+        * Walks over an [[semper.sil.ast.expressions.Expression]] and extracts just read permission assertions and implications.
         * @param expr The expression to analyse.
         * @return A list of extracted read conditions.
         */

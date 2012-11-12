@@ -1,6 +1,6 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
-import silAST.source.SourceLocation
+import semper.sil.ast.source.SourceLocation
 
 /**
   * @author Christian Klauser

@@ -1,10 +1,10 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
-import silAST.programs.ProgramFactory
-import silAST.methods.MethodFactory
+import semper.sil.ast.programs.ProgramFactory
+import semper.sil.ast.methods.MethodFactory
 import ch.ethz.inf.pm.semper.chalice2sil.{Message, ProgramOptions}
 import collection.mutable.{SynchronizedSet, Buffer}
-import silAST.types.{referenceType, permissionType, integerType, DataType}
+import semper.sil.ast.types.{referenceType, permissionType, integerType, DataType}
 import ch.ethz.inf.pm.semper.chalice2sil
 
 /**

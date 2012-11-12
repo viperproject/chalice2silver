@@ -6,7 +6,7 @@ package ch.ethz.inf.pm.semper.chalice2sil.translation
 
 import ch.ethz.inf.pm.semper.chalice2sil.ChaliceSuite
 import org.scalatest.matchers.{MatchResult, BeMatcher, ShouldMatchers}
-import silAST.programs.symbols.ProgramVariable
+import semper.sil.ast.programs.symbols.ProgramVariable
 
 class CornerCases extends ChaliceSuite with ShouldMatchers {
 

@@ -1,19 +1,19 @@
 package ch.ethz.inf.pm.semper.chalice2sil.translation
 
-import silAST.types.DataTypeSequence._
-import silAST.expressions.util.DTermSequence._
-import silAST.symbols.logical.Not._
-import silAST.expressions.util.DTermSequence
-import silAST.symbols.logical.Not
-import silAST.expressions.DExpression
-import silAST.source.{SourceLocation, noLocation}
-import silAST.domains._
-import silAST.types._
-import silAST.symbols.logical.quantification.{LogicalVariable, Forall}
+import semper.sil.ast.types.DataTypeSequence._
+import semper.sil.ast.expressions.util.DTermSequence._
+import semper.sil.ast.symbols.logical.Not._
+import semper.sil.ast.expressions.util.DTermSequence
+import semper.sil.ast.symbols.logical.Not
+import semper.sil.ast.expressions.DExpression
+import semper.sil.ast.source.{SourceLocation, noLocation}
+import semper.sil.ast.domains._
+import semper.sil.ast.types._
+import semper.sil.ast.symbols.logical.quantification.{LogicalVariable, Forall}
 import util.{FactoryHashCache, NameSequence}
-import silAST.expressions.terms.{NoPermissionTerm, FullPermissionTerm, IntegerLiteralTerm, DTerm}
+import semper.sil.ast.expressions.terms.{NoPermissionTerm, FullPermissionTerm, IntegerLiteralTerm, DTerm}
 import scala.Tuple1
-import silAST.symbols.logical.quantification.Forall
+import semper.sil.ast.symbols.logical.quantification.Forall
 
 /**
  * Author: Christian Klauser
@@ -45,7 +45,7 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
       factory.makeDDomainPredicateExpression(domainPredicate,DTermSequence(args:_*),loc)
     }
     protected def not(operand : DExpression) : DExpression =
-      factory.makeDUnaryExpression(silAST.symbols.logical.Not()(loc),operand,loc)
+      factory.makeDUnaryExpression(semper.sil.ast.symbols.logical.Not()(loc),operand,loc)
     protected def ∀(aType : DataType, expr : LogicalVariable => DExpression) : DExpression = {
       val a = factory.makeBoundVariable(names.nextName,aType,loc)
       factory.makeDQuantifierExpression(Forall()(loc),a,expr(a),loc)
@@ -102,13 +102,13 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
     implicit protected def exprOps(lhs : DExpression) = new {
       // don't use ∧ or ∨ for and/or to take advantage of Scala operator precedence rules.
       def and(rhs : DExpression) : DExpression =
-        factory.makeDBinaryExpression(silAST.symbols.logical.And()(loc),lhs,rhs,loc)
+        factory.makeDBinaryExpression(semper.sil.ast.symbols.logical.And()(loc),lhs,rhs,loc)
       def or(rhs : DExpression) : DExpression =
-        factory.makeDBinaryExpression(silAST.symbols.logical.Or()(loc),lhs,rhs,loc)
+        factory.makeDBinaryExpression(semper.sil.ast.symbols.logical.Or()(loc),lhs,rhs,loc)
       def ↔(rhs : DExpression) : DExpression =
-        factory.makeDBinaryExpression(silAST.symbols.logical.Equivalence()(loc),lhs,rhs,loc)
+        factory.makeDBinaryExpression(semper.sil.ast.symbols.logical.Equivalence()(loc),lhs,rhs,loc)
       def →(rhs:DExpression) : DExpression =
-        factory.makeDBinaryExpression(silAST.symbols.logical.Implication()(loc),lhs,rhs,loc)
+        factory.makeDBinaryExpression(semper.sil.ast.symbols.logical.Implication()(loc),lhs,rhs,loc)
     }
 
     implicit protected def integerAsLiteral(n : Int) : DTerm = factory.makeIntegerLiteralTerm(n,loc)
