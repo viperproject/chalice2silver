@@ -1,0 +1,33 @@
+class LocalInts {
+	method add(x: int, y: int) returns (r: int)
+		ensures r == x + y
+	{	r := x + y }
+	
+	method multiply(x: int, y: int) returns (r: int)
+		ensures r == x * y
+	{	r := x * y }
+	
+	method divmod(x: int, y: int) returns (d: int, r: int)
+		requires y != 0
+		ensures d * y + r == x
+	{
+		d := x / y
+		r := x % y
+	}
+	
+	method failAdd(x: int, y: int) returns (r: int)
+		ensures r == x + y /* @Error 310 */
+	{	r := x - y }
+
+	// method failMultiply(x: int, y: int) returns (r: int)
+		// ensures r == x * y /* @Error 310 */
+	// {	r := y * y }
+	
+	// method failDivmod(x: int, y: int) returns (d: int, r: int)
+		// requires y != 0
+		// ensures d * y + r == x /* @Error 310 */
+	// {
+		// d := x / y
+		// r := x % d /* TODO: Should give a denominator-possibly-zero error */
+	// }
+}

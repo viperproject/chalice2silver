@@ -1,0 +1,42 @@
+class Test {
+	method f() {}
+	
+	method varAlreadyDeclared() {
+		var tk: token<Test.f>
+		// // assert tk == null /* Chalice: Expression might be false */
+		// // assert tk != null /* Chalice: Expression might be false */
+		fork tk := f()
+		assert tk != null
+		assert tk.joinable
+		// // tk.joinable := false /* Cannot assign directly to special field */
+		join tk
+		assert tk != null
+		assert !tk.joinable /* Chalice: Location might not be readable. */
+	}
+	
+	method localVar() {
+		fork tk := f()
+		assert tk != null
+		assert tk.joinable
+		join tk
+		assert tk != null
+		assert !tk.joinable /* Chalice: Location might not be readable. */
+	}
+	
+	method failJoinable1() {
+		var tk: token<Test.f>
+		assert tk.joinable /* @Error 405 */
+	}
+	
+	method failJoinable2() {
+		fork tk := f()
+		join tk
+		assert tk.joinable /* @Error 410 */
+	}
+	
+	method failJoin() {
+		fork tk := f()
+		join tk
+		join tk /* @Error 920 */
+	}
+}

@@ -1,0 +1,91 @@
+class SyncMethodCalls {
+	method divmod(x: int, y: int) returns (d: int, r: int)
+		requires x >= 0
+		requires y > 0
+		ensures d * y + r == x
+		ensures 0 <= r && r < y
+	{
+		d := x / y
+		r := x % y
+	}
+	
+	method callDivmod() returns (a: int, b: int)
+		ensures a == 2 && b == 1
+	{
+		call a, b := divmod(7, 3)
+	}
+	
+	method callDivmodWithArgs(p: int, q: int) returns (a: int, b: int)
+		requires p > 123 && q >= 234
+		ensures a * q + b == p
+		ensures 0 <= b && b < q
+	{
+		call a, b := divmod(p, q)
+	}
+
+	method ternary(b: bool, x: int, y: int) returns (r: bool)
+		ensures r <==> (b && x > 0) || (!b && y > 0)
+	{
+		if (b) {
+			r := x > 0
+		} else {
+			r := y > 0
+		}
+	}
+
+	method callTernary() {
+		/* Apparently not supported by Chalice (12/2010) */
+		// assert(ternary(true, 1, 0))
+		// assert(call ternary(true, 1, 0))
+		
+		call b1 := ternary(true, 1, 0)
+		call b2 := ternary(false, 0, 1)
+		call b3 := ternary(true, 0, 1)
+		call b4 := ternary(false, -1, -1)
+		
+		assert(b1 && b2 && !b3 && !b4)
+	}
+	
+	method failEscapingArguments() returns (a: int, b: int) {
+		var x: int
+		call a, b := divmod(7, 3)
+		
+		assert(x == 7) /* @Error 410 */
+	}
+	
+	method failResultEscaping() returns (a: int, b: int) {
+		var d: int
+		call a, b := divmod(7, 3)
+		
+		assert(d == 2) /* @Error 410 */
+	}
+	
+	method failCallDivmod() returns (a: int, b: int) {
+		call a, b := divmod(7, 0) /* @Error 210 */
+	}
+	
+	method failEstablishPrecondition(p: int, q: int) returns (a: int, b: int)
+		requires p >= 0 && q >= 0
+	{
+		call a, b := divmod(p, q) /* @Error 210 */
+	}
+	
+	method failEstablishPostcondition(p: int, q: int) returns (a: int, b: int)
+		requires p > 0 && q > 0
+		ensures 0 < b && b < q /* @Error 310 */
+	{
+		call a, b := divmod(p, q)
+	}
+	
+	method failCallTernary() {
+		call b1 := ternary(true, 0, 1)
+		call b2 := ternary(false, 1, 0)
+		
+		assert(b1 || b2) /* @Error 410 */
+	}
+
+	/* Omitting results is apparently not supported by Chalice (12/2010). */
+	// method callDivmodIgnoreResults() {
+		// call divmod(7, 3)
+	// }	
+}

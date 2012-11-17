@@ -1,0 +1,64 @@
+// @IgnoreFile
+// Counting permissions (epsilons) are currently not supported in Syxc
+// due to changes made when introducing the tuple representation (w, r)
+// of permissions as part of the work on immutability.
+
+class Cell {
+	var x: int
+	var y: int
+	invariant acc(x, 50) && rd(y, 2)
+}
+
+class Test {
+	method succeed1(c: Cell)
+		requires c != null && rd(c.mu) && waitlevel << c.mu
+		ensures rd(c.mu)
+	{
+		rd acquire c
+		assert rd(c.x, 1) && rd(c.y, 2)
+		rd release c
+	}
+	
+	method failsTooGreedy1(c: Cell)
+		requires c != null && rd(c.mu) && waitlevel << c.mu
+	{
+		rd acquire c
+		assert rd(c.x, 2) /* @Error 430 */
+	}
+	
+	method failsTooGreedy2(c: Cell)
+		requires c != null && rd(c.mu) && waitlevel << c.mu
+	{
+		rd acquire c
+		assert rd(c.y, 3) /* @Error 430 */
+	}
+	
+	method failRelease(c: Cell)
+		requires c != null && rd(c.mu) && waitlevel << c.mu
+		ensures rd(c.mu)
+	{
+		rd acquire c
+		release c /* @Error 1346 */
+	}
+	
+	method failModify(c: Cell)
+		requires c != null && rd(c.mu) && waitlevel << c.mu
+	{
+		rd acquire c
+		c.y := 0 /* @Error 630 */
+	}
+	
+	method failAssert1(c: Cell)
+		requires c != null && rd(c.mu) && waitlevel << c.mu
+	{
+		rd acquire c
+		assert acc(c.x, 50) /* @Error 430 */
+	}
+	
+	method failRdRelease(c: Cell)
+		requires c != null && acc(c.mu) && waitlevel << c.mu
+	{
+		acquire c
+		rd release c /* @Error 1346 */
+	}
+}

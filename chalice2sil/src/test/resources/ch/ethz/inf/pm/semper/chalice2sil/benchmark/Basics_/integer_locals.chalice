@@ -1,0 +1,45 @@
+class LocalVars {
+	method decl(x: int, y: int, z: int) returns (r: int)
+		requires x == y
+		requires z != x
+		ensures r == 2 * x + z
+	{
+		var b1: int := x + y
+		var b2: int
+
+		b2 := b1 + z
+		r := b2
+	}
+	
+	// method divmod(a: int, b: int) returns (x: int)
+		// requires b != 0
+		// ensures x == a
+	// {
+		// var d: int := a / b
+		// var r: int := a % b
+		
+		// x := b * d + r
+	// }
+	
+	method failDecl(x: int, y: int, z: int) returns (r: int)
+		requires x == y
+		requires z != x
+		ensures r == 2 * x + z /* @Error 310 */
+	{
+		var b1: int := x + y
+		var b2: int
+
+		b2 := b2 + z
+		r := b2
+	}
+	
+	// method failDivmod(a: int, b: int) returns (x: int)
+		// requires b != 0
+		// ensures x == a /* @Error 310 */
+	// {
+		// var d: int := a % b
+		// var r: int := a / b
+		
+		// x := b * d + r
+	// }
+}

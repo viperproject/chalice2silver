@@ -1,0 +1,100 @@
+/* There was a bug in the handling of situations where a field chunk
+ * t0.x |-> tv1 # tp1 already existed in the heap and another field chunk
+ * t0.x |-> tv2 # tp2 was added to / merged with the heap.
+ * The bug was such that the permissions tp2 were added to the existing field
+ * chunk, but the snapshot tv2 was completely ignored, i.e. the path
+ * condition "tv1 = tv2" was not added.
+ * The bug was discovered by Yannis.
+ */
+class Test {
+	var x: int
+	
+	predicate X1 { acc(x, 40) }
+	predicate X2 { acc(x, 60) }
+	predicate X3 { acc(x) }
+	
+	method reqX1()
+		requires X1
+		ensures X1
+	{}
+	
+	method reqX2()
+		requires X2
+		ensures X2
+	{}
+	
+	method succeeds1()
+		requires X1 && X2
+		ensures X1 && X2
+	{
+		var y1: int := unfolding X1 in unfolding X2 in x
+		var y2: int := unfolding X2 in unfolding X1 in x
+
+		assert y1 == y2 /* Previously failed due to the bug */
+	}
+	
+	method succeeds2()
+		requires X1
+		ensures X1
+	{
+		var y1: int := unfolding X1 in x
+		var y2: int := unfolding X1 in x
+
+		assert y1 == y2 /* Succeeded already before the bug was fixed */
+	}	
+	
+	method shouldSucceed3()
+		requires X1 && X2
+		ensures X1 && X2
+	{
+		var y1: int := unfolding X1 in x
+		var y2: int := unfolding X2 in x
+
+		assert y1 == y2 /* @Fails */
+	}
+	
+	method succeed3()
+		requires X1 && X2
+		ensures X1 && X2
+	{
+		var y1: int := unfolding X1 in unfolding X2 in x
+		var y2: int := unfolding X2 in unfolding X1 in x
+
+		assert y1 == y2 /* Now succeeds */
+	}
+	
+	method succeeds4()
+		requires X1 && X2
+		ensures X1 && X2
+	{
+		var y1: int := unfolding X1 in unfolding X2 in x
+		call reqX1()
+		var y2: int := unfolding X1 in unfolding X2 in x
+		assert y1 == y2 /* Succeeds if both Xi are unfolded */
+	}
+	
+	method shouldSucceed5()
+		requires X1 && X2
+		ensures X1 && X2
+	{
+		var y1: int := unfolding X1 in unfolding X2 in x
+		call reqX1()
+		call reqX2()
+		var y2: int := unfolding X1 in unfolding X2 in x
+
+		assert y1 == y2 /* @Fails */
+	}
+	
+	method succeeds5()
+		requires X1 && X2
+		ensures X1 && X2
+	{
+		var y1: int := unfolding X1 in unfolding X2 in x
+		call reqX1()
+		var ytmp: int := unfolding X1 in unfolding X2 in x
+		call reqX2()
+		var y2: int := unfolding X1 in unfolding X2 in x
+
+		assert y1 == y2 /* Succeeds due to intermediate unfolding */
+	}
+}

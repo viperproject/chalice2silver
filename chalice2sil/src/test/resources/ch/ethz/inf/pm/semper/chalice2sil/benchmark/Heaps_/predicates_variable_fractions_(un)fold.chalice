@@ -1,0 +1,108 @@
+// @IgnoreFile
+// VariableExpr is currently not supported in Syxc due to changes made
+// when introducing the tuple representation (w, r) of permissions
+// as part of the work on immutability.
+
+class Predicates {
+	var x: int
+
+	predicate V { acc(x) }
+	
+	function f(a: int): int
+		requires rd(x)
+	{ x + a }
+	
+	method varAccPlus(a: int, b: int)
+		requires a >= 0
+		requires b >= 0
+		requires a + b <= 100
+		requires acc(x)
+		ensures acc(V, a + b)
+		ensures acc(x, 100 - (a + b))
+	{ fold acc(V, a + b) }
+	
+	method fail1VarAccPlus(a: int, b: int)
+		requires a >= 0
+		requires b >= 0
+		requires a + b <= 100
+		requires acc(x)
+		ensures acc(V, a + b)
+		ensures acc(x, a + b) /* @Error 330 */
+	{ fold acc(V, a + b) }
+	
+	method varAccDiv(a: int, b: int)
+		requires a >= 0
+		requires b > 0
+		requires a / b >= 0
+		requires a / b <= 100
+		requires acc(x)
+		ensures acc(V, a / b)
+		ensures acc(x, 100 - (a / b))
+	{ fold acc(V, a / b) }
+	
+	method varAccF(a: int)
+		requires acc(x)
+		requires f(a) >= 0
+		requires f(a) < 100
+		ensures rd(x)
+		ensures x == old(x)
+		ensures acc(x, 99 - f(a))
+		ensures acc(V, f(a))
+	{ fold acc(V, f(a)) }
+	
+	method fail0VarAccF(a: int)
+		requires acc(x)
+		requires f(a) >= 0
+		requires f(a) < 100
+		ensures rd(x)
+		ensures x == old(x)
+		ensures acc(x, 100 - f(a)) /* @Error 330 */
+			/* Fails because acc(x, n) means acc(x, n, 0), and here we only hold
+			 * acc(x, n, -1) since we already ensured rd(x) before. */
+		ensures acc(V, f(a))
+	{ fold acc(V, f(a)) }
+	
+	method fail1VarAccF(a: int)
+		requires acc(x)
+		requires f(a) >= 0
+		requires f(a) < 100
+		ensures rd(x)
+		ensures acc(V, f(a)) /* @Error 130 */
+	{ fold acc(V, f(a)) }
+	
+	method succeed1(n: int)
+		requires n >= 0
+		requires n <= 100
+		requires V
+		ensures V
+	{
+		unfold acc(V, n/2)
+		assert(acc(V, 50))
+		assert(acc(V, 100 - n/2))
+		assert(acc(x, n/2))
+		fold acc(V, n/2)
+	}
+	
+	
+	
+	method succeedSimple()
+		requires acc(V, 33)
+		ensures acc(V, 33)
+	{
+		unfold acc(V, 11)
+		assert(acc(x, 11))
+		assert(acc(V, 22))
+		fold acc(V, 10)
+		assert(acc(x, 1))
+		assert(acc(V, 32))
+		fold acc(V, 1)
+	}
+	
+	method failSimple()
+		requires acc(V, 33)
+		ensures acc(V, 33)
+	{
+		unfold acc(V, 11)
+		assert(acc(x, 12)) /* @Error 430 */
+	}
+}

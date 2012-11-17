@@ -1,0 +1,31 @@
+// @IgnoreFile
+// Counting permissions (epsilons) are currently not supported in Syxc
+// due to changes made when introducing the tuple representation (w, r)
+// of permissions as part of the work on immutability.
+
+/* Corresponds to
+ *   http://boogie.codeplex.com/workitem/10203
+ * reported by Stefan Heule.
+ */
+class Cell {
+  var x: int;
+  
+  invariant rd(x,10);
+  
+  method f()
+    requires acc(x) && acc(mu) && mu == lockbottom; 
+    ensures acc(x);
+    lockchange this;
+  {
+    // share the object
+    share this;
+    
+    // fork bar(this);
+    
+    // read aquire it
+    rd acquire this;
+
+    // we should not be able to write to this location, as we only have a read lock
+    this.x := 3; /* @Holds */
+  }
+}

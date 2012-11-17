@@ -1,0 +1,188 @@
+class Cell {
+	var x: int
+	
+	function get(): int
+		requires rd(x)
+	{ x }
+}
+
+class Quantifiers {
+	/* TODO: Mention in the report */
+	// method forall10(x: int) returns (y: int)
+		// requires forall i in [0..10] :: x > i
+		// ensures forall i in [0..10] :: x > i
+			// /* @Fails due to a severe limitation of Z3.
+			 // * See PDF "Z3 - a Tutorial", section 13.4 Saturation.
+			 // */
+	// { }
+	
+	method forallCellGet10(c: Cell) returns (d: Cell)
+		requires c != null
+		requires acc(c.x)
+		requires forall i in [0..c.get()] :: c.get() > i
+		ensures acc(c.x)
+		ensures forall i in [0..c.get()] :: c.get() > i
+		ensures forall i in [0..c.get()] :: c.get() != i
+	{}
+	
+	method fail10ForallCellGet10(c: Cell) returns (d: Cell)
+		requires c != null
+		requires forall i in [0..c.get()] :: c.get() > i /* @Error 230 */
+	{}
+	
+	method fail20ForallCellGet10(c: Cell) returns (d: Cell)
+		requires c != null
+		requires acc(c.x)
+		requires c.get() > 0
+		requires forall i in [0..c.get()] :: c.get() >= i
+		ensures c != null
+		ensures acc(c.x)
+		ensures forall i in [0..c.get()] :: c.get() <= i /* @Error 310 */
+	{}
+	
+	method succeedsRange10(a: int)
+		requires a > 1
+	{
+		assert forall i: int :: (1 <= i) ==> reqIGt0(i) == i
+		assert forall i: int :: (i in [1..a]) ==> reqIGt0(i) == i
+		assert forall i in [1..a] :: reqIGt0(i) == i
+	}
+	
+	method failsRange10(a: int)
+	{ assert forall i in [-1..a] :: reqIGt0(i) == i /* @Error 210 */ }
+	
+	/* TODO: The following two methods need quite some time to verify. Why?
+	 *       Quantifications over explicit sequences could be replaced by
+	 *       quantifier-free expressions.
+	 */
+	method succeedsExplicit10(a: int)
+	{ assert forall i in [-2,2,4,6,8] :: reqIGt0(i*i) > i }
+	
+	method failsExplicit10(a: int)
+	{ assert forall i in [-2,2,4,6,8] :: reqIGt0(i) < i*i /* @Error 210 */ }
+	
+	method succeedsEmpty10() {
+		assert forall i in [] :: reqIGt0(i) == i
+			/* [] is parsed as a chalice.ast.ExplicitSeq and converted into a
+			 * syxc.ast.EmptySeq
+			 */
+		assert forall i in nil<int> :: reqIGt0(i) == i
+			/* nil<int> is parsed as a chalice.ast.EmptySeq and converted into a
+			 * syxc.ast.EmptySeq
+			 */
+			 
+		assert forall i in [] :: 1 == 2
+	}
+	
+	function reqIGt0(i: int): int
+		requires i >= 0
+	{ i }
+}
+
+class QuantRewriting {
+	/* Tests Syxc' rewriting from SeqQuantification to TypeQuantification */
+	method succeeds1(a: int)
+		requires a > 0
+	{
+		assert forall i: int ::
+			(0 <= i && i < a) ==> g(i) >= 0
+		assert forall i: int :: (i in [0..a]) ==> g(i) >= 0
+		assert forall i in [0..a] :: g(i) >= 0
+		
+		assert exists i: int :: (i in [0]) ==> true
+		
+		/* Fail in Chalice and Syxc */
+		// assert exists i in [0,1,2,3] :: i > 0	
+		// assert exists i: int ::
+			// (0 <= i && i < a) ==> g(i) >= 0
+		// assert exists i: int :: (i in [0..a]) ==> g(i) >= 0
+		// assert exists i in [0..a] :: g(i) >= 0
+	}
+	
+	method exists_fails() {
+		assert exists i in [0] :: true /* @Error 410 */
+			/* 2011-10-03 MHS:
+			 *   Fails in Syxc and Chalice, probably due to triggering problems in Z3
+			 */
+	}
+
+	method succeeds2(a: int)
+		requires a > 0
+	{
+		assert forall i, j: int ::
+			(0 <= i && i < a && 0 <= j && j < a) ==> f(i, j) >= 0			
+		assert forall i, j: int :: (i in [0..a] && j in [0..a]) ==> f(i, j) >= 0
+		assert forall i, j in [0..a] :: f(i, j) >= 0
+	
+		/* Fail in Chalice and Syxc */
+		// assert exists i, j: int ::
+			// (0 <= i && i < a && 0 <= j && j < a) ==> f(i, j) >= 0
+		// assert exists i, j: int :: (i in [0..a] && j in [0..a]) ==> f(i, j) >= 0
+		// assert exists i, j in [0..a] :: f(i, j) >= 0
+	}
+
+	function f(i: int, j: int): int { i + j }
+	function g(i: int): int { i }
+}
+
+class QuantsFAppsImpls {
+	function f(i: int): bool { true }
+	function g(i: int, j: int): bool { true }
+	
+	function h(xs: seq<int>, i: int, j: int): bool
+		requires 0 <= i && i < |xs|
+	{ xs[i] == j }
+	
+	method test1(A: seq<int>) {
+		assume |A| > 10
+	
+		assume forall v in [0..3] :: f(v) ==> (exists j in [0..3] :: j == v);
+		assert forall v in [0..3] :: f(v) ==> (exists j in [0..3] :: j == v); /* @Error 410 */
+		  /* Fails in Chalice and Syxc */
+			/* Probably because interpreted functions such as equality
+			 * cannot be used as Z3 patterns.
+			 */
+	}	
+	
+	method test2(A: seq<int>) {
+		assume |A| > 10
+		
+		assume forall v in [0..3] :: f(v) ==> (exists j in [0..3] :: g(j, v));
+		assert forall v in [0..3] :: f(v) ==> (exists j in [0..3] :: g(j, v));
+	}
+	
+	method test3(A: seq<int>) {
+		assume |A| > 10
+
+		assume forall v in [0..3] :: f(v) ==> (exists j in [0..3] :: A[j] == v);
+		assert forall v in [0..3] :: f(v) ==> (exists j in [0..3] :: A[j] == v);
+	}
+	
+	
+	method test4(A: seq<int>) {
+		assume |A| > 10
+	
+		assume f(0) ==> (exists j in [0..3] :: j > 0);
+		assert f(0) ==> (exists j in [0..3] :: j > 0); /* @Error 410 */
+		  /* Fails in Chalice and Syxc */
+	}	
+	
+	method test5(A: seq<int>) {
+		assume |A| > 10
+		
+		assume f(0) ==> (exists j in [0..3] :: f(j));
+		assert f(0) ==> (exists j in [0..3] :: f(j));
+	}
+	
+	method test6(A: seq<QuantsFAppsImpls>) {
+		assume |A| > 10
+		
+		assume exists j in [0..3] :: A[j] != null
+		assert exists j in [0..3] :: A[j] != null
+	}
+	
+	method test7(A: seq<int>) {
+    assume forall j in [0..|A|] :: f(j) ==> 0 <= A[j]
+    assert forall j in [0..|A|] :: 0 <= A[j]
+	}
+}

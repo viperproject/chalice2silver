@@ -1,0 +1,38 @@
+// @IgnoreFile
+// Counting permissions (epsilons) are currently not supported in Syxc
+// due to changes made when introducing the tuple representation (w, r)
+// of permissions as part of the work on immutability.
+
+/* There was a bug in Decider.allowsReadAccess and 
+ * Decider.allowsWriteAccess due to the use of > instead of >= ... a classic!
+ */
+class Test {
+	var x: int
+	
+	predicate V { acc(x) }
+	
+	method succeed1()
+		requires V
+	{
+		unfold rd(V)
+		assert(rd(x, 1))
+		assert(acc(V, 99))
+	}
+	
+	method fail1()
+		requires V
+	{
+		unfold rd(V)
+		assert(rd(x, 1))
+		assert(rd(x, 2)) /* @Error 430 */
+	}
+	
+	method fail2()
+		requires V
+	{
+		unfold rd(V)
+		assert(rd(x, 1))
+		assert(acc(V, 99))
+		assert(acc(V, 100)) /* @Error 430 */
+	}
+}

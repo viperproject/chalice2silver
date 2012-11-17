@@ -1,0 +1,157 @@
+// @IgnoreFile
+// VariableExpr is currently not supported in Syxc due to changes made
+// when introducing the tuple representation (w, r) of permissions
+// as part of the work on immutability.
+
+class Predicates {
+	var x: int
+
+	predicate V { acc(x) }
+	
+	/*
+	 * Constant fractions
+	 */
+
+	method reqFailLowerBound()
+		requires acc(V, -1) /* @Error 130 */
+	{}
+	
+	method reqFailUpperBound()
+		requires acc(V, 101) /* @Error 140 */
+	{}
+	
+	method ensFailLowerBound()
+		ensures acc(V, -1) /* @Error 130 */
+	{}
+	
+	method ensFailUpperBound()
+		ensures acc(V, 101) /* @Error 140 */
+	{}
+	
+	method assFailLowerBound()
+		requires acc(V)
+	{ assert(acc(V, -1)) /* @Error 130 */ }
+	
+	method failLowerBoundFold()
+		requires acc(x)
+	{ fold acc(V, -1) } /* @Error 130 */
+	
+	method failUpperBoundFold()
+		requires acc(x)
+	{ fold acc(V, 101) } /* @Error 140 */
+	
+	method failLowerBoundUnfold()
+		requires V
+	{ unfold acc(V, -1) } /* @Error 130 */
+	
+	method failUpperBoundUnfold()
+		requires V
+	{ unfold acc(V, 101) } /* @Error 140 */
+	
+	method failLowerBoundUnfolding() returns (t: int)
+		requires V
+	{ t := unfolding acc(V, -1) in (2 * x) } /* @Error 130 */
+	
+	/*
+	 * Variable fractions
+	 */
+	
+	method reqSucceedVarBounds(a: int)
+		requires a >= 0
+		requires a <= 100
+		requires acc(V, a)
+	{}
+	
+	method ensSucceedVarBounds(a: int)
+		requires acc(V)
+		requires a >= 0
+		requires a <= 100
+		ensures acc(V, a)
+	{}
+	
+	method assSucceedVarBounds(a: int)
+		requires acc(V)
+		requires a >= 0
+		requires a <= 100
+	{ assert(acc(V, a)) }
+	
+	method succeedVarBoundsFold(a: int)
+		requires acc(x)
+		requires a >= 0
+		requires a <= 100
+	{ fold acc(V, a) }
+	
+	method succeedVarBoundsUnfold(a: int)
+		requires a >= 0
+		requires a <= 100
+		requires V
+	{ unfold acc(V, a) }
+	
+	method succeedVarBoundsUnfolding(a: int) returns (t: int)
+		requires a >= 0
+		requires a <= 100
+		requires V
+	{ t := unfolding acc(V, a) in x }
+	
+	method reqFailVarLowerBound(a: int)
+		requires a <= 100
+		requires acc(V, a) /* @Error 130 */
+	{}
+	
+	method reqFailVarUpperBound(a: int)
+		requires a >= 0
+		requires acc(V, a) /* @Error 140 */
+	{}
+	
+	method ensFailVarLowerBound(a: int)
+		requires a <= 100
+		requires acc(V)
+		ensures acc(V, a) /* @Error 130 */
+	{}
+	
+	method ensFailVarUpperBound(a: int)
+		requires a >= 0
+		requires acc(V)
+		ensures acc(V, a) /* @Error 140 */
+	{}
+	
+	method assFailVarLowerBound(a: int)
+		requires a <= 100
+		requires acc(V)
+	{ assert(acc(V, a)) /* @Error 130 */ }
+	
+	method assFailVarUpperBound(a: int)
+		requires a >= 0
+		requires acc(V)
+	{ assert(acc(V, a)) /* @Error 430 */ }
+	
+	method failVarLowerBoundFold(a: int)
+		requires a <= 100
+		requires acc(x)
+	{ fold acc(V, a) /* @Error 130 */ }
+	
+	method failVarUpperBoundFold(a: int)
+		requires a >= 0
+		requires acc(x)
+	{ fold acc(V, a) /* @Error 140 */ }
+	
+	method failVarLowerBoundUnfold(a: int)
+		requires a <= 100
+		requires V
+	{ unfold acc(V, a) /* @Error 130 */ }
+	
+	method failVarUpperBoundUnfold(a: int)
+		requires a >= 0
+		requires V
+	{ unfold acc(V, a) /* @Error 140 */ }
+	
+	method failVarLowerBoundUnfolding(a: int) returns (t: int)
+		requires a <= 100
+		requires V
+	{ t := unfolding acc(V, a) in (2 * x) } /* @Error 130 */
+	
+	method failVarUpperBoundUnfolding(a: int) returns (t: int)
+		requires a >= 0
+		requires V
+	{ t := unfolding acc(V, a) in -x } /* @Error 830 */
+}

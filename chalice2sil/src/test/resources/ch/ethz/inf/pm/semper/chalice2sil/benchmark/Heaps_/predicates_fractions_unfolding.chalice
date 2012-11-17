@@ -1,0 +1,133 @@
+// @IgnoreFile
+// VariableExpr is currently not supported in Syxc due to changes made
+// when introducing the tuple representation (w, r) of permissions
+// as part of the work on immutability.
+
+class Predicates {
+	var x: int
+
+	predicate V { acc(x) }
+	// predicate W { rd(x) }
+	// predicate P { acc(x, 50) }
+	
+	function fAccX(p: int): bool
+		requires p >= 0
+		requires p <= 100
+		requires acc(x, p)
+	{ true }
+	
+	function fAccV(p: int): bool
+		requires p >= 0
+		requires p <= 100
+		requires acc(V, p)
+	{ true }	
+	
+	function fRdX(): bool
+		requires rd(x)
+	{ true }
+	
+	function fRdV(): bool
+		requires rd(V)
+	{ true }	
+
+	
+	
+	method unfoldingV50()
+		requires V
+		ensures V
+	{
+		var a: bool := unfolding acc(V, 50) in fAccX(50)
+		var b: bool := unfolding acc(V, 50) in fAccV(50)
+	}
+	
+	method unfoldingV50_2()
+		requires V
+		ensures V
+	{
+		var a: bool := unfolding acc(V, 49) in fAccX(49)
+		var b: bool := unfolding acc(V, 49) in fAccV(49)
+	}
+	
+	method fail1UnfoldingV50()
+		requires V
+	{ var a: bool := unfolding acc(V, 50) in fAccV(51) /* @Error 230 */ }
+	
+	method fail2UnfoldingV50()
+		requires V
+	{ var a: bool := unfolding acc(V, 50) in fAccX(51) /* @Error 230 */ }
+
+	method unfoldingMultipleEnsures()
+		requires V
+		ensures V
+	{
+		var b: bool := unfolding acc(V, 50) in
+			fAccV(50) && fAccV(50) && fAccX(50) && fAccX(50)
+	}
+	
+	method fail1UnfoldingMultipleEnsures()
+		requires V
+	{
+		var b: bool := unfolding acc(V, 50) in
+			fAccV(50) && fAccV(50) && fAccV(51) /* @Error 230 */
+	}
+	
+	method fail2UnfoldingMultipleEnsures()
+		requires V
+	{
+		var b: bool := unfolding acc(V, 50) in
+			fAccX(50) && fAccX(50) && fAccX(51) /* @Error 230 */
+	}
+	
+
+	
+	method unfoldingVTwice()
+		requires V
+	{
+		var b: bool := unfolding acc(V, 50) in
+			fAccX(50) && fAccV(50) && unfolding acc(V, 49) in
+				fAccX(99) && fAccV(1)
+	}
+	
+	method failUnfoldingVTwice()
+		requires V
+	{
+		var b: bool := unfolding acc(V, 50) in
+			fAccX(50) && fAccV(50) && unfolding acc(V, 49) in
+				fAccX(99) && fAccV(2) /* @Error 230 */
+	}
+	
+	method failUnfoldingVTwice_2()
+		requires V
+	{
+		var b: bool := unfolding acc(V, 50) in
+			fAccX(50) && fAccV(50) && unfolding acc(V, 49) in
+				fAccV(1) && fAccX(100) /* @Error 230 */
+	}	
+	
+	// /* Not yet supported in Chalice */
+	// // method unfoldingWRd()
+		// // requires W
+	// // {
+		// // unfolding acc(W,10)
+		// // assert(acc(W, 90))
+		// // assert(rd(x, 1))
+	// // }
+	
+	// /* Not yet supported in Chalice */
+	// // method unfoldingP50()
+		// // requires P
+	// // { unfolding acc(P, 50) }
+	
+	method unfoldingVRd()
+		requires V
+		ensures V
+	{ var b: bool := unfolding rd(V) in fRdX() && fRdV() && fAccV(99) }
+	
+	method fail1UnfoldingVRd()
+		requires V
+	{ var b: bool := unfolding rd(V) in fAccX(1) /* @Error 230 */ }	
+	
+	method fail2unfoldingVRd()
+		requires V
+	{ var b: bool := unfolding rd(V) in fAccV(100) /* @Error 230 */ }
+}

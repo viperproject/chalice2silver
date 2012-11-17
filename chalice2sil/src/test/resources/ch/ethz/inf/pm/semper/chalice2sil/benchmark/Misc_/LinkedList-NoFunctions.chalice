@@ -1,0 +1,98 @@
+/* VSTTE 2010 Verification Competition, Challenge 3
+ * Given a linked list representation of a list of integers,
+ * find the index of the first element that is equal to 0.
+ *
+ * Peter Müller, 19 September 2011.
+ *
+ * The pseudo code provided in the problem description implemented
+ * an iterative solution. Since abstract predicates in Chalice are
+ * defined recursively, we cannot iterate over recursive structures.
+ * Since the problem description does not explictly require iteration,
+ * we implemented the solution recursively. 
+ *
+ * The ghost field content allows us to specify the behavior in terms
+ * of sequences, in particular, to quantify over the list elements.
+ *
+ * Our solution avoids getter functions to access the length and
+ * contents of the list since the interaction of predicates and functions
+ * is currently not sound (but see alternative implementation in 
+ * separate file). 
+ */
+
+
+
+class LinkedList {
+  var head: int;
+  var tail: LinkedList;
+  ghost var content: seq<int>;
+
+  predicate valid {
+    acc(head) && acc(tail) && acc(content, 50) &&
+    (tail != null ==> tail.valid && 
+                      acc(tail.content, 50) && 
+                      content == [head] ++ tail.content) &&
+    (tail == null ==> content == [])
+  }
+
+
+  method Search() returns (i: int)
+    requires valid;
+    ensures valid;
+    ensures 0 <= i;
+    ensures unfolding valid in (i < |content| ==> content[i] == 0);
+    ensures unfolding valid in i <= |content| &&
+                               (forall k in [0..i] :: content[k] != 0);
+  {
+    unfold valid;
+    if(head != 0 && tail != null) {
+      call i := tail.Search();
+			assert i < |tail.content| ==> tail.content[i] == 0
+      i := i + 1;
+			assert 0 <= i
+			assert i < |content| ==> content[i] == 0
+    } else {
+      i := 0;
+    }		
+    fold valid;
+  }
+	
+	
+	/* 2011-09-28 [MHS]
+	 * The following code is a simplified version of the above illustrating
+	 * an incompleteness arising from producing each new assertion into an
+	 * empty heap.
+	 *
+	 * The problem is the following:
+	 *  - after 'unfold' P the following heap chunks exist in heap h1
+	 *      this.tail |-> tail1,  tail1.content |-> tc1 # 50
+	 *  - the call's precondition is produced into an empty heap
+	 *  - when producing 'unfolding P in content[i] == 0' as part of the call's
+	 *    postcondition, the heap h2 in which  'content[i] == 0' is evaluated
+	 *    contains the chunk
+	 *      tail1.content |-> tc2 # 50
+	 *  - this would not be a problem if h1 and h2 would be merged, but since
+	 *    unfolding creates a temporary heap that does not exist any longer once
+	 *    the in-expression has been evaluated, h1 and h2 never get merged
+	 *  - the assertion thus fails because it is known that 'tc2[i] == 0' but
+	 *    not that 'tc1 == tc2'
+	 */	
+	predicate P {
+			 acc(tail)
+		&& acc(content, 50)
+		&& tail.P
+		&& acc(tail.content, 50)
+	}
+	
+	method Test() returns (i: int)
+		requires P
+		ensures P
+    ensures 0 <= i
+    ensures unfolding P in content[i] == 0 /* @Error 310 */
+			/* Is expected to fail since the body doesn't actally do anything */
+	{
+		unfold P
+		call i := tail.Test();
+		assert tail.content[i] == 0
+		fold P
+	}
+}

@@ -1,0 +1,42 @@
+class Test {
+	var m: int
+	
+	method greedyMaybeWriteToM(b: bool, y: int)
+		requires b ==> acc(m)
+	{
+		if (b) {
+			m := y
+		}
+	}
+	
+	method maybeWriteToM(b: bool, y: int)
+		requires b ==> acc(m)
+		ensures b ==> acc(m) && m == y
+	{
+		if (b) {
+			m := y
+		}
+	}
+	
+	method failMaybeWriteToM(b: bool, y: int)
+		requires b ==> acc(m)
+		ensures b ==> acc(m) && m == y /* @Error 310 */
+	{
+		/* This is a fragile test case in the sense that the reported error message
+		 * depends on the order in which true/false antecedent and
+		 * true/false if-guard are assumed.
+		 * E.g., if 'b == true' is assumed in the precondition the if-branch won't
+		 * be executed and the ensures-clause fails.
+		 * But if 'b == false' is assumed in the precondition the if-branch will be
+		 * executed and the assignment to m will fail.
+		 */
+		if (!b) {
+			m := y
+		}
+	}
+	
+	method failTooGenerous(b: bool)
+		requires b ==> acc(m)
+		ensures !b ==> acc(m) /* @Error 330 */
+	{}
+}

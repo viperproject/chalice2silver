@@ -1,0 +1,16 @@
+class Test {
+  var x: int
+  predicate P { true }
+
+  method test(a: Test, b: Test)
+    requires a != null && b != null
+    requires rd(a.x) && acc(b.x, rd(P))
+  {
+    if (a == b) {
+      assert true /* Syxc: triggers a heap merger in. */
+      assert acc(a.x, rd(P))
+    }
+
+    assert acc(a.x, rd(P)) /* @Error 430 */
+  }
+}

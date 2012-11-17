@@ -1,0 +1,23 @@
+// https://bitbucket.org/mschwerhoff/syxc-npm/issue/1/mu-waitlevel-is-not-correctly-interpreted
+
+class Test {
+  method doesSucceed()
+    requires rd(mu)
+    requires waitlevel << mu
+    lockchange this
+  { acquire this /* Succeeds correctly */ }
+  
+  method shouldFail()
+    requires rd(mu)
+    requires mu << waitlevel
+      /* Looks as if mu << waitlevel is interpreted as waitlevel << mu */
+  {
+    acquire this /* @Holds Should fail due to mu << waitlevel in the pre */
+    assume false /* Avoid follow-up errors, e.g., insufficient lockchange clause */
+  }
+  
+  method doesFail()
+    requires rd(mu)
+    // requires mu << waitlevel
+  { acquire this /* @Error 1280 Fails correctly */ }
+}

@@ -1,0 +1,59 @@
+class Cell {
+	var x: int
+	var y: int
+	invariant acc(x) && x > 0
+}
+
+class Test {
+	method acquireReleaseInv(c: Cell)
+		requires c != null && rd(c.mu) && waitlevel << c.mu		
+		requires c != null && rd(c.mu) && waitlevel << c.mu
+	{
+		acquire c
+		assert acc(c.x) && c.x > 0
+		release c
+	}
+	
+	method failWrongInv(c: Cell)
+		requires c != null && rd(c.mu) && waitlevel << c.mu		
+	{
+		acquire c
+		assert acc(c.x) && c.x < 0 /* @Error 410 */
+	}
+	
+	method failRelease(c: Cell)
+		requires c != null && rd(c.mu) && waitlevel << c.mu		
+	{
+		acquire c
+		c.x := -1
+		release c /* @Error 1610 */
+	}	
+	
+	method failInvAlreadyConsumed(c: Cell)
+		requires c != null && rd(c.mu) && waitlevel << c.mu		
+	{
+		acquire c
+		release c
+		assert acc(c.x) /* @Error 430 */
+	}
+	
+	method shareInv() {
+		var c: Cell := new Cell
+		c.x := 1
+		share c
+		c.y := 2
+	}
+	
+	method failShareInv() {
+		var c: Cell := new Cell
+		share c /* @Error 1610 */
+		c.y := 2
+	}	
+	
+	method failInvGone() {
+		var c: Cell := new Cell
+		c.x := 1
+		share c
+		c.x := 2 /* @Error 630 */
+	}
+}

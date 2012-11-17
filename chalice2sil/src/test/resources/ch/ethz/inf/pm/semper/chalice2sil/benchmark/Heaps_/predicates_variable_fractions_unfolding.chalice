@@ -1,0 +1,46 @@
+// @IgnoreFile
+// VariableExpr is currently not supported in Syxc due to changes made
+// when introducing the tuple representation (w, r) of permissions
+// as part of the work on immutability.
+
+class Predicates {
+	var x: int
+
+	predicate V { acc(x) }
+	
+	function f(a: int): int
+		requires rd(x)
+	{ x + a }
+	
+	function fAccX(p: int): bool
+		requires p >= 0
+		requires p <= 100
+		requires acc(x, p)
+	{ true }
+	
+	function fAccV(p: int): bool
+		requires p >= 0
+		requires p <= 100
+		requires acc(V, p)
+	{ true }	
+	
+	function fRdX(): bool
+		requires rd(x)
+	{ true }
+	
+	function fRdV(): bool
+		requires rd(V)
+	{ true }
+
+	
+	
+	method succeed1(n: int)
+		requires n >= 0
+		requires n <= 100
+		requires V
+		ensures V
+	{
+		var b: bool := unfolding acc(V, n/2) in
+			fAccV(50) && fAccV(100 - n/2) && fAccX(n/2)
+	}
+}

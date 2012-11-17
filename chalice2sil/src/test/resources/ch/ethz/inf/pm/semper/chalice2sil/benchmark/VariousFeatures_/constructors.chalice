@@ -1,0 +1,37 @@
+class Cell {
+	var x: int
+	
+	method set(v: int)
+		requires acc(x)
+		ensures acc(x) && x == v
+	{ x := v }
+}
+
+class Test {
+	method createOneCell(a: int) returns (c: Cell)
+		ensures c != null
+		ensures acc(c.x)
+		ensures c.x == a
+	{
+		c := new Cell
+		call c.set(a)
+	}
+	
+	method modifyExistingCell(c: Cell, a: int)
+		requires c != null && acc(c.x)
+		ensures acc(c.x) && c.x == a
+	{ call c.set(a) }
+	
+	method createTwoCells(a: int) returns (c1: Cell, c2: Cell)
+		ensures c1 != null && c2 != null
+		ensures acc(c1.x) && acc(c2.x)
+		ensures c1.x == a && c2.x == -a
+		ensures c1 != null && c2 != null
+	{
+		c1 := new Cell
+		call c1.set(a)
+		
+		c2 := new Cell
+		call c2.set(-a)
+	}
+}

@@ -1,0 +1,69 @@
+/* There was a bug in the implementation of fold that
+ * resulted in duplicated heap chunks which are detected by to certain
+ * assert-statements (Scala's assert, not Chalice's assert) in the code.
+ */
+class Test {
+	var x: int
+	
+	predicate V { acc(x) }
+	
+	method reqRdX()
+		requires rd(x)
+		ensures rd(x)
+	{}
+	
+	method reqRdV()
+		requires rd(V)
+		ensures rd(V)
+	{}
+	
+	function reqX(): bool
+		requires acc(x)
+	{ true }
+	
+	
+	
+	method rdX()
+		requires acc(x)
+		ensures acc(x)
+	{
+		call reqRdX()
+		call reqRdX()
+	}
+	
+	method rdV()
+		requires acc(V)
+		ensures acc(V)
+	{
+		call reqRdV()
+		call reqRdV()
+	}
+	
+	
+	
+	method multipleFold()
+		requires acc(x)
+		ensures acc(V)
+	{
+		fold acc(V, 33)
+		fold acc(V, 67)
+	}
+	
+	method multipleUnfold()
+		requires acc(V)
+		ensures acc(x)
+	{
+		unfold acc(V, 90)
+		unfold acc(V, 10)
+	}
+	
+	method multipleUnfolding()
+		requires acc(V)
+		ensures acc(V)
+	{
+		var b: bool :=
+			unfolding acc(V, 10) in
+				unfolding acc(V, 20) in
+					unfolding acc(V, 70) in reqX()
+	}
+}

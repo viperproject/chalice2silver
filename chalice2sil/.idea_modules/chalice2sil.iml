@@ -5,7 +5,9 @@
       <configuration>
         <option name="compilerLibraryLevel" value="Project" />
         <option name="compilerLibraryName" value="scala-2.9.1" />
+        <option name="deprecationWarnings" value="true" />
         <option name="fsc" value="true" />
+        <option name="uncheckedWarnings" value="true" />
       </configuration>
     </facet>
   </component>
@@ -33,7 +35,10 @@
     <orderEntry type="library" name="org.slf4j_slf4j-api_1.6.4" level="project" />
     <orderEntry type="library" name="log4j_log4j_1.2.16" level="project" />
     <orderEntry type="library" name="default_chalice_2.9.1_1.0" level="project" />
-    <orderEntry type="library" scope="TEST" name="org.scalatest_scalatest_2.9.1_1.8" level="project" />
+    <orderEntry type="library" scope="TEST" name="org.scalatest_scalatest_2.9.1_1.8_test" level="project" />
+    <orderEntry type="library" name="chalice.jar" level="project" />
+    <orderEntry type="library" name="silast.jar" level="project" />
+    <orderEntry type="library" name="silicon.jar" level="project" />
   </component>
 </module>
 
