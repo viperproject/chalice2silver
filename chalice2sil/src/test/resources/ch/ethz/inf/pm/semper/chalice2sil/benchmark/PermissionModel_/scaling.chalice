@@ -1,3 +1,18 @@
+/*
+
+Note: At the moment, there is a performance problem if permissions are scaled.
+If a predicate (such as read1 below) contains a read permission, and one takes
+read access to that predicate (as in method s1; rd(read1)), then this
+effectively means that the fractions corresponding to the two read permissions
+are multiplied. This introduces non-linear arithmetic in Boogie, which can be
+very hard and unpredicable for the theorem prover. For this reason, this test is
+taking a very long time to complete.
+
+Note 2: For the moment, this test is (mostly) disabled.
+
+-- Stefan Heule, June 2011
+
+*/
 
 class Cell {
   var x: int;
@@ -5,10 +20,8 @@ class Cell {
   // --- some predicates ---
   
   predicate write1 { acc(x) } // full permission in a predicate
-  predicate write2 { acc(x,10) } // 10%
   predicate read1 { rd(x) } // abstract read permission
   predicate read2 { rd*(x) } // starred read permission
-  predicate read3 { rd(x,1) } // counting permission (1 epsilon)
   
   // --- permission scaling ---
   
@@ -17,10 +30,10 @@ class Cell {
   {
     unfold rd(read1);
     assert(rd*(x));
-    assert(rd(x)); // ERROR: should fail
+    assert(rd(x)); /* @Error 430 */
   }
   
-  method s2() // INCOMPLETNESS: postcondition should hold, but fails at the moment
+  method s2()
     requires rd(read1);
     ensures rd(read1);
   {
@@ -34,12 +47,12 @@ class Cell {
   {
     fold rd(read1);
     assert(rd*(x));
-    assert(acc(x)); // ERROR: should fail
+    assert(acc(x)); /* @Error 430 */
   }
   
-  method s4() // ERROR: postcondition does not hold
+  method s4()
     requires acc(x);
-    ensures read1;
+    ensures read1; /* @Error 330 */
   {
     fold rd(read1);
   }
@@ -49,7 +62,7 @@ class Cell {
   {
     unfold rd(read2);
     assert(rd*(x));
-    assert(rd(x)); // ERROR: should fail
+    assert(rd(x)); /* @Error 430 */
   }
 
   method s6()
@@ -58,12 +71,12 @@ class Cell {
   {
     fold rd(read2);
     assert(rd*(x));
-    assert(acc(x)); // ERROR: should fail
+    assert(acc(x)); /* @Error 430 */
   }
   
-  method s7() // ERROR: postcondition does not hold
+  method s7()
     requires acc(x);
-    ensures read2;
+    ensures read2; /* @Error 330 */
   {
     fold rd(read2);
   }
@@ -71,6 +84,45 @@ class Cell {
   // --- helper functions ---
   
   method void() requires rd(x); ensures rd(x); {}
-  method dispose() requires rd(x); {}
+  method dispose() requires rd(x); {}  
+}
+
+class Test02 {
+  var f: int
   
+  predicate V { acc(f, 50) }
+  
+  method test01()
+    requires rd(V)
+  {
+    unfold rd(V)
+    assert rd*(V) /* @Error 430 */
+  }
+  
+  method test02()
+    requires rd(V) && rd(V)
+  {
+    unfold rd(V)
+    assert rd*(V)
+  }
+  
+  method test03()
+    requires acc(V)
+    ensures acc(V)
+  {
+    unfold rd(V)
+    unfold rd(V)
+    fold rd(V)
+    fold rd(V)
+  }
+  
+  method test04()
+    requires acc(V)
+    ensures acc(V)
+    ensures rd*(f) /* @Error 330 */
+  {
+    unfold acc(V, 20)
+    unfold acc(V, 30)
+    fold acc(V, 50)
+  }
 }

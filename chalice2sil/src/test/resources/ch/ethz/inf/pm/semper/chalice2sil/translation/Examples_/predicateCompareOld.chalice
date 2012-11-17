@@ -1,3 +1,4 @@
+// @Ignore NullPointerException in Syxc
 class Indentation {
     var count : int;
 

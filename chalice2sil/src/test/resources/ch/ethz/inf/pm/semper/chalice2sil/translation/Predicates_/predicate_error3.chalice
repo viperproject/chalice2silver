@@ -1,4 +1,5 @@
 // @Ignore Silicon does not support Epsilon permissions
+// @Ignore Silicon does not support epsilons
 class Cell {
   var x: int;
   
