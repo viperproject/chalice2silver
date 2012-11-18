@@ -165,7 +165,7 @@ class Test {
 	
 	method failMultiplyWeakInv(a: int, b: int) returns (r: int)
 		requires b >= 0
-		ensures r == a*b /* @Error 310 */
+		ensures r == a*b /* @Syxc(Error 310) */
 	{
 		var n: int := b
 		r := 0
@@ -175,6 +175,8 @@ class Test {
 			r := r + a
 			n := n - 1
 		}
+
+		assert r == a*b; /* @Error 310 */
 	}
 	
 	method partialCorrectness() {

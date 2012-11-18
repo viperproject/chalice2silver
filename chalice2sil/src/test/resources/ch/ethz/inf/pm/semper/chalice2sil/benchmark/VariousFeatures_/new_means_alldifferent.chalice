@@ -11,7 +11,7 @@ class C {
 	var value:int;
 
 	method create() returns (res:C)
-		ensures res!=this;	 /* @Fails */
+		ensures res!=this;	 /* @Error 310 */
 	{
 		res := new C;
 	}

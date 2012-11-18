@@ -24,6 +24,8 @@ class Test {
 		ensures P
 		ensures unfolding P in x == old(x)
 	{
+	    // translation to SIL is straightforward, predicates and old are retained as-is
+	    // Should succeed in Chalice2SIL+Silicon, but fails
 		fold P
 	}
 	
