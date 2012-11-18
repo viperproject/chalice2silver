@@ -93,8 +93,38 @@ Chalice has other features where old state is being referenced.
 History constraints on monitor invariants and general \lstinline[language=Chalice]!eval! expressions are examples.
 
 \subsection{Chalice2SIL+Silicon compared to Syxc}
-\begin{sketch}
-Compare Chalice2SIL+Silicon with Syxc (how complete is Chalice2SIL)
-\end{sketch}
+To evaluate our implementation we compared it to ``\emph{Syxc}'', another Chalice verifier and the tool from which Silicon was derived.
+Both Chalice2SIL+Silicon and Syxc use the parser and type checker from the original Chalice implementation and perform the actual verification using a combination of symbolic execution and calls to the Z3 SMT solver.
+
+We took a large portion of Syxc's test suite and compared the results of passing those tests to Chalice2SIL+Silicon and Syxc, both in terms of correctness and as an ad-hoc performance benchmark.
+For two results to be considered equal, we required that the tools emitted the same number of error messages on the same lines.
+
+\subsubsection{Benchmark: correctness}
+In total, we looked at 84 test programs (one program usually consisted of multiple test cases) from the Syxc test suite. 
+Files that the current version Syxc\footnote{Revision \texttt{2bdf7ee59971e2734ccb0aaa2f523786bb1d5e74}} itself could not handle were not considered.
+Out of these 84 files, Chalice2SIL+Silicon were able to correctly verify 45 files without any modifications and additional 5 files with slight modifications.
+Another 6 files were only verified correctly in parts.
+In 5 of those cases Chalice2SIL+Silicon reported errors not also reported by Syxc.
+For the other case Chalice2SIL+Silicon misses an illegal unfolding in a function (example in listing \ref{lst:siliconfail}).
+This is likely a bug in Silicon as the translation to SIL is very straightforward and is included in listing \ref{lst:siliconfailsil}.
+
+\begin{lstlisting}[language=Chalice,float,caption={Error that is not detected by Chalice2SIL+Silicon.},label={lst:siliconfail}]
+class C {
+    var x : int;
+    predicate V { acc(x) }
+
+	function failUnfoldingV(): int
+	{ unfolding V in x }   // should not be able to unfold V, but succeeds
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=SIL,float,caption={SIL translation of \ref{lst:siliconfail}},label={lst:siliconfailsil}]
+field C::x : Integer
+function C::failUnfoldingV() : result 
+	= unfolding acc(this.C::V,write) in (this.C::x)
+predicate C::V = acc(this.C::x,write)
+\end{lstlisting}
+
+
 
 
