@@ -5,6 +5,6 @@ import ch.ethz.inf.pm.semper.chalice2sil.ChaliceSuite
 /*
 */
 
-class Bugs extends ChaliceSuite  {
+class Bugs extends ChaliceSuite(matchJustErrorPosition = true)  {
 
 }

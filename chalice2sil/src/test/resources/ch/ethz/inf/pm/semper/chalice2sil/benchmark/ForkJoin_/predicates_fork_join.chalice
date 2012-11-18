@@ -1,3 +1,39 @@
+// Error messages match, but are reported as occurring in position "0.0". There is no way to tell this test
+//  to expect messages there
+
+/*
+Syxc reports:
+
+Error 230: 89.3: Invocation of this.g failed at 50.12. Insufficient permissions to access this.V.
+                call g()  @Error 230
+
+Error 730: 99.3: Folding failed at 40.16. Insufficient permissions to access this.x.
+                fold acc(V, 1)  @Error 730
+
+Error 230: 144.3: Invocation of this.g failed at 50.12. Insufficient permissions to access this.V.
+                call g()  @Error 230
+
+Error 230: 160.3: Invocation of this.g failed at 50.12. Insufficient permissions to access this.V.
+                call g()  @Error 230
+
+Error 230: 177.3: Invocation of this.f failed at 177.3. Insufficient permissions to access this.x.
+                call f()  @Error 230
+
+
+Chalice2SIL+Silicon report:
+
+Error 230: 89.3: Invocation of Test::g failed at 50.12. Insufficient permissions to access this.Test::V.
+
+Error 730: 99.3: Folding failed at 40.16. Insufficient permissions to access this.Test::x.
+
+Error 230: 144.3: Invocation of Test::g failed at 50.12. Insufficient permissions to access this.Test::V.
+
+Error 230: 160.3: Invocation of Test::g failed at 50.12. Insufficient permissions to access this.Test::V.
+
+Error 100: 0.0: Symbolic execution failed. Insufficient permissions to access this.Test::x.
+
+*/
+
 class Test {
 	var x: int
 

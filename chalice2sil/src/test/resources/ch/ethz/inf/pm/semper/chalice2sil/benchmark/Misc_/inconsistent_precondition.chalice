@@ -37,7 +37,7 @@ class Test2 {
 		/*
 			The following description holds at least for r7111:
 			
-			In an inconsistent stae the heap merger will combine all heap chunks
+			In an inconsistent state the heap merger will combine all heap chunks
 			having the same field id because for each pair of receivers it can be
 			asserted that they are equivalent, i.e. aliases.
 			Hence, assert acc(c1.x, 200) and assert acc(c2.x, 200) both succeed,

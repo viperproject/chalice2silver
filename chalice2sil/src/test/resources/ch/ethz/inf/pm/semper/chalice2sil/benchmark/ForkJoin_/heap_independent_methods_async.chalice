@@ -11,15 +11,18 @@ class Async {
 	}
 	
 	method failCallDouble1(b: int) returns (s: int)
-		ensures s == 2 * b /* @Error 310 */
-	{ fork tk := double(b) }
+		ensures s == 2 * b /* -Error 310 */
+	{
+	    fork tk := double(b)
+	    assert s == 2*b /* @Error 410 */
+	}
 	
 	method failCallDouble2(b: int) returns (s: int)
 		ensures s == 2 * b
 	{
 		fork tk := double(b)
 		join s := tk
-		join s := tk /* @Error 920 */
+		join s := tk /* @Error 410 */ // @Syxc(Error 920)
 	}	
 	
 	method callDoubleTwice(b: int) returns (s: int)

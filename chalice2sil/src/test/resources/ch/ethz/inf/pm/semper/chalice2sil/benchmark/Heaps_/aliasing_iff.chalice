@@ -17,7 +17,7 @@ class Test {
 		ensures r == true
 	{
 		if (b) {
-			assert acc(c.x, 100)
+			assert acc(c.x, 100)  // fails in Chalice2SIL+Silicon, succeeds in Syxc
 		}
 
 		r := b ? c == d : true
@@ -31,7 +31,7 @@ class Test {
 		ensures rd(c) && rd(d) && rd(b)
 		ensures c != null && d != null
 		ensures rd(c.x) && rd(d.x)
-		ensures b ==> c.x == d.x
+		ensures b ==> c.x == d.x   // fails in Chalice2SIL+Silicon, succeeds in Syxc
 	{}
 	
 	method fails1() returns (r: bool)

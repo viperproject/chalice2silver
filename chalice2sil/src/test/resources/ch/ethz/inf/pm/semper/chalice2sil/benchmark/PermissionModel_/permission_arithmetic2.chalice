@@ -1,15 +1,18 @@
 class Test01 {
   var f: int
+  var g: int
+  var h: int
+  var k: int
+  var m: int
 
   predicate P { rd(f) }
+  predicate Q { rd(g) }
+  predicate C { rd(m) }
   
   method inttimes01()
-    requires acc(f, 2 * rd(P))
-    ensures acc(f, rd(P) * 2)
+    requires acc(k, 2 * rd(C))
+    ensures acc(k, rd(C) * 2)
   {}
-  
-  
-  
   
   method dispose1()
     requires acc(f, 100 - rd(P))
@@ -17,13 +20,27 @@ class Test01 {
   {
     assert acc(f)
   }
-  
-  method dispose2a()
-    requires acc(f, 100 - rd)
-    requires acc(f, rd)
+
+  method dispose1g()
+    requires acc(g, 100 - rd(Q))
+    requires acc(g, rd(Q))
   {
-    assert acc(f)
+    assert acc(g)
   }
+  
+  method dispose2k()
+    requires acc(k, 100 - rd)
+    requires acc(k, rd)
+  {
+    assert acc(k)
+  }
+
+  method dispose2ag()
+      requires acc(g, 100 - rd)
+      requires acc(g, rd)
+    {
+      assert acc(g)
+    }
   
   method dispose2b()
     requires acc(f, rd)
@@ -32,31 +49,36 @@ class Test01 {
     assert acc(f)
   }
   
-  
+  method dispose2bh()
+      requires acc(h, rd)
+      requires acc(h, 100 - rd)
+    {
+      assert acc(h)
+    }
   
   method test01()
-    requires acc(f)
-    ensures rd*(f) /* @Error 330 */
+    requires acc(g)
+    ensures rd*(g) /* @Error 330 */
   {
-    call dispose1()
+    call dispose1g()
   }
   
   method test02()
-    requires acc(f)
-    ensures rd*(f) /* @Holds */
+    requires acc(k)
+    ensures rd*(k) /* @Holds */
       /* As mentioned in Stefan's BSc thesis, rd's must be exhaled before
        * acc's, otherwise exhaling 100-rd && rd behaves different
        * from exhaling rd && 100-rd.
        */
   {
-    call dispose2a()
+    call dispose2k()   // fails in Chalice2SIL, succeeds in Syxc
   }
   
   method test03()
-    requires acc(f)
-    ensures rd*(f) /* @Error 330 */
+    requires acc(h)
+    ensures rd*(h) /* @Error 330 */
   {
-    call dispose2b()
+    call dispose2bh()
   }
 }
 

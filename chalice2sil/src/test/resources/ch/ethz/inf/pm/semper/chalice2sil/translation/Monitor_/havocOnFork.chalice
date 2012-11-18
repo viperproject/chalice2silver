@@ -1,0 +1,28 @@
+class C {
+    var f : int;
+
+    invariant acc(f);
+
+    method unrelated(x : C)
+        requires x != null && acc(x.mu)
+        ensures acc(x.mu)
+        lockchange x
+    { }
+
+    method main()
+    {
+        var x := new C;
+        var y := new C;
+        share x;
+        share y above x;
+
+        acquire x;
+
+        fork unrelated(x);
+
+        acquire y;
+        release y;
+        release x;
+    }
+
+}

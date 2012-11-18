@@ -32,14 +32,4 @@ class LocalVars {
 		b2 := b2 + z
 		r := b2
 	}
-	
-	// method failDivmod(a: int, b: int) returns (x: int)
-		// requires b != 0
-		// ensures x == a /* @Error 310 */
-	// {
-		// var d: int := a % b
-		// var r: int := a / b
-		
-		// x := b * d + r
-	// }
 }

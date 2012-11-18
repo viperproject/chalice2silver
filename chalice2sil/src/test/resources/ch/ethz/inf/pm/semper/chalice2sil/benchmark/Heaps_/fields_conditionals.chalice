@@ -20,7 +20,7 @@ class Test {
 	
 	method failMaybeWriteToM(b: bool, y: int)
 		requires b ==> acc(m)
-		ensures b ==> acc(m) && m == y /* @Error 310 */
+		ensures b ==> acc(m) && m == y
 	{
 		/* This is a fragile test case in the sense that the reported error message
 		 * depends on the order in which true/false antecedent and
@@ -31,7 +31,7 @@ class Test {
 		 * executed and the assignment to m will fail.
 		 */
 		if (!b) {
-			m := y
+			m := y  // @Error 630 // in Syxc, b==true seems to be assumed
 		}
 	}
 	

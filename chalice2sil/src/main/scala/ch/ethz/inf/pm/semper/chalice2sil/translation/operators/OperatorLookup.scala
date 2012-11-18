@@ -11,6 +11,7 @@ class OperatorLookup[TOp <: {def signature : {def parameterTypes : DataTypeSeque
     case "<=" | "≤" => List("LE")
     case ">" => List("GT")
     case ">=" | "≥" => List("GE")
+    case "<<" => List("<<","<<t")
     case _ => Nil
   })
 

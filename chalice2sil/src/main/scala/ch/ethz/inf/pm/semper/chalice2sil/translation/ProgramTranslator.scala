@@ -106,7 +106,7 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
         predicates(p).asInstanceOf[ChalicePredicateTranslator].translate()
       case f:chalice.Function =>
         functions(f).translate()
-      case i:chalice.MonitorInvariant => () //handled separately above
+      case i:chalice.MonitorInvariant => () //handled separately
       case otherNode => report(messages.UnknownAstNode(otherNode))
     })
   }

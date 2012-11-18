@@ -1,0 +1,23 @@
+class C {
+    var f : int;
+
+    invariant acc(f);
+
+    method nop(){}
+
+    method main()
+    {
+        var x := new C;
+        var y := new C;
+        share x;
+        share y above x;
+
+        call nop();
+
+        acquire x;
+        acquire y;
+        release y;
+        release x;
+    }
+
+}

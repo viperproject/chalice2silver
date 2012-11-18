@@ -5,6 +5,6 @@ import ch.ethz.inf.pm.semper.chalice2sil.ChaliceSuite
 /*
 */
 
-class Branching extends ChaliceSuite  {
+class Branching extends ChaliceSuite(matchJustErrorPosition = true)  {
 
 }

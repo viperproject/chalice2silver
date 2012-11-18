@@ -36,4 +36,6 @@ class ProgramOptions {
     * A custom path for Z3.
     */
   var z3path : Option[String] = None;
+
+  var printTime : Boolean = false
 }

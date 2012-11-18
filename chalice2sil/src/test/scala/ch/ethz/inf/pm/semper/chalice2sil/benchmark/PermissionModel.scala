@@ -5,6 +5,6 @@ import ch.ethz.inf.pm.semper.chalice2sil.ChaliceSuite
 /*
 */
 
-class PermissionModel extends ChaliceSuite  {
+class PermissionModel extends ChaliceSuite(matchJustErrorPosition = true) {
 
 }

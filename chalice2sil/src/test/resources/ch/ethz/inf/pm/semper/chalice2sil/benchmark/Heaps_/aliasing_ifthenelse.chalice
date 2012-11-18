@@ -7,7 +7,7 @@ class Test {
 		requires t1.x == 1 && t2.x == 2
 	{
 		if (t1 == t2) {
-			assert false /* @Fails */
+			assert false /* @Error 410 */
 		}
 	}
 	
@@ -17,7 +17,7 @@ class Test {
 	{
 		assert acc(t1.x, 50)
 		if (t1 == t2) {
-			assert acc(t1.x, 100) /* @Fails */
+			assert acc(t1.x, 100) /* @Error 430 */
 		}
 	}
 }

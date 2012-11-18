@@ -37,7 +37,7 @@ import java.util.Locale
   * }}}
 
   }*/
-abstract class ChaliceSuite extends FunSuite { //
+abstract class ChaliceSuite(matchJustErrorPosition : Boolean = false) extends FunSuite { //
   /**
     * The directory this test suite is associated with. Defaults to the fully qualified name of your test suite with dots replaced by slashes.
     * You are welcome to override this in subclasses.
@@ -186,7 +186,8 @@ abstract class ChaliceSuite extends FunSuite { //
               val unexpected = results.map({
                 case wm:ch.ethz.inf.pm.silicon.interfaces.ResultWithMessage =>
                   expectedResults
-                    .find(e => (e.code == 0 || e.code == wm.message.code) && lineFromLoc(wm.message.loc) == e.line) match {
+                    .find(e => (e.code == 0 || e.code == wm.message.code || matchJustErrorPosition) &&
+                                lineFromLoc(wm.message.loc) == e.line) match {
                     case Some(m) =>
                       expectedResults -= m
                       None

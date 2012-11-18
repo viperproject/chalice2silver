@@ -11,6 +11,13 @@ import ch.ethz.inf.pm.silicon.{Silicon, Config}
 
 object Program {
 
+  var beforeTranslate : Long = 0
+  var afterTranslate : Long = 0
+  var beforeChalice : Long = 0
+  var afterChalice : Long = 0
+  var beforeBackend : Long = 0
+  var afterBackend : Long = 0
+
   def invokeChalice(opts : ProgramOptions) : Option[scala.List[chalice.TopLevelDecl]] = {
     val chOptsBuilder = scala.collection.mutable.ArrayBuilder.make[String]()
     opts.chaliceOptions.foreach((entry) => {
@@ -37,24 +44,33 @@ object Program {
         return None;
     }
 
+    beforeChalice = System.currentTimeMillis()
     val program = Chalice.parsePrograms(chaliceParams) match {
       case Some(p) => p
       case None =>
         if(opts.verbose)
           Console.out.println("Chalice program contained syntax errors. Chalice2SIL terminates.");
+        if(opts.printTime)
+          Console.printf("Chalice: %d ms%n",(System.currentTimeMillis()-beforeChalice))
         return None; //illegal program, errors have already been displayed
     }
 
     if(!chaliceParams.doTypecheck || !Chalice.typecheckProgram(chaliceParams, program)) {
       if(opts.verbose)
         Console.out.println("Chalice program contained type errors. Chalice2SIL terminates.")
+      if(opts.printTime)
+        Console.printf("Chalice: %d ms%n",(System.currentTimeMillis()-beforeChalice))
       return None;
     }
+    afterChalice = System.currentTimeMillis()
 
     if(chaliceParams.printProgram) {
       Console.out.println("Program after type checking: ");
       PrintProgram.P(program)
     }
+
+    if(opts.printTime)
+      Console.printf("Chalice: %d ms%n",(afterChalice-beforeChalice))
     Some(program)
   }
 
@@ -88,7 +104,13 @@ object Program {
 
     val translator = createTranslator(opts, program)
 
-    translator.translate(program)
+    beforeTranslate = System.currentTimeMillis()
+    val result = translator.translate(program)
+    afterTranslate = System.currentTimeMillis()
+    if(opts.printTime)
+      Console.out.println("Chalice2SIL: %d ms",(afterTranslate-beforeTranslate))
+
+    result
   }
 
   def main(args: Array[String]) {
@@ -102,6 +124,7 @@ object Program {
         "Forwards the translated SIL program to the `public static main(silAST.Program)` method of the specified class.",
         (c:String) => { progOpts.forwardSil = Some(c) })
       opt("z3","z3-path","Custom path to Z3.",p => {progOpts.z3path = Some(p)})
+      opt("T","time","Measure time for Chalice, Chalice2SIL and the backend.", {progOpts.printTime = true})
 
       // Chalice files
       arglistOpt("<chalice-files...>", "The chalice source files.", (source : String) => progOpts.chaliceFiles.append(source) )
@@ -166,16 +189,26 @@ object Program {
     //TODO: backends might need arguments and might produce messages
     progOpts.forwardSil match {
       case None =>
-        val config = new Config(z3exe = progOpts.z3path.get)
+        val config = new Config(z3exe = progOpts.z3path.get, logLevel = "ERROR")
         val silicon = new Silicon(config)
+        beforeBackend = System.currentTimeMillis()
         val messages = silicon.execute(silProgram)
+        afterBackend = System.currentTimeMillis()
         for(m <- messages){
           Console.out.println(m.toString) //TODO: unify with chalice2sil message system
         }
       case Some(className) => 
         val classT = java.lang.Class.forName(className)
         val method = classT.getMethod("main",classOf[silAST.programs.Program])
+        beforeBackend = System.currentTimeMillis()
         method.invoke(null,silProgram.asInstanceOf[AnyRef])
+       afterBackend = System.currentTimeMillis()
+    }
+
+    if(progOpts.printTime){
+      Console.printf("Chalice: %d ms%n", (afterChalice-beforeChalice))
+      Console.printf("Chalice2SIL: %d ms%n", (afterTranslate-beforeTranslate))
+      Console.printf("Backend: %d ms%n",(afterBackend-beforeBackend))
     }
   }
 

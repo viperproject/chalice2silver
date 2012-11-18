@@ -5,6 +5,6 @@ import ch.ethz.inf.pm.semper.chalice2sil.ChaliceSuite
 /*
 */
 
-class ForkJoin extends ChaliceSuite  {
+class ForkJoin extends ChaliceSuite(matchJustErrorPosition = true)  {
 
 }

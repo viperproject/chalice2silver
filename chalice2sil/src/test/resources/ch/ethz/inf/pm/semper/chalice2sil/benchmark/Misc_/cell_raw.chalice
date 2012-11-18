@@ -49,5 +49,7 @@ class TestRawCell {
 		} else {
 			call c.set(a)
 		}
+
+		assert c != null && acc(c.x) && c.get() > 0;
 	}
 }

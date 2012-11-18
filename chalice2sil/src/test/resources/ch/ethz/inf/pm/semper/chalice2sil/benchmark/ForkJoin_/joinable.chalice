@@ -37,6 +37,6 @@ class Test {
 	method failJoin() {
 		fork tk := f()
 		join tk
-		join tk /* @Error 920 */
+		join tk /* @Error 410 */ // @Silicon(Error 920)
 	}
 }

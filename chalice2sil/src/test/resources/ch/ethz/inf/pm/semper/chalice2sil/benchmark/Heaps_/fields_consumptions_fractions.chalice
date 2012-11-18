@@ -89,6 +89,7 @@ class Test {
 		call greedyXRd()
 		call reqX100()
 		call greedyXRd()
-		assert(acc(x, 100)) /* @Error 430 */
+		assert(acc(x, 100)) /* @Error 430 */  // Succeeds in Chalice2SIL+Silicon because rd(x) in greedyXRd is assume
+		                                      // to be 1000 times smaller than the rd(x) from fail4
 	}
 }

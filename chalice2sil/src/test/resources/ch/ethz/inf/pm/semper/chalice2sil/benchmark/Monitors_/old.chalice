@@ -25,45 +25,4 @@ class Test {
 		share c
 		acquire c
 	}
-
-	// method waitlevelOld2(c: Cell)
-		// requires c != null && acc(c.mu) && c.mu == lockbottom
-		// ensures holds(c) && old(waitlevel) << waitlevel
-		// lockchange c
-	// {
-		// share c
-		// acquire c
-	// }
-	
-  // method whileOld() {
-    // var c := new Cell
-    // share c
-    // acquire c
-    // var s := true
-    // while (s) 
-      // invariant rd(c.mu)
-      // invariant holds(c) && waitlevel == c.mu
-      // lockchange c
-    // {
-      // release c
-      // acquire c
-      // s := false
-    // }
-    // assert holds(c)
-    // release c
-  // }
-	
-  // method failWhileOld() {
-    // var c := new Cell
-    // share c
-    // acquire c
-    // while (true)
-      // invariant rd(c.mu)
-      // invariant holds(c)
-      // lockchange c
-    // {
-      // release c
-      // acquire c /* @Error 1280 */
-    // }
-  // }	
 }

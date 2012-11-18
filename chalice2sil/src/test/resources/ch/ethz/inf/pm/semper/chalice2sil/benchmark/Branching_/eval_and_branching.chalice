@@ -1,3 +1,5 @@
+@Ignore
+
 /* When evaluating a conditional such as e0 ==> e1 or e0 ? e1 : e2, it seems
  * natural to proceed as done in consume/produce, that is, to branch, once
  * assuming e0 and evaluating e1 (and executing the rest of the programming),
@@ -40,13 +42,6 @@ class Implies {
 	method fails1()	{
 		assert forall i: int :: 0 <= i ==> false /* @Error 410 */
 	}
-	
-	method fails2()
-		requires acc(x)
-		requires forall i in [0..5] :: x >= i
-		ensures acc(x)
-		ensures forall i in [0..5] :: x <= i /* @Error 310 */
-	{}
 }
 
 class Implies2 {
@@ -112,15 +107,6 @@ class PseudoList {
   function get(index: int): bool
     requires rd(inv)
   { unfolding rd(inv) in (index == 0) ? true : next.get(index - 1) }
-
-	/* Used to fail */
-	method static_range_fails()
-		requires inv
-		ensures inv
-	{
-		assume forall i in [0..4] :: get(i)
-		assert forall i in [0..4] :: get(i)
-	}
 	
 	/* Workarounds are not longer necessary */
 	

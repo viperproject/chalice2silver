@@ -412,6 +412,7 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
         programFactory.makeNonReferenceDataType(factory,DataTypeSequence(),loc,List("Type of Mu elements."))
       val lockBottom = factory.defineDomainFunction("lockBottom",DataTypeSequence(),dataType,loc,List("The bottom element in the partial ordering of the set Mu."))
       val below = factory.defineDomainPredicate("<<",DataTypeSequence(dataType,dataType),loc,List("Determines whether one element of Mu is strictly below another element of Mu."))
+      val belowFunc = factory.defineDomainFunction("<<t",DataTypeSequence(dataType,dataType),Boolean.dataType,loc)
 
       // axioms establishing below as a strict partial ordering of Mu
       factory.addDomainAxiom("irreflexive",∀(dataType,
@@ -422,6 +423,14 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
         ),loc)
       factory.addDomainAxiom("transitive",∀(dataType,dataType,dataType,
         (a,b,c) => (below(a,b) and below(b,c)) → below(a,c)
+      ),loc)
+
+      // Make "<<" and "<<t" the same
+      factory.addDomainAxiom("below_is_below",∀(dataType,dataType,
+        (a,b) => below(a,b) ↔ ((belowFunc(a,b)) ≡ Boolean.trueLiteral())
+      ),loc)
+      factory.addDomainAxiom("not_below_is_not_below",∀(dataType,dataType,
+        (a,b) => not(below(a,b)) ↔ ((belowFunc(a,b)) ≡ Boolean.falseLiteral())
       ),loc)
 
       // lockBottom is below every non-lockBottom element of Mu
