@@ -15,7 +15,7 @@
 \usepackage[usenames,dvipsnames]{xcolor}
 \usepackage{mdframed}
 \usepackage{syntax}
-
+\usepackage{rotating} % for sideways tables
 
 \setmainfont{Cambria} % set the main body font (\textrm), assumes Cambria is installed
 \setsansfont{Calibri}
@@ -115,6 +115,8 @@
 \newcommand{\exhale}[1]{\ensuremath{\text{\lstinline[language=SIL]!exhale!}\ #1}}
 \newcommand{\semicolon}{\ensuremath{\text{\lstinline!; !}}}
 
+\newcommand{\synrep}[2]{\{ #1 #2 $\cdots$ \}}
+
 %=========================================
 
 \usepackage[parfill]{parskip} 
@@ -143,7 +145,10 @@ This section briefly presents both \emph{Chalice} (the ``source language'') and 
 
 \input{src/conclusion.tex}
 
-\input{src/appendix.tex}
+\clearpage
+\appendix
+\input{src/full-grammar.tex}
+\input{src/benchmark-data.tex}
 
 \bibliographystyle{alpha}
 \bibliography{lib/chalice-related}

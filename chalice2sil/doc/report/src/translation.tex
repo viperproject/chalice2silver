@@ -489,7 +489,7 @@ This is essential to ensure that the predicate holds the same amount of permissi
 Otherwise the user would have to specify exactly how much permission a predicate contains, which rather defeats the purpose of predicates (information hiding).
 
 Abstract read permissions mentioned in predicates are thus interpreted by a fixed permission amount.
-To implement this, we define an uninterpreted constant function \lstinline[language=SIL]!globalPredicateReadFraction()! and declare that this global read fraction is strictly positive and less than the full/write permission amount.
+To implement this, we define an uninterpreted constant function \texttt{globalPredicateReadFraction()} and declare that this global read fraction is strictly positive and less than the full/write permission amount.
 
 It is possible that, in the future, we'd like to have different fractions for different predicates or even different fractions for each combination of object (this-pointer) and predicate. 
 To support this scenario, we don't insert references to \lstinline[language=SIL]!globalPredicateReadFraction()! directly into the generated SIL program. Instead, we use an intermediate function \lstinline[language=SIL]!predicateReadFraction(int,ref)!; also uninterpreted.

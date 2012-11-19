@@ -1,0 +1,77 @@
+% !TEX TS-program = xelatex
+% !TEX encoding = UTF-8
+% !TEX root = ../chalice2sil_report_klauserc.tex
+
+\section{Benchmark data}\label{apdx:benchmark-data}
+\begin{sidewaystable}
+\caption{Benchmark data, part 1}\label{tbl:benchmark-data-1}
+\begin{tabular}{l l || r r r | r r | r r}
+Group & Name & Chalice & ToSil & Silicon & Total & StdDev & Syxc & StdDev\\ \hline
+Basics & boolean_arguments & 409.7 & 250.0 & 407.7 & 1067.3 & 6.7 & 650.7 & 17.6\\ 
+Basics & boolean_locals & 465.3 & 274.3 & 414.3 & 1154.0 & 5.2 & 707.0 & 13.0\\ 
+Basics & boolean_results & 464.3 & 279.3 & 454.0 & 1197.7 & 25.1 & 713.3 & 17.9\\ 
+Basics & booleans_basic & 359.3 & 260.3 & 354.0 & 973.7 & 9.0 & 547.0 & 0.0\\ 
+Basics & booleans_comparison & 390.3 & 260.3 & 416.7 & 1067.3 & 10.1 & 609.7 & 15.5\\ 
+Basics & booleans_formulae & 497.7 & 333.3 & 526.0 & 1357.0 & 19.1 & 849.0 & 4.4\\ 
+Basics & booleans_not & 359.3 & 229.0 & 317.7 & 906.0 & 1.0 & 552.0 & 9.5\\ 
+Basics & integer_arguments & 416.7 & 275.7 & 422.3 & 1114.7 & 9.0 & 677.3 & 9.2\\ 
+Basics & integer_locals & 437.3 & 258.0 & 334.0 & 1029.3 & 15.7 & 614.7 & 9.0\\ 
+Basics & integer_results & 422.0 & 270.3 & 380.0 & 1072.3 & 9.0 & 630.3 & 9.2\\ 
+Basics & integers_basic & 455.7 & 344.0 & 541.3 & 1341.0 & 3.5 & 760.3 & 17.9\\ 
+Basics & integers_comparison & 437.3 & 358.0 & 604.0 & 1399.3 & 29.1 & 734.3 & 16.0\\ 
+Branching & abs & 432.0 & 268.3 & 312.3 & 1012.7 & 11.4 & 591.3 & 2.5\\ 
+Branching & ifthenelse & 516.0 & 359.3 & 437.7 & 1313.0 & 1.0 & 864.7 & 24.0\\ 
+Branching & ifthenelse_antecendents_forall & 510.0 & 354.0 & 703.0 & 1567.0 & 9.5 & 906.3 & 0.6\\ 
+Branching & implications2 & 401.0 & 240.3 & 349.3 & 990.7 & 18.8 & 584.0 & 10.6\\ 
+Branching & stats & 412.3 & 273.7 & 460.0 & 1146.0 & 13.2 & 573.0 & 9.5\\ 
+ForkJoin & fork_omit_token & 359.7 & 297.0 & 536.7 & 1193.3 & 9.3 & 546.7 & 27.1\\ 
+ForkJoin & heap_independent_methods_async & 474.3 & 425.3 & 922.0 & 1821.7 & 23.0 & 760.7 & 23.5\\ 
+ForkJoin & joinable & 474.0 & 382.7 & 740.0 & 1596.7 & 15.9 & 674.3 & 4.9\\ 
+ForkJoin & predicates_fork_join & 541.7 & 571.3 & 2145.7 & 3258.7 & 29.7 & 1151.7 & 17.6\\ 
+ForkJoin & reusing_tokens & 485.7 & 455.7 & 1672.0 & 2613.3 & 50.2 & 708.0 & 8.7\\ 
+PermissionModel & basic & 584.0 & 692.7 & 4755.0 & 6031.7 & 62.0 & 1201.0 & 6.1\\ 
+PermissionModel & caching_soundness & 448.0 & 260.3 & 302.3 & 1010.7 & 8.4 & 651.0 & 8.7\\ 
+PermissionModel & peculiar & 523.7 & 443.3 & 698.0 & 1665.0 & 67.7 & 818.0 & 5.6\\ 
+PermissionModel & permission_arithmetic2 & 536.7 & 390.7 & 833.3 & 1760.7 & 9.3 & 1229.0 & 8.7\\ 
+PermissionModel & predicates & 521.0 & 354.0 & 692.7 & 1567.7 & 23.4 & 916.3 & 17.9 \\
+\end{tabular}
+\end{sidewaystable}
+
+\begin{sidewaystable}
+\caption{Benchmark data, part 2}\label{tbl:benchmark-data-2}
+\begin{tabular}{l l || r r r | r r | r r}
+Group & Name & Chalice & ToSil & Silicon & Total & StdDev & Syxc & StdDev\\ \hline
+Heaps & aliasing & 588.3 & 359.0 & 729.3 & 1676.7 & 9.0 & 1479.3 & 9.0\\ 
+Heaps & aliasing_iff & 579.7 & 336.0 & 514.7 & 1430.3 & 49.0 & 1139.0 & 12.2\\ 
+Heaps & aliasing_ifthenelse & 458.3 & 255.3 & 322.7 & 1036.3 & 9.2 & 672.0 & 16.0\\ 
+Heaps & boolean_heap_chunks & 476.3 & 276.3 & 478.3 & 1231.0 & 10.1 & 826.0 & 11.5\\ 
+Heaps & fapps_argument_heap_chunks & 487.3 & 303.3 & 415.3 & 1206.0 & 16.1 & 765.7 & 0.6\\ 
+Heaps & fields_acc_in_function & 286.7 & 109.3 & 88.7 & 484.7 & 0.6 & 484.0 & 0.0\\ 
+Heaps & fields_access & 484.3 & 286.7 & 432.7 & 1203.7 & 56.9 & 708.3 & 18.5\\ 
+Heaps & fields_conditionals & 457.0 & 263.7 & 430.7 & 1151.3 & 19.9 & 621.0 & 114.3\\ 
+Heaps & fields_consumptions & 511.3 & 384.7 & 761.0 & 1657.0 & 26.0 & 864.3 & 9.2\\ 
+Heaps & fields_consumptions_fractions & 509.3 & 392.0 & 875.7 & 1777.0 & 25.1 & 953.7 & 8.7\\ 
+Heaps & fields_rd_immutability & 448.0 & 299.7 & 468.7 & 1216.3 & 13.6 & 672.3 & 15.5\\ 
+Heaps & heap_indirections & 449.3 & 255.7 & 326.0 & 1031.0 & 6.1 & 656.0 & 6.0\\ 
+Heaps & predicates_basic & 473.7 & 294.0 & 494.0 & 1261.7 & 10.7 & 775.7 & 14.4\\ 
+Monitors & acquire_getter & 484.7 & 307.3 & 489.7 & 1281.7 & 40.8 & 719.0 & 0.0\\ 
+Monitors & invariants & 531.0 & 370.0 & 567.3 & 1468.3 & 15.5 & 880.3 & 49.7\\ 
+Monitors & old & 489.7 & 291.7 & 438.0 & 1219.3 & 31.0 & 713.7 & 23.5\\ 
+Misc & cell_container & 494.7 & 270.7 & 359.7 & 1125.0 & 15.0 & 787.0 & 8.7\\ 
+Misc & cell_raw & 536.7 & 380.7 & 636.7 & 1554.0 & 13.5 & 923.0 & 13.0\\ 
+Misc & division & 425.7 & 276.0 & 331.7 & 1033.3 & 6.1 & 630.3 & 8.5\\ 
+Misc & error_reporting_syxc_vs_chalice & 416.7 & 255.0 & 261.7 & 933.3 & 46.7 & 541.7 & 45.3\\ 
+Misc & join_var_field & 468.7 & 349.0 & 630.0 & 1447.7 & 8.5 & 682.7 & 9.3\\ 
+Misc & split_merge_access & 526.0 & 317.7 & 635.3 & 1479.0 & 8.7 & 932.3 & 9.0\\ 
+Misc & unfold_fold_unchanged & 530.3 & 323.7 & 548.0 & 1402.0 & 27.2 & 887.7 & 2.1\\ 
+VariousFeatures & acc_implications_or & 510.3 & 307.7 & 395.7 & 1213.7 & 32.3 & 719.0 & 0.0\\ 
+VariousFeatures & assert & 533.0 & 321.3 & 559.0 & 1413.3 & 78.5 & 774.0 & 6.1\\ 
+VariousFeatures & constructors & 533.0 & 321.3 & 559.0 & 1413.3 & 78.5 & 774.0 & 6.1\\ 
+VariousFeatures & newrhs_inits & 451.0 & 262.3 & 358.3 & 1071.7 & 11.6 & 648.0 & 10.6\\ 
+VariousFeatures & new_means_all_different & 427.0 & 256.0 & 354.7 & 1037.7 & 10.7 & 615.0 & 8.7\\ 
+VariousFeatures & unfolding_old_heap & 476.0 & 303.3 & 536.3 & 1315.7 & 11.9 & 794.3 & 4.6\\ 
+VariousFeatures & while & 693.0 & 656.3 & 1182.0 & 2531.3 & 180.1 & 1227.3 & 7.6\\ 
+\end{tabular}
+\end{sidewaystable}
+
+\clearpage
