@@ -9,9 +9,9 @@ One of the primary goals of writing Chalice2SIL was to gather experience working
 
 \subsubsection{Encoding of loops}
 At the time we started this project, SIL did not have a dedicated \lstinline[language=Chalice]!while! loop node. 
-Instead, programs would be encoded as a flat directed graph of basic blocks: a control-flow graph (CFG).
+Instead, programs were to be encoded as a flat directed graph of basic blocks: a control-flow graph (CFG).
 Loops were encoded as cycles with the ``backwards'' pointing edge explicitly marked (so that tools could traverse the CFG as an acyclic graph by ignoring those back edges).
-Unfortunately, Silicon -- our verifier for SIL -- can currently only handle \lstinline[language=Chalice]!while! as they appear in Chalice. 
+Unfortunately, Silicon -- our verifier for SIL -- can currently only handle \lstinline[language=Chalice]!while! loops as they appear in Chalice. 
 In those early days, Silicon would pattern match against the CFG to find \lstinline[language=Chalice]!while! loops and extract their components (condition, invariant, body), essentially lifting the program back up to the abstraction level of Chalice in terms of control flow.
 If Chalice, which only supports \lstinline[language=Chalice]!while! loops, were the only source language that SIL ever had to support, this approach would have been fine.
 But since the idea behind SIL was to eventually have multiple front ends, we decided to capture the fact that we currently can only verify \lstinline[language=Chalice]!while! loops in the language.
@@ -170,6 +170,12 @@ Two outliers with ratios $3.69$ and $5.02$ were omitted from this diagram in the
 \caption{Distribution of the factor by which Chalice2SIL+Silicon is slower than Syxc}\label{fig:full-ratio-distribution}
 \end{figure}
 
+\subsection{Implementation status}
+Chalice2SIL implements most of Chalice's core functionality and uses nearly all of the features that SIL has to offer.
+However, in addition to monitors and deadlock avoidance there are a number of gaps that still need to be filled to make Chalice2SIL+Silicon a true alternative to Syxc or the original boogie-based Chalice verifier.
+Missing features include \emph{sequences}, \emph{channels}, \emph{history constraints} and general \lstinline[language=Chalice]!eval! expressions.
 
+In addition to the tests run as part of the evaluation, we also used a set of 94 test programs along with expected results that served as part of an automated test suite during development.
+Overall, Chalice2SIL should be considered a prototype with room for improvement, especially in terms of performance. 
 
 

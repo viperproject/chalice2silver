@@ -242,7 +242,7 @@ class Indentation {
 
 Listing \ref{lst:chalicepredicate} additionally demonstrates the \lstinline[language=Chalice]!unfolding! expression syntax used to temporarily getting access to the contents of a predicate.
 
-\subsubsection{Monitors (locks)}
+\subsubsection{Monitors (locks)}\label{sct:back-monitors}
 Using just fork-join, it is impossible for threads to communicate with one another. 
 They can only produce a result and all of their memory writes only become visible when they return the exclusive write permissions back to their caller.
 To handle more realistic scenarios, such as concurrent access to a shared queue, Chalice comes with \emph{monitors} that allow for exclusive locking of a shared resource.

@@ -519,8 +519,9 @@ As a  result, Chalice2SIL translates non-write permission amounts in function pr
 \]
 
 \subsection{Monitors with Deadlock Avoidance}\label{sct:mon}
-As with predicates, the permissions stored in a monitor need to be fixed and cannot be chosen every time we over an object. 
-Otherwise we'd have to track the amount of permission the monitor holds onto at any point in the program. 
+As with predicates, the permissions stored in a monitor need to be fixed and cannot be chosen every time we lock an object. 
+Otherwise we'd have to track the amount of permission the monitor holds onto at any point in the program and be able to communicate these permission amounts in method pre- and postcondition. 
+This is how \cite{HLMS11} implements abstract fractional permissions.
 So, as with predicates, we define an uninterpreted function that represents the fraction of permission that the verifier uses whenever it encounters an abstract fractional read permission in a monitor.
 To make mixing monitors and predicates easier, we use the same global fraction for monitors as we used for predicates.
 
@@ -529,7 +530,7 @@ In this section we present our partial solution in the hope that it will help in
 
 \subsubsection{Approach to Deadlock Prevention and Locking}
 For locking and deadlock prevention we need to add two kinds of information to each object: a boolean indicating whether the object in question is locked and a \emph{mu} value that indicates the object's position in the locking order.
-To recapitulate, mu values are part of the partially ordered set \emph{$(Mu,\ll)$}.
+To recapitulate, in section \ref{sct:back-monitors} we saw that mu values are part of the partially ordered set \emph{$(Mu,\ll)$}.
 Only one concrete value exists: \emph{lockbottom}, the single smallest element of Mu. All other values of Mu are kept abstract and only described in terms of their $\ll$-relation to one another. 
 
 The key idea behind deadlock prevention in Chalice, that a thread can only acquire a lock on monitor/object $m$ if it is clear that that monitor/object is higher in the locking order than any other monitor that that thread already has a lock on.
@@ -537,8 +538,9 @@ In more concrete terms, locking is allowed when $\forall o \in \text{objects}.\ 
 
 To use this expression in a SIL assertion (an exhale statement prior to acquiring a lock), we need to make sure that the heap locations it mentions ($o.\text{\lstinline!mu!}$ and $m.\text{\lstinline!mu!}$) are defined, that these locations are readable.
 To ensure that we can access \lstinline!m.mu!, we first check $m \neq \text{\lstinline[language=Chalice]!null!}\ \land\ 0 < \text{\lstinline[language=SIL]!perm!}(m.\text{\lstinline!mu!})$. 
-But then we run into the problem that we cannot possibly require access to the \lstinline!mu!-fields on all objects $o$. 
-One could try to use $0 < \text{\lstinline!perm!}(o.\text{\lstinline!mu!})$ to make sure that $o.\text{\lstinline!mu!}$ is only accessed when we the location is readable:
+But then we run into the problem with $o.\text{\lstinline!mu!}$.
+Since $o$ is quantified over \emph{all} object references, we would have to require read access to all \lstinline!mu! fields in the entire heap to ensure that $o.\text{\lstinline!mu!}$ is defined \emph{for all} object references. 
+Alternatively, one could try to use $0 < \text{\lstinline!perm!}(o.\text{\lstinline!mu!})$ to make sure that $o.\text{\lstinline!mu!}$ is only accessed when we the location is readable:
  \[
 	0 < \text{\lstinline!perm!}(o.\text{\lstinline!mu!}) \Rightarrow ¬\text{\lstinline!holds!}(o) \lor o.\text{\lstinline!mu!} \ll m.mu
 \]
@@ -549,8 +551,8 @@ Temporarily not having any permission to access to $o_1.\text{\lstinline!mu!}$ w
 Instead our assertion should be quantified over \emph{all} object references $o$, whether we have access to $o.\text{\lstinline!mu!}$ or not.
 
 We need to associate each object with a \lstinline!mu! and a flag that indicates whether the object's monitor is acquire by the current thread. 
-The only mechanism that SIL provides for associating information with an object are fields but using fields is not an option.
-The Boogie-based implementation uses additional masks and that is what we will try to emulate in our approach.
+The only mechanism that SIL provides for associating information with an object are fields but using fields is not an option in cases where you would need to refer to that field in a universal quantifier.
+The Boogie-based implementation uses both \lstinline!mu! fields \emph{and} a set of additional masks and that is what we will try to emulate in our approach.
 \newcommand{\heldMap}{\ensuremath{\text{\lstinline!heldMap!}}}
 \newcommand{\muMap}{\ensuremath{\text{\lstinline!muMap!}}}
 
@@ -580,14 +582,12 @@ For the examples that follow, we assume that we have a class $C$ with a single \
 
 \begin{lstlisting}[label=lst:monnewobj,language=sil]
 o := new ref;
-inhale acc(o.f,write);
+inhale acc(o.f,write); // for each field f of class C
 inhale acc(o.mu,write);
 inhale o.mu == lockbottom;
 inhale currentThread.heldMap[o] == false;
 inhale currentThread.muMap[o] == o.mu;
 \end{lstlisting}
-It is safe to \lstinline[language=SIL]!inhale! (assume) facts about \lstinline!currentThread.muMap[o]! since \lstinline[language=Chalice]!new! \lstinline[language=Chalice]!ref! is guaranteed to result in an object reference that didn't exist before.
-We can be sure that we don't introduce contradictions that way.
 
 \item[Share an object] 
 $\ch{\text{\lstinline[language=Chalice]!share!}\ o\ \text{\lstinline[language=Chalice]!above!}\ a\ \text{\lstinline[language=Chalice]!below!}\ b}$ is translated as
@@ -599,7 +599,7 @@ exhale o.mu == lockbottom;
 exhale a != null && b != null;
 exhale 0 < perm(a.mu) && 0 < perm(b.mu);
 exhale a << b; // Upper bound might be below lower bound
-// Determine value for fresh mu
+// Constrain value for fresh mu
 var m : Mu;
 inhale lockbottom << m;
 inhale a << m;
@@ -610,8 +610,10 @@ currentThread.muMap[o] := o.mu;
 currentThread.heldMap[o] := false;
 exhale <monitor-invariant>;
 \end{lstlisting}
-Other forms of Chalice's \lstinline[language=Chalice]!share! statement allow the programmer to specify multiple upper and lower bounds or omit them altogether. 
+\cite{LMS09} also introduces other forms of Chalice's \lstinline[language=Chalice]!share! statement allow the programmer to specify multiple upper and lower bounds or omit them altogether. 
 If no lower bound is specified, the current \emph{lock level} is used as the lower bound, that is, the object is shared with a \lstinline!mu! that is greater than the \lstinline!mu! of any object for which the thread currently holds a lock.
+After an object has been shared, its \lstinline!mu! field is guaranteed to be above \lstinline[language=Chalice]!lockbottom!.
+This property is used to determine whether an object is currently shared and can often be found in the precondition of methods that intend to lock that object.
 
 \item[Acquire a lock]
 $\ch{\text{\lstinline[language=Chalice]!acquire!}\ o}$ is translated as
@@ -651,8 +653,8 @@ currentThread.muMap[o] = o.mu;
 \end{lstlisting}
 
 \item[Forking a thread]
-Chalice2SIL creates a new thread object for the forked thread and initialises its \muMap with the contents with the contents of \lstinline!currentThread!'s \muMap.
-Since the \heldMap only represents the locks held by the \emph{current thread} we do \emph{copy} anything from \lstinline!currentThread!'s \heldMap.
+Chalice2SIL creates a new thread object for the forked thread and initialises its \muMap{} with the contents with the contents of \lstinline!currentThread!'s \muMap.
+Since the \heldMap{} only represents the locks held by the \emph{current thread} we do not copy anything from \lstinline!currentThread!'s \heldMap.
 
 \end{description}
 
@@ -676,7 +678,7 @@ When the user adds \lstinline[language=Chalice]!lockchange! declarations, the bo
 As mentioned above, the current implementation is not correct in some cases. 
 We identified two major problems: one where we lose information about \lstinline!mu!, preventing us from successfully verifying a correct program, and one where  we retain too much information about \lstinline!mu!, causing the verification to be potentially unsound.
 
-Listing \ref{lst:lostmu} presents an example of the former. 
+Listing \ref{lst:lostmu} presents an example of the former problem. 
 In that program we create two objects \lstinline!x! and \lstinline!y! and share them in such a way that locks on \lstinline!x! always have to be acquired before \lstinline!y! (lines 8 and 9).
 When we call the method \lstinline!nop! on line 11, we temporarily give away all permissions to \lstinline!currentThread.muMap!.
 This means that the verifier must assume that the contents of the heap location \lstinline!currentThread.muMap! have changed completely.
@@ -732,7 +734,6 @@ class C {
     method unrelated(x : C)
         requires x != null && acc(x.mu)
         ensures acc(x.mu)
-        lockchange x
     { }
 
     method main()
