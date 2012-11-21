@@ -163,7 +163,7 @@ abstract class ChaliceSuite(matchJustErrorPosition : Boolean = false) extends Fu
             var afterSilicon : Long = 0
             val siliconResults = {
               //val config = new Config(z3exe = DefaultConfig.z3path.toAbsolutePath.toString,logLevel="ERROR")
-              val config = new Config(z3exe = DefaultConfig.z3path.toAbsolutePath.toString)
+              val config = new Config(z3exe = DefaultConfig.z3path.toAbsolutePath.toString, logLevel="FATAL")
 
 
               beforeSilicon = System.currentTimeMillis()
