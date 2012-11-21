@@ -714,7 +714,7 @@ class C {
 \end{lstlisting}
 
 We can work around this limitation by explicitly mentioning \lstinline!x.mu! in an accessibility predicate on the pre- and postcondition of method \lstinline!nop!.
-That causes the assertion \lstinline!x.mu == currentThread.muMap[x]! to be included in the pre- and postcondition of the translated SIL method.
+That causes the assertion \lstinline!x.mu! \lstinline!==!~\lstinline!currentThread.muMap[x]! to be included in the pre- and postcondition of the translated SIL method.
 
 \begin{lstlisting}[float,caption={Modified method \lstinline!nop! from listing \ref{lst:lostmu}, causes verification to succeed.},label=lst:lostmufixed,language=chalice]
 method nop(x : C)

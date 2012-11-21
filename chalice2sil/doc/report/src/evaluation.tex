@@ -126,7 +126,19 @@ predicate C::V = acc(this.C::x,write)
 \end{lstlisting}
 
 We are left with 28 files for which Chalice2SIL or Silicon couldn't handle due to missing features or bugs in the tools themselves.
-Chalice2SIL fails 10 cases with an unexpected exception and another 9 due to missing features.
+Chalice2SIL fails 9 cases with an unexpected exception and another 10 due to missing features.
+
+In 4 out of those 9 cases an error during field name resolution is responsible for Chalice2SIL crashing. 
+The remaining crashes are due to an exception during the translation of an expression that involves \lstinline[language=Chalice]!waitlevel!, an exception during the translation of a type expression or an exception during a substitution of program variables in an expression.
+
+Missing features in Chalice2SIL+Silicon include
+\begin{itemize}
+\item Sequences
+\item Channels
+\item General \lstinline[language=Chalice]!eval! expressions
+\item History constraints (\lstinline[language=Chalice]!old! expressions in monitor invariants)
+\item Counting permissions (implemented in Chalice2SIL, but not in Silicon)
+\end{itemize}
 
 The detailed results of this evaluation have been forwarded to the people who are currently or will be maintaining Chalice2SIL and Silicon.
 
@@ -173,9 +185,6 @@ Two outliers with ratios $3.69$ and $5.02$ were omitted from this diagram in the
 \subsection{Implementation status}
 Chalice2SIL implements most of Chalice's core functionality and uses nearly all of the features that SIL has to offer.
 However, in addition to monitors and deadlock avoidance there are a number of gaps that still need to be filled to make Chalice2SIL+Silicon a true alternative to Syxc or the original boogie-based Chalice verifier.
-Missing features include \emph{sequences}, \emph{channels}, \emph{history constraints} and general \lstinline[language=Chalice]!eval! expressions.
 
 In addition to the tests run as part of the evaluation, we also used a set of 94 test programs along with expected results that served as part of an automated test suite during development.
 Overall, Chalice2SIL should be considered a prototype with room for improvement, especially in terms of performance. 
-
-
