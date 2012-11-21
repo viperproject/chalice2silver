@@ -18,10 +18,7 @@ class Cell {
     requires c != null && rd(c.mu) && waitlevel << c;
   {
     acquire c;
-    assert(rd(c.x)); // ERROR: should fail
-    
-    release c;
-    assert(rd(c.x)); // ERROR: should fail
+    assert(rd(c.x)); /* @Error 430 */
   }
   
   method a3()
@@ -41,7 +38,7 @@ class Cell {
     var c: Cell := new Cell;
     
     share c;
-    assert(rd(c.x)); // ERROR: should fail
+    assert(rd(c.x)); /* @Error 430 */
   }
   
   method a5()
@@ -51,7 +48,7 @@ class Cell {
     share c;
     acquire c;
     unshare c;
-    assert(rd(c.x)); // ERROR: should fail
+    assert(rd(c.x)); /* @Error 430 */
   }
   
 }
@@ -70,17 +67,14 @@ class Cell2 {
     assert(rd*(c.x));
     
     release c;
-    assert(rd*(c.x)); // ERROR: we gave away all permission
+    assert(rd*(c.x)); /* @Error 430 */
   }
   
   method a2(c: Cell2)
     requires c != null && rd(c.mu) && waitlevel << c;
   {
     acquire c;
-    assert(rd(c.x)); // ERROR: should fail
-    
-    release c;
-    assert(rd(c.x)); // ERROR: should fail
+    assert(rd(c.x)); /* @Error 430 */
   }
   
   method a3()
@@ -100,7 +94,7 @@ class Cell2 {
     unshare c;
     assert(rd*(c.x));
     
-    assert(acc(c.x)); // ERROR: should fail
+    assert(acc(c.x)); /* @Error 430 */
   }
   
   method a4(c: Cell2)
@@ -108,7 +102,7 @@ class Cell2 {
     requires rd(c.x);
     lockchange c
   {
-    release c; // ERROR: should fail, we don't have enough permission
+    release c; /* @Error 1630 */
   }
   
   method a5()
@@ -133,7 +127,7 @@ class Cell2 {
     n := c.x
     rd release c;
     
-    n := c.x // ERROR: no read access possible
+    n := c.x /* @Error 530 */
     
     acquire c;
     unshare c;

@@ -1,0 +1,67 @@
+class Test {
+	var r: Test
+	
+	method fail()
+	{ assert 1 == 2 } /* @Error 410 */
+	
+	method success(b: bool, x: int, y: int, z: int)
+		requires x == 1
+		requires b ==> y > 0
+		requires y > z ? x == y + 1 : x == z + 1
+	{
+		/* The state is inconsistent in branches where
+		 * x == 1 && y > 0 && x == y + 1.
+		 */
+
+		if (x == 1 && y > 0 && x == y + 1) {
+			assert 1 == 2
+			assert acc(r)
+		}
+	}
+}
+
+class Cell { var x: int }
+
+class Test2 {
+	var c1: Cell
+	var c2: Cell
+	
+	predicate P { acc(c1) }
+	
+	method success()
+		requires rd(c1) && c1 != null && acc(c1.x)
+		requires rd(c2) && c2 != null && acc(c2.x)
+		requires false
+	{
+		assert acc(c1.x, 100)
+		/*
+			The following description holds at least for r7111:
+			
+			In an inconsistent state the heap merger will combine all heap chunks
+			having the same field id because for each pair of receivers it can be
+			asserted that they are equivalent, i.e. aliases.
+			Hence, assert acc(c1.x, 200) and assert acc(c2.x, 200) both succeed,
+			but assert acc(c1.x, 201) still fails.
+		*/
+		// assert acc(c1.x, 200)
+		// assert acc(c2.x, 200)
+		// assert acc(c1.x, 201) // Fails
+		c1.x := 1
+	}
+	
+	method success2(b: bool)
+		requires b ==> acc(P) && acc(c1)
+		requires 1 == 2
+	{
+	  /* Execution branches at b ==> acc(P). For the !b-branch acc(P) && acc(c1)
+		 * won't be produced, hence assert acc(P) would fail. It should not,
+		 * however, since the state is inconsistent. Syxc solves this by trying
+		 * to assert false if a predicate/field chunk lookup fails and by
+		 * simply assuming the existence of the corresponding chunk if false can be
+		 * asserted.
+		 */
+
+		assert acc(P)
+		assert acc(c1)
+	}
+}

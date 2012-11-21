@@ -1,0 +1,12 @@
+// https://bitbucket.org/mschwerhoff/syxc-npm/issue/4/quantifying-over-non-integer-variables
+
+class Foo {
+  function f(x): int
+  { x + 1 }
+  
+  method test01()
+  {
+    assert forall b: bool :: b == true || b == false
+    assert forall x: Foo :: x != null ==> x.f(0) == 1
+  }
+}

@@ -1,0 +1,55 @@
+// https://bitbucket.org/mschwerhoff/syxc-npm/issue/3/recursive-calls-and-postconditions
+
+class Node {
+  var n: Node
+  
+  predicate P { acc(n) && (n != null ==> acc(n.P)) }
+
+  function length(): int
+    requires rd(P)
+    ensures result >= 1
+  { unfolding rd(P) in 1 + (n == null ? 0 : n.length()) }
+  
+  function test(): bool
+    requires rd(P)
+  {    length() > 1
+    && unfolding rd(P) in
+         n.length() != 0
+  }
+}
+
+class Test {
+  method test(node: Node)
+    requires node != null
+    requires acc(node.P)
+  {
+    /* A1 */
+    assert node.length() >= 1
+    
+    /* A2 */
+    assert (unfolding rd(node.P) in node.n == null) ==> (node.length() == 1)
+    
+    /* AUX1 */
+    // assert (unfolding rd(node.P) in node.n != null) ==> (unfolding rd(node.P) in node.n.length() >= 1)
+      /* Equivalent to A3, but it does explicitly mention the recursive call.
+       * Since this verifies, the reason why A3 fails on its own seems to be
+       * that the postcondition of the recursive call of 'length()' is not
+       * assumed if it is not mentioned explicitly.
+       */
+
+    /* A3 */
+    assert (unfolding rd(node.P) in node.n != null) ==> (node.length() > 1) /* @Fails */
+      /* Holds only if AUX1 is not commented */
+    
+    /* A4 */
+    assert (node.length() == 1) ==> (unfolding rd(node.P) in node.n == null)
+      /* Holds only if AUX1 is not commented */
+    
+    /* A5 */
+    assert (node.length() == 1) <==> (unfolding rd(node.P) in node.n == null)
+      /* Equivalent to A2 and A4 */
+    
+    /* A6 */
+    assert node.length() > 1 <==> unfolding rd(node.P) in node.n != null
+  }
+}

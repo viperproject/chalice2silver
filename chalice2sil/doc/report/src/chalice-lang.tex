@@ -1,9 +1,9 @@
-% !TEX TS-program = xelatex
+% !TEX TS-program = xelatex+makeindex+bibtex
 % !TEX encoding = UTF-8
 % !TEX root = ../chalice2sil_report_klauserc.tex
 
-\subsection{Chalice}
-Chalice is a research programming language with the goal of helping programmers detect bugs in their concurrent programs. 
+\subsection{Chalice}\label{sct:chalice}
+Chalice \cite{LMS09,LM09} is a research programming language with the goal of helping programmers detect bugs in their concurrent programs. 
 As with most languages aimed at automatic static verification (e.g, Spec\#), the programmer provides annotations that specify how they intend the program to behave.
 These annotations appear in the form of monitor invariants, loop invariants and method pre- and postconditions.
 A verification tool can take such a Chalice program and check statically that it never violates any of the conditions established by the programmer.
@@ -64,7 +64,7 @@ As an under-approximation of the set of permissions a thread would have at runti
 That way, the verifier can verify method bodies in complete isolation of one another. 
 The programmer thus has to specify which heap locations need to be accessible for each method.
 
-In Listing \ref{lst:chaliceexampleaccnew}, we use \emph{accessibility predicates} of the form \lstinline!acc(receiver.field)! in the method's pre- and postcondition. 
+In Listing \ref{lst:chaliceexampleaccnew}, we use \emph{accessibility predicates} of the form \acc{\text{\texttt{receiver.field}}} in the method's pre- and postcondition. 
 \lstinline!acc(c.f)! in the precondition allows us to refer to \lstinline!c.f! in the method body. 
 The accessibility predicates in the postcondition, on the other hand, represent permissions that the method will have to ``return'' to its caller upon completion.
 Conceptually, the caller passes the permission requested by the callee's precondition on to the callee.
@@ -130,6 +130,7 @@ That way, a caller that started out with write access to \lstinline!x.f! gets ba
 
 Chalice restricts read fractions in method specifications even further: all fractional read permissions in a method contract, even to different heap locations, refer to the same amount of permission (but that amount can still differ between method invocations).
 This restriction accounts for the limited information about aliasing available statically and also makes the implementation of fractional read permissions more straightforward.
+
 
 \begin{lstlisting}[language=Chalice,float,caption={Corrected example using abstract read permissions},label={lst:chaliceabstractread},numbers=left]
 class Cell { var f : int }
@@ -241,7 +242,7 @@ class Indentation {
 
 Listing \ref{lst:chalicepredicate} additionally demonstrates the \lstinline[language=Chalice]!unfolding! expression syntax used to temporarily getting access to the contents of a predicate.
 
-\subsubsection{Monitors (locks)}
+\subsubsection{Monitors (locks)}\label{sct:back-monitors}
 Using just fork-join, it is impossible for threads to communicate with one another. 
 They can only produce a result and all of their memory writes only become visible when they return the exclusive write permissions back to their caller.
 To handle more realistic scenarios, such as concurrent access to a shared queue, Chalice comes with \emph{monitors} that allow for exclusive locking of a shared resource.
@@ -310,10 +311,6 @@ Lock levels are implemented via a special field called \lstinline!mu! of type \l
 The \lstinline!mu! field is assigned during \lstinline[language=Chalice]!share! and \lstinline[language=Chalice]!unshare! operations and needs to be read-able for acquiring the lock.
 
 \subsubsection{Details on the Boogie-based Chalice verifier}
-\begin{sketch}
-Is ``Inhale, exhale and havoc'' a better title for this section?
-\end{sketch}
-
 In order to verify Chalice programs, the Boogie-based verifier permission transfer is modelled by two operations: \lstinline[language=SIL]!inhale! and \lstinline[language=SIL]!exhale!. 
 They are essentially the same as \lstinline[language=SIL]!assume! and \lstinline[language=SIL]!assert! but in addition to providing and checking facts, they also model the transfer of permissions.
 The argument of an \exhale{} operation is an expression that can contain both traditional (boolean) assertions as well as accessibility predicates. 
@@ -321,7 +318,3 @@ Conceptually, \exhale{e} represents the transfer of $e$ to another thread.
 Because verification of Chalice methods is modular, we don't specify or even care about which thread will ``receive'' $e$.
 For each \exhale operation, the verifier will check (assert) the boolean predicates and remove permissions mentioned in $e$ from the current thread's set of permissions (usually referred to as the thread's ``\emph{permission mask}'').
 The \inhale{e} operation works the opposite way. Access permissions mentioned in $e$ are added to the thread's permission mask and boolean predicates get assumed.
-
-\begin{sketch}
-Where is the best place for explaining the idea that as soon as you give away all permissions to a location, anything can happen to that location, from your perspective?
-\end{sketch}

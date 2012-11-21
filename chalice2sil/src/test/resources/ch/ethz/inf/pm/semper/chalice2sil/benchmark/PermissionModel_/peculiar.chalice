@@ -32,7 +32,7 @@ class Cell {
   {
     call dispose();
     call void(); // call succeeds, even though the precondition is also rd(x), and the next assertion fails
-    assert(rd(x)); // ERROR: fails, as this check is done exactly (as it would in a postcondition)
+    assert(rd(x)); /* @Error 430, as this check is done exactly (as it would in a postcondition) */
   }
   
   method t5(n: int)

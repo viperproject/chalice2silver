@@ -1,0 +1,10 @@
+class BooleansNot {
+	method notFalse()
+		requires !false;
+		ensures !false;
+	{ }
+	
+	method failNotTrue()
+		ensures !true; /* @Error 310 */
+	{ }
+}

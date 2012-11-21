@@ -1,0 +1,92 @@
+/* Simplified version of Cell.boom, used to track down a bug in the handling
+ * of pure implications.
+ */
+class SimplifiedCell {
+	var value:int;
+	
+	predicate Q { acc(value) }
+	
+  function gett():int
+    requires Q;
+  {
+    unfolding Q in value
+  }
+	
+  method boom(x: SimplifiedCell, y: SimplifiedCell)
+		requires x.Q
+  {
+		unfold x.Q;
+		x.value := 100;
+		fold x.Q;
+		assert true ==> x.gett() == 100
+  }
+}
+
+/* Examples by Yannis */
+class Cell
+{
+  var value:int;
+    
+  predicate P { acc(value,50) }
+  
+  function get():int
+    requires P;
+  {
+    unfolding P in value
+  }
+    
+  method boom(x:Cell, y:Cell)
+		requires x!=null && y!=null && x.P && y.P;
+		ensures x.P && y.P
+		ensures x == y ==> x.get() == 100
+  {
+		if (x == y) {
+			unfold x.P;
+			unfold x.P;
+			y.value := 100;
+			fold y.P;
+			fold y.P;
+		}
+  }
+
+  method skip()
+    requires P;
+	ensures P;
+  {}
+
+  // is the bookkeeping correct when calculating the secondary mask?
+  // there are two cases: in one all permission to value is lost, and value is set to 100
+  // in the other not all permission is lost, and therefore value must retain the value 2
+  // fold happens once on a statically unknown object
+  method foo(z:Cell)
+    requires acc(value,50) && value==2 && z!=null && acc(z.value,50);
+  {	
+	fold z.P;
+	fold P;
+	call boom(this, z);
+	assert this==z ==> unfolding P in value==100;
+  }
+  
+  // give away half the permission: you still know the value
+  // Syxc correctly verifies the example.  Chalice is inconsistent
+  method goo()
+    requires acc(value);
+  {
+    fold P;
+	fold P;
+	fork t:=skip();
+	assert unfolding P in value==old(value);
+  }
+  
+  // must fail: give away all permission, even in pieces, and you lose all information about value
+  // Syxc correctly fails the example.  Chalice inconsistently verifies
+  method hoo()
+    requires acc(value);
+  {
+    fold P;
+	fold P;
+	fork t:=skip();
+	call skip ();
+	assert unfolding P in value==old(value); /* @Error 410 */
+  }
+}

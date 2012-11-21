@@ -1,0 +1,49 @@
+class Implications {
+	method succeed1(x: int, y: int) returns (r: int)
+		requires x != y
+		ensures x*y > 0 ==> r == x
+	{ r := x*y >= 0 ? x : y }
+
+	method fail1(x: int, y: int) returns (r: int)
+		requires x > 0 ==> y > 0
+	{ assert(y > 0) /* @Error 410 */ }
+	
+	method fail2(x: int, y: int) returns (r: int)
+		requires x > 0 ==> y > 0
+		ensures y > 0 /* @Error 310 */
+	{}
+	
+	method fail3(x: int, y: int) returns (r: int)
+		requires y > 0
+		ensures y > 0 ==> x > 0 /* @Error 310 */
+	{}
+	
+	method fail4(x: int) returns (r: int)
+		ensures r == x ==> x > 0 /* @Error 310 */
+	{ r := x }
+	
+	method fail5(x: int) returns (r: int)
+		ensures r == x ==> x > 0 /* @Error 310 */
+	{
+		if (x == x) {
+			r := 0
+		} else {
+			r := 0
+		}
+	}	
+	
+	method fail6(x: int) returns (r: int)
+		ensures r == x ==> x > 0 /* @Error 310 */
+	{ r := x >= 0 ? x : -x }
+	
+	method fail7(x: int, y: int) returns (r: int)
+		requires x != y
+		requires x == 0 && y == 1
+		ensures r == x <==> x*y > 0 /* @Error 310 */
+	{ r := x*y >= 0 ? x : y	}
+	
+	method fail8(x: int, y: int) returns (r: int)
+		requires x != y
+		ensures r == x ==> x*y > 0 /* @Error 310 */
+	{ r := x*y >= 0 ? x : y }
+}

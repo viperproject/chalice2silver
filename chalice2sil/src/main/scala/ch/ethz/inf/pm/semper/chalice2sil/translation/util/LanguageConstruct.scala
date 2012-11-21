@@ -34,6 +34,11 @@ class LanguageConstruct(scope : ScopeTranslator, sourceLocation_ : SourceLocatio
 
   protected class ImpureHeapLocationOps protected[LanguageConstruct](variable : ProgramVariable, field : Field) extends PureHeapLocationOps(variable,field) {
     def <--(rhs : PTerm) { scope.currentBlock.appendFieldAssignment(variable,field,rhs,sourceLocation,takeComment()) }
+    def <--(rhs : (ProgramVariable, Field)) {
+      this <-- scope.currentExpressionFactory.makePFieldReadTerm(
+        scope.currentExpressionFactory.makeProgramVariableTerm(rhs._1,sourceLocation),
+        rhs._2,
+        sourceLocation) }
   }
 
   final implicit def heapLocationOps(location : (ProgramVariable,Field)) : ImpureHeapLocationOps = new ImpureHeapLocationOps(location._1,location._2)

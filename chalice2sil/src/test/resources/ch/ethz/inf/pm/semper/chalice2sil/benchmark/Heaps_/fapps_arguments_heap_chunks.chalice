@@ -1,0 +1,26 @@
+class Cell { var x: int }
+
+class Test {
+	var c: Cell
+	
+	function get(a: int): Cell
+		requires rd(c)
+	{ c }
+	
+	method succeeds(a: int)
+		requires rd(c) && get(0) != null && acc(get(0).x)
+		ensures rd(c) && get(0) != null && acc(get(0).x)
+		ensures get(0).x == a
+	{
+		get(0).x := a
+		// c.x := a /* Fails in Syxc due to fapp & heap lookup incompleteness */
+	}
+	
+	method fails(a: int)
+		requires rd(c) && get(0) != null && acc(get(0).x)
+		requires a == 0
+	{
+		assert acc(get(0).x)
+		assert acc(get(a).x)
+	}
+}

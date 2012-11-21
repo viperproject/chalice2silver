@@ -1,0 +1,97 @@
+% !TEX TS-program = xelatex
+% !TEX encoding = UTF-8
+% !TEX root = ../chalice2sil_report_klauserc.tex
+
+\section{Full SIL Term and Expression Grammar}\label{apdx:grammar}
+\begin{grammar}
+<Expr> ::= 'acc' (<Location>, <Term>)
+	\alt 'old' ( <Expr> )
+	\alt 'unfolding' <Term>.<pred-id> 'by' <Term> 'in' <Expr>
+	\alt <Term> == <Term>
+	\alt <unary-op> <Expr>
+	\alt <binary-op> <Expr>
+	\alt <dom-pred-id>(\synrep{\synt{Term}}{,})
+	\alt ∀ <logical-var-id> : <DataType> :: (<Expr>)
+	\alt ∃ <logical-var-id> : <DataType> :: (<Expr>)
+	\alt <GExpr>
+
+<Location> ::= <Term>.<field-id>
+	\alt <Term>.<pred-id>
+\end{grammar}
+
+\begin{grammar}
+<PExpr> ::= 'acc' (<PLocation>, <PTerm>)
+	\alt 'unfolding' <PTerm>.<pred-id> 'by' <PTerm> 'in' <PExpr>
+	\alt <PTerm> == <PTerm>
+	\alt <unary-op> <PExpr>
+	\alt <binary-op> <PExpr>
+	\alt <dom-pred-id>(\synrep{\synt{PTerm}}{,})
+	\alt <GExpr>
+
+<PLocation> ::= <PTerm>.<field-id>
+	\alt <PTerm>.<pred-id>
+\end{grammar}
+
+\begin{grammar}
+<DExpr> ::= <DTerm> == <DTerm>
+	\alt <unary-op> <DExpr>
+	\alt <binary-op> <DExpr>
+	\alt <dom-pred-id>(\synrep{\synt{DTerm}}{,})
+	\alt ∀ <logical-var-id> : <DataType> :: (<DExpr>)
+	\alt ∃ <logical-var-id> : <DataType> :: (<DExpr>)
+	\alt <GExpr>
+\end{grammar}
+
+\begin{grammar}
+<GExpr> ::= <PExpr> == <PExpr>
+	\alt <UnaryOp> <PExpr>
+	\alt <BinaryOp> <PExpr>
+	\alt <dom-pred-id>(\synrep{\synt{PExpr}}{,})
+	\alt 'True'
+	\alt 'False'
+\end{grammar}
+
+\begin{grammar}
+<UnaryOp> ::= '¬'
+
+<BinaryOp> ::= '∧' | '∨' | '$\equiv$' | '⇒'
+\end{grammar}
+
+\begin{grammar}
+<Term> ::= 'if' <Term> 'then' <Term> 'else' <Term>
+	\alt 'old'( <Term> )
+	\alt <func-id>( \synrep{\synt{Term}}{,} )
+	\alt <dom-func-id>( \synrep{\synt{Term}}{,} )
+	\alt 'unfolding' <Term>.<pred-id> 'by' <Term> 'in' <Term>
+	\alt (<Term>) : <DataType>
+	\alt <Term>.<field-id>
+	\alt 'perm'( <Location> )
+	\alt 'write'
+	\alt '0'
+	\alt  'E'
+	\alt <GTerm>
+\end{grammar}
+
+\begin{grammar}
+<PTerm> ::= 'if' <PTerm> 'then' <PTerm> 'else' <PTerm>
+	\alt <var-id>
+	\alt <func-id>( \synrep{\synt{PTerm}}{,} 
+	\alt <dom-func-id>( \synrep{\synt{PTerm}}{,} )
+	\alt 'unfolding' <PTerm>.<pred-id> 'by' <PTerm> 'in' <PTerm>
+	\alt (<PTerm>) : <DataType>
+	\alt <PTerm>.<field-id>
+	\alt <GTerm>
+\end{grammar}
+
+\begin{grammar}
+<DTerm> ::= 'if' <DTerm> 'then' <DTerm> 'else' <DTerm>
+	\alt <logical-var-id>
+	\alt <dom-func-id>( \synrep{\synt{DTerm}}{,} )
+	\alt <GTerm>
+\end{grammar}
+
+\begin{grammar}
+<GTerm> ::= 'if' <GTerm> 'then' <GTerm> 'else' <GTerm>
+	\alt <integer-literal>
+	\alt 	\alt <dom-func-id>( \synrep{\synt{GTerm}}{,} )
+\end{grammar}

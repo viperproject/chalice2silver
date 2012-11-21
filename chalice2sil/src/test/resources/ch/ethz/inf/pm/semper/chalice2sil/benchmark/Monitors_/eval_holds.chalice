@@ -1,0 +1,13 @@
+class Test {
+	function myHolds(): bool
+	{
+		/* Testing evaluation of holds-expressions */
+		holds(this)
+	}
+	
+	function myITE(): bool
+	{ true ? false : true }
+	
+	method test()
+	{ assert myHolds() == myITE() /* @Error 410 */ }
+}

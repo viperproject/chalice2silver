@@ -1,0 +1,22 @@
+// https://bitbucket.org/mschwerhoff/syxc-npm/issue/2/share-and-then-acquire-insufficient
+
+class Test {
+  method test01()
+    requires acc(mu)
+    requires mu == lockbottom
+  {
+    share this
+  }
+  
+  method test02() /* @Fails */
+    requires acc(mu)
+    requires mu == lockbottom
+    /* Syxc requires 'lockchange this', although it is not necessary to
+     * let the client know about the internal locking since the client
+     * doesn't even know that the object has been shared.
+     */
+  {
+    share this
+    acquire this
+  }
+}

@@ -3,7 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea_modules/chalice2sil.iml" filepath="$PROJECT_DIR$/.idea_modules/chalice2sil.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea_modules/project.iml" filepath="$PROJECT_DIR$/.idea_modules/project.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea_modules/chalice2sil-build.iml" filepath="$PROJECT_DIR$/.idea_modules/chalice2sil-build.iml" />
     </modules>
   </component>
 </project>

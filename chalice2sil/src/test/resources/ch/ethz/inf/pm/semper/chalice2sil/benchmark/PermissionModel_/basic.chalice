@@ -27,10 +27,9 @@ class Cell {
   // call to method that destroys rd(x) really removes permission
   method a2()
     requires rd(x);
-    ensures rd(x);
+    ensures rd(x); /* @Error 330 */
   {
     call dispose_rd();
-    // ERROR: should fail to verify postcondition
   }
   
   // forking and method calls of dispose_rd
@@ -47,19 +46,10 @@ class Cell {
   // forking and method calls of dispose_rd
   method a4()
     requires rd(x);
-    ensures rd(x);
+    ensures rd(x); /* @Silicon(Error 330) */
   {
     fork dispose_rd();
-    // ERROR: should fail to verify postcondition
-  }
-  
-  // forking and method calls of dispose_rd
-  method a5()
-    requires rd(x);
-    ensures rd(x,1);
-  {
-    fork dispose_rd();
-    // OK: giving away an epsilon permission however should work
+    assert rd(x); /* @Error 410 */
   }
   
   // forking and method calls of dispose_rd
@@ -96,11 +86,11 @@ class Cell {
   // joining to regain permission
   method a9(a: int)
     requires rd(x);
-    ensures rd(x)
+    ensures rd(x) /* @Syxc(Error 330) */
   {
     fork tk := dispose_rd();
     join tk;
-    // ERROR: should fail to verify postcondition
+    assert rd(x);  /* @Error 410 */
   }
   
   // joining to regain permission
@@ -129,7 +119,7 @@ class Cell {
     }
   }
   
-  // forking dispose_rd in a loop (using rd(x,*) to denote unknown read permission)
+  // forking dispose_rd in a loop (using rd*(x) to denote unknown read permission)
   method a12(a: int)
     requires rd(x);
     ensures rd*(x);
@@ -144,23 +134,23 @@ class Cell {
     }
   }
   
-  // forking dispose_rd in a loop (using rd(x,*) to denote unknown read permission)
-  method a13(a: int)
+  // forking dispose_rd in a loop (using rd*(x) to denote unknown read permission)
+  method a13()
     requires rd(x);
-    ensures rd(x);
+    ensures rd(x); /* @Syxc(Error 330) */
   {
-    var i: int;
-    i := 0;
-    while (i < a)
+    var a: int
+    while (a == 0)
       invariant rd*(x);
     {
       fork dispose_rd();
-      i := i+1;
+      a := 1
     }
-    // ERROR: should fail to verify postcondition
+
+    assert rd(x); /* @Error 410 */
   }
   
-  // calling dispose_rd in a loop (using rd(x,*) to denote unknown read permission)
+  // calling dispose_rd in a loop (using rd*(x) to denote unknown read permission)
   method a14()
     requires rd(x);
     ensures true;
@@ -195,7 +185,7 @@ class Cell {
     var i: int;
     i := 0;
     while (i < 1000)
-      invariant acc(x,rd);
+      invariant acc(x, rd);
     {
       call void();
       i := i+1;
@@ -218,15 +208,14 @@ class Cell {
     call a18a()
     call a18b()
   }
+  
   method a18a()
     requires acc(x,2*rd);
     ensures acc(x,rd+rd);
-  {
-  }
+  {}
+  
   method a18b()
     requires acc(x,rd+rd);
     ensures acc(x,rd*2);
-  {
-  }
-  
+  {}
 }

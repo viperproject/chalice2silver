@@ -1,0 +1,28 @@
+/* Failed in Chalice r61723 */
+class Sequences {
+	var xs: seq<int>
+	
+	method init()
+		requires acc(xs)
+		ensures acc(xs) && |xs| == 0
+	{ xs := nil<int> }
+	
+	method append(a: int)
+		requires acc(xs)
+		ensures acc(xs)
+		ensures size() == old(size()) + 1	/* Verifies */
+		ensures |xs| == old(|xs|) + 1			/* Fails: Might not evaluate to true. */
+		// ensures xs[|xs| - 1] == a
+		// ensures xs[size() - 1] == a
+	{ xs := xs ++ [a] }
+	
+	/* Contrastingly, this heap-independent version verifies. */
+  method append0(ins: seq<int>, a: int) returns (outs: seq<int>)
+    ensures |outs| == |ins| + 1
+    ensures outs[|outs| - 1] == a
+  { outs := ins ++ [a] }
+	
+  function size(): int 
+    requires rd(xs);
+  { |xs| }
+}

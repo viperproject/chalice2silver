@@ -1,0 +1,179 @@
+// Error messages match, but are reported as occurring in position "0.0". There is no way to tell this test
+//  to expect messages there
+
+/*
+Syxc reports:
+
+Error 230: 89.3: Invocation of this.g failed at 50.12. Insufficient permissions to access this.V.
+                call g()  @Error 230
+
+Error 730: 99.3: Folding failed at 40.16. Insufficient permissions to access this.x.
+                fold acc(V, 1)  @Error 730
+
+Error 230: 144.3: Invocation of this.g failed at 50.12. Insufficient permissions to access this.V.
+                call g()  @Error 230
+
+Error 230: 160.3: Invocation of this.g failed at 50.12. Insufficient permissions to access this.V.
+                call g()  @Error 230
+
+Error 230: 177.3: Invocation of this.f failed at 177.3. Insufficient permissions to access this.x.
+                call f()  @Error 230
+
+
+Chalice2SIL+Silicon report:
+
+Error 230: 89.3: Invocation of Test::g failed at 50.12. Insufficient permissions to access this.Test::V.
+
+Error 730: 99.3: Folding failed at 40.16. Insufficient permissions to access this.Test::x.
+
+Error 230: 144.3: Invocation of Test::g failed at 50.12. Insufficient permissions to access this.Test::V.
+
+Error 230: 160.3: Invocation of Test::g failed at 50.12. Insufficient permissions to access this.Test::V.
+
+Error 100: 0.0: Symbolic execution failed. Insufficient permissions to access this.Test::x.
+
+*/
+
+class Test {
+	var x: int
+
+	predicate V { acc(x) }
+	predicate W { rd(x) }
+	predicate P { acc(x, 50) }
+
+	method f()
+		requires rd(x)
+		ensures rd(x)
+	{}
+	
+	method g()
+		requires V
+		ensures V
+	{}
+	
+	method h()
+		requires acc(x, 50)
+		ensures acc(x, 50)
+	{}	
+	
+	method unfoldVRd()
+		requires V
+		ensures V
+	{
+		call g()
+		unfold rd(V)
+		fork tk1 := f()
+		join tk1
+		fold rd(V)
+		call g()
+	}
+	
+  
+	method fail1UnfoldVRd()
+		requires V
+	{
+		call g()
+		unfold rd(V)
+		fork tk1 := f()
+		// fork tk2 := f() /* @Error 230 */
+      /* @deprecated: Verifies with the new permission model. */
+		fork tk2 := f()
+	}		
+	
+	method fail2UnfoldVRd()
+		requires V
+	{
+		call g()
+		unfold rd(V)
+		fork tk1 := f()
+		call g() /* @Error 230 */
+	}	
+	
+	method fail3UnfoldVRd()
+		requires V
+	{
+		call g()
+		unfold rd(V)
+		fork tk1 := f()
+		join tk1
+		fold acc(V, 1) /* @Error 730 */
+	}	
+	
+	method unfoldVAccRd()
+		requires V
+		ensures V
+	{
+		unfold acc(V, 50)
+		unfold rd(V)
+		call f()
+		fold acc(V, 50)
+		call f()
+		fold rd(V)
+		call g()
+	}
+	
+	method fail1UnfoldVAccRd()
+		requires V
+	{
+      // Let k be the methodK.
+      // V#1
+		unfold acc(V, 50)
+      // V#0.5, x#0.5
+		unfold rd(V)
+      // V#0.5-k, x#0.5+k
+		call f()
+      // V#0.5-k, x#0.5+k
+		fork tk1 := f()
+      // V#0.5-k, x#0.5+k-k',    k' < k, k' < 0.5+k
+		fork tk2 := h()
+      // V#0.5-k, x#k-k', k' < k
+		// call f() /* @Error 230 */
+      /* @deprecated: Verifies with the new permission model. */
+		call f()
+      // V#0.5-k, x#k-k'-k'',    k' < k, k'' < k, k'' < k-k'
+	}
+
+	method fail2UnfoldVAccRd()
+		requires V
+	{
+		unfold acc(V, 50)
+		unfold rd(V)
+		call f()
+		fork tk1 := f()
+		fork tk2 := h()
+		call g() /* @Error 230 */
+	}
+
+	method fail3UnfoldVAccRd()
+		requires V
+		ensures V
+	{
+		unfold acc(V, 50)
+		unfold rd(V)
+		// call f()
+		fork tk1 := f()
+		fork tk2 := h()
+		join tk1 
+		join tk2 
+		fold acc(V, 50)
+		call f()
+		call g() /* @Error 230 */
+	}
+
+	method fail4UnfoldVAccRd()
+		requires V
+		ensures V
+	{
+		unfold acc(V, 50)
+		unfold rd(V)
+		call f()
+		fork tk1 := f()
+		fork tk2 := h()
+		join tk1 
+		join tk2 
+		fold acc(V, 50)
+		call f()
+		fold rd(V)
+		call f() /* @Error 230 */
+	}
+}

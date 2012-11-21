@@ -2,7 +2,7 @@
 % !TEX encoding = UTF-8
 % !TEX root = ../chalice2sil_report_klauserc.tex
 
-\subsection{Semper Intermediate Language (SIL)}
+\subsection{Semper Intermediate Language (SIL)}\label{sct:sil}
 The Semper Intermediate Language is a verification language aimed at the verification of concurrent programs using a methodology based on Chalice.
 As its name suggests, SIL is the intermediate language to be used by the various tools that are part of the semper project.  
 
@@ -19,9 +19,6 @@ As a result we use our own ad-hoc textual representation for SIL program snippet
 %<NonTerminal> ::= 'keyword-or-punctuation' <terminal> (<Grouped> | <Alternatives>) 
 %	\alt <MoreAlternatives> [ <Optional> ] \{ <ZeroOrMore> \}
 %\end{grammar}
-
-
-\newcommand{\synrep}[2]{\{ #1 #2 $\cdots$ \}}
 
 %\begin{grammar}
 %<Repetition> ::= [ <Entity> \{ <Separator> <Entity> \} ]

@@ -15,7 +15,7 @@
 \usepackage[usenames,dvipsnames]{xcolor}
 \usepackage{mdframed}
 \usepackage{syntax}
-
+\usepackage{rotating} % for sideways tables
 
 \setmainfont{Cambria} % set the main body font (\textrm), assumes Cambria is installed
 \setsansfont{Calibri}
@@ -115,17 +115,11 @@
 \newcommand{\exhale}[1]{\ensuremath{\text{\lstinline[language=SIL]!exhale!}\ #1}}
 \newcommand{\semicolon}{\ensuremath{\text{\lstinline!; !}}}
 
+\newcommand{\synrep}[2]{\{ #1 #2 $\cdots$ \}}
+
 %=========================================
 
 \usepackage[parfill]{parskip} 
-\usepackage{titlesec}
-%\titleformat{\section}[display]{\normalfont\Large\bfseries}{Problem \thesection:}{1em}{}
-\titleformat{\section}{\normalfont\Large\bfseries\sffamily}{\metaSectionPrefix \thesection\ }{0.5em}{}
-\titleformat{\subsection}{\normalfont\large\bfseries\sffamily}{\thesubsection}{0.5em}{}
-\titleformat{\subsubsection}{\normalfont\bfseries\sffamily}{\thesubsubsection}{0.4em}{}
-\renewcommand{\thesection}{\arabic{section}.}
-\renewcommand{\thesubsection}{\arabic{section}.\arabic{subsection}}
-\renewcommand{\thesubsubsection}{\arabic{section}.\arabic{subsection}.\arabic{subsubsection}}
 
 %=========================================
 
@@ -137,18 +131,13 @@
 \begin{document}
 \maketitle
 
-\begin{sketch}
-\begin{itemize}
-\item Use either \lstinline!acc(x.f,write)! (SIL toString) or \lstinline!acc(x.f,full)! (SIL API), not both!
-\item Don't use abbreviated read fraction syntax \lstinline!rd(x.f)!, ever.
-\end{itemize}
-\end{sketch}
-
 \input{src/introduction.tex}
 
-\section{Background}
+\section{Background}\label{sct:background}
+This section briefly presents both \emph{Chalice} (the ``source language'') and \emph{SIL} (the ``target language''), focusing on the aspects that are important for discussing how Chalice2SIL performs its translation.
 	\input{src/chalice-lang.tex}
 	\input{src/sil-lang.tex}
+	\input{src/silicon.tex}
 
 \input{src/translation.tex}
 
@@ -156,7 +145,10 @@
 
 \input{src/conclusion.tex}
 
-\input{src/appendix.tex}
+\clearpage
+\appendix
+\input{src/full-grammar.tex}
+\input{src/benchmark-data.tex}
 
 \bibliographystyle{alpha}
 \bibliography{lib/chalice-related}

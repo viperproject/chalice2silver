@@ -1,0 +1,46 @@
+class Node {
+	var v: int
+	var next: Node
+	
+	predicate V {
+		acc(v)
+		&& acc(next)
+		&& (next != null ==> next.V)
+	}
+	
+	function get(): int
+		requires rd(V)
+	{ unfolding rd(V) in v }
+	
+	method testGet()
+		requires V
+		ensures V
+	{
+		unfold V
+		fold V
+		assert get() == old(get())
+	}	
+	
+	function length(): int
+		requires rd(V)
+	{ 1 + unfolding rd(V) in next == null ? 0 : next.length() }
+
+	method testLength1()
+		requires V
+		ensures V
+	{
+		unfold V
+		fold V
+		assert length() == old(length())
+	}
+	
+	method testLength2()
+		requires V
+		ensures V
+		ensures length() == old(length())
+	{
+		unfold V
+		// next := null /* Remove comment and the 2nd ensures will fail */
+		fold V
+	}
+}
