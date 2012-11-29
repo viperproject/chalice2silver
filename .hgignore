@@ -28,3 +28,4 @@ out.bpl
 chalice2sil/logfile.smt2
 chalice2sil/silicon
 silicon/*
+chalice2sil/doc/*/*.toc
