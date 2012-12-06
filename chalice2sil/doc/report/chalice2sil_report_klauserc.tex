@@ -2,7 +2,6 @@
 % !TEX encoding = UTF-8
 
 \documentclass[11pt,a4paper]{article} % use larger type; default would be 10pt
-
 \usepackage[fleqn]{amsmath}
 \usepackage{amsthm,amsfonts}
 \usepackage{amssymb} % Must be included BEFORE unicode!!!
@@ -14,6 +13,7 @@
 %\usepackage{multicol}
 \usepackage[usenames,dvipsnames]{xcolor}
 \usepackage{mdframed}
+\usepackage{geometry}
 \usepackage{syntax}
 \usepackage{rotating} % for sideways tables
 
@@ -26,11 +26,12 @@
 %\usepackage{savetrees}
 \usepackage{fullpage}
 %\usepackage{bussproofs}
+\usepackage{url}
 \usepackage{fancyhdr}
 \usepackage{listings}
 \usepackage{color}
 \usepackage{graphicx} % support the \includegraphics command and options
-\usepackage[colorlinks=true,citecolor=darkgreen]{hyperref}
+\usepackage[colorlinks=true,citecolor=darkgreen,urlcolor=blue,linkcolor=Sepia]{hyperref}
 \setlength{\textwidth}{145mm}
 
 % =====================================================
@@ -129,7 +130,11 @@
          % otherwise the current date is printed 
 
 \begin{document}
-\maketitle
+\input{src/title.tex}
+
+\newgeometry{top=1.5cm}
+\tableofcontents
+\restoregeometry
 
 \input{src/introduction.tex}
 

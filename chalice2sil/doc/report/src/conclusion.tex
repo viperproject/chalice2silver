@@ -1,7 +1,16 @@
 % !TEX TS-program = xelatex
 % !TEX encoding = UTF-8
 % !TEX root = ../chalice2sil_report_klauserc.tex
-
 \section{Conclusion}\label{sct:conclusion}
 As part of this project, we devised and implemented a translator from Chalice ASTs to SIL ASTs from scratch.
-Being the first tool to target SIL, we were able to provide valuable feedback both during development and looking back.
+When the project started, not a single line of code existed for the SIL AST, Silicon or Chalice2SIL.
+SIL itself was little more than a draft of its syntax on paper.
+This turned out to be both a blessing and a curse.
+On the one hand just about everyone we talked to had a slightly different idea of how a particular SIL construct was supposed to behave, at least initially.
+On the other hand we had the opportunity to help shape SIL and the design of its AST.
+
+While many parts of the translation from Chalice to SIL were comparatively straightforward due to the similarity between the two languages, some aspects of Chalice or its underlying permission model were surprisingly hard to implement within the constraints of SIL.
+Overall, however, we think that the high-level design of SIL goes in the right direction.
+Having  permission amounts as first class values and related constructs (\lstinline[language=SIL]!acc!, \lstinline[language=SIL]!exhale!, etc.) as built-in language constructs neatly decouples the representation of permissions in the verifier from the representation of the program to be verified.
+
+With Chalice2SIL+Silicon we now have a first prototype of an automatic program verification tool-chain based on SIL, ready to be extended to include other tools that consume or transform SIL programs.

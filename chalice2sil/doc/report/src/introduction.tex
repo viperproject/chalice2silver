@@ -5,14 +5,14 @@
 \section{Introduction}
 Writing correct computer programs is difficult. 
 Writing correct concurrent or parallel computer programs is even more difficult. 
-One approach to making sure programs do not contain errors is (automatic) \emph{static verification}, the idea of having a computer prove that a given program fulfils its specification and does not crash.
+One approach to making sure programs do not contain errors is (automatic) \emph{static verification}: the idea of having a computer prove that a given program fulfils its specification and does not crash.
 An example of such a system is \emph{Chalice} \cite{LMS09} (section~\ref{sct:chalice}), a research programming language and matching automatic static verification tool.
-Targeting a specialized research language, dedicated to the verification of concurrent programs, however, means that one cannot directly apply the tool to code that is used out in the world.
+However, targeting a specialized research language dedicated to the verification of concurrent programs, means that one cannot directly apply the tool to code that is used out in the world.
 
 This is where \emph{Semper}, a project at ETH Zürich, comes into play. 
-Its goal is to develop an automatic program verifier for concurrent \emph{Scala}\footnote{\url{http://www.scala-lang.org/}} programs.
+Its goal is to develop an automatic program verifier for concurrent \emph{Scala} \cite{Scala} programs.
 Central to the Semper project is an intermediate program representation for verification called \emph{SIL} (section~\ref{sct:sil}).
-Programmers are not intended to use SIL directly, but instead write their programs in an existing programming  language and then use a translator to get an intermediate representation that Semper understands.
+Programmers are not intended to use SIL directly, but instead write their programs in an existing programming  language and then use a translator to get an intermediate representation that the Semper tools understand.
 
-The goal of this Bachelor's thesis is to build \emph{Chalice2SIL}, the first such a translator, translating from Chalice to SIL (section~\ref{sct:trans}), in order to gain experience with working with SIL (section~\ref{sct:eval}) and the tools involved in Semper.
+The goal of this Bachelor's thesis is to build \emph{Chalice2SIL}, the first such translator, translating from Chalice to SIL (section~\ref{sct:trans}), in order to gain experience with working with SIL (section~\ref{sct:eval}) and the tools involved in Semper.
 As the verification methodology used in Semper is based on the methodology underlying Chalice, Chalice is a good fit for the first ``source language'' to be targeted by Semper.

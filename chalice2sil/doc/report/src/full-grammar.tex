@@ -1,4 +1,4 @@
-% !TEX TS-program = xelatex
+% !TEX TS-program = xelatex+makeindex+bibtex
 % !TEX encoding = UTF-8
 % !TEX root = ../chalice2sil_report_klauserc.tex
 
@@ -11,8 +11,8 @@
 	\alt <unary-op> <Expr>
 	\alt <binary-op> <Expr>
 	\alt <dom-pred-id>(\synrep{\synt{Term}}{,})
-	\alt ∀ <logical-var-id> : <DataType> :: (<Expr>)
-	\alt ∃ <logical-var-id> : <DataType> :: (<Expr>)
+	\alt '∀' <logical-var-id> : <DataType> :: (<Expr>)
+	\alt '∃' <logical-var-id> : <DataType> :: (<Expr>)
 	\alt <GExpr>
 
 <Location> ::= <Term>.<field-id>
@@ -37,8 +37,8 @@
 	\alt <unary-op> <DExpr>
 	\alt <binary-op> <DExpr>
 	\alt <dom-pred-id>(\synrep{\synt{DTerm}}{,})
-	\alt ∀ <logical-var-id> : <DataType> :: (<DExpr>)
-	\alt ∃ <logical-var-id> : <DataType> :: (<DExpr>)
+	\alt '∀' <logical-var-id> : <DataType> :: (<DExpr>)
+	\alt '∃' <logical-var-id> : <DataType> :: (<DExpr>)
 	\alt <GExpr>
 \end{grammar}
 
@@ -56,7 +56,7 @@
 
 <BinaryOp> ::= '∧' | '∨' | '$\equiv$' | '⇒'
 \end{grammar}
-
+\clearpage
 \begin{grammar}
 <Term> ::= 'if' <Term> 'then' <Term> 'else' <Term>
 	\alt 'old'( <Term> )
@@ -71,6 +71,8 @@
 	\alt  'E'
 	\alt <GTerm>
 \end{grammar}
+
+SIL has three literal constants for permission amounts: \lstinline[language=SIL]!write! denotes the full permission, \lstinline[language=SIL]!0! stands for no permission at all (it is distinct from the integer $0$ literal) and \lstinline[language=SIL]!E! represents a single epsilon of permission (a counting permission, see section \ref{sct:counting-permissions}).
 
 \begin{grammar}
 <PTerm> ::= 'if' <PTerm> 'then' <PTerm> 'else' <PTerm>
@@ -92,6 +94,6 @@
 
 \begin{grammar}
 <GTerm> ::= 'if' <GTerm> 'then' <GTerm> 'else' <GTerm>
-	\alt <integer-literal>
-	\alt 	\alt <dom-func-id>( \synrep{\synt{GTerm}}{,} )
+	\alt \synt{integer-literal}
+	\alt  <dom-func-id>( \synrep{\synt{GTerm}}{,} )
 \end{grammar}
