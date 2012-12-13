@@ -1,5 +1,5 @@
 syntax: glob
-chalice2sil/project/project/**
-chalice2sil/project/target/**
-chalice2sil/target/**
-chalice2sil/.cache
+project/project/**
+project/target/**
+target/**
+.cache
