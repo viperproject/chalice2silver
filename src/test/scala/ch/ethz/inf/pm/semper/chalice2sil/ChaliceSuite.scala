@@ -12,6 +12,7 @@ import ch.ethz.inf.pm.silicon.interfaces.ResultWithMessage
 import semper.sil.ast.source.SourceLocation
 import runtime.ScalaRunTime
 import java.util.Locale
+import java.net.URL
 
 /**
   * Author: Christian Klauser
@@ -50,8 +51,8 @@ abstract class ChaliceSuite(matchJustErrorPosition : Boolean = false) extends Fu
     * for initialization and human readability.
     * @see directoryPath
     */
-  protected lazy val absoluteDirectoryPath = { //
-    val rootUrl = getClass.getClassLoader.getResource("index.toc")
+  protected lazy val absoluteDirectoryPath = {
+    val rootUrl = getClass.getClassLoader.getResource("resources/index.toc")
     Predef.assert(rootUrl != null,"Cannot find unit test resource root.")
     val root = Paths.get(rootUrl.toURI).getParent
     root.resolve(directoryPath)
