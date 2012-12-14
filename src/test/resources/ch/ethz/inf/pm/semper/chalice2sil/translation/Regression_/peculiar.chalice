@@ -28,6 +28,7 @@ class Cell {
     ensures rd(x) && rd(x);
   {}
 
+  @Ignore
   method t4()
     requires rd(x);
   {
