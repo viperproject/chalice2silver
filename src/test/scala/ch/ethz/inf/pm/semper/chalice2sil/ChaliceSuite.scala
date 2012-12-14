@@ -52,7 +52,7 @@ abstract class ChaliceSuite(matchJustErrorPosition : Boolean = false) extends Fu
     * @see directoryPath
     */
   protected lazy val absoluteDirectoryPath = {
-    val rootUrl = getClass.getClassLoader.getResource("resources/index.toc")
+    val rootUrl = getClass.getClassLoader.getResource("index.toc")
     Predef.assert(rootUrl != null,"Cannot find unit test resource root.")
     val root = Paths.get(rootUrl.toURI).getParent
     root.resolve(directoryPath)
