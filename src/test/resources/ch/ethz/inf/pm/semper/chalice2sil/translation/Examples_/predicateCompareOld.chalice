@@ -1,4 +1,4 @@
-// @Ignore NullPointerException in Syxc
+
 class Indentation {
     var count : int;
 
@@ -42,7 +42,7 @@ class Indentation {
     method increase(amount : int)
         requires valid && 0 <= amount;
         ensures valid;
-        ensures old(getCount()) <= getCount();
+        ensures old(getCount()) <= getCount(); // @IgnoreError 310: Currently not supported by Silicon, see issue #7.
     {
         unfold valid;
         count := count + amount;
