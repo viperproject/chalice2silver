@@ -28,13 +28,12 @@ class Cell {
     ensures rd(x) && rd(x);
   {}
 
-  @Ignore
   method t4()
     requires rd(x);
   {
     call dispose();
     call void(); // call succeeds, even though the precondition is also rd(x), and the next assertion fails
-    assert(rd(x)); // ERROR: fails, as this check is done exactly (as it would in a postcondition)
+    assert(rd(x)); // @Error 410
   }
 
   method t5(n: int)
