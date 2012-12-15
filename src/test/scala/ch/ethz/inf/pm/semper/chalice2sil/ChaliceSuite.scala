@@ -8,11 +8,7 @@ import translation.ProgramEnvironment
 import ch.ethz.inf.pm.silicon.{Silicon, Config}
 import io.Source
 import java.nio.file.{Path, Files, Paths}
-import ch.ethz.inf.pm.silicon.interfaces.ResultWithMessage
 import semper.sil.ast.source.SourceLocation
-import runtime.ScalaRunTime
-import java.util.Locale
-import java.net.URL
 
 /**
   * Author: Christian Klauser
@@ -113,10 +109,20 @@ abstract class ChaliceSuite(matchJustErrorPosition : Boolean = false) extends Fu
           while(mat.find()){
             val rawCode = mat.group(1)
             val code = if(rawCode == "*") {
-                0
-              } else {
-                Integer.parseInt(mat.group(1))
-              }
+              0
+            } else {
+              Integer.parseInt(mat.group(1))
+            }
+            expectedResults += ExpectedSiliconMessage(lineNum, code)
+          }
+          val mat2 = ignoreErrorFormat.pattern.matcher(line)
+          while(mat2.find()){
+            val rawCode = mat2.group(1)
+            val code = if(rawCode == "*") {
+              0
+            } else {
+              Integer.parseInt(mat2.group(1))
+            }
             expectedResults += ExpectedSiliconMessage(lineNum, code)
           }
           if(ignoreFormat.findFirstIn(line).isDefined){
@@ -150,6 +156,10 @@ abstract class ChaliceSuite(matchJustErrorPosition : Boolean = false) extends Fu
             val afterSIL = System.currentTimeMillis()
 
             //Console.out.println(silProgram.toString())
+            //val silOutputFile = absoluteDirectoryPath.resolve(fileName + ".tmp.sil")
+            //println(silOutputFile)
+            //println(silProgram.toString)
+            //new PrintWriter(silOutputFile.toFile).append(silProgram.toString).close()
 
             silMessages.view.filter(_.severity.indicatesFailure).foreach(m => fail("Detected message that indicates failure: %s".format(m)))
 
@@ -226,7 +236,8 @@ abstract class ChaliceSuite(matchJustErrorPosition : Boolean = false) extends Fu
     }
 
     private val expectedErrorFormat = "@Error (\\d+|\\*)".r
-    private val ignoreFormat = "@Ignore".r
+    private val ignoreErrorFormat = "@IgnoreError (\\d+|\\*)".r
+    private val ignoreFormat = "@Ignore[\n\r\t ]".r
   }
 
   protected implicit def symbolToChaliceSymbolWrapper(symbol : Symbol) : ChaliceSymbolWrapper = new ChaliceSymbolWrapper(symbol)
