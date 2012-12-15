@@ -1,17 +1,11 @@
-// @Ignore // Syxc cannot handle this case
-/* Error 330: 6.28: Postcondition might not hold. Insufficient permissions to access x.f.
-           ensures x == y ==> acc(x.f,2*rd)
-
-   Verification finished in 1.19s with 1 error(s)
-   [success] Total time: 2 s, completed 15-Oct-2012 00:10:02
-*/
 
 class C {
     var f : int;
+
     method deAlias(x : C, y : C)
         requires x != null && rd(x.f)
         requires y != null && rd(y.f)
-        ensures x == y ==> acc(x.f,2*rd)
+        ensures x == y ==> acc(x.f,2*rd) // @IgnoreError 330: BUG: This method cannot be verified by Silicon currently (see issue #8)
         ensures x != y ==> rd(x.f) && rd(y.f)
     {
     }
