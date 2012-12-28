@@ -38,4 +38,9 @@ class ProgramOptions {
   var z3path : Option[String] = None;
 
   var printTime : Boolean = false
+
+  /**
+   * Don't invoke a verifier.
+   */
+  var noVerify: Boolean = false
 }

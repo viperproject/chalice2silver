@@ -104,6 +104,9 @@ object Program {
       opt("z3", "z3-path", "Custom path to Z3.", p => {
         progOpts.z3path = Some(p)
       })
+      opt("noVerify", "Don't invoke a verifier.", {
+        progOpts.noVerify = true
+      })
 
       // Chalice files
       arglistOpt("<chalice-files...>", "The chalice source files.", (source: String) => progOpts.chaliceFiles.append(source))
@@ -165,6 +168,10 @@ object Program {
       Console.out.println("[Success] Chalice2SIL detected %s.".format(
         pluralize("warning", warningCount)
       ))
+
+    if (progOpts.noVerify) {
+      return
+    }
 
     // Forward SIL to a custom backend
     progOpts.forwardSil match {
