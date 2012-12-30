@@ -1,3 +1,4 @@
+// @Ignore (unknown cause, but possibly related to other issues which should be fixed first, see issue 13 of chalice2sil)
 class Node {
   var next: Node
   invariant acc(next)

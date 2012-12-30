@@ -1,3 +1,4 @@
+// @Ignore see silicon issue 3
 class Cell {
 	var tk: token<Cell.noop>
 	

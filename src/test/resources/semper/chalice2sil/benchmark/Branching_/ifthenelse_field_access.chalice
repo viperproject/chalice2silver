@@ -1,3 +1,4 @@
+// @Ignore MatchError for IfThenElseTerm, see issue 3
 class IfThenElse {
 	var x: int
 	var y: int

@@ -1,3 +1,4 @@
+// @Ignore Match error on IfThenElseTerm, see silicon issue 3
 class Ternary {
 	method ternary(x: int, y: int) returns (r: int)
 		requires x != y

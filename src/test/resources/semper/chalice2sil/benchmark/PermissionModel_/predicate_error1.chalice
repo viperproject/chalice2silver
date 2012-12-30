@@ -1,4 +1,4 @@
-// @IgnoreFile
+// @Ignore .
 // Counting permissions (epsilons) are currently not supported in Syxc
 // due to changes made when introducing the tuple representation (w, r)
 // of permissions as part of the work on immutability.

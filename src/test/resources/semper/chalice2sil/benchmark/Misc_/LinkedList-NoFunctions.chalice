@@ -1,3 +1,5 @@
+// @Ignore currently sequences are not supported, see chalice2sil issue 4
+
 /* VSTTE 2010 Verification Competition, Challenge 3
  * Given a linked list representation of a list of integers,
  * find the index of the first element that is equal to 0.

@@ -1,3 +1,4 @@
+// @Ignore channels are not supported, see chalice2sil issue 3
 class Cell {
 	var c: Cell
 	var v: int

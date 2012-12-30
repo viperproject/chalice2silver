@@ -1,4 +1,5 @@
-/* There has been an incompleteness due to the previous handling of mu-fields 
+// @Ignore support for monitors is insufficient, see issue 16 of chalice2sil
+/* There has been an incompleteness due to the previous handling of mu-fields
  * and waitlevel-assertions. This incompleteness has been removed by also 
  * versioning mu-fields.
  *

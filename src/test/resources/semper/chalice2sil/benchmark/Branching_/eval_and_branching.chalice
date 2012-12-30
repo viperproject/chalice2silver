@@ -1,4 +1,4 @@
-@Ignore
+//@Ignore rd(predicate) not supported by silicon
 
 /* When evaluating a conditional such as e0 ==> e1 or e0 ? e1 : e2, it seems
  * natural to proceed as done in consume/produce, that is, to branch, once

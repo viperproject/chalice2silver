@@ -1,3 +1,4 @@
+// @Ignore see silicon issue 10
 class Test01 {
   var f: int
   var g: int

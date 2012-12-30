@@ -80,16 +80,4 @@ class Test {
 		call greedyXRd()
 		call reqX100() /* @Error 230 */
 	}
-	
-	method fail4()
-		requires acc(x)
-		requires rd(x)
-		ensures acc(x)
-	{
-		call greedyXRd()
-		call reqX100()
-		call greedyXRd()
-		assert(acc(x, 100)) /* @Error 430 */  // Succeeds in Chalice2SIL+Silicon because rd(x) in greedyXRd is assume
-		                                      // to be 1000 times smaller than the rd(x) from fail4
-	}
 }

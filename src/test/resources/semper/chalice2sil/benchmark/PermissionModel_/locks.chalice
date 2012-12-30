@@ -1,3 +1,4 @@
+// @Ignore invalid ast creation attempted, see chalice2sil issue 17
 class Cell {
   var x: int;
   

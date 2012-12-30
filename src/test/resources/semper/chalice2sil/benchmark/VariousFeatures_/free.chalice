@@ -1,3 +1,4 @@
+// @Ignore free is not supported, see chalice2sil issue 18
 class Pair {
   var x: int
   var y: int

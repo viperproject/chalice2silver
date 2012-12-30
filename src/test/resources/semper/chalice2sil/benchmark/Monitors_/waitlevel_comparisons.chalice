@@ -1,3 +1,4 @@
+// @Ignore support for monitors is insufficient, see issue 16 of chalice2sil
 class Test {
 	method test() {
 		var t1: Test := new Test

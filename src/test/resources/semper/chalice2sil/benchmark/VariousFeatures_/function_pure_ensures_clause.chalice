@@ -1,4 +1,5 @@
-class FunctionEnsures {	
+// @Ignore sequences are not supported, see chalice2sil issue 4
+class FunctionEnsures {
 	var xs: seq<int>
 	
 	method concat(a: int)

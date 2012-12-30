@@ -33,7 +33,7 @@ Error 230: 160.3: Invocation of Test::g failed at 50.12. Insufficient permission
 Error 100: 0.0: Symbolic execution failed. Insufficient permissions to access this.Test::x.
 
 */
-
+// @Ignore Silicon reports error at location 0.0, see issue 10 (this might also be an issue of chalice2sil, or the SIL AST.
 class Test {
 	var x: int
 

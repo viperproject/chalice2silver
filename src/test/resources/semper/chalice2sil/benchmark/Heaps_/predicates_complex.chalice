@@ -1,3 +1,4 @@
+// @Ignore (currently fails with an exception in chalice2sil, see issue 14)
 class ComplexPredicates {
 	var x: int
 	var y: int

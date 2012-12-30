@@ -40,7 +40,7 @@ class TestRawCell {
 	}
 	
 	method failTestNewCell(a: int) returns (c: RawCell)
-		ensures c != null && acc(c.x) && c.get() > 0 /* @Error 310 */
+		ensures c != null && acc(c.x) && c.get() > 0
 	{
 		c := new RawCell
 
@@ -50,6 +50,6 @@ class TestRawCell {
 			call c.set(a)
 		}
 
-		assert c != null && acc(c.x) && c.get() > 0;
+		assert c != null && acc(c.x) && c.get() > 0  /* @Error 310 */
 	}
 }

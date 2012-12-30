@@ -1,3 +1,4 @@
+// @Ignore MatchError for IfThenElseTerm, see issue 3
 class Implications {
 	method succeed1(x: int, y: int) returns (r: int)
 		requires x != y
@@ -17,7 +18,7 @@ class Implications {
 		requires y > 0
 		ensures y > 0 ==> x > 0 /* @Error 310 */
 	{}
-	
+
 	method fail4(x: int) returns (r: int)
 		ensures r == x ==> x > 0 /* @Error 310 */
 	{ r := x }

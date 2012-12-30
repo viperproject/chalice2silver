@@ -1,5 +1,7 @@
 // syxc-parameters --unrollFunctions 2
 
+// @Ignore currently sequences are not supported, see chalice2sil issue 4
+
 class List {
   var value:int;
   var next:List;

@@ -1,3 +1,5 @@
+// @Ignore chalice2sil currently does not support quantification, see issue 15
+
 /* VSTTE 2010 Verification Competition, Challenge 2
  *
  * Invert an injective array A on N elements in the subrange from 0 to

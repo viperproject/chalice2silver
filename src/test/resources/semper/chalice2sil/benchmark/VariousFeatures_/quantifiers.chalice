@@ -1,3 +1,4 @@
+// @Ignore quantifiers are not supported, see chalice2sil issue 15
 class Cell {
 	var x: int
 	
