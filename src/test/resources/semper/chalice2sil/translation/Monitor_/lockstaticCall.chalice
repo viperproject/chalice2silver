@@ -1,5 +1,5 @@
 // Successfully verified by Syxc (0 errors)
-
+// @Ignore support for monitors is insufficient, see issue 16 of chalice2sil
 class Main {
     var f : int;
     var g : int;
