@@ -1,14 +1,14 @@
 package semper.chalice2sil.translation.util
 
 import semper.sil.ast.source.SourceLocation
-import semper.sil.ast.expressions.util.{GTermSequence, PTermSequence, TermSequence}
+import semper.sil.ast.expressions.util.TermSequence
 import semper.sil.ast.expressions._
 import semper.sil.ast.domains.{DomainFunction, DomainPredicate}
 import terms._
 import semper.sil.ast.symbols.logical.{Not, UnaryConnective, BinaryConnective, And}
 import semper.sil.ast.programs.symbols.{PredicateFactory, ProgramVariable, Field}
 import semper.chalice2sil._
-import translation.{PredicateTranslator, FieldTranslator, MemberEnvironment}
+import translation.{FieldTranslator, MemberEnvironment}
 
 class LanguageConstructBase(val environment : MemberEnvironment, val sourceLocation : SourceLocation) {
 
@@ -41,58 +41,40 @@ class LanguageConstructBase(val environment : MemberEnvironment, val sourceLocat
     def apply(terms : Term*) : DomainPredicateExpression =
       currentExpressionFactory.makeDomainPredicateExpression(predicate, TermSequence(terms : _*), sourceLocation)
 
-    def p(terms : PTerm*) : PDomainPredicateExpression = {
-      currentExpressionFactory.makePDomainPredicateExpression(predicate, PTermSequence(terms : _*), sourceLocation)
-    }
-
-    def g(terms : GTerm*) : GDomainPredicateExpression = {
-      currentExpressionFactory.makeGDomainPredicateExpression(predicate, GTermSequence(terms : _*), sourceLocation)
-    }
+    def p(terms : Term*) : DomainPredicateExpression = apply(terms:_*)
+    def g(terms : Term*) : DomainPredicateExpression = apply(terms:_*)
   }
 
   final implicit def domainFunctionOps(function : DomainFunction) = new {
     def apply(terms : Term*) : DomainFunctionApplicationTerm = {
-      if(terms.forall(_.isInstanceOf[GTerm]))
-        g(terms.map(_.asInstanceOf[GTerm]) : _*)
-      if(terms.forall(_.isInstanceOf[PTerm]))
-        p(terms.map(_.asInstanceOf[PTerm]) : _*)
-      else
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(function, TermSequence(terms : _*), sourceLocation)
-    }
-
-    def p(terms : PTerm*) : PDomainFunctionApplicationTerm = {
-      currentExpressionFactory.makePDomainFunctionApplicationTerm(function, PTermSequence(terms : _*), sourceLocation)
-    }
-
-    def g(terms : GTerm*) : GDomainFunctionApplicationTerm = {
-      currentExpressionFactory.makeGDomainFunctionApplicationTerm(function, GTermSequence(terms : _*), sourceLocation)
+      currentExpressionFactory.makeDomainFunctionApplicationTerm(function, TermSequence(terms : _*), sourceLocation)
     }
 
     def t(terms : Term*) : DomainFunctionApplicationTerm = apply(terms:_*)
+    def p(terms : Term*) : DomainFunctionApplicationTerm = apply(terms:_*)
+    def g(terms : Term*) : DomainFunctionApplicationTerm = apply(terms:_*)
   }
 
   final def perm(reference : Term, field : Field) = currentExpressionFactory.makePermTerm(reference, field)(sourceLocation)
 
   final implicit def binaryConnectiveOps(c : BinaryConnective) = new {
     def t(lhs : Expression, rhs : Expression) = currentExpressionFactory.makeBinaryExpression(c, lhs, rhs, sourceLocation)
-
-    def p(lhs : PExpression, rhs : PExpression) = currentExpressionFactory.makePBinaryExpression(c, lhs, rhs, sourceLocation)
+    def p(lhs : Expression, rhs : Expression) = currentExpressionFactory.makeBinaryExpression(c, lhs, rhs, sourceLocation)
   }
 
   final implicit def unaryConnectiveOps(c : UnaryConnective) = new {
     def t(o : Expression) = currentExpressionFactory.makeUnaryExpression(c, o, sourceLocation)
-
-    def p(o : PExpression) = currentExpressionFactory.makePUnaryExpression(c, o, sourceLocation)
+    def p(o : Expression) = currentExpressionFactory.makeUnaryExpression(c, o, sourceLocation)
   }
 
-  protected class PurePTermOps(term : PTerm) {
-    def !(f : Field) : PFieldReadTerm = currentExpressionFactory.makePFieldReadTerm(term, f, sourceLocation)
+  protected class PureTermOps(term : Term) {
+    def !(f : Field) : FieldReadTerm = currentExpressionFactory.makeFieldReadTerm(term, f, sourceLocation)
 
-    def !(f : FieldTranslator) : PFieldReadTerm = this.!(f.field)
+    def !(f : FieldTranslator) : FieldReadTerm = this.!(f.field)
 
-    def ===(other:PTerm) : PEqualityExpression = currentExpressionFactory.makePEqualityExpression(term,other, sourceLocation)
-    def =/=(other:PTerm) : PExpression = currentExpressionFactory.makePUnaryExpression(Not()(sourceLocation),
-      currentExpressionFactory.makePEqualityExpression(term,other,sourceLocation)
+    def ===(other:Term) : EqualityExpression = currentExpressionFactory.makeEqualityExpression(term,other, sourceLocation)
+    def =/=(other:Term) : Expression = currentExpressionFactory.makeUnaryExpression(Not()(sourceLocation),
+      currentExpressionFactory.makeEqualityExpression(term,other,sourceLocation)
       ,sourceLocation)
   }
 
@@ -103,7 +85,7 @@ class LanguageConstructBase(val environment : MemberEnvironment, val sourceLocat
 
   implicit def termOps(term : Term) = new {
     def !(f : Field) : FieldReadTerm = term match {
-      case pt : PTerm => currentExpressionFactory.makePFieldReadTerm(pt, f, sourceLocation)
+      case pt : Term => currentExpressionFactory.makeFieldReadTerm(pt, f, sourceLocation)
       case _ => currentExpressionFactory.makeFieldReadTerm(term, f, sourceLocation)
     }
 

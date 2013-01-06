@@ -1,17 +1,17 @@
 package semper.chalice2sil.translation
 
 import semper.sil.ast.types.DataTypeSequence._
-import semper.sil.ast.expressions.util.DTermSequence._
+import semper.sil.ast.expressions.util.TermSequence._
 import semper.sil.ast.symbols.logical.Not._
-import semper.sil.ast.expressions.util.DTermSequence
+import semper.sil.ast.expressions.util.TermSequence
 import semper.sil.ast.symbols.logical.Not
-import semper.sil.ast.expressions.DExpression
+import semper.sil.ast.expressions.Expression
 import semper.sil.ast.source.{SourceLocation, noLocation}
 import semper.sil.ast.domains._
 import semper.sil.ast.types._
 import semper.sil.ast.symbols.logical.quantification.{LogicalVariable, Forall}
 import util.{FactoryHashCache, NameSequence}
-import semper.sil.ast.expressions.terms.{NoPermissionTerm, FullPermissionTerm, IntegerLiteralTerm, DTerm}
+import semper.sil.ast.expressions.terms.{NoPermissionTerm, FullPermissionTerm, IntegerLiteralTerm, Term}
 import scala.Tuple1
 import semper.sil.ast.symbols.logical.quantification.Forall
 
@@ -38,80 +38,80 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
 
     val factory = programFactory.getDomainFactory(domainName, typeVariableNames.map(t => (t._1,t._2,Nil)),loc)
 
-    protected def fApp(domainFunction : DomainFunction, args : DTerm*) = {
-      factory.makeDDomainFunctionApplicationTerm(domainFunction,DTermSequence(args:_*),loc)
+    protected def fApp(domainFunction : DomainFunction, args : Term*) = {
+      factory.makeDomainFunctionApplicationTerm(domainFunction,TermSequence(args:_*),loc)
     }
-    protected def pApp(domainPredicate : DomainPredicate, args : DTerm*) = {
-      factory.makeDDomainPredicateExpression(domainPredicate,DTermSequence(args:_*),loc)
+    protected def pApp(domainPredicate : DomainPredicate, args : Term*) = {
+      factory.makeDomainPredicateExpression(domainPredicate,TermSequence(args:_*),loc)
     }
-    protected def not(operand : DExpression) : DExpression =
-      factory.makeDUnaryExpression(semper.sil.ast.symbols.logical.Not()(loc),operand,loc)
-    protected def ∀(aType : DataType, expr : LogicalVariable => DExpression) : DExpression = {
+    protected def not(operand : Expression) : Expression =
+      factory.makeUnaryExpression(semper.sil.ast.symbols.logical.Not()(loc),operand,loc)
+    protected def ∀(aType : DataType, expr : LogicalVariable => Expression) : Expression = {
       val a = factory.makeBoundVariable(names.nextName,aType,loc)
-      factory.makeDQuantifierExpression(Forall()(loc),a,expr(a),loc)
+      factory.makeQuantifierExpression(Forall()(loc),a,expr(a))(loc)
     }
-    protected def ∀(aType : DataType,  bType : DataType,  expr : (LogicalVariable,LogicalVariable) => DExpression) : DExpression = {
+    protected def ∀(aType : DataType,  bType : DataType,  expr : (LogicalVariable,LogicalVariable) => Expression) : Expression = {
       val a = factory.makeBoundVariable(names.nextName,aType,loc)
       val b = factory.makeBoundVariable(names.nextName,bType,loc)
-      factory.makeDQuantifierExpression(Forall()(loc),a,
-        factory.makeDQuantifierExpression(Forall()(loc),b,expr(a,b),loc)
-      ,loc)
+      factory.makeQuantifierExpression(Forall()(loc),a,
+        factory.makeQuantifierExpression(Forall()(loc),b,expr(a,b))(loc)
+      )(loc)
     }
-    protected def ∀(aType : DataType,  bType : DataType, cType : DataType,  expr : (LogicalVariable,LogicalVariable, LogicalVariable) => DExpression) : DExpression = {
+    protected def ∀(aType : DataType,  bType : DataType, cType : DataType,  expr : (LogicalVariable,LogicalVariable, LogicalVariable) => Expression) : Expression = {
       val a = factory.makeBoundVariable(names.nextName,aType,loc)
       val b = factory.makeBoundVariable(names.nextName,bType,loc)
       val c = factory.makeBoundVariable(names.nextName,cType,loc)
-      factory.makeDQuantifierExpression(Forall()(loc),a,
-        factory.makeDQuantifierExpression(Forall()(loc),b,
-          factory.makeDQuantifierExpression(Forall()(loc),c,expr(a,b,c),loc),loc),loc)
+      factory.makeQuantifierExpression(Forall()(loc),a,
+        factory.makeQuantifierExpression(Forall()(loc),b,
+          factory.makeQuantifierExpression(Forall()(loc),c,expr(a,b,c))(loc))(loc))(loc)
     }
     protected def ∀(
                      aType : DataType,  
                      bType : DataType, 
                      cType : DataType, 
                      dType : DataType,  
-                     expr : (LogicalVariable,LogicalVariable, LogicalVariable,LogicalVariable) => DExpression) : DExpression = {
+                     expr : (LogicalVariable,LogicalVariable, LogicalVariable,LogicalVariable) => Expression) : Expression = {
       val a = factory.makeBoundVariable(names.nextName,aType,loc)
       val b = factory.makeBoundVariable(names.nextName,bType,loc)
       val c = factory.makeBoundVariable(names.nextName,cType,loc)
       val d = factory.makeBoundVariable(names.nextName,dType,loc)
-      factory.makeDQuantifierExpression(Forall()(loc),a,
-        factory.makeDQuantifierExpression(Forall()(loc),b,
-          factory.makeDQuantifierExpression(Forall()(loc),c,
-            factory.makeDQuantifierExpression(Forall()(loc),d,expr(a,b,c,d),loc),loc),loc),loc)
+      factory.makeQuantifierExpression(Forall()(loc),a,
+        factory.makeQuantifierExpression(Forall()(loc),b,
+          factory.makeQuantifierExpression(Forall()(loc),c,
+            factory.makeQuantifierExpression(Forall()(loc),d,expr(a,b,c,d))(loc))(loc))(loc))(loc)
     }
-    implicit protected def boundVariableAsTerm(v : LogicalVariable) : DTerm = factory.makeBoundVariableTerm(v,loc)
+    implicit protected def boundVariableAsTerm(v : LogicalVariable) : Term = factory.makeBoundVariableTerm(v,loc)
     implicit protected def directlyApplyDomainFunction(df : DomainFunction) = new {
-      def apply(args : DTerm*) = fApp(df,args:_*)
+      def apply(args : Term*) = fApp(df,args:_*)
     }
     implicit protected def directlyApplyDomainPredicate(dp : DomainPredicate) = new {
-      def apply(args : DTerm*) = pApp(dp,args:_*)
+      def apply(args : Term*) = pApp(dp,args:_*)
     }
 
-    implicit protected def termOps(lhs : DTerm) = new {
-      def ≡(rhs : DTerm) =
-        factory.makeDEqualityExpression(lhs,rhs,loc)
-      def ≠(rhs : DTerm) = not(≡(rhs))
+    implicit protected def termOps(lhs : Term) = new {
+      def ≡(rhs : Term) =
+        factory.makeEqualityExpression(lhs,rhs,loc)
+      def ≠(rhs : Term) = not(≡(rhs))
     }
     implicit protected def logicalVariableOps(v : LogicalVariable) = new {
-      protected def lhs : DTerm = v
-      def ≡(rhs : DTerm) =
-        factory.makeDEqualityExpression(lhs,rhs,loc)
-      def ≠(rhs : DTerm) = not(lhs ≡ rhs)
+      protected def lhs : Term = v
+      def ≡(rhs : Term) =
+        factory.makeEqualityExpression(lhs,rhs,loc)
+      def ≠(rhs : Term) = not(lhs ≡ rhs)
     }
-    implicit protected def exprOps(lhs : DExpression) = new {
+    implicit protected def exprOps(lhs : Expression) = new {
       // don't use ∧ or ∨ for and/or to take advantage of Scala operator precedence rules.
-      def and(rhs : DExpression) : DExpression =
-        factory.makeDBinaryExpression(semper.sil.ast.symbols.logical.And()(loc),lhs,rhs,loc)
-      def or(rhs : DExpression) : DExpression =
-        factory.makeDBinaryExpression(semper.sil.ast.symbols.logical.Or()(loc),lhs,rhs,loc)
-      def ↔(rhs : DExpression) : DExpression =
-        factory.makeDBinaryExpression(semper.sil.ast.symbols.logical.Equivalence()(loc),lhs,rhs,loc)
-      def →(rhs:DExpression) : DExpression =
-        factory.makeDBinaryExpression(semper.sil.ast.symbols.logical.Implication()(loc),lhs,rhs,loc)
+      def and(rhs : Expression) : Expression =
+        factory.makeBinaryExpression(semper.sil.ast.symbols.logical.And()(loc),lhs,rhs,loc)
+      def or(rhs : Expression) : Expression =
+        factory.makeBinaryExpression(semper.sil.ast.symbols.logical.Or()(loc),lhs,rhs,loc)
+      def ↔(rhs : Expression) : Expression =
+        factory.makeBinaryExpression(semper.sil.ast.symbols.logical.Equivalence()(loc),lhs,rhs,loc)
+      def →(rhs:Expression) : Expression =
+        factory.makeBinaryExpression(semper.sil.ast.symbols.logical.Implication()(loc),lhs,rhs,loc)
     }
 
-    implicit protected def integerAsLiteral(n : Int) : DTerm = factory.makeIntegerLiteralTerm(n,loc)
+    implicit protected def integerAsLiteral(n : Int) : Term = factory.makeIntegerLiteralTerm(n,loc)
   }
 
   abstract class PreludeDomain[TypeArguments]

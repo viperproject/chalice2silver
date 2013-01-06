@@ -4,14 +4,14 @@ import semper.chalice2sil._
 import translation._
 import semper.sil.ast.source.SourceLocation
 import collection.TraversableOnce
-import semper.sil.ast.expressions.util.PTermSequence
+import semper.sil.ast.expressions.util.TermSequence
 import semper.sil.ast.methods.{MethodFactory, Method}
 
 import semper.sil.ast.types.referenceType
 import semper.sil.ast.expressions.Expression
 import semper.sil.ast.symbols.logical.And
 import semper.sil.ast.programs.symbols.{PredicateFactory, ProgramVariable, Field}
-import semper.sil.ast.expressions.terms.{Term, PTerm}
+import semper.sil.ast.expressions.terms.{Term, Term}
 
 
 /**
@@ -33,9 +33,9 @@ class LanguageConstruct(scope : ScopeTranslator, sourceLocation_ : SourceLocatio
   }
 
   protected class ImpureHeapLocationOps protected[LanguageConstruct](variable : ProgramVariable, field : Field) extends PureHeapLocationOps(variable,field) {
-    def <--(rhs : PTerm) { scope.currentBlock.appendFieldAssignment(variable,field,rhs,sourceLocation,takeComment()) }
+    def <--(rhs : Term) { scope.currentBlock.appendFieldAssignment(variable,field,rhs,sourceLocation,takeComment()) }
     def <--(rhs : (ProgramVariable, Field)) {
-      this <-- scope.currentExpressionFactory.makePFieldReadTerm(
+      this <-- scope.currentExpressionFactory.makeFieldReadTerm(
         scope.currentExpressionFactory.makeProgramVariableTerm(rhs._1,sourceLocation),
         rhs._2,
         sourceLocation) }
@@ -44,7 +44,7 @@ class LanguageConstruct(scope : ScopeTranslator, sourceLocation_ : SourceLocatio
   final implicit def heapLocationOps(location : (ProgramVariable,Field)) : ImpureHeapLocationOps = new ImpureHeapLocationOps(location._1,location._2)
   final implicit def heapLocationOpsT(location : (ProgramVariable, FieldTranslator)) : ImpureHeapLocationOps = new ImpureHeapLocationOps(location._1,location._2)
 
-  final type MethodCallSpec = (PTerm,MethodFactory,Seq[PTerm])
+  final type MethodCallSpec = (Term,MethodFactory,Seq[Term])
 
   final implicit def programVariableSeqOps(vars : Seq[ProgramVariable]) = new {
     def <--(call : MethodCallSpec) {
@@ -52,16 +52,16 @@ class LanguageConstruct(scope : ScopeTranslator, sourceLocation_ : SourceLocatio
         currentExpressionFactory.makeProgramVariableSequence(vars,sourceLocation),
         call._1,
         call._2,
-        PTermSequence(call._3:_*),sourceLocation,takeComment())
+        TermSequence(call._3:_*),sourceLocation,takeComment())
     }
-    def <--(rhss : Iterable[PTerm]) {
+    def <--(rhss : Iterable[Term]) {
       vars.zip(rhss).foreach(t => scope.currentBlock.appendAssignment(t._1,t._2,sourceLocation,takeComment()))
     }
   }
 
   protected class ImpureProgramVariableOps protected[LanguageConstruct](variable : ProgramVariable)
     extends PureProgramVariableOps(variable) {
-    def <--(rhs : PTerm) { scope.currentBlock.appendAssignment(variable,rhs,sourceLocation,takeComment()) }
+    def <--(rhs : Term) { scope.currentBlock.appendAssignment(variable,rhs,sourceLocation,takeComment()) }
     def <--(call : MethodCallSpec) { Seq(variable) <-- call }
     def <--(newReferenceTag : NewRef) { scope.currentBlock.appendNew(variable,referenceType,sourceLocation,takeComment()) }
   }
@@ -70,14 +70,14 @@ class LanguageConstruct(scope : ScopeTranslator, sourceLocation_ : SourceLocatio
   
   final case class NewRef()
 
-  class ImpurePTermOps(term : PTerm) extends PurePTermOps(term) {
-    def !(mc : (Method,TraversableOnce[PTerm])) = (term,mc._1,mc._2)
+  class ImpureTermOps(term : Term) extends PureTermOps(term) {
+    def !(mc : (Method,TraversableOnce[Term])) = (term,mc._1,mc._2)
   }
   
-  final implicit def pTermOps(term : PTerm) : ImpurePTermOps = new ImpurePTermOps(term)
+  final implicit def pTermOps(term : Term) : ImpureTermOps = new ImpureTermOps(term)
   
   class MethodOps protected[LanguageConstruct](method : MethodFactory) {
-    def apply(args : TraversableOnce[PTerm]) = (method,args) 
+    def apply(args : TraversableOnce[Term]) = (method,args) 
   }
   
   final implicit def methodOps(method : MethodFactory) = new MethodOps(method)

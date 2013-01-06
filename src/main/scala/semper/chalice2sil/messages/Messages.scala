@@ -5,7 +5,7 @@ import chalice.{Channel, ASTNode}
 import semper.sil.ast.source.SourceLocation
 import Severity._
 import semper.sil.ast.types.DataType
-import semper.sil.ast.expressions.terms.{LogicalVariableTerm, PTerm, Term}
+import semper.sil.ast.expressions.terms.{LogicalVariableTerm, Term, Term}
 import translation.LocationTranslator
 
 object ChannelsNotImplemented extends MessageId(
@@ -110,7 +110,7 @@ object RdInQuantifier extends MessageId(
   Error,
   "semper.chalice2sil.rdInQuantifier",
   "Cannot translate fractional read permission rd(%s.%s, %s) in quantified expressions.") {
-  def apply(reference : PTerm, location : LocationTranslator, permissionAmount : PTerm) = new Message(this,reference.sourceLocation) {
+  def apply(reference : Term, location : LocationTranslator, permissionAmount : Term) = new Message(this,reference.sourceLocation) {
     def data = Array(reference,location,permissionAmount)
   }
 }

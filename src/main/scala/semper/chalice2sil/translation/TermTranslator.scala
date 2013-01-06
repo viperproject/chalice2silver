@@ -5,13 +5,11 @@ import semper.sil.ast.source.SourceLocation
 import math.BigInt._
 import semper.chalice2sil._
 import semper.sil.ast.types.nullFunction
-import semper.sil.ast.expressions.util.{PTermSequence, TermSequence}
-import semper.sil.ast.expressions.terms.{PTerm, Term}
+import semper.sil.ast.expressions.util.TermSequence
+import semper.sil.ast.expressions.terms.Term
 import semper.sil.ast.programs.symbols.PredicateFactory
-import semper.sil.ast.expressions.{PPredicatePermissionExpression, PredicatePermissionExpression}
-import collection.immutable.Stack
+import semper.sil.ast.expressions.PredicatePermissionExpression
 import semper.sil.ast.symbols.logical.quantification.LogicalVariable
-import chalice.Permission
 
 /**
   * @author Christian Klauser
@@ -89,15 +87,15 @@ trait TermTranslator extends MemberEnvironment with TypeTranslator { outerTransl
         translateTerm(op)
       ),rvalue)
     case literal@chalice.NullLiteral() =>
-      currentExpressionFactory.makePDomainFunctionApplicationTerm(nullFunction,PTermSequence(),literal)
+      currentExpressionFactory.makeDomainFunctionApplicationTerm(nullFunction,TermSequence(),literal)
     case unfolding@chalice.Unfolding(predicateAccess, body) =>
       val location = translateTerm(predicateAccess.ma.e)
       val predicateExpression = makePredicatePermissionExpression(location,
         predicates(predicateAccess.ma.predicate),
         translatePermission(predicateAccess.perm),unfolding)
       (predicateExpression,translateTerm(body)) match {
-        case (pred:PPredicatePermissionExpression,bodyTerm:PTerm) =>
-          currentExpressionFactory.makePUnfoldingTerm(pred,bodyTerm,unfolding)
+        case (pred:PredicatePermissionExpression,bodyTerm:Term) =>
+          currentExpressionFactory.makeUnfoldingTerm(pred,bodyTerm,unfolding)
         case (_,bodyTerm) =>
           currentExpressionFactory.makeUnfoldingTerm(predicateExpression,bodyTerm,unfolding)
       }
@@ -120,7 +118,7 @@ trait TermTranslator extends MemberEnvironment with TypeTranslator { outerTransl
 
   protected def makePredicatePermissionExpression(location : Term, predicateFactory : PredicateFactory,permission : Term, sourceLocation : SourceLocation ) : PredicatePermissionExpression =
     (location,permission) match {
-    case (pLocation : PTerm,pPermission : PTerm) => currentExpressionFactory.makePPredicatePermissionExpression(pLocation,predicateFactory,pPermission,sourceLocation)
+    case (pLocation : Term,pPermission : Term) => currentExpressionFactory.makePredicatePermissionExpression(pLocation,predicateFactory,pPermission,sourceLocation)
     case _ => currentExpressionFactory.makePredicatePermissionExpression(location,predicateFactory,permission,sourceLocation)
   }
 

@@ -19,7 +19,7 @@ abstract class ExpressionTransplantation(methodEnvironment : MemberEnvironment)
   extends DerivedMemberEnvironment(methodEnvironment) {
   implicit def extractSourceLocation(node : ASTNode) : SourceLocation = node.sourceLocation
 
-  def translateProgramVariable(variable : ProgramVariable) : PTerm
+  def translateProgramVariable(variable : ProgramVariable) : Term
 
   var translateLogicalVariable : immutable.Map[LogicalVariable,LogicalVariable] = Map()
 
@@ -63,8 +63,8 @@ abstract class ExpressionTransplantation(methodEnvironment : MemberEnvironment)
       functions.lookup(f.name), transplant(args),term)
     case NoPermissionTerm() => currentExpressionFactory.makeNoPermission(term)
     case PUnfoldingTerm(PPredicatePermissionExpression(PPredicateLocation(receiver,predicate),perm),body) =>
-      val predicateAccess = currentExpressionFactory.makePPredicatePermissionExpression(transplant(receiver).asInstanceOf[PTerm], predicates.lookup(predicate.name), transplant(perm).asInstanceOf[PTerm], term)
-      currentExpressionFactory.makePUnfoldingTerm(predicateAccess, transplant(body).asInstanceOf[PTerm],term)
+      val predicateAccess = currentExpressionFactory.makePPredicatePermissionExpression(transplant(receiver).asInstanceOf[Term], predicates.lookup(predicate.name), transplant(perm).asInstanceOf[Term], term)
+      currentExpressionFactory.makePUnfoldingTerm(predicateAccess, transplant(body).asInstanceOf[Term],term)
     case UnfoldingTerm(PredicatePermissionExpression(PredicateLocation(receiver,predicate), perm), body) =>
       val predicateAccess = currentExpressionFactory.makePredicatePermissionExpression(transplant(receiver), predicates.lookup(predicate.name), transplant(perm), term)
       currentExpressionFactory.makeUnfoldingTerm(predicateAccess, transplant(body),term)
