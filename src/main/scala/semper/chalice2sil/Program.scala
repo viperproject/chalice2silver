@@ -149,9 +149,6 @@ object Program {
       case n => n.toString + " " + noun + "s"
     }
 
-    // Invoke verifier
-    // not implemented, for now just print regardless of whether progOpts.printSil is set
-    progOpts.printSil = true;
     if (progOpts.printSil) {
       Console.out.println(silProgram.toString())
     }
