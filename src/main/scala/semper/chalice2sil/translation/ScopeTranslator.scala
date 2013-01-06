@@ -424,13 +424,15 @@ trait ScopeTranslator
             | _:DomainPredicateExpression => Nil
         case QuantifierExpression(_,_,e) =>
           val c = genReadCond(e,isInQuantifier = true)
-          if(!isInQuantifier){
-            val rds = collectRdNodes(c)
-            rds.foreach(r => report(messages.RdInQuantifier(r.reference,r.location,r.permissionAmount)))
-            Nil
-          } else {
+          // TODO (stefanheule): Previously, the code in comments was used, but that seems wrong to me. In particular,
+          // chalice2sil introduces permissions under quantifiers, e.g. for the program peculiar.chalice.
+//          if(!isInQuantifier){
+//            val rds = collectRdNodes(c)
+//            rds.foreach(r => report(messages.RdInQuantifier(r.reference,r.location,r.permissionAmount)))
+//            Nil
+//          } else {
             c
-          }
+//          }
         case _ =>
           report(messages.PermissionNotUnderstood(location,expr))
           Nil
