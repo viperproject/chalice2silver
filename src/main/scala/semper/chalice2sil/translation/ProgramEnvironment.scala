@@ -2,10 +2,8 @@ package semper.chalice2sil.translation
 
 import operators.Lookup
 import semper.sil.ast.programs.ProgramFactory
-import semper.sil.ast.methods.MethodFactory
 import semper.sil.ast.domains.{Domain, DomainPredicate, DomainFunction}
 import semper.sil.ast.types.{DataType, referenceDomain, permissionDomain, integerDomain}
-import semper.sil.ast.programs.symbols.{FunctionFactory, PredicateFactory}
 import util.{DerivedFactoryCache, FactoryCache}
 
 /**

@@ -2,7 +2,7 @@ package semper.chalice2sil.translation
 
 import semper.sil.ast.expressions.terms.OldTerm
 import semper.sil.ast.types.{booleanType, DataType}
-import semper.sil.ast.expressions.{PProgramVariableSubstitution, OldExpression}
+import semper.sil.ast.expressions.OldExpression
 import semper.sil.ast.ASTNode
 
 /**

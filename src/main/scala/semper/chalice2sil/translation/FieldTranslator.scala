@@ -1,8 +1,5 @@
 package semper.chalice2sil.translation
 
-import semper.sil.ast.expressions.ExpressionFactory
-import semper.sil.ast.expressions.terms.Term
-import semper.sil.ast.expressions.util.TermSequence
 import semper.sil.ast.programs.symbols.Field
 
 /**

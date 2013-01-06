@@ -1,6 +1,5 @@
 package semper.chalice2sil.translation
 
-import semper.sil.ast.expressions.OldExpression
 
 /**
   * @author Christian Klauser

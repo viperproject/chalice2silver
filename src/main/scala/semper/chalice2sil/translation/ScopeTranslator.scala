@@ -609,10 +609,11 @@ trait ScopeTranslator
                 innerLocal match {
                   case p:Term =>
                     (tokenVar!tkField) <-- p
-                  case t:Term =>
-                    val tmp = declareScopedVariable(t.sourceLocation,getNextName("old_value"),t.dataType)
-                    inhale((tmp:Term) === t)
-                    (tokenVar!tkField) <-- tmp
+                    // TODO (stefanheule): which of the two cases is correct?
+//                  case t:Term =>
+//                    val tmp = declareScopedVariable(t.sourceLocation,getNextName("old_value"),t.dataType)
+//                    inhale((tmp:Term) === t)
+//                    (tokenVar!tkField) <-- tmp
                 }
               } end()
             })

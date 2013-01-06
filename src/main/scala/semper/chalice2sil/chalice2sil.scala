@@ -4,8 +4,6 @@ package semper {
 import chalice.ASTNode
 import chalice2sil.translation.{FunctionTranslator, PredicateTranslator, MethodTranslator, FieldTranslator}
 import semper.sil.ast.source.SourceLocation
-import scala.util.parsing.input.Positional
-import collection.GenTraversableLike
 import semper.sil.ast.methods.MethodFactory
 import semper.sil.ast.programs.symbols.{FunctionFactory, PredicateFactory, Field}
 import semper.sil.ast.expressions.terms.{PredicateLocation, Term, FieldLocation, Location}

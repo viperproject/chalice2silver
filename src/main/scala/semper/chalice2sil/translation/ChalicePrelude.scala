@@ -1,17 +1,13 @@
 package semper.chalice2sil.translation
 
-import semper.sil.ast.types.DataTypeSequence._
-import semper.sil.ast.expressions.util.TermSequence._
-import semper.sil.ast.symbols.logical.Not._
 import semper.sil.ast.expressions.util.TermSequence
-import semper.sil.ast.symbols.logical.Not
 import semper.sil.ast.expressions.Expression
-import semper.sil.ast.source.{SourceLocation, noLocation}
+import semper.sil.ast.source.SourceLocation
 import semper.sil.ast.domains._
 import semper.sil.ast.types._
-import semper.sil.ast.symbols.logical.quantification.{LogicalVariable, Forall}
+import semper.sil.ast.symbols.logical.quantification.LogicalVariable
 import util.{FactoryHashCache, NameSequence}
-import semper.sil.ast.expressions.terms.{NoPermissionTerm, FullPermissionTerm, IntegerLiteralTerm, Term}
+import semper.sil.ast.expressions.terms.{NoPermissionTerm, FullPermissionTerm, Term}
 import scala.Tuple1
 import semper.sil.ast.symbols.logical.quantification.Forall
 

@@ -5,11 +5,10 @@ import chalice2sil._
 import semper.sil.ast.source.SourceLocation
 import semper.sil.ast.expressions.util.TermSequence
 import util.DerivedFactoryCache
-import semper.sil.ast.programs.symbols.{FunctionFactory, ProgramVariable, PredicateFactory}
+import semper.sil.ast.programs.symbols.{FunctionFactory, ProgramVariable}
 import semper.sil.ast.types.nullFunction
 import semper.sil.ast.expressions.terms.Term
 import semper.sil.ast.expressions.Expression
-import chalice.Epsilons
 
 /**
   * @author Christian Klauser

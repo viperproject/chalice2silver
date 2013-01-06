@@ -4,7 +4,6 @@ import semper.chalice2sil
 import chalice2sil._
 import semper.sil.ast.source.SourceLocation
 import semper.sil.ast.expressions.util.TermSequence
-import semper.sil.ast.expressions.terms.IntegerLiteralTerm
 import util.DerivedFactoryCache
 import semper.sil.ast.programs.symbols.{ProgramVariable, PredicateFactory}
 import chalice.Variable

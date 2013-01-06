@@ -1,8 +1,5 @@
 package semper.chalice2sil.translation.util
 
-import collection._
-import semper.chalice2sil.util.Trie
-import immutable.{WrappedString, StringLike}
 
 /**
   * Unicode has been around for over 20 years now. One might think that by now we should have solved the problem of

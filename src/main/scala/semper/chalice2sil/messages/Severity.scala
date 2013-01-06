@@ -1,7 +1,5 @@
 package semper.chalice2sil.messages
 
-import semper.chalice2sil.messages.Severity.SeverityValue
-
 
 /**
  * Author: Christian Klauser

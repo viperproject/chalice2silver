@@ -3,7 +3,7 @@ package semper.chalice2sil.translation
 import semper.chalice2sil._
 
 import semper.sil.ast.expressions.util.TermSequence
-import semper.sil.ast.types.{permissionLE, permissionLT}
+import semper.sil.ast.types.permissionLE
 
 /**
   * Using the assertion translator, any chalice expression can be `assert` ed or `assume` ed via

@@ -6,8 +6,6 @@ import chalice2sil._
 import semper.sil.ast.programs.Program
 import semper.sil.ast.source.SourceLocation
 import java.lang.String
-import semper.sil.ast.programs.symbols.{FunctionFactory, PredicateFactory}
-import semper.sil.ast.types.DataType
 import util.{DerivedFactoryCache, FactoryHashCache}
 
 /**

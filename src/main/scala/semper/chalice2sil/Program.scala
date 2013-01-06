@@ -6,7 +6,6 @@ import chalice.{Chalice, PrintProgram}
 import translation.ProgramTranslator
 import java.io.File
 import semper.sil.ast.source.noLocation
-import ch.ethz.inf.pm.silicon.Config._
 import ch.ethz.inf.pm.silicon.{Silicon, Config}
 
 object Program {

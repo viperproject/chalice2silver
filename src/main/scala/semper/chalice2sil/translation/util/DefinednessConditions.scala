@@ -2,7 +2,7 @@ package semper.chalice2sil.translation.util
 
 import semper.chalice2sil
 import chalice2sil._
-import semper.sil.ast.source.{SourceLocation, noLocation}
+import semper.sil.ast.source.noLocation
 import semper.sil.ast.expressions.util.TermSequence
 import translation._
 import semper.sil.ast.expressions._

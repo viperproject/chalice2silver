@@ -11,7 +11,7 @@ import semper.sil.ast.types.referenceType
 import semper.sil.ast.expressions.Expression
 import semper.sil.ast.symbols.logical.And
 import semper.sil.ast.programs.symbols.{PredicateFactory, ProgramVariable, Field}
-import semper.sil.ast.expressions.terms.{Term, Term}
+import semper.sil.ast.expressions.terms.Term
 
 
 /**

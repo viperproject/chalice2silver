@@ -9,13 +9,8 @@ import semper.sil.ast.programs.symbols.ProgramVariable
 import semper.sil.ast.expressions.terms._
 import semper.sil.ast.expressions._
 import semper.sil.ast.symbols.logical._
-import collection.immutable
-import immutable.Set
-import quantification.{LogicalVariable, Forall}
 import util._
-import semper.sil.ast.expressions.util.TermSequence
 import collection._
-import mutable.ArrayBuffer
 
 class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     extends DerivedProgramEnvironment(st)
@@ -48,7 +43,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
 
     val oldFieldEnumerator  = new ExpressionVisitor[Null, immutable.Set[OldNode]] {
       override protected def merge(left : immutable.Set[OldNode], right : immutable.Set[OldNode]) = left union right
-      override protected def mergeMany(rs : Traversable[Set[OldNode]]) : Set[OldNode] = rs.flatten.toSet
+      override protected def mergeMany(rs : Traversable[immutable.Set[OldNode]]) : immutable.Set[OldNode] = rs.flatten.toSet
       override protected def zero = immutable.Set()
 
       override def visitExpression(expression : Expression, arg : Null) : immutable.Set[OldNode] = expression match {

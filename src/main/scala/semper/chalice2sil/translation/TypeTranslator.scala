@@ -1,9 +1,5 @@
 package semper.chalice2sil.translation
 
-import semper.sil.ast.programs.ProgramFactory
-import semper.sil.ast.methods.MethodFactory
-import semper.chalice2sil.{Message, ProgramOptions}
-import collection.mutable.{SynchronizedSet, Buffer}
 import semper.sil.ast.types.{referenceType, permissionType, integerType, DataType}
 import semper.chalice2sil
 

@@ -62,9 +62,6 @@ abstract class ExpressionTransplantation(methodEnvironment : MemberEnvironment)
     case FunctionApplicationTerm(receiver, f, args) => currentExpressionFactory.makeFunctionApplicationTerm(transplant(receiver),
       functions.lookup(f.name), transplant(args),term)
     case NoPermissionTerm() => currentExpressionFactory.makeNoPermission(term)
-    case PUnfoldingTerm(PPredicatePermissionExpression(PPredicateLocation(receiver,predicate),perm),body) =>
-      val predicateAccess = currentExpressionFactory.makePPredicatePermissionExpression(transplant(receiver).asInstanceOf[Term], predicates.lookup(predicate.name), transplant(perm).asInstanceOf[Term], term)
-      currentExpressionFactory.makePUnfoldingTerm(predicateAccess, transplant(body).asInstanceOf[Term],term)
     case UnfoldingTerm(PredicatePermissionExpression(PredicateLocation(receiver,predicate), perm), body) =>
       val predicateAccess = currentExpressionFactory.makePredicatePermissionExpression(transplant(receiver), predicates.lookup(predicate.name), transplant(perm), term)
       currentExpressionFactory.makeUnfoldingTerm(predicateAccess, transplant(body),term)

@@ -14,7 +14,7 @@ trait LocationTranslator extends ProgramEnvironment {
 
   def locationLiteral(expressionFactory : ExpressionFactory, reference : Term) : Term = {
     val fieldLiteral = expressionFactory.makeIntegerLiteralTerm(id,reference.sourceLocation)
-    expressionFactory.makePDomainFunctionApplicationTerm(
+    expressionFactory.makeDomainFunctionApplicationTerm(
       prelude.Pair.Location.create,TermSequence(reference,fieldLiteral),reference.sourceLocation)
   }
 

@@ -1,7 +1,5 @@
 package semper.chalice2sil.translation
 
-import semper.sil.ast.expressions.terms.Term
-import semper.sil.ast.expressions.Expression
 import collection.mutable
 import semper.sil.ast.symbols.logical.quantification.LogicalVariable
 

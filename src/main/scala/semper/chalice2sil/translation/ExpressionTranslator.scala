@@ -5,12 +5,11 @@ import semper.sil.ast.expressions.{TrueExpression, FalseExpression, Expression}
 import semper.sil.ast.expressions.util.TermSequence
 import semper.sil.ast.symbols.logical.{Not, And, Or, Implication}
 import semper.sil.ast.symbols.logical.quantification.{LogicalVariable, Quantifier, Forall, Exists}
-import semper.sil.ast.types.{referenceType, permissionLT, permissionType, DataType}
+import semper.sil.ast.types.{referenceType, permissionLT, permissionType}
 import semper.sil.ast.expressions.terms.{FullPermissionTerm, Term}
 import semper.sil.ast.source.SourceLocation
 import semper.chalice2sil.translation.util.PureLanguageConstruct
 import semper.chalice2sil._
-import chalice.{Type, Permission}
 import collection.mutable
 
 /**

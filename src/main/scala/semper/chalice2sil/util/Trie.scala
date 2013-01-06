@@ -1,7 +1,5 @@
 package semper.chalice2sil.util
 
-import collection.mutable.ArrayStack
-
 
 class Trie[K <: Seq[E], E, V] private(val emptyValue : Option[V], val firstLevel : Map[E, TrieNode[E, V]])
   extends Traversable[TrieNode[E, V]] {

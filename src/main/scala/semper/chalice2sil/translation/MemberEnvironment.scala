@@ -1,8 +1,6 @@
 package semper.chalice2sil.translation
 
 import semper.sil.ast.programs.symbols.ProgramVariable
-import semper.sil.ast.methods.MethodFactory
-import semper.sil.ast.methods.implementations.{ImplementationFactory, BasicBlockFactory}
 import util._
 import semper.sil.ast.expressions.{PermissionExpression, Expression, ExpressionFactory}
 import semper.sil.ast.source.SourceLocation

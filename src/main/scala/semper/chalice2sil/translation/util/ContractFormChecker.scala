@@ -2,7 +2,7 @@ package semper.chalice2sil.translation.util
 
 import semper.chalice2sil
 import chalice2sil._
-import semper.sil.ast.expressions.{OldExpression, QuantifierExpression, Expression}
+import semper.sil.ast.expressions.{OldExpression, Expression}
 import semper.sil.ast.symbols.logical.quantification.LogicalVariable
 import semper.sil.ast.expressions.terms.{LogicalVariableTerm, Term}
 
