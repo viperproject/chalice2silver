@@ -8,6 +8,8 @@ organization := "ch.ethz.inf.pm"
 
 version := "0.1-SNAPSHOT"
 
+mainClass in (Compile, run) := Some("semper.chalice2sil.Program")
+
 mainClass in assembly := Some("semper.chalice2sil.Program")
 
 // sbt-assembly (https://github.com/sbt/sbt-assembly)
