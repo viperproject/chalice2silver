@@ -12,6 +12,8 @@ mainClass in (Compile, run) := Some("semper.chalice2sil.Program")
 
 mainClass in assembly := Some("semper.chalice2sil.Program")
 
+testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
+
 // sbt-assembly (https://github.com/sbt/sbt-assembly)
 
 assemblySettings
