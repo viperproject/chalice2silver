@@ -95,7 +95,9 @@
           <root url="jar://$IVY_HOME$/cache/org.scalatest/scalatest_2.9.1/jars/scalatest_2.9.1-1.8.jar!/" />
         </CLASSES>
         <JAVADOC />
-        <SOURCES />
+        <SOURCES>
+          <root url="jar://$IVY_HOME$/cache/org.scalatest/scalatest_2.9.1/srcs/scalatest_2.9.1-1.8-sources.jar!/" />
+        </SOURCES>
       </library>
     </orderEntry>
     <orderEntry type="inheritedJdk" />
