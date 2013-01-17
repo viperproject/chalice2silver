@@ -5,7 +5,8 @@ import semper.sil.verifier.Verifier
 import semper.source.Translator
 import ch.ethz.inf.pm.silicon.SiliconVerifier
 
-/**
+/** All tests for chalice2sil.
+  *
   * @author Stefan Heule
   */
 class Chalice2SilTests extends DefaultSilSuite {
