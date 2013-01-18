@@ -2,7 +2,7 @@ package semper.chalice2sil.translation
 
 import semper.sil.ast.expressions.util.TermSequence
 import semper.sil.ast.expressions.Expression
-import semper.sil.ast.source.SourceLocation
+import semper.sil.ast.source.{NoLocation, SourceLocation}
 import semper.sil.ast.domains._
 import semper.sil.ast.types._
 import semper.sil.ast.symbols.logical.quantification.LogicalVariable
@@ -18,9 +18,7 @@ import semper.sil.ast.symbols.logical.quantification.Forall
 class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
   private val names = NameSequence()
   
-  private val loc = new SourceLocation{
-    override def toString = "Chalice#built-in"
-  }
+  private val loc = NoLocation
 
   protected implicit val unpackNoTypeArguments = (u:Unit) => List[DataType]()
   protected implicit val unpackSingleTypeArgument = (t:Tuple1[DataType]) => List(t._1)
