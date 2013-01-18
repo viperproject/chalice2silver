@@ -20,7 +20,7 @@ class MonitorInvariantPredicateTranslator(environment : ProgramEnvironment, chal
   private[this] def translate() {
     programVariables.addExternal(thisVariable)
     val translator = new DefaultCodeTranslator(this) {
-      override protected def readFraction(location : SourceLocation) = environmentReadFractionTerm(location)
+      override protected def readFraction(location : SourceLocation) = environmentReadFractionExpression(location)
     }
     val expr = chaliceClass.MonitorInvariants
       // translate individual monitor invariant expressions

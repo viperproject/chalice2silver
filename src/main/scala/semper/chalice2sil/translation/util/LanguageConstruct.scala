@@ -4,14 +4,13 @@ import semper.chalice2sil._
 import translation._
 import semper.sil.ast.source.SourceLocation
 import collection.TraversableOnce
-import semper.sil.ast.expressions.util.TermSequence
+import semper.sil.ast.expressions.util.ExpressionSequence
 import semper.sil.ast.methods.{MethodFactory, Method}
 
 import semper.sil.ast.types.referenceType
-import semper.sil.ast.expressions.Expression
 import semper.sil.ast.symbols.logical.And
 import semper.sil.ast.programs.symbols.{PredicateFactory, ProgramVariable, Field}
-import semper.sil.ast.expressions.terms.Term
+import semper.sil.ast.expressions.Expression
 
 
 /**
@@ -33,10 +32,10 @@ class LanguageConstruct(scope : ScopeTranslator, sourceLocation_ : SourceLocatio
   }
 
   protected class ImpureHeapLocationOps protected[LanguageConstruct](variable : ProgramVariable, field : Field) extends PureHeapLocationOps(variable,field) {
-    def <--(rhs : Term) { scope.currentBlock.appendFieldAssignment(variable,field,rhs,sourceLocation,takeComment()) }
+    def <--(rhs : Expression) { scope.currentBlock.appendFieldAssignment(variable,field,rhs,sourceLocation,takeComment()) }
     def <--(rhs : (ProgramVariable, Field)) {
-      this <-- scope.currentExpressionFactory.makeFieldReadTerm(
-        scope.currentExpressionFactory.makeProgramVariableTerm(rhs._1,sourceLocation),
+      this <-- scope.currentExpressionFactory.makeFieldReadExpression(
+        scope.currentExpressionFactory.makeProgramVariableExpression(rhs._1,sourceLocation),
         rhs._2,
         sourceLocation) }
   }
@@ -44,7 +43,7 @@ class LanguageConstruct(scope : ScopeTranslator, sourceLocation_ : SourceLocatio
   final implicit def heapLocationOps(location : (ProgramVariable,Field)) : ImpureHeapLocationOps = new ImpureHeapLocationOps(location._1,location._2)
   final implicit def heapLocationOpsT(location : (ProgramVariable, FieldTranslator)) : ImpureHeapLocationOps = new ImpureHeapLocationOps(location._1,location._2)
 
-  final type MethodCallSpec = (Term,MethodFactory,Seq[Term])
+  final type MethodCallSpec = (Expression,MethodFactory,Seq[Expression])
 
   final implicit def programVariableSeqOps(vars : Seq[ProgramVariable]) = new {
     def <--(call : MethodCallSpec) {
@@ -52,16 +51,16 @@ class LanguageConstruct(scope : ScopeTranslator, sourceLocation_ : SourceLocatio
         currentExpressionFactory.makeProgramVariableSequence(vars,sourceLocation),
         call._1,
         call._2,
-        TermSequence(call._3:_*),sourceLocation,takeComment())
+        ExpressionSequence(call._3:_*),sourceLocation,takeComment())
     }
-    def <--(rhss : Iterable[Term]) {
+    def <--(rhss : Iterable[Expression]) {
       vars.zip(rhss).foreach(t => scope.currentBlock.appendAssignment(t._1,t._2,sourceLocation,takeComment()))
     }
   }
 
   protected class ImpureProgramVariableOps protected[LanguageConstruct](variable : ProgramVariable)
     extends PureProgramVariableOps(variable) {
-    def <--(rhs : Term) { scope.currentBlock.appendAssignment(variable,rhs,sourceLocation,takeComment()) }
+    def <--(rhs : Expression) { scope.currentBlock.appendAssignment(variable,rhs,sourceLocation,takeComment()) }
     def <--(call : MethodCallSpec) { Seq(variable) <-- call }
     def <--(newReferenceTag : NewRef) { scope.currentBlock.appendNew(variable,referenceType,sourceLocation,takeComment()) }
   }
@@ -70,24 +69,24 @@ class LanguageConstruct(scope : ScopeTranslator, sourceLocation_ : SourceLocatio
   
   final case class NewRef()
 
-  class ImpureTermOps(term : Term) extends PureTermOps(term) {
-    def !(mc : (Method,TraversableOnce[Term])) = (term,mc._1,mc._2)
+  class ImpureExpressionOps(term : Expression) extends PureExpressionOps(term) {
+    def !(mc : (Method,TraversableOnce[Expression])) = (term,mc._1,mc._2)
   }
   
-  final implicit def pTermOps(term : Term) : ImpureTermOps = new ImpureTermOps(term)
+  final implicit def pExpressionOps(term : Expression) : ImpureExpressionOps = new ImpureExpressionOps(term)
   
   class MethodOps protected[LanguageConstruct](method : MethodFactory) {
-    def apply(args : TraversableOnce[Term]) = (method,args) 
+    def apply(args : TraversableOnce[Expression]) = (method,args) 
   }
   
   final implicit def methodOps(method : MethodFactory) = new MethodOps(method)
   final implicit def methodOpsT(method : MethodTranslator) = new MethodOps(method.methodFactory)
 
-  final def fold(receiver : Term, predicate : PredicateFactory,permission : Term) {
+  final def fold(receiver : Expression, predicate : PredicateFactory,permission : Expression) {
     scope.currentBlock.appendFold(receiver,predicate,permission,sourceLocation,takeComment())
   }
 
-  final def unfold(receiver : Term, predicate : PredicateFactory,permission : Term) {
+  final def unfold(receiver : Expression, predicate : PredicateFactory,permission : Expression) {
     scope.currentBlock.appendUnfold(
       currentExpressionFactory.makePredicatePermissionExpression(receiver,predicate,permission,sourceLocation),
       sourceLocation,

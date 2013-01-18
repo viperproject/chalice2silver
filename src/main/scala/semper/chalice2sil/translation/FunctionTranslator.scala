@@ -3,11 +3,10 @@ package semper.chalice2sil.translation
 import semper.chalice2sil
 import chalice2sil._
 import semper.sil.ast.source.SourceLocation
-import semper.sil.ast.expressions.util.TermSequence
+import semper.sil.ast.expressions.util.ExpressionSequence
 import util.DerivedFactoryCache
 import semper.sil.ast.programs.symbols.{FunctionFactory, ProgramVariable}
 import semper.sil.ast.types.nullFunction
-import semper.sil.ast.expressions.terms.Term
 import semper.sil.ast.expressions.Expression
 
 /**
@@ -68,15 +67,15 @@ class FunctionTranslator(environment : ProgramEnvironment, val function : chalic
   def thisVariable = functionFactory.thisVar
   def resultVariable = functionFactory.resultVar
 
-  def environmentReadFractionTerm(sourceLocation : SourceLocation) = {
-    val reference = currentExpressionFactory.makeProgramVariableTerm(thisVariable,sourceLocation)
-    currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Function().readFraction,
-      TermSequence(reference),sourceLocation)
+  def environmentReadFractionExpression(sourceLocation : SourceLocation) = {
+    val reference = currentExpressionFactory.makeProgramVariableExpression(thisVariable,sourceLocation)
+    currentExpressionFactory.makeDomainFunctionApplicationExpression(prelude.Function().readFraction,
+      ExpressionSequence(reference),sourceLocation)
   }
 
-  def environmentCurrentThreadTerm(sourceLocation : SourceLocation) = {
+  def environmentCurrentThreadExpression(sourceLocation : SourceLocation) = {
     report(messages.LockingRelatedInPredicate(sourceLocation))
-    currentExpressionFactory.makeDomainFunctionApplicationTerm(nullFunction,TermSequence(),sourceLocation,List(
+    currentExpressionFactory.makeDomainFunctionApplicationExpression(nullFunction,ExpressionSequence(),sourceLocation,List(
       "$CurrentThread not available in functions. A corresponding error message has been emitted."))
   }
 
@@ -91,11 +90,11 @@ class FunctionTranslator(environment : ProgramEnvironment, val function : chalic
     programVariables.addExternal(thisVariable)
     programVariables.addExternal(functionFactory.resultVar)
     val translator = new DefaultCodeTranslator(this) {
-      override protected def readFraction(location : SourceLocation) = environmentReadFractionTerm(location)
+      override protected def readFraction(location : SourceLocation) = environmentReadFractionExpression(location)
 
       override protected def termTranslation = resultTranslation orElse super.termTranslation
 
-      protected override def translateAccessExpression(permission : chalice.Permission)(body : Term => Expression) : Expression = permission match {
+      protected override def translateAccessExpression(permission : chalice.Permission)(body : Expression => Expression) : Expression = permission match {
         case chalice.Star
            | chalice.Full
            | chalice.Frac(chalice.IntLiteral(100)) => {
@@ -117,8 +116,8 @@ class FunctionTranslator(environment : ProgramEnvironment, val function : chalic
         }
       }
 
-      private val resultTranslation = matchingTerm {
-        case r@chalice.Result() => currentExpressionFactory.makeProgramVariableTerm(resultVariable,r)
+      private val resultTranslation = matchingExpression {
+        case r@chalice.Result() => currentExpressionFactory.makeProgramVariableExpression(resultVariable,r)
       }
     }
     function.spec foreach {
@@ -127,8 +126,8 @@ class FunctionTranslator(environment : ProgramEnvironment, val function : chalic
       case otherNode =>
         report(messages.UnknownAstNode(otherNode))
     }
-    functionFactory.setBody(translator.translateTerm(function.definition.get))
-    functionFactory.setMeasure(currentExpressionFactory.makeIntegerLiteralTerm(1,function))
+    functionFactory.setBody(translator.translateExpression(function.definition.get))
+    functionFactory.setMeasure(currentExpressionFactory.makeIntegerLiteralExpression(1,function))
   }
 
 }

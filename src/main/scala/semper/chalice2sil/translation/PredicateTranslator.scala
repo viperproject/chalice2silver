@@ -3,7 +3,7 @@ package semper.chalice2sil.translation
 import semper.chalice2sil
 import chalice2sil._
 import semper.sil.ast.source.SourceLocation
-import semper.sil.ast.expressions.util.TermSequence
+import semper.sil.ast.expressions.util.ExpressionSequence
 import util.DerivedFactoryCache
 import semper.sil.ast.programs.symbols.{ProgramVariable, PredicateFactory}
 import chalice.Variable
@@ -65,16 +65,16 @@ abstract class PredicateTranslator(environment : ProgramEnvironment,
 
   def thisVariable = predicateFactory.thisVar
 
-  def environmentReadFractionTerm(sourceLocation : SourceLocation) = {
-    val idLiteral = currentExpressionFactory.makeIntegerLiteralTerm(id,sourceLocation)
-    val reference = currentExpressionFactory.makeProgramVariableTerm(thisVariable,sourceLocation)
-    currentExpressionFactory.makeDomainFunctionApplicationTerm(prelude.Predicate().readFraction,
-      TermSequence(idLiteral,reference),sourceLocation)
+  def environmentReadFractionExpression(sourceLocation : SourceLocation) = {
+    val idLiteral = currentExpressionFactory.makeIntegerLiteralExpression(id,sourceLocation)
+    val reference = currentExpressionFactory.makeProgramVariableExpression(thisVariable,sourceLocation)
+    currentExpressionFactory.makeDomainFunctionApplicationExpression(prelude.Predicate().readFraction,
+      ExpressionSequence(idLiteral,reference),sourceLocation)
   }
 
-  def environmentCurrentThreadTerm(sourceLocation : SourceLocation) = {
+  def environmentCurrentThreadExpression(sourceLocation : SourceLocation) = {
     report(messages.LockingRelatedInPredicate(sourceLocation))
-    currentExpressionFactory.makeDomainFunctionApplicationTerm(nullFunction,TermSequence(),sourceLocation,List(
+    currentExpressionFactory.makeDomainFunctionApplicationExpression(nullFunction,ExpressionSequence(),sourceLocation,List(
       "$CurrentThread not available in predicates/invariants. A corresponding error message has been emitted."))
   }
 

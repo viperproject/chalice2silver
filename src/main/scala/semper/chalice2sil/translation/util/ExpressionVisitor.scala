@@ -7,58 +7,49 @@ import terms._
 
 
 /**
-  * @author Christian Klauser
-  * @tparam A type of visit arguments
-  * @tparam R type of visit results
-  */
+ * @author Christian Klauser
+ * @tparam A type of visit arguments
+ * @tparam R type of visit results
+ */
 trait ExpressionVisitor[A, R] {
+
   import semper.sil.ast.expressions.PermissionExpression
 
-  def visitExpression(expression : Expression, arg : A) : R = expression match {
+  def visitExpression(expression: Expression, arg: A): R = expression match {
     case BinaryExpression(op, lhs, rhs) =>
       visitMergeExpressions(arg, lhs, rhs)
     case UnaryExpression(op, expr) =>
       visitExpression(expr, arg)
     case EqualityExpression(lhs, rhs) =>
-      visitMergeTerms(arg, lhs, rhs)
+      visitMergeExpressions(arg, lhs, rhs)
     case DomainPredicateExpression(p, args) =>
-      visitMergeTerms(arg, args : _*)
-    case PermissionExpression(location,perm) =>
-      visitMergeTerms(arg, getReceiverFromLocation(location),perm)
-    case UnfoldingExpression(PredicatePermissionExpression(location, perm), expr) =>
-      merge(
-        visitMergeTerms(arg, getReceiverFromLocation(location),perm),
-        visitExpression(expr,arg))
+      visitMergeExpressions(arg, args: _*)
+    case PermissionExpression(location, perm) =>
+      visitMergeExpressions(arg, getReceiverFromLocation(location), perm)
     case QuantifierExpression(q, v, expr) => visitExpression(expr, arg)
     case TrueExpression()
          | FalseExpression() => zero
     case OldExpression(inner) => visitExpression(inner, arg)
+    case CastExpression(operand, newType) => visitExpression(operand, arg)
+    case FieldReadExpression(location) => visitExpression(getReceiverFromLocation(location), arg)
+    case DomainFunctionApplicationExpression(f, args) => visitMergeExpressions(arg, args: _*)
+    case EpsilonPermissionExpression() => zero
+    case FullPermissionExpression() => zero
+    case FunctionApplicationExpression(receiver, f, args) => merge(visitExpression(receiver, arg), visitMergeExpressions(arg, args: _*))
+    case NoPermissionExpression() => zero
+    case UnfoldingExpression(PredicatePermissionExpression(location, perm), body) => visitMergeExpressions(arg, getReceiverFromLocation(location), perm, body)
+    case PermExpression(location) => visitExpression(getReceiverFromLocation(location), arg)
+    case ProgramVariableExpression(v) => zero
+    case i: IntegerLiteralExpression => zero
+    case IfThenElseExpression(cond, then, otherwise) => visitMergeExpressions(arg, cond, then, otherwise)
+    case LogicalVariableExpression(v) => zero
   }
 
-  def visitTerm(term : Term, arg : A) : R = term match {
-    case CastTerm(operand, newType) => visitTerm(operand, arg)
-    case FieldReadTerm(location) => visitTerm(getReceiverFromLocation(location), arg)
-    case DomainFunctionApplicationTerm(f, args) => visitMergeTerms(arg, args : _*)
-    case EpsilonPermissionTerm() => zero
-    case FullPermissionTerm() => zero
-    case FunctionApplicationTerm(receiver, f, args) => merge(visitTerm(receiver, arg), visitMergeTerms(arg, args : _*))
-    case NoPermissionTerm() => zero
-    case UnfoldingTerm(PredicatePermissionExpression(location,perm), body) => visitMergeTerms(arg, getReceiverFromLocation(location),perm, body)
-    case PermTerm(location) => visitTerm(getReceiverFromLocation(location), arg)
-    case ProgramVariableTerm(v) => zero
-    case i : IntegerLiteralTerm => zero
-    case IfThenElseTerm(cond, then, otherwise) => visitMergeTerms(arg, cond, then, otherwise)
-    case LogicalVariableTerm(v) => zero
-    case OldTerm(t) => visitTerm(t, arg)
-  }
+  private def visitMergeExpressions(arg: A, xs: Expression*): R = mergeMany(xs.map(visitExpression(_, arg)))
 
-  private def visitMergeExpressions(arg : A, xs : Expression*) : R = mergeMany(xs.map(visitExpression(_, arg)))
+  protected def merge(left: R, right: R): R
 
-  private def visitMergeTerms(arg : A, xs : Term*) : R = mergeMany(xs.map(visitTerm(_, arg)))
+  protected def zero: R
 
-  protected def merge(left : R, right : R) : R
-
-  protected def zero : R
-
-  protected def mergeMany(rs : Traversable[R]) : R = rs.fold(zero)(merge)
+  protected def mergeMany(rs: Traversable[R]): R = rs.fold(zero)(merge)
 }

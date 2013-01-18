@@ -20,5 +20,5 @@ final class PureLanguageConstruct(environment : MemberEnvironment, sourceLocatio
   implicit def heapLocationOps(location : (ProgramVariable,Field)) : PureHeapLocationOps = new PureHeapLocationOps(location._1,location._2)
   implicit def heapLocationOpsT(location : (ProgramVariable, FieldTranslator)) : PureHeapLocationOps = new PureHeapLocationOps(location._1,location._2)
 
-  implicit def pTermOps(term : Term) : PureTermOps = new PureTermOps(term)
+  implicit def pExpressionOps(term : Expression) : PureExpressionOps = new PureExpressionOps(term)
 }

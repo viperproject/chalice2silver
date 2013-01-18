@@ -10,7 +10,7 @@ import semper.sil.ast.types.{referenceType, integerType}
 import semper.sil.ast.expressions.PermissionExpression
 import semper.sil.ast.programs.symbols.ProgramVariable
 import semper.sil.ast.methods.implementations.FieldAssignmentStatement
-import semper.sil.ast.expressions.terms.{FullPermissionTerm, ProgramVariableTerm, FieldReadTerm, LiteralTerm}
+import semper.sil.ast.expressions.terms.{FullPermissionExpression, ProgramVariableExpression, FieldReadExpression, LiteralExpression}
 
 class Basic extends ChaliceSuite with ShouldMatchers {
 
@@ -88,7 +88,7 @@ class Basic extends ChaliceSuite with ShouldMatchers {
 
       fa.field.name should be ("Main::f")
       fa.field.dataType should be (integerType)
-      fa.source should be (instanceOf[LiteralTerm])
+      fa.source should be (instanceOf[LiteralExpression])
       fa.target.name should be ("this")
       fa.target.dataType should be (referenceType)
     })

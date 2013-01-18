@@ -9,8 +9,8 @@ class DerivedMemberEnvironment(memberEnvironment : MemberEnvironment)
   extends DerivedProgramEnvironment(memberEnvironment)
   with MemberEnvironment {
 
-  override def environmentReadFractionTerm(sourceLocation : SourceLocation) = memberEnvironment.environmentReadFractionTerm(sourceLocation)
-  override def environmentCurrentThreadTerm(sourceLocation : SourceLocation) = memberEnvironment.environmentCurrentThreadTerm(sourceLocation)
+  override def environmentReadFractionExpression(sourceLocation : SourceLocation) = memberEnvironment.environmentReadFractionExpression(sourceLocation)
+  override def environmentCurrentThreadExpression(sourceLocation : SourceLocation) = memberEnvironment.environmentCurrentThreadExpression(sourceLocation)
 
   override def programVariables = memberEnvironment.programVariables
 

@@ -5,7 +5,7 @@ import chalice.{Channel, ASTNode}
 import semper.sil.ast.source.SourceLocation
 import Severity._
 import semper.sil.ast.types.DataType
-import semper.sil.ast.expressions.terms.LogicalVariableTerm
+import semper.sil.ast.expressions.terms.LogicalVariableExpression
 import translation.LocationTranslator
 
 object ChannelsNotImplemented extends MessageId(
@@ -57,16 +57,16 @@ object FreeVariableInOld extends MessageId(
   Error,
   "semper.chalice2sil.freeVariableInOld",
   "Chalice2SIL cannot handle free variables in old expressions and terms. Offending variable: %s") {
-  def apply(variableTerm : LogicalVariableTerm) = new Message(this,variableTerm.sourceLocation) {
-    def data = Array(variableTerm)
+  def apply(variableExpression : LogicalVariableExpression) = new Message(this,variableExpression.sourceLocation) {
+    def data = Array(variableExpression)
   }
 }
 
 object PredicateScalingNotSupported extends MessageId(Fault,"semper.chalice2sil.predicateScalingNotSupported",
   "Chalice2SIL does not fully support predicate scaling. acc(%s.%s, %s)") {
-  def apply(location : semper.sil.ast.expressions.terms.Term, pred : semper.sil.ast.programs.symbols.Predicate, amount : semper.sil.ast.expressions.terms.Term) =
-    new Message(this, location.sourceLocation) {
-    def data = Array(location, pred.name, amount,pred)
+  def apply(location1 : semper.sil.ast.expressions.Expression, pred : semper.sil.ast.programs.symbols.Predicate, amount : semper.sil.ast.expressions.Expression) =
+    new Message(this, location1.sourceLocation) {
+    def data = Array(location1, pred.name, amount,pred)
   }
 }
 
@@ -110,15 +110,15 @@ object RdInQuantifier extends MessageId(
   Error,
   "semper.chalice2sil.rdInQuantifier",
   "Cannot translate fractional read permission rd(%s.%s, %s) in quantified expressions.") {
-  def apply(reference : semper.sil.ast.expressions.terms.Term, location : LocationTranslator, permissionAmount : semper.sil.ast.expressions.terms.Term) = new Message(this,reference.sourceLocation) {
-    def data = Array(reference,location,permissionAmount)
+  def apply(reference : semper.sil.ast.expressions.Expression, location1 : LocationTranslator, permissionAmount : semper.sil.ast.expressions.Expression) = new Message(this,reference.sourceLocation) {
+    def data = Array(reference,location1,permissionAmount)
   }
 }
 
 object NoContextForReadPermission extends MessageId(
 Fault,"semper.chalice2sil.noContextForReadPermission","Unknown interpretation for read permission at %s.") {
- def apply(location : SourceLocation) = new Message(this,location) {
-   def data = Array(location)
+ def apply(location1 : SourceLocation) = new Message(this,location1) {
+   def data = Array(location1)
  }
 }
 
@@ -130,7 +130,7 @@ object OperatorNotFound extends MessageId(Error,
   }
 }
 
-object TermInExpressionPosition extends MessageId(
+object ExpressionInExpressionPosition extends MessageId(
   Fault,
   "semper.chalice2sil.termInExpressionPosition",
   "The chalice node %s has type %s but is used in a position where SIL expects an expression.") {

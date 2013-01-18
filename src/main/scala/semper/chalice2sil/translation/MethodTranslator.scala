@@ -50,11 +50,6 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
         case o:OldExpression => immutable.Set(OldExpressionNode(o))
         case _ => super.visitExpression(expression,arg)
       }
-
-      override def visitTerm(term : Term, arg : Null) = term match {
-        case o:OldTerm => immutable.Set(OldTermNode(o))
-        case _ => super.visitTerm(term,arg)
-      }
     }
     val olds : Seq[OldNode] = methodFactory.method.signature.postcondition
       .map(oldFieldEnumerator.visitExpression(_,null)).flatten.toSet.toSeq
@@ -93,17 +88,17 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       import ctor._
 
       // this pointer
-      mf.addPrecondition(Not()(method).t((thisVariable:Term) === nullFunction.apply()),method)
+      mf.addPrecondition(Not()(method).t((thisVariable:Expression) === nullFunction.apply()),method)
 
       // read fraction
       val k = mf.addParameter(getNextName("k"),permissionType,method)
       programVariables.addExternal(k)
 
-      val kTerm = mf.makeProgramVariableTerm(k,method)
+      val kExpression = mf.makeProgramVariableExpression(k,method)
       // requires (noPermission < k ∧ 1000*k < fullPermission)
       mf.addPrecondition(conjunction(
-        permissionLT.apply(noPermission,kTerm),
-        permissionLT.apply(permissionIntegerMultiplication.apply(1000,kTerm),fullPermission)
+        permissionLT.apply(noPermission,kExpression),
+        permissionLT.apply(permissionIntegerMultiplication.apply(1000,kExpression),fullPermission)
       ),method)
 
       // thread object
@@ -122,7 +117,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
 
   private[this] def createContracts() {
     val contractTranslator = new DefaultCodeTranslator(this){
-      override protected def readFraction(location : SourceLocation) = environmentReadFractionTerm(location)
+      override protected def readFraction(location : SourceLocation) = environmentReadFractionExpression(location)
     }
 
     val location : SourceLocation = method
@@ -134,24 +129,24 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
     pureLanguageConstruct(location){ ctor =>
       import ctor._
 
-      val currentThreadTerm = environmentCurrentThreadTerm(location)
+      val currentThreadExpression = environmentCurrentThreadExpression(location)
       methodFactory.addPrecondition(conjunction(
-        Not()(method).t((currentThreadTerm : Term) === nullFunction.apply()),
-        acc(currentThreadTerm, prelude.Thread.heldMap, fullPermission),
-        acc(currentThreadTerm, prelude.Thread.muMap, fullPermission)
+        Not()(method).t((currentThreadExpression : Expression) === nullFunction.apply()),
+        acc(currentThreadExpression, prelude.Thread.heldMap, fullPermission),
+        acc(currentThreadExpression, prelude.Thread.muMap, fullPermission)
       ), method)
 
       // Create postcondition for $CurrentThread
       //  (the same specification is used for loop invariants)
-      val heldMapTerm : Term = currentThreadTerm!prelude.Thread.heldMap
-      val muMapTerm : Term = currentThreadTerm!prelude.Thread.muMap
+      val heldMapExpression : Expression = currentThreadExpression!prelude.Thread.heldMap
+      val muMapExpression : Expression = currentThreadExpression!prelude.Thread.muMap
 
-      val lockChanged : List[Term] = method.Spec.collect({
-        case chalice.LockChange(es) => es.map(contractTranslator.translateTerm(_))
+      val lockChanged : List[Expression] = method.Spec.collect({
+        case chalice.LockChange(es) => es.map(contractTranslator.translateExpression(_))
       }).flatten
 
-      val oldMuMap = currentExpressionFactory.makeOldTerm(muMapTerm)(location, Nil)
-      val oldHeldMap = currentExpressionFactory.makeOldTerm(heldMapTerm)(location,Nil)
+      val oldMuMap = currentExpressionFactory.makeOldExpression(muMapExpression)(location, Nil)
+      val oldHeldMap = currentExpressionFactory.makeOldExpression(heldMapExpression)(location,Nil)
 
       generateThreadInvariants(location, lockChanged, oldHeldMap, oldMuMap) foreach {x =>
         methodFactory.addPostcondition(x._1,x._2)
@@ -181,7 +176,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       .foreach(report(_))
   }
 
-  createContracts();
+  createContracts()
 
   def translate(){
     translateBody(translateStatements(_,method.body))

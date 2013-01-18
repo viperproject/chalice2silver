@@ -2,12 +2,16 @@ package semper.chalice2sil.translation
 
 import semper.sil.ast.types.{referenceType, permissionType, integerType, DataType}
 import semper.chalice2sil
+import semper.sil.ast.expressions.Expression
 
 /**
  * Author: Christian Klauser
  */
 
 trait TypeTranslator extends ProgramEnvironment {
+
+  def matchingExpression(partialFunction : PartialFunction[chalice.Expression, Expression]) = partialFunction
+
   def translateTypeExpr(typeExpr : chalice.Type) : DataType = tryTranslateClass.orElse[chalice.Class, DataType]({
       case classRef =>
         report(chalice2sil.messages.UnknownAstNode(typeExpr)) //note the use of the original typeExpr node

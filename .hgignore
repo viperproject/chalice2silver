@@ -4,3 +4,4 @@ project/target/**
 target/**
 .cache
 bin/**
+src/test/resources/semper/chalice2sil/**.chalice.ref

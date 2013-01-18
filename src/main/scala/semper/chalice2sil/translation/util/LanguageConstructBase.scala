@@ -1,7 +1,7 @@
 package semper.chalice2sil.translation.util
 
 import semper.sil.ast.source.SourceLocation
-import semper.sil.ast.expressions.util.TermSequence
+import semper.sil.ast.expressions.util.ExpressionSequence
 import semper.sil.ast.expressions._
 import semper.sil.ast.domains.{DomainFunction, DomainPredicate}
 import terms._
@@ -34,28 +34,28 @@ class LanguageConstructBase(val environment : MemberEnvironment, val sourceLocat
 
   final def noPermission = currentExpressionFactory.makeNoPermission(sourceLocation)
 
-  final def acc(term : Term, field : Field, permission : Term) = currentExpressionFactory.makeFieldPermissionExpression(term, field, permission, sourceLocation)
-  final def acc(term : Term, predicate : PredicateFactory, permission : Term) = currentExpressionFactory.makePredicatePermissionExpression(term,predicate,permission, sourceLocation)
+  final def acc(term : Expression, field : Field, permission : Expression) = currentExpressionFactory.makeFieldPermissionExpression(term, field, permission, sourceLocation)
+  final def acc(term : Expression, predicate : PredicateFactory, permission : Expression) = currentExpressionFactory.makePredicatePermissionExpression(term,predicate,permission, sourceLocation)
 
   final implicit def domainPredicateOps(predicate : DomainPredicate) = new {
-    def apply(terms : Term*) : DomainPredicateExpression =
-      currentExpressionFactory.makeDomainPredicateExpression(predicate, TermSequence(terms : _*), sourceLocation)
+    def apply(terms : Expression*) : DomainPredicateExpression =
+      currentExpressionFactory.makeDomainPredicateExpression(predicate, ExpressionSequence(terms : _*), sourceLocation)
 
-    def p(terms : Term*) : DomainPredicateExpression = apply(terms:_*)
-    def g(terms : Term*) : DomainPredicateExpression = apply(terms:_*)
+    def p(terms : Expression*) : DomainPredicateExpression = apply(terms:_*)
+    def g(terms : Expression*) : DomainPredicateExpression = apply(terms:_*)
   }
 
   final implicit def domainFunctionOps(function : DomainFunction) = new {
-    def apply(terms : Term*) : DomainFunctionApplicationTerm = {
-      currentExpressionFactory.makeDomainFunctionApplicationTerm(function, TermSequence(terms : _*), sourceLocation)
+    def apply(terms : Expression*) : DomainFunctionApplicationExpression = {
+      currentExpressionFactory.makeDomainFunctionApplicationExpression(function, ExpressionSequence(terms : _*), sourceLocation)
     }
 
-    def t(terms : Term*) : DomainFunctionApplicationTerm = apply(terms:_*)
-    def p(terms : Term*) : DomainFunctionApplicationTerm = apply(terms:_*)
-    def g(terms : Term*) : DomainFunctionApplicationTerm = apply(terms:_*)
+    def t(terms : Expression*) : DomainFunctionApplicationExpression = apply(terms:_*)
+    def p(terms : Expression*) : DomainFunctionApplicationExpression = apply(terms:_*)
+    def g(terms : Expression*) : DomainFunctionApplicationExpression = apply(terms:_*)
   }
 
-  final def perm(reference : Term, field : Field) = currentExpressionFactory.makePermTerm(reference, field)(sourceLocation)
+  final def perm(reference : Expression, field : Field) = currentExpressionFactory.makePermExpression(reference, field)(sourceLocation)
 
   final implicit def binaryConnectiveOps(c : BinaryConnective) = new {
     def t(lhs : Expression, rhs : Expression) = currentExpressionFactory.makeBinaryExpression(c, lhs, rhs, sourceLocation)
@@ -67,35 +67,35 @@ class LanguageConstructBase(val environment : MemberEnvironment, val sourceLocat
     def p(o : Expression) = currentExpressionFactory.makeUnaryExpression(c, o, sourceLocation)
   }
 
-  protected class PureTermOps(term : Term) {
-    def !(f : Field) : FieldReadTerm = currentExpressionFactory.makeFieldReadTerm(term, f, sourceLocation)
+  protected class PureExpressionOps(term : Expression) {
+    def !(f : Field) : FieldReadExpression = currentExpressionFactory.makeFieldReadExpression(term, f, sourceLocation)
 
-    def !(f : FieldTranslator) : FieldReadTerm = this.!(f.field)
+    def !(f : FieldTranslator) : FieldReadExpression = this.!(f.field)
 
-    def ===(other:Term) : EqualityExpression = currentExpressionFactory.makeEqualityExpression(term,other, sourceLocation)
-    def =/=(other:Term) : Expression = currentExpressionFactory.makeUnaryExpression(Not()(sourceLocation),
+    def ===(other:Expression) : EqualityExpression = currentExpressionFactory.makeEqualityExpression(term,other, sourceLocation)
+    def =/=(other:Expression) : Expression = currentExpressionFactory.makeUnaryExpression(Not()(sourceLocation),
       currentExpressionFactory.makeEqualityExpression(term,other,sourceLocation)
       ,sourceLocation)
   }
 
-  final implicit def programVariableToTerm(variable : ProgramVariable) : ProgramVariableTerm = {
+  final implicit def programVariableToExpression(variable : ProgramVariable) : ProgramVariableExpression = {
     assert(variable != null)
-    currentExpressionFactory.makeProgramVariableTerm(variable, sourceLocation)
+    currentExpressionFactory.makeProgramVariableExpression(variable, sourceLocation)
   }
 
-  implicit def termOps(term : Term) = new {
-    def !(f : Field) : FieldReadTerm = term match {
-      case pt : Term => currentExpressionFactory.makeFieldReadTerm(pt, f, sourceLocation)
-      case _ => currentExpressionFactory.makeFieldReadTerm(term, f, sourceLocation)
+  implicit def termOps(term : Expression) = new {
+    def !(f : Field) : FieldReadExpression = term match {
+      case pt : Expression => currentExpressionFactory.makeFieldReadExpression(pt, f, sourceLocation)
+      case _ => currentExpressionFactory.makeFieldReadExpression(term, f, sourceLocation)
     }
 
-    def !(f : FieldTranslator) : FieldReadTerm = this.!(f.field)
+    def !(f : FieldTranslator) : FieldReadExpression = this.!(f.field)
 
-    def ===(other:Term) : EqualityExpression = currentExpressionFactory.makeEqualityExpression(term,other,sourceLocation)
-    def =/=(other:Term) : Expression = currentExpressionFactory.makeUnaryExpression(Not()(sourceLocation),
+    def ===(other:Expression) : EqualityExpression = currentExpressionFactory.makeEqualityExpression(term,other,sourceLocation)
+    def =/=(other:Expression) : Expression = currentExpressionFactory.makeUnaryExpression(Not()(sourceLocation),
       currentExpressionFactory.makeEqualityExpression(term,other,sourceLocation)
       ,sourceLocation)
   }
 
-  implicit def intToLiteral(integer : Int) : Term = currentExpressionFactory.makeIntegerLiteralTerm(integer,sourceLocation)
+  implicit def intToLiteral(integer : Int) : Expression = currentExpressionFactory.makeIntegerLiteralExpression(integer,sourceLocation)
 }

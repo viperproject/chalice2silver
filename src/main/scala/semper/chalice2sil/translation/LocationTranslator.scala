@@ -1,8 +1,8 @@
 package semper.chalice2sil.translation
 
 import semper.sil.ast.expressions.ExpressionFactory
-import semper.sil.ast.expressions.terms.Term
-import semper.sil.ast.expressions.util.TermSequence
+import semper.sil.ast.expressions.Expression
+import semper.sil.ast.expressions.util.ExpressionSequence
 
 trait LocationTranslator extends ProgramEnvironment {
 
@@ -12,10 +12,10 @@ trait LocationTranslator extends ProgramEnvironment {
     */
   def id : Int
 
-  def locationLiteral(expressionFactory : ExpressionFactory, reference : Term) : Term = {
-    val fieldLiteral = expressionFactory.makeIntegerLiteralTerm(id,reference.sourceLocation)
-    expressionFactory.makeDomainFunctionApplicationTerm(
-      prelude.Pair.Location.create,TermSequence(reference,fieldLiteral),reference.sourceLocation)
+  def locationLiteral(expressionFactory : ExpressionFactory, reference : Expression) : Expression = {
+    val fieldLiteral = expressionFactory.makeIntegerLiteralExpression(id,reference.sourceLocation)
+    expressionFactory.makeDomainFunctionApplicationExpression(
+      prelude.Pair.Location.create,ExpressionSequence(reference,fieldLiteral),reference.sourceLocation)
   }
 
 }

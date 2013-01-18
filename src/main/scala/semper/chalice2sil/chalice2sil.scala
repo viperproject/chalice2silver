@@ -3,10 +3,11 @@ package semper {
 
 import chalice.ASTNode
 import chalice2sil.translation.{FunctionTranslator, PredicateTranslator, MethodTranslator, FieldTranslator}
+import sil.ast.expressions.Expression
 import sil.ast.source.{RealSourceLocation, SourceLocation}
 import semper.sil.ast.methods.MethodFactory
 import semper.sil.ast.programs.symbols.{FunctionFactory, PredicateFactory, Field}
-import semper.sil.ast.expressions.terms.{PredicateLocation, Term, FieldLocation, Location}
+import semper.sil.ast.expressions.terms.{PredicateLocation, FieldLocation, Location}
 
 package object chalice2sil {
     //at some point, use the node's Positional trait to provide a source location.
@@ -19,7 +20,7 @@ package object chalice2sil {
     implicit def unwrapPredicate(pt : PredicateTranslator) : PredicateFactory = pt.predicateFactory
     implicit def unwrapFunction(ft : FunctionTranslator) : FunctionFactory = ft.functionFactory
 
-    def getReceiverFromLocation(location : Location) : Term = location match {
+    def getReceiverFromLocation(location : Location) : Expression = location match {
       case FieldLocation(receiver,_) => receiver
       case PredicateLocation(receiver,_) => receiver
       case _ => throw new Error("Don't know how to access receiver of location " + location + ".")

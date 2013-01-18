@@ -4,7 +4,7 @@ import semper.chalice2sil
 import chalice2sil._
 import semper.sil.ast.expressions.{OldExpression, Expression}
 import semper.sil.ast.symbols.logical.quantification.LogicalVariable
-import semper.sil.ast.expressions.terms.{LogicalVariableTerm, Term}
+import semper.sil.ast.expressions.terms.{LogicalVariableExpression}
 
 /*
 Copyright (c) 2012, Christian Klauser
@@ -37,16 +37,11 @@ object ContractFormChecker extends ExpressionVisitor[Set[LogicalVariable],Set[Me
   protected override def zero = Set()
 
   def apply(expr : Expression) : Set[Message] = visitExpression(expr,Set())
-  def apply(term : Term) : Set[Message] = visitTerm(term,Set())
 
   override def visitExpression(expression : Expression, arg : Set[LogicalVariable]) : Set[Message] = expression match {
     case old@OldExpression(inner) => super.visitExpression(old,inner.freeVariables)
+    case t@LogicalVariableExpression(v) if arg contains v =>
+      super.visitExpression(t,arg) + messages.FreeVariableInOld(t)
     case e => super.visitExpression(e, arg)
-  }
-
-  override def visitTerm(term : Term, arg : Set[LogicalVariable]) : Set[Message] = term match {
-    case t@LogicalVariableTerm(v) if arg contains v =>
-         super.visitTerm(t,arg) + messages.FreeVariableInOld(t)
-    case t => super.visitTerm(t, arg)
   }
 }

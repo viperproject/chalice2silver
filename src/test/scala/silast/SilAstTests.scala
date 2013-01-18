@@ -6,7 +6,7 @@ import semper.sil.ast.source.NoLocation
 import semper.sil.ast.types.{DataTypeSequence, integerType, referenceType}
 import org.scalatest.matchers.ShouldMatchers
 import semper.sil.ast.domains.DomainFunction
-import semper.sil.ast.expressions.util.TermSequence
+import semper.sil.ast.expressions.util.ExpressionSequence
 
 /**
   * @author Christian Klauser
@@ -22,8 +22,8 @@ class SilAstTests extends FunSuite with ShouldMatchers {
 
     //perfectly valid program, if a little non-sensical
     // but it would be easy enough to create a useful example
-    block.appendAssignment(x,block.makeIntegerLiteralTerm(5,NoLocation),NoLocation)
-    block.appendAssignment(x,block.makeIntegerLiteralTerm(5,NoLocation),NoLocation)
+    block.appendAssignment(x,block.makeIntegerLiteralExpression(5,NoLocation),NoLocation)
+    block.appendAssignment(x,block.makeIntegerLiteralExpression(5,NoLocation),NoLocation)
   }
 
   test("Parametrised domain with functions") {
@@ -68,8 +68,8 @@ class SilAstTests extends FunSuite with ShouldMatchers {
     {
       val mf = pf.getMethodFactory("main")(NoLocation)
       val constant2 = inst.functions.find(_.name == constant.name).get
-      mf.addPrecondition(mf.makeEqualityExpression(mf.makeIntegerLiteralTerm(0,NoLocation),
-        mf.makeDomainFunctionApplicationTerm(constant2,TermSequence(),NoLocation,List("works")),
+      mf.addPrecondition(mf.makeEqualityExpression(mf.makeIntegerLiteralExpression(0,NoLocation),
+        mf.makeDomainFunctionApplicationExpression(constant2,ExpressionSequence(),NoLocation,List("works")),
         NoLocation),
         NoLocation)
     }

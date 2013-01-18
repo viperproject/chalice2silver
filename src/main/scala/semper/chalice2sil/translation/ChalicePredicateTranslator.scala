@@ -11,7 +11,7 @@ class ChalicePredicateTranslator(environment : ProgramEnvironment, val predicate
   def translate() {
     programVariables.addExternal(thisVariable)
     val translator = new DefaultCodeTranslator(this) {
-      override protected def readFraction(location : SourceLocation) = environmentReadFractionTerm(location)
+      override protected def readFraction(location : SourceLocation) = environmentReadFractionExpression(location)
     }
     predicateFactory.setExpression(translator.translateExpression(predicate.definition))
   }

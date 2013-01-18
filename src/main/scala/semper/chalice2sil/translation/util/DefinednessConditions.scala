@@ -3,7 +3,7 @@ package semper.chalice2sil.translation.util
 import semper.chalice2sil
 import chalice2sil._
 import semper.sil.ast.source.NoLocation
-import semper.sil.ast.expressions.util.TermSequence
+import semper.sil.ast.expressions.util.ExpressionSequence
 import translation._
 import semper.sil.ast.expressions._
 import semper.sil.ast.symbols.logical.{Not, Implication, And}
@@ -13,7 +13,7 @@ import semper.sil.ast.types._
 /**
   * @author Christian Klauser
   */
-class DefinednessConditions(environment : MemberEnvironment, val readFractionTerm : Term)
+class DefinednessConditions(environment : MemberEnvironment, val readFractionExpression : Expression)
   extends DerivedMemberEnvironment(environment)
   with ExpressionVisitor[Null, Expression] {
 
@@ -36,35 +36,31 @@ class DefinednessConditions(environment : MemberEnvironment, val readFractionTer
         // `lhsPrecondition ∧ (lhs ⇒ rhsPrecondition)`
         merge(lhsPrecondition,rhsBranch)
       }
-    case _ => super.visitExpression(expression,arg)
-  }
-
-  override def visitTerm(term : Term, arg : Null) : Expression = term match {
-    case FieldReadTerm(loc@FieldLocation(receiver,field)) =>
+    case FieldReadExpression(loc@FieldLocation(receiver,field)) =>
       // A field access `x.f` requires `x != null ∧ 0 < perm(x.f)`
       // `0 < perm(x.f)`
       val hasReadAccess = currentExpressionFactory.makeDomainPredicateExpression(permissionLT,
-        TermSequence(
-          currentExpressionFactory.makeNoPermission(term.sourceLocation),
-          currentExpressionFactory.makePermTerm(receiver,field)(term.sourceLocation)
-        ),term.sourceLocation)
+        ExpressionSequence(
+          currentExpressionFactory.makeNoPermission(expression.sourceLocation),
+          currentExpressionFactory.makePermExpression(receiver,field)(expression.sourceLocation)
+        ),expression.sourceLocation)
 
       // `x == null`
       val eqNull = currentExpressionFactory.makeEqualityExpression(receiver,
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(nullFunction,TermSequence(),term.sourceLocation),term.sourceLocation)
+        currentExpressionFactory.makeDomainFunctionApplicationExpression(nullFunction,ExpressionSequence(),expression.sourceLocation),expression.sourceLocation)
       // `¬(x == null)`
-      val notNull = currentExpressionFactory.makeUnaryExpression(Not()(term.sourceLocation),eqNull,term.sourceLocation)
+      val notNull = currentExpressionFactory.makeUnaryExpression(Not()(expression.sourceLocation),eqNull,expression.sourceLocation)
 
       // `combinedPrecondition(x) ∧ ¬(x == null) ∧ acc(x.f,k)`
-      mergeMany(Seq(visitTerm(receiver,arg),notNull,hasReadAccess))
-    case FunctionApplicationTerm(receiver,function,args) =>
+      mergeMany(Seq(visitExpression(receiver,arg),notNull,hasReadAccess))
+    case FunctionApplicationExpression(receiver,function,args) =>
       // A function application `x.f(args...)` requires `x != null ∧ precondition(f,args...)`
 
       // `x == null`
       val eqNull = currentExpressionFactory.makeEqualityExpression(receiver,
-        currentExpressionFactory.makeDomainFunctionApplicationTerm(nullFunction,TermSequence(),term.sourceLocation),term.sourceLocation)
+        currentExpressionFactory.makeDomainFunctionApplicationExpression(nullFunction,ExpressionSequence(),expression.sourceLocation),expression.sourceLocation)
       // `¬(x == null)`
-      val notNull = currentExpressionFactory.makeUnaryExpression(Not()(term.sourceLocation),eqNull,term.sourceLocation)
+      val notNull = currentExpressionFactory.makeUnaryExpression(Not()(expression.sourceLocation),eqNull,expression.sourceLocation)
 
       // precondition(f,args..) (without side effects)
       val subs = currentExpressionFactory.makeProgramVariableSubstitution(
@@ -72,36 +68,36 @@ class DefinednessConditions(environment : MemberEnvironment, val readFractionTer
       val preconditions = function.signature.precondition.map(x => removeSideEffects(x.substitute(subs)))
 
       mergeMany(Seq(notNull) ++ preconditions)
-    case DomainFunctionApplicationTerm(f,ts) if ts.size == 2 && f == booleanImplication =>
-      val lhsTerm = ts(0)
-      val rhsTerm = ts(1);
+    case DomainFunctionApplicationExpression(f,ts) if ts.size == 2 && f == booleanImplication =>
+      val lhsExpression = ts(0)
+      val rhsExpression = ts(1);
       // `lhsPrecondition ∧ (eval(lhs) ⇒ rhsPrecondition)`
       {
-        val lhsPrecondition = visitTerm(lhsTerm,arg)
-        val rhsPrecondition = visitTerm(rhsTerm,arg)
+        val lhsPrecondition = visitExpression(lhsExpression,arg)
+        val rhsPrecondition = visitExpression(rhsExpression,arg)
         // `eval(lhs)`
-        val lhsCond = currentExpressionFactory.makeDomainPredicateExpression(booleanEvaluate,TermSequence(lhsTerm),term.sourceLocation)
+        val lhsCond = currentExpressionFactory.makeDomainPredicateExpression(booleanEvaluate,ExpressionSequence(lhsExpression),expression.sourceLocation)
         // `eval(lhs) ⇒ rhsPrecondition`
-        val rhsBranch = currentExpressionFactory.makeBinaryExpression(Implication()(term.sourceLocation),lhsCond,rhsPrecondition,term.sourceLocation)
+        val rhsBranch = currentExpressionFactory.makeBinaryExpression(Implication()(expression.sourceLocation),lhsCond,rhsPrecondition,expression.sourceLocation)
         // `lhsPrecondition ∧ (eval(lhs) ⇒ rhsPrecondition)`
         merge(lhsPrecondition,rhsBranch)
       }
-    case IfThenElseTerm(cond,thn,els) =>
-      val condPrecondition = visitTerm(cond,arg)
-      val condExpr = currentExpressionFactory.makeDomainPredicateExpression(booleanEvaluate,TermSequence(cond),term.sourceLocation)
-      val thnPrecondition = visitTerm(thn,arg)
-      val elsPrecondition = visitTerm(els,arg);
+    case IfThenElseExpression(cond,thn,els) =>
+      val condPrecondition = visitExpression(cond,arg)
+      val condExpr = currentExpressionFactory.makeDomainPredicateExpression(booleanEvaluate,ExpressionSequence(cond),expression.sourceLocation)
+      val thnPrecondition = visitExpression(thn,arg)
+      val elsPrecondition = visitExpression(els,arg);
       // `condPrecondition ∧ (cond ⇒ thnPrecondition) ∧ (¬cond ⇒ elsPrecondition)`
       {
         // `cond ⇒ thnPrecondition`
-        val thnBranch = currentExpressionFactory.makeBinaryExpression(Implication()(term.sourceLocation),condExpr,thnPrecondition,term.sourceLocation)
+        val thnBranch = currentExpressionFactory.makeBinaryExpression(Implication()(expression.sourceLocation),condExpr,thnPrecondition,expression.sourceLocation)
         // `¬cond`
-        val notCondExpr = currentExpressionFactory.makeUnaryExpression(Not()(term.sourceLocation),condExpr,term.sourceLocation)
+        val notCondExpr = currentExpressionFactory.makeUnaryExpression(Not()(expression.sourceLocation),condExpr,expression.sourceLocation)
         // `¬cond ⇒ elsPrecondition`
-        val elsBranch = currentExpressionFactory.makeBinaryExpression(Implication()(term.sourceLocation),notCondExpr,elsPrecondition,term.sourceLocation)
+        val elsBranch = currentExpressionFactory.makeBinaryExpression(Implication()(expression.sourceLocation),notCondExpr,elsPrecondition,expression.sourceLocation)
         // finally: `condPrecondition ∧ (cond ⇒ thnPrecondition) ∧ (¬cond ⇒ elsPrecondition)`
         mergeMany(Seq(condPrecondition, thnBranch, elsBranch))
       }
-    case _ => super.visitTerm(term,arg)
+    case _ => super.visitExpression(expression,arg)
   }
 }

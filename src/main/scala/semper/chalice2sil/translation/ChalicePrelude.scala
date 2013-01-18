@@ -1,13 +1,13 @@
 package semper.chalice2sil.translation
 
-import semper.sil.ast.expressions.util.TermSequence
+import semper.sil.ast.expressions.util.ExpressionSequence
 import semper.sil.ast.expressions.Expression
 import semper.sil.ast.source.{NoLocation, SourceLocation}
 import semper.sil.ast.domains._
 import semper.sil.ast.types._
 import semper.sil.ast.symbols.logical.quantification.LogicalVariable
 import util.{FactoryHashCache, NameSequence}
-import semper.sil.ast.expressions.terms.{NoPermissionTerm, FullPermissionTerm, Term}
+import semper.sil.ast.expressions.terms.{NoPermissionExpression, FullPermissionExpression}
 import scala.Tuple1
 import semper.sil.ast.symbols.logical.quantification.Forall
 
@@ -32,11 +32,11 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
 
     val factory = programFactory.getDomainFactory(domainName, typeVariableNames.map(t => (t._1,t._2,Nil)),loc)
 
-    protected def fApp(domainFunction : DomainFunction, args : Term*) = {
-      factory.makeDomainFunctionApplicationTerm(domainFunction,TermSequence(args:_*),loc)
+    protected def fApp(domainFunction : DomainFunction, args : Expression*) = {
+      factory.makeDomainFunctionApplicationExpression(domainFunction,ExpressionSequence(args:_*),loc)
     }
-    protected def pApp(domainPredicate : DomainPredicate, args : Term*) = {
-      factory.makeDomainPredicateExpression(domainPredicate,TermSequence(args:_*),loc)
+    protected def pApp(domainPredicate : DomainPredicate, args : Expression*) = {
+      factory.makeDomainPredicateExpression(domainPredicate,ExpressionSequence(args:_*),loc)
     }
     protected def not(operand : Expression) : Expression =
       factory.makeUnaryExpression(semper.sil.ast.symbols.logical.Not()(loc),operand,loc)
@@ -74,24 +74,24 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
           factory.makeQuantifierExpression(Forall()(loc),c,
             factory.makeQuantifierExpression(Forall()(loc),d,expr(a,b,c,d))(loc))(loc))(loc))(loc)
     }
-    implicit protected def boundVariableAsTerm(v : LogicalVariable) : Term = factory.makeBoundVariableTerm(v,loc)
+    implicit protected def boundVariableAsExpression(v : LogicalVariable) : Expression = factory.makeBoundVariableExpression(v,loc)
     implicit protected def directlyApplyDomainFunction(df : DomainFunction) = new {
-      def apply(args : Term*) = fApp(df,args:_*)
+      def apply(args : Expression*) = fApp(df,args:_*)
     }
     implicit protected def directlyApplyDomainPredicate(dp : DomainPredicate) = new {
-      def apply(args : Term*) = pApp(dp,args:_*)
+      def apply(args : Expression*) = pApp(dp,args:_*)
     }
 
-    implicit protected def termOps(lhs : Term) = new {
-      def ≡(rhs : Term) =
+    implicit protected def termOps(lhs : Expression) = new {
+      def ≡(rhs : Expression) =
         factory.makeEqualityExpression(lhs,rhs,loc)
-      def ≠(rhs : Term) = not(≡(rhs))
+      def ≠(rhs : Expression) = not(≡(rhs))
     }
     implicit protected def logicalVariableOps(v : LogicalVariable) = new {
-      protected def lhs : Term = v
-      def ≡(rhs : Term) =
+      protected def lhs : Expression = v
+      def ≡(rhs : Expression) =
         factory.makeEqualityExpression(lhs,rhs,loc)
-      def ≠(rhs : Term) = not(lhs ≡ rhs)
+      def ≠(rhs : Expression) = not(lhs ≡ rhs)
     }
     implicit protected def exprOps(lhs : Expression) = new {
       // don't use ∧ or ∨ for and/or to take advantage of Scala operator precedence rules.
@@ -105,7 +105,7 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
         factory.makeBinaryExpression(semper.sil.ast.symbols.logical.Implication()(loc),lhs,rhs,loc)
     }
 
-    implicit protected def integerAsLiteral(n : Int) : Term = factory.makeIntegerLiteralTerm(n,loc)
+    implicit protected def integerAsLiteral(n : Int) : Expression = factory.makeIntegerLiteralExpression(n,loc)
   }
 
   abstract class PreludeDomain[TypeArguments]
@@ -221,14 +221,14 @@ class ChalicePrelude(programEnvironment : ProgramEnvironment) { prelude =>
 
       // `0 < globalPredicateReadFraction`
       factory.addDomainAxiom("predicateFractionIsReadPermission", pApp(permissionLT,
-          NoPermissionTerm()(loc,List()),
+          NoPermissionExpression()(loc,List()),
           globalReadFraction()),
         loc)
 
       // `1000*globalPredicateReadFraction < write`
       factory.addDomainAxiom("predicateFractionIsSmall",pApp(permissionLT,
           fApp(permissionIntegerMultiplication,1000,globalReadFraction()),
-          FullPermissionTerm()(loc,List())),
+          FullPermissionExpression()(loc,List())),
         loc)
     }
 

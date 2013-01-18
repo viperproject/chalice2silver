@@ -20,7 +20,7 @@ trait Environment {
   }
 
   def dummyExpr(ef:ExpressionFactory, location : SourceLocation):semper.sil.ast.expressions.Expression = {
-    ef.makeEqualityExpression(ef.makeIntegerLiteralTerm(13,location),ef.makeIntegerLiteralTerm(37,location),location)
+    ef.makeEqualityExpression(ef.makeIntegerLiteralExpression(13,location),ef.makeIntegerLiteralExpression(37,location),location)
   }
 
   /**
