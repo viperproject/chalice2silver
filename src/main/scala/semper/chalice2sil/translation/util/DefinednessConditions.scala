@@ -2,7 +2,7 @@ package semper.chalice2sil.translation.util
 
 import semper.chalice2sil
 import chalice2sil._
-import semper.sil.ast.source.noLocation
+import semper.sil.ast.source.NoLocation
 import semper.sil.ast.expressions.util.TermSequence
 import translation._
 import semper.sil.ast.expressions._
@@ -24,7 +24,7 @@ class DefinednessConditions(environment : MemberEnvironment, val readFractionTer
       currentExpressionFactory.makeBinaryExpression(And()(lhs.sourceLocation),lhs,rhs,lhs.sourceLocation)
   }
 
-  protected def zero = TrueExpression()(noLocation)
+  protected def zero = TrueExpression()(NoLocation)
   override def visitExpression(expression : Expression, arg : Null) : Expression = expression match {
     case BinaryExpression(Implication(),lhs,rhs) =>
       // `lhsPrecondition ∧ (lhs ⇒ rhsPrecondition)`

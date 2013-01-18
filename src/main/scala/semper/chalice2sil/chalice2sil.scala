@@ -3,17 +3,14 @@ package semper {
 
 import chalice.ASTNode
 import chalice2sil.translation.{FunctionTranslator, PredicateTranslator, MethodTranslator, FieldTranslator}
-import semper.sil.ast.source.SourceLocation
+import sil.ast.source.{RealSourceLocation, SourceLocation}
 import semper.sil.ast.methods.MethodFactory
 import semper.sil.ast.programs.symbols.{FunctionFactory, PredicateFactory, Field}
 import semper.sil.ast.expressions.terms.{PredicateLocation, Term, FieldLocation, Location}
 
 package object chalice2sil {
     //at some point, use the node's Positional trait to provide a source location.
-    implicit def astNodeToSourceLocation(p : ASTNode) : SourceLocation = new SourceLocation {
-      val pos = p.pos
-      override def toString = "%d.%d".format(pos.line,pos.column)
-    }
+    implicit def astNodeToSourceLocation(p : ASTNode) : SourceLocation = RealSourceLocation(p.pos.line, p.pos.column)
     implicit def astNodeToOptionalSourceLocation(p : ASTNode) : Option[SourceLocation] =
       Some(astNodeToSourceLocation(p))
   

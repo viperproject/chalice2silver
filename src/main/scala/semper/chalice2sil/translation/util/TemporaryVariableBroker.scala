@@ -2,7 +2,7 @@ package semper.chalice2sil.translation.util
 
 import semper.sil.ast.programs.symbols.ProgramVariable
 import semper.sil.ast.types.DataType
-import semper.sil.ast.source.noLocation
+import semper.sil.ast.source.NoLocation
 import semper.chalice2sil.translation.ScopeTranslator
 
 /**
@@ -14,7 +14,7 @@ class TemporaryVariableBroker(environment : ScopeTranslator) {
   private val freeTemporaryVariables = collection.mutable.Map[DataType, List[ProgramVariable]]()
 
   protected def allocate(dataType : DataType) : ProgramVariable = {
-    val temporary = environment.declareScopedVariable(noLocation, environment.getNextName("t"),dataType)
+    val temporary = environment.declareScopedVariable(NoLocation, environment.getNextName("t"),dataType)
     knownTemporaryVariables += temporary
     temporary
   }

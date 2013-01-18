@@ -5,7 +5,7 @@ import scopt._
 import chalice.{Chalice, PrintProgram}
 import translation.ProgramTranslator
 import java.io.File
-import semper.sil.ast.source.noLocation
+import semper.sil.ast.source.NoLocation
 import ch.ethz.inf.pm.silicon.{Silicon, Config}
 
 object Program {
@@ -61,7 +61,7 @@ object Program {
       else
         n
     }).getOrElse("chalice-program")
-    val programLocation = program.headOption.map(astNodeToSourceLocation).getOrElse(noLocation)
+    val programLocation = program.headOption.map(astNodeToSourceLocation).getOrElse(NoLocation)
     val translator = new ProgramTranslator(opts, programName, programLocation)
 
     translator.onNewMessage += (m => {

@@ -2,7 +2,7 @@ package semper.chalice2sil.translation
 
 import semper.sil.ast.programs.symbols.ProgramVariable
 import semper.chalice2sil._
-import semper.sil.ast.source.{noLocation, SourceLocation}
+import semper.sil.ast.source.{NoLocation, SourceLocation}
 import collection._
 import translation.util._
 import semper.sil.ast.expressions.terms._
@@ -71,7 +71,7 @@ trait ScopeTranslator
     val methodExit = blockStack.pop()
 
     cfgFactory.setStartNode(methodEntry)
-    methodExit.setHalt(noLocation)
+    methodExit.setHalt(NoLocation)
     cfgFactory.setEndNode(methodExit)
   }
 
@@ -1130,7 +1130,7 @@ trait ScopeTranslator
     * @return An object with two methods: "end" and "els". Code will only be generated when either of them is called.
     */
   protected def silIfGeneric[T](cond : Expression, condLocation : SourceLocation)(thnBlock : => T) = new {
-    protected val conditionLocation = if(condLocation == noLocation) Some(cond.sourceLocation) else Some(condLocation)
+    protected val conditionLocation = if(condLocation == NoLocation) Some(cond.sourceLocation) else Some(condLocation)
 
     def els[U](elsBlock : => U) = new {
       def end() : (T,Option[U]) = {
@@ -1161,8 +1161,8 @@ trait ScopeTranslator
     }
   }
 
-  protected def silIf[T](cond : Expression, condLocation : SourceLocation = noLocation)(thnBlock : => T) = new {
-    protected val conditionLocation = if(condLocation == noLocation) Some(cond.sourceLocation) else Some(condLocation)
+  protected def silIf[T](cond : Expression, condLocation : SourceLocation = NoLocation)(thnBlock : => T) = new {
+    protected val conditionLocation = if(condLocation == NoLocation) Some(cond.sourceLocation) else Some(condLocation)
 
     def els[U](elsBlock : => U) = new {
       def end() = {
@@ -1182,8 +1182,8 @@ trait ScopeTranslator
                                   thnLoc : Option[SourceLocation] = None,
                                   elsLoc : Option[SourceLocation] = None) : (T, Option[U]) = {
 
-    val thenLocation = thnLoc.getOrElse(noLocation)
-    val elseLocation = elsLoc.getOrElse(noLocation)
+    val thenLocation = thnLoc.getOrElse(NoLocation)
+    val elseLocation = elsLoc.getOrElse(NoLocation)
 
     //Create block for then-branch. (else is only created when necessary)
     val thenBlock = basicBlocks(getNextName("if_then"))
@@ -1222,7 +1222,7 @@ trait ScopeTranslator
   }
 
   def basicBlocks = new FactoryHashCache[String,  BasicBlockFactory]{
-    protected def construct(key : String) = cfgFactory.addBasicBlock(key,noLocation)
+    protected def construct(key : String) = cfgFactory.addBasicBlock(key,NoLocation)
   }
 
   def currentBlock = {
