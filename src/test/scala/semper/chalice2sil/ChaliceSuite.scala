@@ -219,11 +219,9 @@ abstract class ChaliceSuite(matchJustErrorPosition : Boolean = false) extends Fu
               messages = null
               environment = null
               results = null
-
-              // print timings
-              //Console.err.println("Chalice: %d  ms".format(afterChalice-beforeChalice))
-              //Console.err.println("Chalice2SIL: %d  ms".format(afterSIL - afterChalice))
-              //Console.err.println("Silicon: %d  ms".format(afterSilicon- beforeSilicon))
+              info("Chalice: %d  ms".format(afterChalice-beforeChalice))
+              info("Chalice2SIL: %d  ms".format(afterSIL - afterChalice))
+              info("Silicon: %d  ms".format(afterSilicon- beforeSilicon))
             }
         }
       }
