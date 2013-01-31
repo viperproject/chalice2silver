@@ -1,5 +1,6 @@
 package semper.chalice2sil.translation
 
+import scala.language.reflectiveCalls
 import semper.sil.ast.programs.symbols.ProgramVariable
 import semper.chalice2sil._
 import semper.sil.ast.source.{NoLocation, SourceLocation}

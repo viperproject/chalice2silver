@@ -1,5 +1,6 @@
 package semper.chalice2sil.translation.util
 
+import scala.language.implicitConversions
 import semper.sil.ast.source.SourceLocation
 import semper.sil.ast.programs.symbols.{Field, ProgramVariable}
 import semper.chalice2sil.translation.{FieldTranslator, MemberEnvironment}

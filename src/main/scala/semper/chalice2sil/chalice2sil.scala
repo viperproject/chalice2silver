@@ -1,6 +1,7 @@
 
 package semper {
 
+import scala.language.implicitConversions
 import chalice.ASTNode
 import chalice2sil.translation.{FunctionTranslator, PredicateTranslator, MethodTranslator, FieldTranslator}
 import sil.ast.expressions.Expression

@@ -1,8 +1,7 @@
-
 package semper.chalice2sil
 
 import chalice.TopLevelDecl
-import semper.sil.ast.programs.Program
+import semper.sil.ast.programs.{Program => SILProgram}
 import semper.source.DefaultTranslator
 import semper.sil.verifier.{VerificationResult, Verifier}
 import java.io.{PrintStream, FileOutputStream, File}
@@ -14,7 +13,7 @@ import java.io.{PrintStream, FileOutputStream, File}
 class Chalice2SilTranslator(verifier: Verifier, input: String) extends DefaultTranslator(verifier, input) {
 
   var chaliceProgram: List[TopLevelDecl] = null
-  var silProgram: Program = null
+  var silProgram: SILProgram = null
   val progOpts = new ProgramOptions()
 
   def doParse() {
@@ -38,7 +37,7 @@ class Chalice2SilTranslator(verifier: Verifier, input: String) extends DefaultTr
 
   def doTypecheck() {}
 
-  def doTranslate(): Program = {
+  def doTranslate(): SILProgram = {
     val (p, messages) = semper.chalice2sil.Program.translateToSil(progOpts, chaliceProgram)
     silProgram = p
     p

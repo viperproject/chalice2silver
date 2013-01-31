@@ -1,5 +1,6 @@
 package semper.chalice2sil
 
+import scala.language.postfixOps
 import messages.MessageId
 import messages.Severity._
 import semper.sil.ast.source.SourceLocation

@@ -1,5 +1,6 @@
 package semper.chalice2sil.translation
 
+import scala.language.reflectiveCalls
 import operators.Lookup._
 import semper.sil.ast.expressions.{TrueExpression, FalseExpression, Expression}
 import semper.sil.ast.expressions.util.ExpressionSequence

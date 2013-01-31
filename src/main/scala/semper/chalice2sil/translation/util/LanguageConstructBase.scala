@@ -1,5 +1,6 @@
 package semper.chalice2sil.translation.util
 
+import scala.language.implicitConversions
 import semper.sil.ast.source.SourceLocation
 import semper.sil.ast.expressions.util.ExpressionSequence
 import semper.sil.ast.expressions._

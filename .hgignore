@@ -5,3 +5,5 @@ target/**
 .cache
 bin/**
 src/test/resources/semper/chalice2sil/**.chalice.ref
+.idea/
+.idea_modules/

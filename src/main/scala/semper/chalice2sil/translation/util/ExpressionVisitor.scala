@@ -41,7 +41,7 @@ trait ExpressionVisitor[A, R] {
     case PermExpression(location) => visitExpression(getReceiverFromLocation(location), arg)
     case ProgramVariableExpression(v) => zero
     case i: IntegerLiteralExpression => zero
-    case IfThenElseExpression(cond, then, otherwise) => visitMergeExpressions(arg, cond, then, otherwise)
+    case IfThenElseExpression(cond, thn, otherwise) => visitMergeExpressions(arg, cond, thn, otherwise)
     case LogicalVariableExpression(v) => zero
   }
 

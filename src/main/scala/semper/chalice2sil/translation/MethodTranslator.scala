@@ -1,5 +1,6 @@
 package semper.chalice2sil.translation
 
+import scala.language.reflectiveCalls
 import semper.chalice2sil
 import chalice2sil._
 import semper.sil.ast.methods.implementations.BasicBlockFactory

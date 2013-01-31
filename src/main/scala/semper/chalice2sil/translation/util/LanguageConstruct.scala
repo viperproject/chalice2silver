@@ -1,12 +1,12 @@
 package semper.chalice2sil.translation.util
 
+import scala.language.implicitConversions
 import semper.chalice2sil._
 import translation._
 import semper.sil.ast.source.SourceLocation
 import collection.TraversableOnce
 import semper.sil.ast.expressions.util.ExpressionSequence
 import semper.sil.ast.methods.{MethodFactory, Method}
-
 import semper.sil.ast.types.referenceType
 import semper.sil.ast.symbols.logical.And
 import semper.sil.ast.programs.symbols.{PredicateFactory, ProgramVariable, Field}

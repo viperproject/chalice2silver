@@ -1,5 +1,6 @@
 package semper.chalice2sil.translation.operators
 
+import scala.language.reflectiveCalls
 import collection._
 import semper.sil.ast.types.{referenceEquality, DataType, DataTypeSequence}
 

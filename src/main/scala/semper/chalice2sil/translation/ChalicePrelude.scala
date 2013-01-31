@@ -1,15 +1,17 @@
 package semper.chalice2sil.translation
 
+import scala.language.reflectiveCalls
+import scala.language.implicitConversions
+import scala.Tuple1
 import semper.sil.ast.expressions.util.ExpressionSequence
 import semper.sil.ast.expressions.Expression
 import semper.sil.ast.source.{NoLocation, SourceLocation}
 import semper.sil.ast.domains._
 import semper.sil.ast.types._
 import semper.sil.ast.symbols.logical.quantification.LogicalVariable
-import util.{FactoryHashCache, NameSequence}
 import semper.sil.ast.expressions.terms.{NoPermissionExpression, FullPermissionExpression}
-import scala.Tuple1
 import semper.sil.ast.symbols.logical.quantification.Forall
+import util.{FactoryHashCache, NameSequence}
 
 /**
  * Author: Christian Klauser

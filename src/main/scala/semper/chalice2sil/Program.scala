@@ -6,7 +6,8 @@ import chalice.{Chalice, PrintProgram}
 import translation.ProgramTranslator
 import java.io.File
 import semper.sil.ast.source.NoLocation
-import ch.ethz.inf.pm.silicon.{Silicon, Config}
+import semper.sil.verifier.{Success, Error}
+import semper.silicon.{Silicon}
 
 object Program {
 
@@ -172,9 +173,15 @@ object Program {
     // Forward SIL to a custom backend
     progOpts.forwardSil match {
       case None =>
-        val config = new Config(z3exe = progOpts.z3path.get)
-        val silicon = new Silicon(config)
-        val messages = silicon.execute(silProgram)
+        val args = Seq("--z3Exe " + progOpts.z3path.get)
+//        val config = new Config(z3exe = progOpts.z3path.get)
+        val silicon = new Silicon(args)
+        val result = silicon.verify(silProgram)
+
+        result match {
+          case Success =>
+        }
+
         for (m <- messages) {
           Console.out.println(m.toString) //TODO: unify with chalice2sil message system
         }
