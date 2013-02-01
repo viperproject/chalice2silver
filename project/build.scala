@@ -41,16 +41,20 @@ object Chalice2SilBuild extends Build {
             classDirectory in Test <<= classDirectory in Compile,
             libraryDependencies ++= Seq(
               libs.scopt,
-              libs.scalatest)))
+              libs.scalatest,
+              libs.junit)))
   ).dependsOn(libs.chalice, libs.sil, libs.silicon)
   
   object libs {
-    lazy val scalatest = "org.scalatest" %% "scalatest" % "1.8" % "test" withJavadoc() withSources()    
-    lazy val scopt = "com.github.scopt" % "scopt_2.10" % "2.1.0"
     lazy val chalice = RootProject(new java.io.File("../Chalice"))
     lazy val sil = RootProject(new java.io.File("../Sil"))
     lazy val silicon = RootProject(new java.io.File("../Silicon"))
-    
+
+    lazy val scalatest = "org.scalatest" %% "scalatest" % "1.8" % "test" withJavadoc() withSources()
+    lazy val scopt = "com.github.scopt" % "scopt_2.10" % "2.1.0"
+    lazy val junit = "junit" % "junit" % "4.8.1" % "test"
+      /* JUnit seems to only be required by semper.chalice2sil.util.UnicodeManglerTests. */
+
     /* TODO: Dependencies of Silicon. We should package Silicon such that the Silicon
      *       assembly includes all dependencies of Silicon.
      */

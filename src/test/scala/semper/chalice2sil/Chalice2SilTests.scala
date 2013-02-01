@@ -3,7 +3,7 @@ package semper.chalice2sil
 import semper.sil.testing.DefaultSilSuite
 import semper.sil.verifier.Verifier
 import semper.source.Translator
-import ch.ethz.inf.pm.silicon.SiliconVerifier
+import semper.silicon.Silicon
 
 /** All tests for chalice2sil.
   *
@@ -15,5 +15,15 @@ class Chalice2SilTests extends DefaultSilSuite {
 
   override def translator(verifier: Verifier, input: String): Translator = new Chalice2SilTranslator(verifier, input)
 
-  override def verifiers: Seq[Verifier] = Vector(new SiliconVerifier())
+  override def verifiers: Seq[Verifier] = Vector(instantiateSilicon())
+
+  private def instantiateSilicon() = {
+    /* ScalaCheck supports passing arguments to test suites via -Dkey=value. However,
+     * since keys may not start with '--' and since Silicon's options all start with '--',
+     * we have to prepend the prefix here.
+     */
+    val args: Seq[String] = configMap.flatMap{case (k, v) => Seq("--" + k, v.toString)}.toSeq
+
+    new Silicon(args)
+  }
 }

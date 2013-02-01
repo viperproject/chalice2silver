@@ -73,9 +73,5 @@ class SilAstTests extends FunSuite with ShouldMatchers {
         NoLocation),
         NoLocation)
     }
-
-    val p = pf.getProgram
-
-    p
   }
 }
