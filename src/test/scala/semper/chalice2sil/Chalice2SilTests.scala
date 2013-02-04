@@ -22,6 +22,11 @@ class Chalice2SilTests extends DefaultSilSuite {
      * since keys may not start with '--' and since Silicon's options all start with '--',
      * we have to prepend the prefix here.
      */
+    assert(
+      configMap != null,
+      "configMap is null, but should have been initialised in underlying ScalaTest class (" +
+      "semper.sil.testing.SilSuite?)")
+
     val args: Seq[String] = configMap.flatMap{case (k, v) => Seq("--" + k, v.toString)}.toSeq
 
     new Silicon(args)
