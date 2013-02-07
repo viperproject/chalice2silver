@@ -5,7 +5,7 @@ class Test01 {
     ensures c > 1
     ensures d >= 2
     ensures e < 5
-    //:: ExpectedError(310)
+    //:: ExpectedError(post.violated:ass.false)
     ensures f <= 2
   {
     a := 0
@@ -26,7 +26,7 @@ class Test01 {
     assert a == 1
     
     a := 2
-    //:: ExpectedError(410)
+    //:: ExpectedError(ass.violated:ass.false)
     assert a > 2
   }
 }
