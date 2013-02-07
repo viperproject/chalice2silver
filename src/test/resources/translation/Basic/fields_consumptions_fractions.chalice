@@ -16,6 +16,7 @@ class Test {
 	{
 		call reqX100()
 		call greedyXRd()
-		assert(acc(x, 100)) /* @Error 410 */
+		//:: ExpectedError(ass.violated:ass.false)
+		assert(acc(x, 100))
 	}
 }

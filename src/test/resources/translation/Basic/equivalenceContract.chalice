@@ -1,6 +1,7 @@
 class Main{
     method main()
-        ensures false == true /* @Error 310 */
+        //:: ExpectedError(post.violated:ass.false)
+        ensures false == true
     {}
 
     method main2()

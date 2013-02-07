@@ -27,7 +27,16 @@ class Chalice2SilTests extends DefaultSilSuite {
       "configMap is null, but should have been initialised in underlying ScalaTest class (" +
       "semper.sil.testing.SilSuite?)")
 
-    val args: Seq[String] = configMap.flatMap{case (k, v) => Seq("--" + k, v.toString)}.toSeq
+    /* Filter all configMap entries where the key starts with 'silicon:'. Such entries are
+     * forwarded to Silicon as (command-line) arguments after the prefix 'silicon:' has been
+     * removed.
+     */
+    val prefix = "silicon:"
+
+    val args: Seq[String] =
+      configMap.filter{case (k, _) => k.startsWith(prefix)}
+               .flatMap{case (k, v) => Seq("--" + k.replace(prefix, ""), v.toString)}
+               .toSeq
 
     new Silicon(args)
   }
