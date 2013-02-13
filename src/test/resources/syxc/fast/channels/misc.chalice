@@ -1,10 +1,6 @@
 channel ChTrue() where true
 
 class Test {
-	// method error1(ch: ChTrue)
-		// requires ch != null && !credit(ch, -2) /* Type error */
-	// {}
-
   method fails0(ch: ChTrue)
     requires ch != null && credit(ch, 2)
     requires rd(ch.mu) && waitlevel << ch.mu
@@ -13,11 +9,6 @@ class Test {
     receive ch
     receive ch /* @Error 2270 */
   }
-  
-  // method send_2(ch: ChTrue)
-    // requires ch != null && credit(ch, -2) /* Lowers ch.mu below waitlevel */
-    // requires rd(ch.mu) && waitlevel << ch.mu /* Contradicts */
-  // { assert false }
 
   method fails1() {
     var ch: ChTrue := new ChTrue    

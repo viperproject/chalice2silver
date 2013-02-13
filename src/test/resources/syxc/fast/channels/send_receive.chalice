@@ -16,7 +16,8 @@ class SendTests {
 		var ch: ChTrue := new ChTrue
 		assert credit(ch, 0)
 		send ch()
-		assert credit(ch, 2) /* @Error 410 */
+		//:: ExpectedError(ass.violated:ass.false)
+		assert credit(ch, 2)
 	}
 	
 	method succeeds2(x: int)

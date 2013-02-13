@@ -11,7 +11,8 @@ class CreditTests {
 		assert credit(ch, 0)
 		assert credit(ch, 1)
 		assert credit(ch, 3)
-		assert credit(ch, 4) /* @Error 410 */
+		//:: ExpectedError(ass.violated:ass.false)
+		assert credit(ch, 4)
 	}
 
 	method succeeds1(ch: ChTrue, b: bool, c: bool)
@@ -27,7 +28,10 @@ class CreditTests {
 		requires ch != null && credit(ch, 1)
 		requires b ==> credit(ch, 1)
 	{
-		if (b) { assert credit(ch, 3) } /* @Error 410 */
+		if (b) {
+		  //:: ExpectedError(ass.violated:ass.false)
+		  assert credit(ch, 3)
+    }
 	}
 
 	method fails2(ch: ChTrue)
@@ -35,7 +39,8 @@ class CreditTests {
 	{
 		call fails1(ch)
 		assert credit(ch, 0)
-		assert credit(ch, 1) /* @Error 410 */
+		//:: ExpectedError(ass.violated:ass.false)
+		assert credit(ch, 1)
 	}
 	
 	method fails5(ch1: ChTrue, ch2: ChTrue)
@@ -44,8 +49,9 @@ class CreditTests {
 		requires credit(ch2, -1)
 	{
 		assert credit(ch2, -1)
-		assert credit(ch1, 1) /* @Error 410 */
-			/* ch1 and ch2 might be aliases */
+		//:: ExpectedError(ass.violated:ass.false)
+	  //   ch1 and ch2 might be aliases
+		assert credit(ch1, 1)
 	}
 }
 

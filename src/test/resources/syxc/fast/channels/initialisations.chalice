@@ -11,7 +11,8 @@ class InitialisationTests {
 		
 		var t: InitialisationTests := new InitialisationTests
 		assert t.mu == lockbottom
-		assert waitlevel << t.mu /* @Error 410 */
+		//:: ExpectedError(ass.violated:ass.false)
+		assert waitlevel << t.mu
 	}
 	
 	method succeeds() {

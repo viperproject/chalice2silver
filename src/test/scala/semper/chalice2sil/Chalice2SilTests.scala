@@ -12,7 +12,11 @@ import semper.silicon.Silicon
 class Chalice2SilTests extends DefaultSilSuite {
 
   override def testDirectories: Seq[String] =
-    Vector("benchmark", "translation", "syxc/fast/basics", "syxc/fast/branching")
+    Vector("benchmark",
+           "translation",
+           "syxc/fast/basics",
+           "syxc/fast/branching",
+           "syxc/fast/channels")
 
   override def translator(verifier: Verifier, input: String): Translator =
     new Chalice2SilTranslator(verifier, input)
