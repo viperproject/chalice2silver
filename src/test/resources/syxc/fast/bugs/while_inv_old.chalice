@@ -1,0 +1,16 @@
+class Test {
+	var x: Test
+	
+	method test()
+		requires rd(x)
+		ensures rd(x)
+	{
+		while (true)
+			invariant rd(x)
+			invariant x == old(x) /* @Fails but should hold! */
+				/* Question: What is the old-heap when producing the invariant in
+				 * order to check well-definedness / self-framing?
+				 */
+		{}
+	}
+}

@@ -1,0 +1,31 @@
+class Test {
+  var x: int
+  
+  predicate P { true }
+  
+  method consumeRdStarP()
+    requires rd*(P)
+  {}
+  
+  method test01()
+    requires acc(P)
+  {
+    call consumeRdStarP()
+    assert acc(P, rd(P)) /* @Error 430 */
+  }
+
+  method consumeRdStarX()
+    requires rd*(x)
+  {}
+  
+  method test02()
+    requires acc(x)
+  {
+    call consumeRdStarX()
+    // assert rd(x) // (?) fails: insufficient fraction
+    // assert acc(x, rd) // (current method read) fails: insufficient fraction
+    // assert acc(x, rd(x)) // (1 epsilon) fails: permission at might not be positive
+    assert acc(x, current(this.x))
+    assert acc(x, 2 * current(this.x)) /* @Error 430 */
+  }
+}

@@ -1,0 +1,20 @@
+class BooleansBasic {
+	method noSpecs()
+	{ }
+	
+	method trivial()
+		requires true;
+		ensures true;
+	{ }
+	
+	method reqFalse()
+		requires false;
+		ensures true;
+	{ }
+	
+	method failEnsFalse()
+		requires true;
+		//:: ExpectedError(post.violated:ass.false)
+		ensures false;
+	{ }
+}

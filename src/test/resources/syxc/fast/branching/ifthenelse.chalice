@@ -1,0 +1,109 @@
+class IfThenElse {
+	method abs(x: int) returns (r: int)
+		ensures r >= 0 && (r == x || r == -x) && (r*r == x*x)
+	{
+		if (x < 0) {
+			r := -x
+		} else {
+			r := x
+		}
+	}
+	
+	method absEven(x: int) returns (r: int)
+		ensures r >= 0
+		ensures r % 2 == 0
+	{
+		if (x < 0) {
+			r := -x
+		} else {
+			r := x
+		}
+		
+		var b1: int := r
+		
+		if (b1 % 2 == 0) {
+			r := b1
+		} else {
+			r := b1 + 1
+		}
+	}
+	
+	method nested(x: int, y: int) returns (r: int)
+		ensures r > 0
+	{
+		if (x >= 0) {
+			if (y >= 0) {
+				r := x + y
+			} else {
+				r := x - y
+			}
+		} else {
+			if (y > 0) {
+				r := -x + y
+			} else {
+				r := -x - y
+			}
+		}
+		
+		r := r + 1
+	}
+	
+	method failAbsOnePath(x: int) returns (r: int)
+		//:: ExpectedError(post.violated:ass.false)
+		ensures r >= 0
+	{
+		if (x < 0) {
+			r := x
+		} else {
+			r := x
+		}
+	}
+	
+	method failAbsBothPaths(x: int) returns (r: int)
+		//:: ExpectedError(post.violated:ass.false)
+		ensures r >= 0
+	{
+		if (x < 0) {
+			r := x
+		} else {
+			r := -x
+		}
+	}
+	
+	method failAbsEven(x: int) returns (r: int)
+		ensures r >= 0
+		//:: ExpectedError(post.violated:ass.false)
+		ensures r % 2 == 0
+	{
+		if (x < 0) {
+			r := -x
+		} else {
+			r := x
+		}
+		
+		if (r % 2 == 0) {
+			r := r + 1
+		}
+	}
+	
+	method failNested(x: int, y: int) returns (r: int)
+		//:: ExpectedError(post.violated:ass.false)
+		ensures r > 0
+	{
+		if (x >= 0) {
+			if (y >= 0) {
+				r := x + y
+			} else {
+				r := x - y
+			}
+		} else {
+			if (y > 0) {
+				r := y - x
+			} else {
+				r := x - y
+			}
+		}
+		
+		r := r + 1
+	}
+}

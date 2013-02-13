@@ -1,0 +1,49 @@
+class Test {
+	method test() {
+		var t1: Test := new Test
+		var t2: Test := new Test
+		var t3: Test := new Test
+		
+		assert waitlevel == waitlevel
+		
+		share t1 above waitlevel
+		share t2 above t1
+		// share t3 above t2
+		
+		// assert t1.mu == t2.mu // Fails
+		// assert t1.mu == t3.mu // Fails
+		// assert t2.mu == t3.mu // Fails
+		
+		assert waitlevel == t1.mu // OK, << ok
+		assert waitlevel == t2.mu // OK, << ok
+		// assert waitlevel == t3.mu // FAILS, << fails
+		
+		// acquire t2 // OK
+		acquire t1
+		share t3 above waitlevel
+		
+		assert waitlevel == t1.mu // OK, << fails
+		assert waitlevel == t1.mu // OK, << fails
+		assert waitlevel == t2.mu // OK, << ok
+		assert waitlevel == t3.mu // OK, << ok
+		
+		// acquire t2 // OK
+		acquire t3
+		// acquire t2 // FAIL
+		
+		release t3
+		release t1
+	}
+	
+	method shareAboveWaitlevel() {
+		var t1: Test := new Test
+		var t2: Test := new Test
+		
+		share t1 above waitlevel
+		share t2 above t1
+		acquire t2
+
+		// assert t1.mu << waitlevel /* e.mu << waitlevel is currently not supported. */
+		unshare t2
+	}
+}

@@ -1,0 +1,59 @@
+// @IgnoreFile
+// FieldAccess in permission expressions is currently not supported
+// in Syxc due to changes made when introducing the tuple
+// representation (w, r) of permissions as part of the work on immutability.
+
+/* There was a bug with multiple consecutive acc-ensures (i.e. produces)
+ * such that each produce would overwrite the existing snapshot that a
+ * field or predicate chunk covered.
+ */
+class Test {
+	var x: int
+	
+	predicate V { acc(x) }
+	
+	method succeed1()
+		requires acc(x)
+		ensures rd(x)
+		ensures x == 1
+		ensures acc(x, x)
+			/* TODO: Currently results in the Z3-evaluation of multiple
+			 *       ExpressionFractions, i.a. EF(1, 0), all of which could be
+			 *       reduced to ConstantFractions.
+			 */
+		ensures acc(x, x)
+			/* Failed due to the bug since it was not known anymore that
+			 * 0 <= x <= 100.
+			 */
+	{ x := 1}
+	
+	method succeed2()
+		requires acc(x)
+		ensures rd(V)
+		ensures rd(x)
+		ensures x == 1
+		ensures acc(V, x)
+		ensures acc(V, x)
+	{
+		x := 1
+		fold acc(V, 99)
+	}
+	
+	method succeed3()
+		requires acc(x)
+		ensures rd(x)
+		ensures x == 2
+	{
+		x := 1
+		x := x + 1
+	}
+	
+	method fail()
+		requires acc(x)
+		ensures rd(x)
+		ensures x == 1 /* @Error 310 */
+	{
+		x := 1
+		x := x + 1
+	}
+}

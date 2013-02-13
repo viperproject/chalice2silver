@@ -1,0 +1,33 @@
+class BooleanArguments {
+	method boolCompareLiterals(a: bool, b: bool, c: bool)
+		requires a == true
+		requires b == false
+		requires c == true
+		ensures a == true
+		ensures b == false
+		ensures a && b == false
+		ensures a && c == true
+	{}
+
+	method boolCompareArguments(a: bool, b: bool, c: bool)
+		requires a != b
+		requires b != c
+		ensures a == c
+	{}
+	
+	method failBoolCompareLiterals1(a: bool)
+		//:: ExpectedError(post.violated:ass.false)
+		ensures a == true
+	{}
+	
+	method failBoolCompareLiterals2(a: bool)
+		//:: ExpectedError(post.violated:ass.false)
+		ensures a != true
+	{}
+	
+	method failBoolCompareLiterals3(a: bool)
+		requires a == true
+		//:: ExpectedError(post.violated:ass.false)
+		ensures a == false
+	{}
+}

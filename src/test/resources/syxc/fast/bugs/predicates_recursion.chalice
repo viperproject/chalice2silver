@@ -1,0 +1,11 @@
+// @IgnoreFile
+// Recursive predicates that do not go via a function are currently not handled by
+// Syxc. There should be a kind of recursion stopper similar to what is done with
+// recursive functions, but it currently is not implemented. Instead, Syxc raises
+// an error when it detects such a predicate.
+
+class Test {
+  var t: Test
+
+  predicate P1 { acc(t) && (t != null ==> acc(t.P1) && unfolding t.P1 in true) }
+}

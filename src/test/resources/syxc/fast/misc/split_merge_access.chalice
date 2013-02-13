@@ -1,0 +1,38 @@
+/* Simplifies iterator.chalice from Chalice's test suite, and previously
+ * suffered from the same shortcomming of Syxc (term aliasing through
+ * the path conditions).
+ */
+class Cell { var x: int }
+
+class CellHolder {
+	var c: Cell
+	
+	predicate V { rd(c) && c != null && acc(c.x, 10) }
+	
+	method init(ac: Cell)
+		requires ac != null
+		requires acc(ac.x, 10)
+		requires acc(c)
+		ensures V
+		ensures rd(c) && c == ac
+	{
+		c := ac
+		fold V
+	}	
+}
+
+class Test {
+	method foo() {
+		var c: Cell := new Cell
+		var ch1: CellHolder := new CellHolder
+		var ch2: CellHolder := new CellHolder
+		
+		call ch1.init(c)
+		call ch2.init(c)
+		
+		unfold ch1.V
+		unfold ch2.V
+
+		assert acc(c.x, 100)
+	}
+}

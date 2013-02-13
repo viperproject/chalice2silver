@@ -1,0 +1,36 @@
+class RawCell {
+	var x: int
+	
+	method set(v: int)
+		requires acc(x)
+		ensures acc(x) && get() == v
+	{ x := v }
+	
+	function get(): int
+		requires acc(x)
+	{ x }
+}
+
+class CellContainer {
+	var c1: RawCell
+	var c2: RawCell
+	
+	method init(d1: RawCell, d2: RawCell)
+		requires d1 != null && d2 != null
+		requires acc(c1) && acc(c2)
+		requires acc(d1.x) && acc(d2.x)
+		ensures acc(c1) && acc(c2)
+		ensures acc(d1.x) && acc(d2.x)
+		ensures get(true) == d1.get() /* @Error 210 TODO: Improve error msg. */
+		ensures get(false) == d2.get()
+	{
+		this.c1 := d1
+		this.c2 := d2
+	}
+	
+	function get(first: bool): int
+		requires first
+				? acc(c1) && c1 != null && acc(c1.x)
+				: acc(c2) && c2 != null && acc(c2.x)
+	{ first ? this.c1.x : this.c2.x }
+}

@@ -1,0 +1,669 @@
+class Sequences {
+	var xs: seq<int>
+	var ys: seq<int>
+
+	method declare(zs: seq<int>) returns (bs: seq<bool>)
+	{ var cs: seq<Sequences> }
+
+	method initEmpty01()
+		requires acc(xs)
+	{
+		assert [] == []
+
+		xs := nil<int>
+		assert xs == nil<int>
+		assert xs == []
+
+		xs := []
+		assert xs == nil<int>
+
+		assert |[]| == 0
+		assert |nil<int>| == 0
+		assert |xs| == 0
+	}
+
+	method initEmpty()
+		requires acc(xs) && acc(ys)
+		ensures acc(xs) && acc(ys)
+		ensures |xs| == 0 && |ys| == 0
+		ensures xs == [] && ys == nil<int>
+		ensures xs == ys
+	{
+		xs := nil<int>
+		ys := []
+	}
+
+	method fail1InitEmpty()
+		requires acc(xs)
+		ensures acc(xs)
+		ensures |xs| == 1 /* @Error 310 */
+	{ xs := nil<int> }
+
+	method fail2InitEmpty()
+		requires acc(xs)
+	{
+		xs := []
+		assert |xs| == 2 /* @Error 410 */
+	}
+
+	method initExplicit()
+		requires acc(xs) && acc(ys)
+		ensures acc(xs) && acc(ys)
+		ensures |xs| == 3 && |ys| == 1
+		ensures xs != [] && ys != nil<int>
+	{
+		xs := [1,2,3]
+		ys := [0]
+	}
+
+	method failEq()
+	{ assert [1,2,3] == [3,2,1] /* @Error 410 */ }
+
+	method failsSeqEq(zs1: seq<int>, zs2: seq<int>)
+	{ assert zs1 == zs2 /* @Error 410 */ }
+
+	method alwaysPositiveLength(zs: seq<int>)
+		requires acc(xs)
+	{
+		assert |zs| >= 0
+		assert |xs| >= 0
+	}
+
+	method failLength()
+		requires acc(xs) && acc(ys)
+	{ assert |xs| == |ys| /* @Error 410 */ }
+
+	method increasingLength()
+		requires acc(xs)
+		ensures acc(xs)
+	{
+		assert |xs ++ [1]| > |xs|
+		assert |[1] ++ xs| > |xs|
+	}
+
+	method failIncreasingLength()
+		requires acc(xs)
+	{ assert |xs ++ []| > |xs| /* @Error 410 */ }
+
+	method concatLength()
+		requires acc(xs) && acc(ys)
+		ensures acc(xs)	&& acc(ys)
+	{
+		assert |xs ++ ys| == |xs| + |ys|
+		assert |xs ++ ys| == |ys| + |xs|
+		assert |xs ++ ys| == |ys ++ xs|
+	}
+
+	method concatNil(zs: seq<int>) {
+		assert zs ++ [] == zs
+		assert [] ++ zs == zs
+		assert [] ++ zs ++ [] == zs
+		assert [] ++ [] ++ [] == []
+		assert |zs ++ []| == |zs|
+		assert |[] ++ zs| == |zs|
+		assert |[] ++ zs ++ []| == |zs|
+		assert |[] ++ [] ++ []| == 0
+	}
+
+	/* Tests DefaultResolver, DefaultDecider.getVars, DefaultDecider.getFuncs */
+	function f(i: int): int { 2 * i }
+	function g(i: int): int { 2 * i }
+	method functionInSeqTerms(i: int)
+		requires i > 0
+		requires acc(xs)
+		requires |xs| > i
+		ensures acc(xs)
+		ensures f(i) == g(i)
+	{
+		assert |xs ++ [f(i)]| > |xs|
+		assert [g(i)] == [] ++ [f(i)] ++ []
+		assert |[g(i)]| == |[] ++ [f(i)] ++ []|
+	}
+
+	method atExplicitSequence()
+		requires acc(xs)
+		ensures acc(xs)
+		ensures forall i in [0..|xs|] :: xs[i] == i + 1
+	{
+		xs := [1,2,3]
+		assert xs[0] == 1
+		assert xs[1] == 2
+		assert xs[2] == 3
+	}
+
+	method atEq(zs: seq<int>, a: int, b: int)
+		requires 0 <= a && a < |zs|
+		requires a == b
+	{ assert zs[a] == zs[b] }
+
+	method failAtEq10(zs: seq<int>, a: int, b: int)
+		requires 0 <= a && a < |zs|
+		requires a == b
+	{ assert zs[a] != zs[b] /* @Error 410 */ }
+
+	method failAtEq20(zs: seq<int>, a: int, b: int)
+		requires 0 <= a && a < |zs|
+		requires 0 <= b && b < |zs|
+		ensures zs[a] == zs[b] /* @Error 310 */
+	{}
+
+	method concat10(ins: seq<int>, a: int) returns (outs: seq<int>)
+		ensures |outs| == |ins| + 1
+		ensures outs[|outs| - 1] == a
+	{ outs := ins ++ [a] }
+
+	method concat20(a: int)
+		requires acc(xs)
+		ensures acc(xs)
+		ensures |xs| == old(|xs|) + 1
+		ensures xs[|xs| - 1] == a
+	{ xs := xs ++ [a] }
+
+	method concat25(a: int) returns (zs: seq<int>)
+		requires acc(xs)
+		ensures acc(xs)
+		ensures |zs| == |xs| + 1
+	{ zs := xs ++ [a] }
+
+	method concat30() returns (zs: seq<int>)
+		requires acc(xs) && acc(ys)
+		ensures acc(xs) && acc(ys)
+		ensures |zs| == old(|xs| + |ys|)
+		ensures |xs| == old(|xs| + 3)
+		ensures |ys| == old(|ys| + 1)
+	{
+		zs := xs ++ ys
+		xs := xs ++ [1, 2, 3]
+		ys := [1] ++ ys
+	}
+
+	method concat40(zs1: seq<int>, zs2: seq<int>)
+		requires |zs1| > 0
+		requires |zs2| > 0
+	{
+		var zs: seq<int>
+		zs := zs1 ++ zs2
+		assert zs[|zs1|] == zs2[0]
+	}
+
+	method separateEmpty(i: int)
+		requires i >= 0 && i < 6
+	{
+		assert [1,2,3,4,5,6][i..i] == []
+		assert |[1,2,3,4,5,6][i..i]| == 0
+		assert [][0..0] == []
+		assert |[][0..0]| == 0
+	}
+
+	method failSeparateBounds(i: int, j: int)
+	{ assert [1,2,3,4,5,6][2..1] == [] /* @Error 2300 */ }
+
+	method separateLength(i: int, j: int)
+		requires acc(xs)
+		requires i >= 0 && j >= 0
+		requires i <= j && j < |xs|
+		ensures acc(xs)
+	{ assert |xs[i..j]| == j - i }
+
+	method failSeparateLength(i: int, j: int)
+		requires acc(xs)
+		requires i >= 0 && j >= 0
+		requires i <= j && j < |xs|
+	{ assert |xs[i..j]| != j - i /* @Error 410 */ }
+
+	method reseparate()
+		requires acc(xs) && acc(ys)
+		ensures acc(xs) && acc(ys)
+	{
+		assert (xs ++ ys)[..|xs|] == xs
+		assert |(xs ++ ys)[..|xs|]| == |xs|
+		assert (xs ++ ys)[0..|xs|] == xs
+		assert (xs ++ ys)[|xs|..] == ys
+		assert |(xs ++ ys)[|xs|..]| == |ys|
+		assert (xs ++ ys)[|xs|..|xs ++ ys|] == ys
+		assert |(xs ++ ys)[|xs|..|xs ++ ys|]| == |ys|
+	}
+
+	method fail10Reseparate()
+		requires acc(xs) && acc(ys)
+	{ assert (xs ++ ys)[..|xs|] != xs /* @Error 410 */ }
+
+	method fail20Reseparate()
+		requires acc(xs) && acc(ys)
+	{ assert |(xs ++ ys)[..|xs|]| != |xs| /* @Error 410 */ }
+
+	method separatePrefix() {
+		var zs: seq<int> := [1,2,3,4]
+		// assert zs[..1] == [1]
+		// assert |zs[..1]| == 1
+		assert zs[..2] == [1,2]
+		// assert |zs[..2]| == 2
+		// assert zs[..3] == [1,2,3]
+		// assert |zs[..3]| == 3
+	}
+
+	method fail10SeparatePrefix()
+	{ assert [1,2,3,4][..3] == [1,2,3,4] /* @Error 410 */ }
+
+	method fail20SeparatePrefix()
+	{ assert |[1,2,3,4][..3]| == 4 /* @Error 410 */ }
+
+	method separateSuffix() {
+		var zs: seq<int> := [1,2,3,4,5]
+		assert zs[2..] == [3,4,5]
+		assert |zs[2..]| == 3
+		assert zs[4..] == [5]
+		assert |zs[4..]| == 1
+	}
+
+	method fail10SeparateSuffix()
+	{ assert [1,2,3,4,5][2..] == [2,3,4,5] /* @Error 410 */ }
+
+	method fail20SeparateSuffix()
+	{ assert |[1,2,3,4,5][2..]| == 4 /* @Error 410 */ }
+
+	method separateMiddle() {
+		var zs: seq<int> := [1,2,3,4,5,6]
+		assert zs[2..4] == [3,4]
+		assert |zs[2..4]| == 2
+		assert zs[1..5] == [2,3,4,5]
+		assert |zs[1..5]| == 4
+		assert zs[3..4] == [4]
+		assert |zs[3..4]| == 1
+	}
+
+	method fail10SeparateMiddle()
+	{	assert [1,2,3,4,5,6][2..4] == [2,3,4] /* @Error 410 */ }
+
+	method fail20SeparateMiddle()
+	{	assert |[1,2,3,4,5,6][2..4]| == 3 /* @Error 410 */ }
+
+	method fail30SeparateMiddle()
+	{	assert [1,2,3,4,5,6][3..4] == [2] /* @Error 410 */ }
+
+	method separateConcatExplicit()
+	{
+		var zs: seq<int> := [1,2,3,4,5,6]
+		var hd: int := zs[0]
+		var tl: seq<int> := zs[1..]
+		assert [hd] ++ tl == [1,2,3,4,5,6]
+		assert [hd] ++ tl == zs
+	}
+
+	method separateConcat10(zs: seq<int>)
+		requires |zs| >= 4
+	{
+		var head: int := zs[0]
+		var tail: seq<int> := zs[1..]
+
+		assert zs[0..1] ++ zs[1..] == zs
+		assert [head] ++ zs[1..] == zs
+		assert zs[0..1] ++ tail == zs
+		assert [head] ++ tail == zs
+		assert zs[0..2] ++ zs[2..] == zs
+		assert zs[0..3] ++ zs[3..] == zs
+	}
+
+	method separateConcat15(zs: seq<int>)
+		requires |zs| >= 10
+	{
+		var e0: int := zs[0]
+		var e1: int := zs[1]
+		var e5: int := zs[5]
+
+		assert [e0] ++ [e1] ++ zs[2..] == zs
+		assert [e0] ++ [e1] ++ zs[2..5] ++ [e5] == zs[..6]
+		assert [e0] ++ [e1] ++ zs[2..5] ++ [e5] ++ zs[6..] == zs
+	}
+
+	method separateConcat20(i :int, j: int)
+		requires acc(xs)
+		requires i >= 0 && i < |xs|
+		requires j >= 0 && j < |xs|
+		requires i < j
+	{
+		var front: seq<int> := xs[0..i]
+		var centre: seq<int> := xs[i..j]
+		var rear: seq<int> := xs[j..]
+
+		assert xs[0..i] ++ xs[i..] == xs
+		assert front ++ centre ++ rear == xs
+	}
+
+	method failSeparateConcat10(zs: seq<int>)
+		requires |zs| >= 4
+	{
+		var head: int := zs[0]
+		assert [head] ++ zs[0..] == zs /* @Error 410 */
+	}
+
+	method failSeparateConcat20(zs: seq<int>)
+		requires |zs| >= 4
+	{
+		var head: int := zs[0]
+		assert [head] ++ zs[0..] == zs /* @Error 410 */
+	}
+
+	method failSeparateConcat30(i :int, j: int)
+		requires acc(xs)
+		requires i >= 0 && i < |xs|
+		requires j >= 0 && j < |xs|
+		requires i < j
+	{ assert xs[0..i+1] ++ xs[i..] == xs /* @Error 410 */}
+
+	method failSeparateConcat40(i :int, j: int)
+		requires acc(xs)
+		requires i >= 0 && i < |xs|
+		requires j >= 0 && j < |xs|
+		requires i < j
+	{ assert xs[0..i+1] ++ xs[i..] == xs /* @Error 410 */}
+
+	method separateConcat50(zs: seq<int>)
+		requires |zs| >= 10
+	{
+		var e0: int := zs[0]
+		var e1: int := zs[1]
+		var e5: int := zs[5]
+
+		assert [e0] ++ [e1] ++ zs[2..4] ++ [e5] == zs[..6] /* @Error 410 */
+	}
+
+	method contains(zs1: seq<int>, zs2: seq<int>)
+		requires 1 in zs1
+		requires 2 in zs2 && 3 in zs2
+		ensures 1 in zs1
+		ensures 2 in zs2 && 3 in zs2
+		ensures forall i in [0..|zs1|] :: zs1[i] in zs1
+		ensures zs1 == zs2 ==> forall i in [0..|zs1|] :: zs1[i] in zs2
+	{}
+
+	method containsExplicit() {
+		assert 1 in [1,2,3] /* @Fails */
+		assert 2 in [1,2,3]
+		assert 3 in [1,2,3]
+		assert 2 in [2]
+	}
+
+	method failsContainsExplicit()
+	{ assert 0 in [1,2,3] /* @Error 410 */ }
+
+	method failsContainsEmpty10()
+	{ assert 0 in [] /* @Error 410 */ }
+
+	// method failsContainsEmpty20()
+	// { assert exists x in [1,2,3] /* @Error */ }
+
+	method failContains(zs1: seq<int>, zs2: seq<int>)
+		requires 1 in zs1
+		ensures 2 in zs1 /* @Error 310 */
+	{}
+
+	method containsExplicitLength(zs1: seq<int>, zs2: seq<int>)
+		requires 1 in zs1
+		requires 2 in zs2 && 3 in zs2
+		ensures |zs1| >= 1
+		ensures |zs2| >= 2
+	{}
+
+	method containsLength(zs1: seq<int>, zs2: seq<int>, a: int, b: int, c: int)
+		requires a != b && b != c && c != a
+		requires a in zs1 && b in zs1
+		requires a in zs2 && b in zs2 && c in zs2
+		ensures |zs1| >= 2
+		ensures |zs2| >= 3
+	{}
+
+	method failsContainsLength10(zs: seq<int>, a: int, b: int)
+		requires a in zs && b in zs
+		ensures |zs| >= 2 /* @Error 310 */
+	{}
+
+	method failsContainsLength20(zs: seq<int>, a: int, b: int, c: int)
+		requires a != b
+		requires a in zs && b in zs && c in zs
+		ensures |zs| > 2 /* @Error 310 */
+	{}
+
+	method containsAppendExplicit() {
+		assert 1 in ([0] ++ [1]) /* @Fails */
+		assert forall x in [0..5] :: x in ([0,1,2] ++ [2,3,4])
+		assert forall x in [0..5] :: x in ([0,1] ++ [2] ++ [3,4])
+	}
+
+	method failsContainsAppendExplicit()
+	{ assert forall x in [0..5] :: x in ([0,1] ++ [1] ++ [3,4]) /* @Error 410 */ }
+
+	method containsAppend(zs1: seq<int>, zs2: seq<int>, a: int, b: int, c: int)
+		requires a in zs1 && b in zs2 && c in zs2
+		ensures forall x in [a,b,c] :: x in zs1 ++ zs2
+		ensures forall x in [a,b,c] :: x in zs2 ++ zs1
+		ensures forall i in [0..|zs2 ++ zs1|] :: (zs2 ++ zs1)[i] in zs2 ++ zs1
+		ensures forall i in [0..|zs1|] :: zs1[i] in zs2 ++ zs1
+		ensures forall i in [0..|zs2|] :: zs2[i] in zs2 ++ zs1
+	{}
+
+	method failsContainsAppend10(zs1: seq<int>, zs2: seq<int>, a: int, b: int)
+		requires a in zs1 && b in zs2
+		ensures forall x in [a,b] :: x in zs1 ++ zs1 /* @Error 310 */
+	{}
+
+	method failsContainsAppend20(zs1: seq<int>, zs2: seq<int>, a: int, b: int)
+		requires a in zs1 && b in zs2
+		ensures forall i in [0..|zs2|] :: zs2[i] in zs1 ++ zs1 /* @Error 310 */
+	{}
+
+	method containsSeparate()
+		requires acc(xs) && |xs| >= 10
+		ensures acc(xs) && |xs| >= 10
+	{
+		var zs: seq<int> := xs[0..5] ++ [3] ++ xs[6..10]
+		assert 3 in zs /* @Fails */
+		assert xs[0] in xs[0..1]
+		assert xs[0] in xs[0..]
+		assert xs[2] in xs[0..]
+		assert xs[2] in xs[2..3]
+		assert xs[|xs|-1] in xs[5..]
+		assert forall i in [0..5] :: xs[i] in zs
+		assert forall i in [6..10] :: xs[i] in zs
+		assert forall i in [0..5] ++ [6..10] :: xs[i] in zs
+		assert forall i in [4..6] :: xs[i] in xs[4..6]
+		assert forall i in [4..6] :: xs[i] in xs[3..7]
+		assert forall x in xs :: x in xs
+		assert forall x in xs :: x != xs[5] ==> x in zs ++ xs[10..]
+	}
+
+	method failsContainsSeparateExplicit5()
+	{ assert 0 in [0,1,2,3,4][1..] /* @Error 410 */ }
+
+	method failsContainsSeparateExplicit10()
+	{ assert 3 in [0,1,2,3,4][0..2] /* @Error 410 */ }
+
+	method failsContainsSeparateExplicit20()
+	{ assert 3 in [0,1,2,3,4][0..3] /* @Error 410 */ }
+
+	method failsContainsSeparateExplicit30()
+	{ assert forall x in [0..5] :: x in [0,1,2,3,4][1..] /* @Error 410 */ }
+
+	method failsContainsSeparate10()
+		requires acc(xs) && |xs| >= 5
+		requires acc(ys) && |ys| >= 5
+	{ assert forall i in [0..5] :: xs[i] in ys[0..5] /* @Error 410 */	}
+
+	method failsContainsSeparate15()
+		requires acc(xs) && |xs| >= 10
+	{ assert xs[10] in xs[0..5] /* @Error 410 */ }
+
+	method failsContainsSeparate17()
+		requires acc(xs) && |xs| >= 10
+	{ assert forall i in [0..10] :: xs[i] in xs[0..5] /* @Error 410 */ }
+
+	method failsContainsSeparate20()
+		requires acc(xs) && |xs| >= 10
+		ensures acc(xs) && |xs| >= 10
+	{
+		var zs: seq<int> := xs[0..5] ++ [3] ++ xs[6..10]
+		assert forall i in [0..10] :: xs[i] in zs /* @Error 410 */
+	}
+
+	method containsSeparateConcat(zs1: seq<int>, zs2: seq<int>)
+		requires |zs1| >= 10 && |zs2| >= |zs1|
+	{
+		var zs: seq<int> := zs1[0..5] ++ zs2[5..10] ++ zs1[5..10] ++ zs2[0..5]
+		assert forall i in [0..10] :: zs1[i] in zs && zs2[i] in zs /* @Fails */
+	}
+
+	method failsContainsSeparateConcat(zs1: seq<int>, zs2: seq<int>)
+		requires |zs1| >= 10 && |zs2| >= |zs1|
+	{
+		var zs: seq<int> := zs2[0..5] ++ zs2[5..10] ++ zs1[5..10] ++ zs2[0..5]
+		assert forall i in [0..10] :: zs1[i] in zs && zs2[i] in zs /* @Error 410 */
+	}
+
+	method rangesEmpty(zs: seq<int>)
+		requires |zs| >= 3
+	{
+		assert [1,2,3][1..1] == []
+		assert zs[2..2] == []
+		assert [4..4] == []
+		assert forall i in [0..|zs|] :: zs[i..i] == []
+		// assert forall i: int :: [i..i] == [] /* TODO: Support */
+	}
+
+	method rangesZLength() {
+		assert |[-3..3]| == 6
+//		assert |[3..-3]| == 6 /* @Error 410 */
+		assert |[-10..-5]| == 5
+//		assert |[-5..-10]| == 5 /* @Error 410 */
+	}
+
+	method rangesZContains(zs: seq<int>)
+		requires forall x in [-8..-2] :: x in zs
+	{
+		assert -3 in [-5..-1] /* Fails in Chalice */
+		assert -6 in zs       /* This, however, holds in Chalice */
+	}
+
+	method rangeEqExplicit() returns (zs: seq<int>)
+		ensures zs == [1,2,3,4]
+	{
+		assert [0..2] == [0,1]
+		zs := [1..5]
+	}
+
+	method failsRangeEqExplicit() returns (zs: seq<int>)
+		ensures zs == [1,2,3,4,5] /* @Error 310 */
+	{ zs := [1..5] }
+
+	method rangesEq10() {
+		assert [3..6] == [3,4,5]
+		assert [3..6] == [1..9][2..5] /* Fails in Chalice */
+	}
+
+	method rangesSeparateEqExplicit() {
+		assert [3..6] == [1..9][2..5]
+		assert [3..6] == [2..15][1..4]
+	}
+
+	method rangesSeparateEq(i: int, j: int, k: int)
+		requires i < j
+		requires 0 < k
+	{ assert [i..j] == [i-k..j][k..] }
+
+	method failsRangesSeparateEq()
+	{ assert [3..6] == [2..9][1..2] /* @Error 410 */ }
+
+	method rangesLength10(zs: seq<int>)
+		requires 3 in zs && 4 in zs && 5 in zs
+		requires 6 in zs && 7 in zs && 8 in zs
+	{ assert |zs| >= 6 }
+
+	method rangesLength15(zs: seq<int>)
+		requires forall x in [3,4,5,6,7,8,9] :: x in zs
+	{ assert |zs| >= 6 /* @Fails */ }
+
+	method rangesLength20(zs: seq<int>)
+		requires forall x in [3..9] :: x in zs
+	{ assert |zs| >= 6 /* @Fails */ }
+
+	method rangesLength30(zs: seq<int>)
+		requires forall x in [3..5] ++ [5..10] :: x in zs
+	{ assert |zs| >= 7 /* @Fails */ }
+
+	method rangesLength35(zs: seq<int>)
+		requires forall x in ([3..5] ++ [5..10])[4..7] :: x in zs
+	{ assert |zs| >= 4 /* @Fails */ }
+
+	method rangesLength14(zs1: seq<int>, zs2: seq<int>)
+		requires 3 in zs1 && 4 in zs1 && 5 in zs1
+		requires forall x in zs1 :: x in zs2
+	{ assert |zs2| >= 3 }
+
+	method rangesLength3(zs1: seq<int>, zs2: seq<int>)
+		requires |zs1| >= 5
+		requires forall i in [0..4] :: zs1[i] in zs2
+	{ assert |zs2| >= 1 /* @Fails */ }
+
+	method rangesLength5(zs1: seq<int>, zs2: seq<int>)
+		requires |zs1| >= 5
+		requires forall x in zs1[1..4] :: x in zs2
+	{ assert |zs2| >= 1 /* @Fails */ }
+
+	method rangesLength40(zs1: seq<int>, zs2: seq<int>)
+		requires |zs1| >= 4
+		requires forall x in [3..6] ++ zs1[1..4] :: x in zs2
+	{ assert |zs2| >= 3 /* @Fails */ }
+
+	method rangesLength43(zs1: seq<int>, zs2: seq<int>)
+		requires |zs1| >= 4
+		requires forall x in ([3..6] ++ zs1[1..4])[1..4] :: x in zs2
+	{ assert |zs2| >= 2 /* @Fails */ }
+
+	method rangesLength50(zs1: seq<int>, zs2: seq<int>)
+		requires forall x in [3..9] :: x in zs1
+		requires forall x in zs1 :: x in zs2
+	{
+		assert forall x in [3..9] :: x in zs2
+		assert |zs2| >= 6 /* @Fails */
+	}
+
+	method rangesLength60(zs1: seq<int>, zs2: seq<int>)
+		requires forall x in [3..9] ++ [12..16] :: x in zs1
+		requires forall x in zs1 :: x in zs2
+	{
+		assert forall x in [3..9] ++ [12..16] :: x in zs2
+		assert |zs2| >= 10 /* @Fails */
+	}
+
+	method failsRangesLength10(zs1: seq<int>, zs2: seq<int>)
+		requires |zs1| >= 8
+		requires forall x in zs1 :: x in zs2
+	{ assert |zs2| >= 8 /* @Error 410 */ }
+
+	method failsRangesLength15(zs1: seq<int>, zs2: seq<int>)
+		requires forall x in zs1 :: x in zs2
+	{ assert |zs1| >= |zs2| /* @Error 410 */}
+
+	method failRangesLength20(zs1: seq<int>, zs2: seq<int>)
+		requires |zs1| >= 4
+		requires forall x in [3..6] ++ zs1[1..4] :: x in zs2
+	{ assert |zs2| >= 4 /* @Error 410 */}
+
+	// /* Should hold, but doesn't */
+	// method ranges(zs: seq<int>)
+		// requires forall x in [3..9] :: x in zs
+	// {
+		// assert zs[0..2] ++ zs[2..] == zs
+		// var e4: int := zs[4]
+		// assert 3 in [2..7]
+		// assert |[10..20]| == 10
+		// assert [5..9][0] == 5
+		// assert [5..9][3] == 8
+		// assert forall x in [1,2,3] :: x in [0..4]
+		// assert forall x in [4..7] :: x in zs
+		// assert forall x in [2..10] :: x in [0..4] ++ zs ++ [9,10]
+		// assert forall x in [3..9] :: x in zs[0..]
+		// assert zs[0..4] ++ zs[4..] == zs
+		// assert forall x in [3..9] :: x in zs[0..4] ++ zs[4..]
+		// assert forall x in [3..9] :: x in zs[0..4] ++ [e4] ++ zs[5..]
+	// }
+}

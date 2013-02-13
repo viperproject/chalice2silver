@@ -1,0 +1,128 @@
+
+class InstantiateManyCells {
+  method test() returns (c0: Cell, c1: Cell, c2: Cell, c3: Cell, c4: Cell, c5: Cell, c6: Cell, c7: Cell, c8: Cell, c9: Cell, c10: Cell, c11: Cell, c12: Cell, c13: Cell, c14: Cell, c15: Cell, c16: Cell, c17: Cell, c18: Cell, c19: Cell)
+    // ensures c0 != null && acc(c0.x) && c0.x == 0
+    // ensures c1 != null && acc(c1.x) && c1.x == 1
+    // ensures c2 != null && acc(c2.x) && c2.x == 2
+    // ensures c3 != null && acc(c3.x) && c3.x == 3
+    // ensures c4 != null && acc(c4.x) && c4.x == 4
+    // ensures c5 != null && acc(c5.x) && c5.x == 5
+    // ensures c6 != null && acc(c6.x) && c6.x == 6
+    // ensures c7 != null && acc(c7.x) && c7.x == 7
+    // ensures c8 != null && acc(c8.x) && c8.x == 8
+    // ensures c9 != null && acc(c9.x) && c9.x == 9
+    // ensures c10 != null && acc(c10.x) && c10.x == 10
+    // ensures c11 != null && acc(c11.x) && c11.x == 11
+    // ensures c12 != null && acc(c12.x) && c12.x == 12
+    // ensures c13 != null && acc(c13.x) && c13.x == 13
+    // ensures c14 != null && acc(c14.x) && c14.x == 14
+    // ensures c15 != null && acc(c15.x) && c15.x == 15
+    // ensures c16 != null && acc(c16.x) && c16.x == 16
+    // ensures c17 != null && acc(c17.x) && c17.x == 17
+    // ensures c18 != null && acc(c18.x) && c18.x == 18
+    // ensures c19 != null && acc(c19.x) && c19.x == 19
+	{
+	  c0 := new Cell
+	  call c0.set(0)
+
+	  c1 := new Cell
+	  call c1.set(1)
+
+	  c2 := new Cell
+	  call c2.set(2)
+
+	  c3 := new Cell
+	  call c3.set(3)
+
+	  c4 := new Cell
+	  call c4.set(4)
+
+	  c5 := new Cell
+	  call c5.set(5)
+
+	  c6 := new Cell
+	  call c6.set(6)
+
+	  c7 := new Cell
+	  call c7.set(7)
+
+	  c8 := new Cell
+	  call c8.set(8)
+
+	  c9 := new Cell
+	  call c9.set(9)
+
+	  c10 := new Cell
+	  call c10.set(10)
+
+	  c11 := new Cell
+	  call c11.set(11)
+
+	  c12 := new Cell
+	  call c12.set(12)
+
+	  c13 := new Cell
+	  call c13.set(13)
+
+	  c14 := new Cell
+	  call c14.set(14)
+
+	  c15 := new Cell
+	  call c15.set(15)
+
+	  c16 := new Cell
+	  call c16.set(16)
+
+	  c17 := new Cell
+	  call c17.set(17)
+
+	  c18 := new Cell
+	  call c18.set(18)
+
+	  c19 := new Cell
+	  call c19.set(19)
+  }
+}
+
+class Cell {
+  var x: int
+  
+	// predicate P { acc(x) }
+	predicate P { acc(x) && true }
+	
+  method set(v: int)
+    requires acc(x)
+    // ensures acc(x)
+		ensures P
+		ensures get() == v
+		ensures get() == v
+		ensures get() == v
+		ensures get() == v
+		ensures get() == v
+		ensures get() == v
+		ensures get() == v
+		ensures get() == v
+		ensures get() == v
+		ensures get() == v
+		ensures get() == v
+		ensures get() == v
+		ensures get() == v
+		ensures get() == v
+		ensures get() == v
+		ensures get() == v
+		ensures get() == v
+		ensures get() == v
+		ensures get() == v
+  {
+		x := v
+		fold P
+	}
+	
+	// function get(): int
+		// requires acc(x)
+	// { x }
+	
+	function get(): int
+		requires P
+	{ unfolding P in x }
+}

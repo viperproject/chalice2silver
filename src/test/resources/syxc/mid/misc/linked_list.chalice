@@ -1,0 +1,213 @@
+class Node {
+	var v: int
+	var next: Node
+	
+	/* @magical */ function dump(): int { 0 }
+	
+predicate V {
+  acc(v)
+  && acc(next)
+  && (next != null ==> next.V)
+  // && (next != null ==> (next.length() == length() - 1))
+    /* Mutual dependency between length and V.
+     *  - Chalice reports "Insufficient fraction at _ for Node.V."
+     *  - As does VeriCool 3.3 -vcg
+     *  - Syxc eventually throws a StackOverflow
+     *  - As does VeriCool 3.3 -symbo
+     */
+}
+	
+	// predicate L {
+		// V
+		// // && unfolding V in (next != null ==> next.L)
+			// /* Err: predicate can only be used in positive predicate contexts */
+		// && (forall i in [0..length()] ::
+				// i < length() ==> unfolding V in
+					// (next != null ==> i <= next.length()))
+	// }
+	
+	// function get(): int
+		// requires V
+	// { unfolding V in v }
+	
+	function length(): int
+		requires rd(V)
+    ensures result >= 1
+	{ 1 + unfolding rd(V) in next == null ? 0 : next.length() }
+	
+	function at(i: int): int
+		requires rd(V)
+		requires i >= 0
+		requires i < length()
+	{ unfolding rd(V) in i == 0 ? v : next.at(i - 1) }
+	
+	
+// method meth_at(i: int) returns (r: int)
+  // requires rd(V)
+  // requires i >= 0
+  // requires i < length()
+  // ensures rd(V)
+// {
+  // unfold rd(V)
+  // if (i == 0) {
+    // r := v
+  // } else {
+    // call r := next.meth_at(i - 1)
+			// /* Should IMHO hold, holds in Syxc & VeriCool, fails in Chalice */
+  // }
+  // fold rd(V)
+// }
+	
+	// function lemma_length_inv(i: int): bool
+		// requires V
+		// // requires i >= 0
+	// {
+		// i < length()
+			// ? true
+			// : unfolding V in next != null ==> next.lemma_length_inv(i - 1)
+	// }	
+	
+	// function lemma_length_inv(i: int): bool
+		// requires V
+		// // requires i >= 0
+	// {
+		// i < length()
+			// ? true
+			// : unfolding V in next != null ==> next.lemma_length_inv(i - 1)
+	// }
+	
+	method init(i: int)
+		requires acc(v) && acc(next)
+		ensures V
+		/* Order matters! Exchaning these two ensures-clauses will make the
+		 * verification fail since "requires i < length()" for at(0) cannot
+		 * be proven.
+		 */
+		ensures length() == 1
+		ensures at(0) == i
+	{
+		v := i
+		next := null
+		fold V
+	}
+	
+	// method set(i: int)
+		// requires V
+		// ensures V
+		// ensures get() == i
+		// // ensures unfolding V in next == old(next) /* Holds, no advantage */
+		// ensures length() == old(length())
+	// {
+		// unfold V
+		// v := i
+		// fold V
+	// }
+	
+	method prepend(i: int) returns (n: Node)
+		requires V
+		requires length() >= 0
+			/* ensures n.at(0) fails without this while checking the well-foundness 
+			 * of the specs, since Z3 is not able to infer that length() is always
+			 * positive.
+			 * Unfortunately, we cannot use lemma_length_positive() in this
+			 * situation, since methods cannot be invoked from inside specs.
+			 */
+		ensures n != null
+		ensures n.V
+		ensures n.length() == old(length()) + 1;
+		ensures n.length() > 0
+		ensures n.at(0) == i
+		// ensures forall j in [1..old(length())-1] :: n.at(j) == old(at(j - 1))
+		// ensures forall j in [1..old(length())-1] :: true
+	{
+		n:= new Node
+		n.v := i
+		n.next := this
+		fold n.V
+	}
+	
+	// method append(i: int)
+		// requires V
+		// ensures V
+		// ensures length() == old(length()) + 1
+		// ensures length() > 0
+		// ensures at(length() - 1) == i
+	// {
+		// unfold V
+		// if (next == null) {
+			// next := new Node
+			// call next.init(i)
+		// } else {
+			// call next.append(i)
+		// }
+		// fold V
+	// }
+	
+	method lemma_length_positive()
+		requires rd(V)
+		ensures rd(V)
+		ensures length() > 0 /* Fails in Chalice */
+	{
+		unfold rd(V)
+		if (next != null) {
+			call next.lemma_length_positive()
+		}
+		fold rd(V)
+	}
+}
+
+// class Test {
+	// method test() {
+		// var n: Node := new Node
+    // n.v := 4
+		// // call n.init(1)
+    
+    // var m: Node := new Node
+    // m.v := 1
+    // m.next := n
+    
+    // fold n.V
+    // // call n.lemma_length_positive()
+    // assert n.length() >= 1
+    // fold m.V
+    // // assert n.length() >= 1
+    // // call m.lemma_length_positive()
+    
+    // // assert m.at(0) == 1
+    // assert m.at(1) == 4
+		// // assert(n.at(0) == 22)
+		// // assert(n.length() == 1)
+	// }
+// }
+
+// class Tests {
+	// method newList() {
+		// var n: Node := new Node
+		// call n.init(22)
+		// assert(n.at(0) == 22)
+		// assert(n.length() == 1)
+	// }
+	
+	// method getList(n: Node)
+		// requires n != null
+		// requires n.V
+	// {
+		// call n.lemma_length_positive()
+		// assert(n.length() > 0)
+	// }
+	
+	// method prepending(nn: Node)
+		// requires nn != null
+		// requires nn.V
+	// {
+		// var n: Node := nn
+		// call n.lemma_length_positive()
+
+		// call n := n.prepend(1)
+		// // assert n.at(0) == 1
+		
+		// call n := n.prepend(10)
+		// // assert n.at(0) == 10
+		// // assert n.at(1) == 1 /* Still fails, insufficient postcon. of prepend. */
+	// }
+// }

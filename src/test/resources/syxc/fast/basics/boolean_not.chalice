@@ -1,0 +1,11 @@
+class BooleansNot {
+	method notFalse()
+		requires !false;
+		ensures !false;
+	{ }
+	
+	method failNotTrue()
+		//:: ExpectedError(post.violated:ass.false)
+		ensures !true;
+	{ }
+}

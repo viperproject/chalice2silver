@@ -1,0 +1,82 @@
+class Test01 {
+  var f: int
+  var g: bool
+  
+  predicate P { rd(f) && acc(g, 50) }
+  
+  predicate Q { acc(P, 50) }
+  
+  predicate R { rd(Q) }
+  
+  method test01()
+    requires frozen(P)
+  {
+    assert frozen(P)
+    assert rd(P) /* NOTICE: We hold methodRd permissions */
+    assert acc(P, 1) /* @Error 430 */
+  }
+  
+  method test02()
+    requires rd(P)
+  {
+    freeze P
+    assert frozen(P) /* @Error 410 */
+  }
+  
+  method test03()
+    requires rd(P)
+    requires Q
+  {
+      // P # rdK,  Q # W
+    freeze P
+      // P # rdK - rdStarK,  Q # W
+    unfold Q
+      // We produced P # (W * 50%), hence immutable(P) turns into frozen(P)
+    assert frozen(P)
+  }
+
+  method test04()
+    requires P
+  {
+      // P # W
+    freeze P
+      // P # W - rdStarK
+    assert acc(P, 1) /* @Error 430 */
+  }
+
+  method test05()
+    requires frozen(P)
+  {
+      // P # rdStarK
+    unfold rd(P)
+      // Since frozen(P) and acc(g, 50) inside P, we produce rd*-access to g and frozen(g).
+    assert frozen(g)
+    assert rd(g)
+  }
+
+  method test06()
+    requires frozen(Q)
+  {
+    unfold rd(Q)
+    assert frozen(P)
+    assert rd(P)
+    unfold rd(P)
+    assert frozen(g)
+    assert rd(g)
+  }
+
+  method test07()
+    requires frozen(R)
+  {
+    unfold rd(R)
+    assert rd*(Q)
+    assert rd(Q) /* @Error 430 */
+  }
+
+  method test08()
+    requires frozen(R)
+  {
+    unfold rd(R)
+    assert frozen(Q) /* @Error 410 */
+  }
+}

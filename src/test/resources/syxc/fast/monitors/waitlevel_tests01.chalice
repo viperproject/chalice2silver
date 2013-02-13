@@ -1,0 +1,38 @@
+class Test {
+  method test01(t: Test)
+    requires rd(t.mu) && waitlevel << t.mu
+    lockchange t
+  {
+    acquire t
+  }
+  
+  method test02(t1: Test, t2: Test)
+    requires rd(t1.mu) && waitlevel << t1.mu
+    requires rd(t2.mu) && waitlevel << t2.mu
+    lockchange t1
+  {
+    acquire t1
+  }
+  
+  method test03(t1: Test, t2: Test)
+    requires rd(t1.mu) && waitlevel << t1.mu
+    requires rd(t2.mu) && waitlevel << t2.mu
+    lockchange t1
+  {
+    acquire t1
+    acquire t2 /* @Error 1280 */
+  }
+  
+  method test04(t1: Test, t2: Test)
+    requires rd(t1.mu) && waitlevel << t1.mu
+    requires rd(t2.mu) && waitlevel << t2.mu
+  {
+    acquire t1
+    release t1
+    
+    acquire t2
+    release t2
+    
+    assert false /* @Error 410 */
+  }
+}

@@ -1,0 +1,72 @@
+channel ChTrue() where true
+
+class CreditTests {
+	method succeeds0(ch: ChTrue)
+		requires ch != null
+	{ assert credit(ch, 0) }
+
+	method fails1(ch: ChTrue)
+		requires ch != null && credit(ch, 3)
+	{
+		assert credit(ch, 0)
+		assert credit(ch, 1)
+		assert credit(ch, 3)
+		assert credit(ch, 4) /* @Error 410 */
+	}
+
+	method succeeds1(ch: ChTrue, b: bool, c: bool)
+		requires ch != null && credit(ch, 1)
+		requires b ==> credit(ch, 1)
+		requires c ==> credit(ch, 1)
+	{
+		if (b) { assert credit(ch, 2) }
+		assert b && c ==> credit(ch, 3)
+	}
+	
+	method fails3(ch: ChTrue, b: bool)
+		requires ch != null && credit(ch, 1)
+		requires b ==> credit(ch, 1)
+	{
+		if (b) { assert credit(ch, 3) } /* @Error 410 */
+	}
+
+	method fails2(ch: ChTrue)
+		requires ch != null && credit(ch, 3)
+	{
+		call fails1(ch)
+		assert credit(ch, 0)
+		assert credit(ch, 1) /* @Error 410 */
+	}
+	
+	method fails5(ch1: ChTrue, ch2: ChTrue)
+		requires ch1 != null && ch2 != null
+		requires credit(ch1, 1)
+		requires credit(ch2, -1)
+	{
+		assert credit(ch2, -1)
+		assert credit(ch1, 1) /* @Error 410 */
+			/* ch1 and ch2 might be aliases */
+	}
+}
+
+class DebtTests {
+	method fails1(ch: ChTrue) /* @Error 350 */
+		requires ch != null
+		requires credit(ch, -1)	
+	{}
+	
+	method succeeds1(ch: ChTrue)
+		requires ch != null
+		requires credit(ch, -1)
+		ensures credit(ch, -1)
+	{}
+	
+	method fails2(ch: ChTrue) /* @Error 350 */
+		requires ch != null
+		requires credit(ch, 1)
+		ensures credit(ch, 2)
+	{}
+}
+
+class Cell { var x: int }
+channel ChIllDefined(c: Cell) where c != null && c.x >= 0 /* @Error 1030 */

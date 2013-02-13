@@ -1,0 +1,30 @@
+/* [2012-11-24 Malte]:
+ *   Syxc does now add the assumption, that the new object is different
+ *   from all existing, that is, all known, objects. The set of known objects
+ *   currently does not include objects that are hidden in predicates, though.
+ *
+ * [2012-07-10 Malte]:
+ *   Instantiating a new object does not add the assumption, that the new
+ *   object is different from all existing objects, which is why the
+ *   postcondition of create() doesn't hold.
+ *   The postcondition of create2() holds because Syxc is able to
+ *   conclude from rd(this.value) && acc(res.value) that this and res
+ *   must be different objects.
+ */
+
+class C {
+	var value: int
+
+	method create() returns (res: C)
+		ensures res != this
+	{
+		res := new C
+	}
+	
+	method create2() returns (res: C)
+		requires rd(value)
+		ensures res!=this
+	{
+		res := new C
+	}
+}

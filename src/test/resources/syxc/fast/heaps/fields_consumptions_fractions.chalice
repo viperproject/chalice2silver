@@ -1,0 +1,94 @@
+class Test {
+	var x: int
+	
+	method reqX50()
+		requires acc(x, 50)
+		ensures acc(x, 50)
+	{}
+
+	method greedyX50()
+		requires acc(x, 50)
+		ensures acc(x, 25)
+	{}	
+	
+	method reqX100()
+		requires acc(x, 100)
+		ensures acc(x, 100)
+	{}
+	
+	method reqXRd()
+		requires rd(x)
+		ensures rd(x)
+	{}
+	
+	method greedyXRd()
+		requires rd(x)
+	{}	
+	
+	method succeed1()
+		requires acc(x)
+		ensures acc(x)
+	{
+		call reqX100()
+		assert(acc(x, 100))
+		call reqX50()
+		assert(acc(x, 100))
+		call reqXRd()
+		assert(acc(x, 100))
+	}
+	
+	method succeed2()
+		requires acc(x)
+		ensures acc(x)
+	{
+		call reqXRd()
+		call reqX50()
+		call reqX100()
+	}
+	
+	method succeed3()
+		requires acc(x)
+		requires rd(x)
+		ensures acc(x)
+	{
+		call greedyXRd()
+		assert(acc(x, 100))
+		call reqX100()
+		// call greedyXRd()
+		assert(acc(x, 100))
+	}
+	
+	method fail1()
+		requires acc(x)
+	{
+		call greedyX50()
+		call reqX100() /* @Error 230 */
+	}
+	
+	method fail2()
+		requires acc(x)
+	{
+		call greedyX50()
+		call greedyX50()
+		call greedyX50()
+		call greedyX50() /* @Error 230 */
+	}
+	
+	method fail3()
+		requires acc(x)
+	{
+		call greedyXRd()
+		call reqX100() /* @Error 230 */
+	}
+	
+	method fail4()
+		requires acc(x)
+		requires rd(x)
+		ensures acc(x)
+	{
+		call greedyXRd()
+		call reqX100()
+		call greedyXRd()
+		assert(acc(x, 100)) /* @Error 430 */
+	}
+}

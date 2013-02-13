@@ -1,0 +1,27 @@
+// https://bitbucket.org/mschwerhoff/syxc-npm/issue/7/
+
+channel Ch()
+
+/* Test the same expression in pre- and postconditions.
+ * Will a two-pass in-/exhale help?
+ */
+
+class Test {
+  method callee(ch: Ch)
+    requires ch != null && rd(ch.mu)
+    requires credit(ch, -1)
+    requires waitlevel << ch
+  {
+    /* credit(ch, -1) && waitlevel << ch is equivalent to false. */
+    assert false
+  }
+  
+  method caller() {
+    var ch: Ch := new Ch
+    
+    /* The precondition should not hold. However, it currently holds
+     * in Chalice and in Syxc.
+     */
+    call callee(ch) /* @Holds */
+  }
+}

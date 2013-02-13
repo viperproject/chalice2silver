@@ -1,0 +1,25 @@
+channel ChTrue() where true
+
+class InitialisationTests {
+	/* NOTE: New channels are placed above waitlevel, whereas all other new
+	 *       objects are placed at lockbottom.
+	 */
+	method fails() {
+		var ch: ChTrue := new ChTrue
+		assert ch.mu != lockbottom
+		assert waitlevel << ch.mu
+		
+		var t: InitialisationTests := new InitialisationTests
+		assert t.mu == lockbottom
+		assert waitlevel << t.mu /* @Error 410 */
+	}
+	
+	method succeeds() {
+		var ch: ChTrue := new ChTrue
+		assert ch.mu != lockbottom
+		assert waitlevel << ch.mu
+		
+		var t: InitialisationTests := new InitialisationTests
+		assert t.mu == lockbottom
+	}
+}

@@ -1,0 +1,198 @@
+/* Illustrates the need for a fixed-point heap merge operation which has been
+ * introduced with revision 7052.
+ *//*
+ * Roughly, the reason is as follows (ignoring permissions where irrelevant):
+ * 
+ *  - succeedDirectEqualityC works with a single iteration merge operation:
+ *     1) all requires access clauses prior to c == d create corresponding
+ *        heap chunks, i.e.
+ *          this.c -> tc, this.d -> td,
+ *          tc.x -> tcx # 50, td.x -> tdx # 50
+ *     2) producing c == d adds td == tc to π
+ *     3) the subsequent merge therefore combines tc.x and td.x to
+ *        tc.x -> tcx # 100 and adds tcx == tdx to π
+ *     4) assert acc(c.x, 100) succeeds
+ *//*
+ *  - succeedDirectEqualityCC fails with a single iteration merge operation:
+ *     1) creating heap chunks 
+            this.c -> tcc, this.dd -> tdd,
+ *          tcc.r -> tccr, tdd.r -> tddr,
+ *  			  tccr.x -> tccrx # 50, tddr.x -> tddrx # 50
+ *     2) adding tcc == tdd to π
+ *     3) subsequent merge thus combines tcc.r and tdd.r to tcc.r -> tccr
+ *        and adds tccr == tddr to π
+ *     4) assert acc(cc.r.x, 100) fails
+ *    However, due to the additional path condition from 3) another merge
+ *    operation now combines tccr.x and tddr.x to tccr.x -> tccrx # 100 and
+ *    adds tccrx == tddrx to π.
+ *//*
+ * Hence we iteratively perform heap mergees as long as it yields additional
+ * path conditions.
+ */
+
+class Cell { var x: int }
+class CCell { var r: Cell }
+class CCCell { var r: CCell }
+class CCCCell { var r: CCCell }
+
+class Test {
+	var c: Cell
+	var d: Cell	
+	var cc: CCell
+	var dd: CCell
+	var ccc: CCCell
+	var ddd: CCCell	
+	var cccc: CCCCell
+	var dddd: CCCCell
+
+	predicate P {
+			 rd(c) && c != null
+		&& acc(c.x, 50)
+		&& rd(d) && d != null
+		&& c == d
+	}
+	
+	predicate PP {
+			 rd(cc) && cc != null
+		&& rd(cc.r) && cc.r != null
+		&& acc(cc.r.x, 50)
+		&& rd(dd) && dd != null
+		&& cc == dd
+	}
+	
+	predicate PPP {
+			 rd(ccc) && ccc != null
+		&& rd(ccc.r) && ccc.r != null
+		&& rd(ccc.r.r) && ccc.r.r != null
+		&& acc(ccc.r.r.x, 50)
+		&& rd(ddd) && ddd != null
+		&& ccc == ddd
+	}
+	
+	predicate PPPP {
+			 rd(cccc) && cccc != null
+		&& rd(cccc.r) && cccc.r != null
+		&& rd(cccc.r.r) && cccc.r.r != null
+		&& rd(cccc.r.r.r) && cccc.r.r.r != null
+		&& acc(cccc.r.r.r.x, 50)
+		&& rd(dddd) && dddd != null
+		&& cccc == dddd
+	}
+	
+	method succeedDirectEqualityC()
+		requires rd(c) && c != null
+		requires rd(d) && d != null
+		requires acc(c.x, 50) && acc(d.x, 50)
+		requires c == d
+		ensures rd(c) && c != null
+		ensures rd(d) && d != null
+		ensures acc(c.x, 100)
+	{
+		assert acc(d.x, 100)
+	}
+	
+	method succeedDirectEqualityCC()
+		requires rd(cc) && cc != null
+		requires rd(dd) && dd != null
+		requires rd(cc.r) && cc.r != null
+		requires rd(dd.r) && dd.r != null
+		requires acc(cc.r.x, 50) && acc(dd.r.x, 50)
+		requires cc == dd
+	{
+		assert cc == dd
+		assert cc.r == dd.r
+		assert cc.r.x == dd.r.x
+		assert acc(dd.r.x, 100)
+		assert acc(cc.r.x, 100)
+	}
+	
+	method succeedDirectEqualityCCC()
+		requires rd(ccc) && ccc != null
+		requires rd(ddd) && ddd != null
+		requires rd(ccc.r) && ccc.r != null
+		requires rd(ddd.r) && ddd.r != null
+		requires rd(ccc.r.r) && ccc.r.r != null
+		requires rd(ddd.r.r) && ddd.r.r != null		
+		requires acc(ccc.r.r.x, 50) && acc(ddd.r.r.x, 50)
+		requires ccc == ddd
+		ensures rd(ccc) && ccc != null
+		ensures rd(ddd) && ddd != null
+		ensures rd(ccc.r) && ccc.r != null
+		ensures rd(ddd.r) && ddd.r != null
+		ensures rd(ccc.r.r) && ccc.r.r != null
+		ensures rd(ddd.r.r) && ddd.r.r != null		
+		ensures acc(ccc.r.r.x, 100)
+	{
+		assert acc(ddd.r.r.x, 100)
+	}
+	
+	method succeedDirectEqualityCCCC()
+		requires rd(cccc) && cccc != null
+		requires rd(dddd) && dddd != null
+		requires rd(cccc.r) && cccc.r != null
+		requires rd(dddd.r) && dddd.r != null
+		requires rd(cccc.r.r) && cccc.r.r != null
+		requires rd(dddd.r.r) && dddd.r.r != null
+		requires rd(cccc.r.r.r) && cccc.r.r.r != null
+		requires rd(dddd.r.r.r) && dddd.r.r.r != null
+		requires acc(cccc.r.r.r.x, 50) && acc(dddd.r.r.r.x, 50)
+		requires cccc == dddd
+		ensures rd(cccc) && cccc != null
+		ensures rd(dddd) && dddd != null
+		ensures rd(cccc.r) && cccc.r != null
+		ensures rd(dddd.r) && dddd.r != null
+		ensures rd(cccc.r.r) && cccc.r.r != null
+		ensures rd(dddd.r.r) && dddd.r.r != null
+		ensures rd(cccc.r.r.r) && cccc.r.r.r != null
+		ensures rd(dddd.r.r.r) && dddd.r.r.r != null
+		ensures acc(cccc.r.r.r.x, 100)
+	{
+		assert acc(dddd.r.r.r.x, 100)
+	}
+	
+	method succeedEqualityViaUnfoldingP()
+		requires rd(d) && d != null
+		requires acc(d.x, 50)
+		requires P
+	{
+		unfold P
+		assert acc(c.x, 100)
+		assert acc(d.x, 100)
+	}
+	
+	method succeedEqualityViaUnfoldingPP()
+		requires rd(dd) && dd != null
+		requires rd(dd.r) && dd.r != null
+		requires acc(dd.r.x, 50)
+		requires PP
+	{
+		unfold PP
+		assert acc(cc.r.x, 100)
+		assert acc(dd.r.x, 100)
+	}
+	
+	method succeedEqualityViaUnfoldingPPP()
+		requires rd(ddd) && ddd != null
+		requires rd(ddd.r) && ddd.r != null
+		requires rd(ddd.r.r) && ddd.r.r != null
+		requires acc(ddd.r.r.x, 50)
+		requires PPP
+	{
+		unfold PPP
+		assert acc(ccc.r.r.x, 100)
+		assert acc(ddd.r.r.x, 100)
+	}
+	
+	method succeedEqualityViaUnfoldingPPPP()
+		requires rd(dddd) && dddd != null
+		requires rd(dddd.r) && dddd.r != null
+		requires rd(dddd.r.r) && dddd.r.r != null
+		requires rd(dddd.r.r.r) && dddd.r.r.r != null
+		requires acc(dddd.r.r.r.x, 50)
+		requires PPPP
+	{
+		unfold PPPP
+		assert acc(cccc.r.r.r.x, 100)
+		assert acc(dddd.r.r.r.x, 100)
+	}
+}

@@ -1,0 +1,42 @@
+// https://bitbucket.org/mschwerhoff/syxc-npm/issue/6/waitlevel-unsoundness
+
+class Test {
+  method test02() {
+    var x: Test := new Test
+
+    share x
+
+    acquire x
+    release x
+    assert false /* @Error 410 */
+  }
+
+  method test03() {
+    var x: Test := new Test
+    var y: Test := new Test
+
+    share x
+    share y above x
+
+    acquire x
+    acquire y
+
+    assert 1 == 2 /* @Error 410 */
+  }
+
+  method test01() {
+    var x: Test := new Test
+    var y: Test := new Test
+
+    share x
+    share y above x
+
+//    assert false; /* fails */
+    acquire x
+//    assert false; /* fails */
+
+    acquire y
+    release y
+    assert 47 == 11 /* @Error 410 */
+  }
+}

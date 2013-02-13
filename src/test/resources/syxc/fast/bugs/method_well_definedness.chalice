@@ -1,0 +1,23 @@
+/* Due to a missing well-definedness test the following programme verified
+ * even if the HERE-line was commented. Actually calling foo() failed 
+ * nevertheless.
+ */
+class Invalid {
+	var x: int
+	
+	method foo(a: int)
+		requires acc(x)
+		// ensures acc(x) /* HERE */
+		ensures x == a /* @Error 330 */
+	{ x := a }
+}
+
+class Valid {
+	var x: int
+	
+	method foo(a: int)
+		requires acc(x)
+		ensures acc(x) /* HERE */
+		ensures x == a
+	{ x := a }
+}

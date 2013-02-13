@@ -1,0 +1,48 @@
+channel ChTrue() where true
+
+class InvocationTests {
+	method doReceive(ch: ChTrue)
+		requires ch != null
+		requires credit(ch, 1)
+		requires rd(ch.mu) && waitlevel << ch.mu
+	{ receive ch }
+	
+	method doSend(ch: ChTrue)
+		requires ch != null
+		requires credit(ch, -1)
+	{ send ch() }
+
+	
+	
+	
+	method fails1() {
+		var ch: ChTrue := new ChTrue
+		assert waitlevel << ch.mu
+		call doReceive(ch) /* @Error 210 */
+	}
+	
+	method fails2() {
+		var ch: ChTrue := new ChTrue
+		fork tk := doReceive(ch) /* @Error 210 */
+	}
+	
+	method succeeds1() {
+		var ch: ChTrue := new ChTrue
+		assert ch.mu != lockbottom
+		var t: InvocationTests := new InvocationTests
+		assert t.mu == lockbottom
+		call doSend(ch)
+	}
+	
+	method succeeds2() {
+		var ch: ChTrue := new ChTrue
+		call doSend(ch)
+		call doReceive(ch)
+	}
+
+	method succeeds3() {
+		var ch: ChTrue := new ChTrue
+		fork tks := doSend(ch)
+		fork tkr := doReceive(ch)
+	}
+}

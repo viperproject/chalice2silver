@@ -1,0 +1,299 @@
+// @IgnoreFile
+// Counting permissions (epsilons) are currently not supported in Syxc
+// due to changes made when introducing the tuple representation (w, r)
+// of permissions as part of the work on immutability.
+
+class Predicates {
+	var x: int
+
+	predicate V { acc(x) }
+	predicate W { rd(x) }
+	predicate P { acc(x, 50) }
+	
+	method unfoldV50()
+		requires V
+		ensures acc(V, 50)
+		ensures acc(x, 50)
+	{ unfold acc(V, 50) }
+	
+	method unfoldV50_2()
+		requires V
+		ensures acc(V, 49)
+		ensures acc(x, 49)
+	{ unfold acc(V, 50) }
+	
+	method fail1UnfoldV50()
+		requires V
+		ensures acc(V, 51) /* @Error 330 */
+	{ unfold acc(V, 50) }
+	
+	method fail2UnfoldV50()
+		requires V
+		ensures acc(x, 51) /* @Error 330 */
+	{ unfold acc(V, 50) }
+
+	method unfoldMultipleEnsures()
+		requires V
+		ensures acc(V, 25)
+		ensures acc(V, 25)
+		ensures acc(x, 25)
+		ensures acc(x, 25)
+	{ unfold acc(V, 50) }
+	
+	method fail1UnfoldMultipleEnsures()
+		requires V
+		ensures acc(V, 25)
+		ensures acc(V, 25)
+		ensures acc(V, 1) /* @Error 330 */
+	{ unfold acc(V, 50) }
+	
+	method fail2UnfoldMultipleEnsures()
+		requires V
+		ensures acc(x, 25)
+		ensures acc(x, 25)
+		ensures acc(x, 1) /* @Error 330 */
+	{ unfold acc(V, 50) }
+	
+	method foldV50()
+		requires acc(x)
+		ensures acc(x, 50)
+		ensures acc(V, 50)
+	{
+		fold acc(V, 50)
+		assert(acc(x, 49))
+		assert(acc(V, 49))
+	}
+		
+	method fail1foldV50()
+		requires acc(x)
+		ensures acc(x, 51) /* @Error 330 */
+	{ fold acc(V, 50) }
+
+	method fail2foldV50()
+		requires acc(x)
+		ensures acc(V, 51) /* @Error 330 */
+	{ fold acc(V, 50) }
+	
+	method assertFoldV50()
+		requires acc(x)
+		ensures acc(V, 80)
+		ensures acc(x, 20)
+	{
+		fold acc(V, 80)
+		assert(acc(V, 80))
+		assert(acc(V, 79))
+		assert(acc(x, 20))
+		assert(acc(x, 19))
+	}
+
+	method fail1AssertFoldV50()
+		requires acc(x)
+	{
+		fold acc(V, 30)
+		assert(acc(V, 31)) /* @Error 430 */
+	}
+	
+	method fail2AssertFoldV50()
+		requires acc(x)
+	{
+		fold acc(V, 23)
+		assert(acc(x, 78)) /* @Error 430 */
+	}
+	
+	method foldMultipleEnsures()
+		requires acc(x)
+		ensures acc(V, 25)
+		ensures acc(V, 25)
+		ensures acc(x, 25)
+		ensures acc(x, 25)
+	{ fold acc(V, 50) }
+	
+	method fail1FoldMultipleEnsures()
+		requires acc(x)
+		ensures acc(V, 33)
+		ensures acc(V, 33)
+		ensures acc(V, 1) /* @Error 330 */
+	{ fold acc(V, 66) }
+	
+	method fail2FoldMultipleEnsures()
+		requires acc(x)
+		ensures acc(x, 5)
+		ensures acc(x, 5)
+		ensures acc(x, 1) /* @Error 330 */
+	{ fold acc(V, 90) }
+	
+	method unfoldVTwice()
+		requires V
+		ensures V
+	{
+		unfold acc(V, 50)
+		assert(acc(V, 50))
+		assert(acc(x, 50))
+		
+		unfold acc(V, 50)
+		// assert(acc(V, 0))
+			/* TODO: acc(_, 0) currently fails when no permissions are given 
+			 * because the heap does not contain a matching chunk at all.
+			 * Solution approach: Let acc(_, 0) always succeed.
+			 */
+		assert(acc(x, 100))
+		
+		x := 123
+		
+		fold acc(V, 25)
+		fold acc(V, 25)
+		fold acc(V, 25)
+		fold acc(V, 25)
+	}
+	
+	method failFoldVTwice()
+		requires acc(x)
+	{
+		fold acc(V, 49)
+		fold acc(V, 52) /* @Error 730 */
+	}
+	
+	method failUnfoldVTwice()
+		requires V
+	{
+		unfold acc(V, 50)
+		unfold acc(V, 51) /* @Error 830 */
+	}
+	
+	
+	
+	// /* Not yet supported in Chalice */
+	// method unfoldWRd()
+		// requires W
+	// {
+		// unfold acc(W,10)
+		// assert(acc(W, 90))
+		// assert(rd(x, 1))
+	// }
+	
+	// /* Not yet supported in Chalice */
+	// method unfoldP50()
+		// requires P
+	// { unfold acc(P, 50) }
+	
+	
+	
+	method f()
+		requires rd(x)
+		ensures rd(x)
+	{}
+	
+	method g()
+		requires V
+		ensures V
+	{}
+	
+	method h()
+		requires acc(x, 50)
+		ensures acc(x, 50)
+	{}	
+	
+	method unfoldVRd()
+		requires V
+		ensures V
+	{
+		call g()
+		unfold rd(V)
+		assert(acc(V, 99))
+		assert(acc(V, 98))
+		assert(acc(V, 90))
+		assert(rd(x))
+		assert(rd(x, 1))
+		fold rd(V)
+		call g()
+	}
+	
+	method fail1UnfoldVRd()
+		requires V
+	{
+		call g()
+		unfold rd(V)
+		assert(acc(V, 100)) /* @Error 430 */
+	}	
+	
+	method fail2UnfoldVRd()
+		requires V
+	{
+		call g()
+		unfold rd(V)
+		assert(acc(V, 99))
+		assert(acc(V, 98))
+		assert(acc(V, 90))
+		assert(rd(x))
+		assert(rd(x, 1))
+		assert(rd(x, 2)) /* @Error 430 */
+	}
+	
+	method unfoldVAccRd()
+		requires V
+		ensures V
+	{
+		unfold acc(V, 50)
+		assert(acc(V, 50))
+		assert(rd(V))
+		assert(acc(x, 50))
+		assert(rd(x))
+		unfold rd(V)
+		call f()
+		fold acc(V, 50)
+		call f()
+		fold rd(V)
+		call g()
+	}
+	
+	method fail1UnfoldVAccRd()
+		requires V
+	{
+		unfold acc(V, 50)
+		assert(acc(V, 50))
+		assert(rd(V))
+		assert(acc(V, 51)) /* @Error 430 */
+	}
+	
+	method fail2UnfoldVAccRd()
+		requires V
+	{
+		unfold acc(V, 50)
+		assert(acc(V, 50))
+		assert(rd(V))
+		assert(acc(x, 50))
+		assert(rd(x))
+		assert(acc(x, 51)) /* @Error 430 */
+	}
+	
+	method fail3UnfoldVAccRd()
+		requires V
+	{
+		unfold acc(V, 50)
+		assert(acc(V, 50))
+		assert(rd(V))
+		assert(acc(x, 50))
+		assert(rd(x))
+		unfold rd(V)
+		call f()
+		fold acc(V, 50)
+		call f()
+		call g() /* @Error 230 */
+	}
+	
+	method fail4UnfoldVAccRd()
+		requires V
+	{
+		unfold acc(V, 50)
+		assert(acc(V, 50))
+		assert(rd(V))
+		assert(acc(x, 50))
+		assert(rd(x))
+		unfold rd(V)
+		call f()
+		fold acc(V, 50)
+		call f()
+		fold rd(V)
+		call f() /* @Error 230 */
+	}
+}

@@ -1,0 +1,41 @@
+// https://bitbucket.org/mschwerhoff/syxc-npm/issue/8
+
+class Cell {}
+
+class Test {
+  method test01(t: Test, c: Cell)
+    requires t != null && c != null
+    requires holds(t) && holds(c) && holds(this)
+    lockchange t
+  {
+    release t
+    assert (t == this) <==> !holds(this)
+    assert holds(c)
+  }
+  
+  method test04(c1: Cell, c2: Cell)
+    requires c1 != null && c2 != null
+    requires holds(c1) && holds(c2)
+  {
+    release c1
+    assert holds(c2) /* @Error 410 */
+    release c2
+  }
+  
+  method test02(t: Test, c: Cell) /* @Error 340 */
+    requires t != null && c != null
+    requires holds(t) && holds(c)
+  {
+    release t
+    release c
+  }
+  
+  method test03(t: Test, c: Cell)
+    requires t != null && c != null
+    requires holds(t) && holds(c)
+    lockchange c, t
+  {
+    release t
+    release c
+  }
+}

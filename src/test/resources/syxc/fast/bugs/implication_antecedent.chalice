@@ -1,0 +1,13 @@
+/* There was a bug in the implication of DefaultProducer.produce2 such that
+ * an implication branched assuming 'antecedent = false' although it followed
+ * from the current state that this can not hold.
+ */
+class Test {
+	method produceImplies(b: bool)
+		requires b && (b ==> rd(mu))
+	{ assert rd(mu) }
+	
+	method consumeImplies(b: bool)
+		requires !b
+	{ assert b ==> rd(mu) }
+}

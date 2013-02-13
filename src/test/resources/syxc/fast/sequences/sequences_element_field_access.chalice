@@ -1,0 +1,200 @@
+// @IgnoreFile
+// AccessSeq is currently not supported in Syxc due to changes made
+// when introducing the tuple representation (w, r) of permissions
+// as part of the work on immutability.
+
+class SequencesAndFields {
+	method cellSum1(zs: seq<Cell>)
+		requires |zs| == 3
+		requires rd(zs[*].x)
+		requires zs[0] != null
+		requires zs[1] != null
+		requires zs[2] != null
+	{ var sum: int := zs[0].x + zs[1].x + zs[2].x }
+	
+	method reqAccess1(zs: seq<Cell>)
+		// requires forall i in zs :: rd(xs)
+			/* java.lang.Exception: permission expression unexpected here */
+		requires rd(zs[*].x)
+		requires rd(zs[*].*)
+		requires forall i in [0..|zs|] :: zs[i] != null && zs[i].x > 0
+		requires forall e in zs :: e != null && e.x > 0
+	{ }
+	
+	method reqAccess2a(zs: seq<Cell>)
+		requires rd(zs[*].x)
+		requires forall e in zs :: e != null && e.x > 0
+	{
+		var c1: Cell := new Cell; c1.x := 1
+		call reqAccess2a(zs ++ [c1])
+	}
+	
+	method takeAccCellX(c: Cell)
+		requires acc(c.x)
+	{}
+	
+	method reqAccess2b(zs: seq<Cell>) returns (zs1: seq<Cell>)
+		requires rd(zs[*].x)
+		requires forall e in zs :: e != null && e.x > 0
+		ensures rd(zs1[*].x)
+		ensures forall e in zs1 :: e != null && e.x > 0
+	{
+		var c1: Cell := new Cell; c1.x := 1
+		call takeAccCellX(c1)
+		zs1 := zs ++ [c1]
+	}
+	
+	method failReqAccess2bi(zs: seq<Cell>) returns (zs1: seq<Cell>)
+		requires rd(zs[*].x)
+		requires forall e in zs :: e != null && e.x > 0
+	{
+		var c1: Cell := new Cell; c1.x := 1
+		call takeAccCellX(c1)
+		zs1 := zs ++ [c1]
+		assert rd(zs1[*].x) /* @Error ok */
+	}
+	
+	method failReqAccess2bii(zs: seq<Cell>) returns (zs1: seq<Cell>)
+		requires rd(zs[*].x)
+		requires forall e in zs :: e != null && e.x > 0
+		ensures rd(zs1[*].x) /* @Error ok */
+	{
+		var c1: Cell := new Cell; c1.x := 1
+		call takeAccCellX(c1)
+		zs1 := zs ++ [c1]
+	}
+	
+	method reqAccess2c(zs: seq<Cell>)
+		requires |zs| > 0
+		requires rd(zs[*].x)
+		requires forall e in zs :: e != null && e.x > 0
+	{
+		var c: Cell := zs[0] 
+		assert rd(c.x)
+	}
+	
+	method reqAccess2ei(zs: seq<Cell>)
+		requires |zs| > 0
+		requires acc(zs[*].x)
+	{
+		var zs1: seq<Cell> := zs[1..]
+		assert acc(zs1[*].x)
+	}
+	
+	method reqAccess2eii(zs: seq<Cell>)
+		requires |zs| > 0
+		requires acc(zs[*].x)
+	{
+		var c: Cell := new Cell
+		var zs1: seq<Cell> := zs ++ [c]
+		assert acc(zs1[*].x)
+	}			
+	
+	method reqAccess2eiii(zs: seq<Cell>)
+		requires |zs| > 0
+		requires acc(zs[*].x)
+	{
+		call takeAccCellX(zs[0])
+		var zs1: seq<Cell> := zs[1..]
+		assert acc(zs1[*].x) /* FAILS in Chalice */
+	}
+	
+	method failReqAccess2eiii(zs: seq<Cell>)
+		requires |zs| > 0
+		requires acc(zs[*].x)
+	{
+		call takeAccCellX(zs[0])
+		assert acc(zs[*].x) /* @Error ok */
+	}		
+	
+	method failReqAccess2eiv(zs: seq<Cell>) returns (zs1: seq<Cell>)
+		requires |zs| > 0
+		requires acc(zs[*].x)
+		requires forall e in zs :: e != null && e.x > 0
+		ensures acc(zs1[*].x) /* @Error ok */
+	{
+		call takeAccCellX(zs[0])
+		zs1 := zs
+	}
+	
+	method reqAccess4(zs: seq<Cell>)
+		requires rd(zs[*].x)
+	{
+		var c1: Cell := new Cell; c1.x := 1
+		var c2: Cell := new Cell; c1.x := 2
+		call reqAccess4(zs ++ [c1, c2])
+	}
+	
+	method reqAccess4a(zs: seq<Cell>)
+		requires rd(zs[*].x)
+		requires forall e in zs :: e != null && e.x > 0
+	{
+		var c1: Cell := new Cell; c1.x := 1
+		var c2: Cell := new Cell; c1.x := 2
+		call reqAccess4a(zs ++ [c1, c2]) /* FAILS in Chalice */
+	}
+	
+	method reqAccess4b(zs: seq<Cell>) returns (zs1: seq<Cell>)
+		requires rd(zs[*].x)
+		requires forall e in zs :: e != null && e.x > 0
+		ensures rd(zs1[*].x)
+		ensures forall e in zs1 :: e != null && e.x > 0 /* FAILS in Chalice */
+	{
+		var c1: Cell := new Cell; c1.x := 1
+		var c2: Cell := new Cell; c1.x := 2
+		zs1 := zs ++ [c1, c2]
+	}		
+	
+	method reqAccess5(zs: seq<Cell>)
+		requires rd(zs[*].x)
+		requires forall e in zs :: e != null
+		requires forall e in zs :: e.x > 0
+			/* Correctly fails when the previous forall is removed */
+	{
+		// assert(acc(zs[1].x)) /* Failure: * expected but 1 found */
+		var c1: Cell := new Cell; c1.x := 1
+		var c2: Cell := new Cell; c1.x := 2
+		var c3: Cell := new Cell; c1.x := 3
+		var zs1: seq<Cell> := [c1, c2]
+		var zs2: seq<Cell> := [c2, c3]
+		var zs3: seq<Cell> := zs1 ++ zs ++ zs2
+		var zs4: seq<Cell> := zs3[1..|zs3|-2]
+		
+		call reqAccess5(zs4) /* FAILS in Chalice */
+	}
+	
+	method failReqAccess(zs: seq<Cell>)
+		requires |zs| == 2
+		// requires rd(zs[0].x) /* Failure: * expected but 0 found */
+		// requires rd(zs[*].x)
+		requires forall e in zs :: e != null && e.x > 0 /* TODO: @Error ok */
+			/* "Location might not be readable" if not "requires rd(zs[*])" */
+	{ }
+	
+	method reqAccess6Forall(zs: seq<Cell>)
+		requires acc(zs[*].x)
+		requires |zs| > 1
+		requires forall e in zs :: e != null && e.x > 0
+	{
+		var c: Cell := zs[0]
+		call takeAccCellX(c)
+		// assert acc(zs[*].x) /* @Error ok */
+		// assert (forall e in zs :: e != null && e.x > 0) /* @Error ok */
+		// assert (forall i in [1] :: zs[i] != null && zs[i].x > 0)
+			/* SHOULD hold, FAILS in Chalice */
+		// assert (forall i in [1..|zs|-1] :: zs[i] != null && zs[i].x > 0)
+			/* SHOULD hold, FAILS in Chalice */
+		c := new Cell
+		c.x := 1
+		var zs1: seq<Cell> := zs[1..]
+		// assert acc(zs1[*].x) /* SHOULD hold, FAILS in Chalice */
+		var zs2: seq<Cell> := zs1 ++ [c]
+		// assert acc(zs2[*].x) /* SHOULD hold, FAILS in Chalice */
+		call takeAccCellX(zs2[|zs2| - 1])
+		// assert acc(zs2[*].x) /* @Error ok */
+		assert acc(c.x) /* @Error ok */
+	}
+	}
+	
+	class Cell { var x: int	}
+	

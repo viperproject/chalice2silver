@@ -1,0 +1,31 @@
+class Cell { var x: int }
+
+class Test {
+	var c: Cell
+	
+	method test1()
+		requires acc(c) && c != null && rd holds(c)
+	{ assert !holds(c) /* @Fails */ }
+	
+	method test2()
+		requires acc(c) && c != null && holds(c)
+	{ assert ! rd holds(c) /* @Fails */ }
+	
+	method test3()
+		requires acc(c) && c != null && rd holds(c) && !holds(c)
+	{
+    /* Due to the way lock modes are currently handled in Syxc,
+     * the precondition 'rd holds(c) && !holds(c)' is equivalent to
+     * false. The reason for this is, that
+     *   holds(e) --> holds(e, W)
+     *   rd holds(e) --> holds(e, R)
+     * and
+     *   !holds(e) --> holds(e, N)
+     *   !rd holds(e) --> holds(e, N)
+     */
+     
+		assert !holds(c)
+		assert rd holds(c)
+    assert false  /* @Holds */
+	}
+}

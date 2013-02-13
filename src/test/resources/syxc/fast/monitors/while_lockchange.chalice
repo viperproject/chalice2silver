@@ -1,0 +1,14 @@
+class Test {
+  method test(t: Test)
+    requires t != null
+    requires holds(t)
+  {
+    while (true)
+      invariant t != null
+      invariant holds(t)
+      lockchange t
+    {
+      assert holds(t)
+    }
+  }
+}
