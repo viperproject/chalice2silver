@@ -8,7 +8,8 @@ class Test {
 
     acquire x
     release x
-    assert false /* @Error 410 */
+    //:: ExpectedError(ass.violated:ass.false)
+    assert false
   }
 
   method test03() {
@@ -21,7 +22,8 @@ class Test {
     acquire x
     acquire y
 
-    assert 1 == 2 /* @Error 410 */
+    //:: ExpectedError(ass.violated:ass.false)
+    assert 1 == 2
   }
 
   method test01() {
@@ -37,6 +39,8 @@ class Test {
 
     acquire y
     release y
-    assert 47 == 11 /* @Error 410 */
+    
+    //:: ExpectedError(ass.violated:ass.false)
+    assert 47 == 11
   }
 }

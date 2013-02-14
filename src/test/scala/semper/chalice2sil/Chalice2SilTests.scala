@@ -16,6 +16,7 @@ class Chalice2SilTests extends DefaultSilSuite {
            "translation",
            "syxc/fast/basics",
            "syxc/fast/branching",
+           "syxc/fast/bugs",
            "syxc/fast/channels")
 
   override def translator(verifier: Verifier, input: String): Translator =

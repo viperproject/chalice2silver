@@ -18,7 +18,8 @@ class Test {
     requires holds(c1) && holds(c2)
   {
     release c1
-    assert holds(c2) /* @Error 410 */
+    //:: ExpectedError(ass.violated:ass.false)
+    assert holds(c2)
     release c2
   }
   

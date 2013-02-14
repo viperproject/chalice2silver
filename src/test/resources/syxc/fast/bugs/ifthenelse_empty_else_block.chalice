@@ -6,6 +6,7 @@ class Test {
   method test1(b: bool) {
 		var a: int
     if (b) { a := 5 }
-    assert a < 10 /* @Error 410, verified before */
+    //:: ExpectedError(ass.violated:ass.false)
+    assert a < 10
   }
 }

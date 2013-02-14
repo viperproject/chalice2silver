@@ -8,7 +8,8 @@ class Invalid {
 	method foo(a: int)
 		requires acc(x)
 		// ensures acc(x) /* HERE */
-		ensures x == a /* @Error 330 */
+		//:: ExpectedError(post.violated:ass.false)
+    ensures x == a
 	{ x := a }
 }
 

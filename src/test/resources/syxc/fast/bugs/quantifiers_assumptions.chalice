@@ -26,7 +26,8 @@ class Test {
 	
 	method fail1(a: int)
 		requires a > 1
-		ensures forall i in [1..a] :: f(i) < i/2 /* @Error 310 */
+		//:: ExpectedError(post.violated:ass.false)
+    ensures forall i in [1..a] :: f(i) < i/2
 	{}
 	
 	function f(i: int): int
@@ -41,7 +42,8 @@ class Test {
 	
 	method fail2(a: int)
 		requires a > 1
-		ensures forall i in [a..2*f(a)] :: -f(i) < g(i) /* @Error 310 */
+		//:: ExpectedError(post.violated:ass.false)
+    ensures forall i in [a..2*f(a)] :: -f(i) < g(i)
 	{}	
 	
 	function g(i: int): int
@@ -60,7 +62,8 @@ class Test {
 			 *       However, this is probably not a problem since decreasing
 			 *       sequences are (should) not (be) allowed anyway.
 			 */
-		assert forall j in [0..1] :: neg2(j) == j /* @Error 210 */
+		//:: ExpectedError(ass.violated:ass.false)
+    assert forall j in [0..1] :: neg2(j) == j
 	}
 	
 	function neg2(i: int): int

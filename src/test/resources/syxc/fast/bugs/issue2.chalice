@@ -8,7 +8,8 @@
 class Test {
   method test11()
   {
-    assert holds(this) /* @Error 410 */
+    //:: ExpectedError(ass.violated:ass.false)
+    assert holds(this)
   }
   
   method test01()
@@ -33,7 +34,8 @@ class Test {
     var t: Test := new Test
     assert !holds(t)
     call goodCallee(t)
-    assert false /* @Error 410 */
+    //:: ExpectedError(ass.violated:ass.false)
+    assert false
   }
   
   method goodCallee(t: Test)
@@ -72,7 +74,8 @@ class Test {
     var t: Test := new Test
     assert !holds(t)
     call overApproxCallee(t)
-    assert holds(t)  /* @Error 410 */
+    //:: ExpectedError(ass.violated:ass.false)
+    assert holds(t)
   }
   
   method overApproxCallee(t: Test)
@@ -85,12 +88,14 @@ class Test {
   method test05(t: Test)
     requires t != null
   {
-    assert holds(t) /* @Error 410 */
+    //:: ExpectedError(ass.violated:ass.false)
+    assert holds(t)
   }
   
   method test06(t: Test)
     requires t != null
   {
-    assert !holds(t) /* @Error 410 */
+    //:: ExpectedError(ass.violated:ass.false)
+    assert !holds(t)
   }
 }

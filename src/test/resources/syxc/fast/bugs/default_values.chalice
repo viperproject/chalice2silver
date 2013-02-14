@@ -20,6 +20,7 @@ class Test {
 	method test_cell() {
 		var c: TestCell := new TestCell
 		assert c.x == null || c.x != null
-		assert c.x == null /* @Error 410 */
+		//:: ExpectedError(ass.violated:ass.false)
+    assert c.x == null
 	}
 }

@@ -22,7 +22,8 @@ class Test {
 		requires acc(x)
 		requires f(a) == 0
 		ensures acc(x)
-		ensures f(a) == 0 /* @Error 310 */
+		//:: ExpectedError(post.violated:ass.false)
+    ensures f(a) == 0
 	{ x := -x }
 	
 	method fail2()
@@ -31,7 +32,8 @@ class Test {
 		requires y >= 0
 		requires y < 100
 		ensures rd(y)
-		ensures acc(x, y) /* @Error 130 */
+		//:: ExpectedError(post.violated:ass.false)
+    ensures acc(x, y)
 	{}
 	
 	method succeed2()
@@ -59,7 +61,8 @@ class Test {
 		requires f(a) >= 0
 		requires f(a) < 100
 		ensures rd(x)
-		ensures acc(x, f(a)) /* @Error 130 */
+		//:: ExpectedError(post.violated:ass.false)
+    ensures acc(x, f(a))
 	{}
 	
 	method succeed3()

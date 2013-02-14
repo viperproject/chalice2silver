@@ -8,12 +8,7 @@ class Test {
 	method reqX3()
 		requires X3
 		ensures X3
-	{
-		/* Even verifies with the following code included */
-		// unfold X3
-		// x := 123
-		// fold X3
-	}
+	{}
 	
 	method fail1()
 		requires X3
@@ -22,6 +17,7 @@ class Test {
 		var y1: int := unfolding X3 in x
 		call reqX3()
 		var y2: int := unfolding X3 in x
-		assert y1 == y2 /* @Error 410 */ /* Succeeds in Chalice */
+		//:: ExpectedError(ass.violated:ass.false)
+    assert y1 == y2
 	}
 }

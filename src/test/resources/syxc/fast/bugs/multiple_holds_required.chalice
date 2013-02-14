@@ -12,12 +12,14 @@ class Test {
 	method fail1(t1: Test)
 	 requires t1 != null
 	 requires holds(t1)
-	 ensures !holds(t1) /* @Error 310 */
+	 //:: ExpectedError(post.violated:ass.false)
+   ensures !holds(t1)
 	{}
 	
 	method fail2(t1: Test, t2: Test)
 	 requires t1 != null &&  t2 != null
 	 requires holds(t1) && holds(t2)
-	 ensures !holds(t1) || !holds(t2) /* @Error 310 */
+	 //:: ExpectedError(post.violated:ass.false)
+   ensures !holds(t1) || !holds(t2)
 	{}
 }
