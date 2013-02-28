@@ -30,6 +30,7 @@ object Chalice2SilBuild extends Build {
       base = file("."),
       settings = (
            baseSettings
+			  ++ assemblySettings
         ++ Seq(
               name := "Chalice2Sil",
               mainClass in (Compile, run) := Some("semper.chalice2sil.Program"),
