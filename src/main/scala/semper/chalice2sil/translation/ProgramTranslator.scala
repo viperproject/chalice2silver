@@ -76,7 +76,11 @@ class ProgramTranslator(val programOptions : ProgramOptions, val programName : S
 
   protected def collectSymbols(classNode : chalice.Class){
     classNode.members.view foreach  {
-      case f:chalice.Field => fields(f)
+      case f:chalice.Field =>
+        fields(f)
+        if (f.isTracked) fields(
+          new chalice.Field("~(" + classNode.id + "." + f.id + ")", new chalice.Type("set", List(new chalice.Type(classNode))), false, false)
+        )
       case p:chalice.Predicate => predicates(p)
       case m:chalice.Method => methods(m)
       case f:chalice.Function => functions(f)
