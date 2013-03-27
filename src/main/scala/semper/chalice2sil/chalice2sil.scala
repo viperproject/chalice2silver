@@ -3,7 +3,7 @@ package semper {
 
 import scala.language.implicitConversions
 import chalice.ASTNode
-import chalice2sil.translation.{FunctionTranslator, PredicateTranslator, MethodTranslator, FieldTranslator}
+import chalice2sil.translation.{FunctionTranslator, PredicateTranslator, MethodTranslator}
 import sil.ast.expressions.Expression
 import sil.ast.source.{RealSourceLocation, SourceLocation}
 import semper.sil.ast.methods.MethodFactory

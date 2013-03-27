@@ -9,7 +9,7 @@ import terms._
 import semper.sil.ast.symbols.logical.{Not, UnaryConnective, BinaryConnective, And}
 import semper.sil.ast.programs.symbols.{PredicateFactory, ProgramVariable, Field}
 import semper.chalice2sil._
-import translation.{FieldTranslator, MemberEnvironment}
+import translation.{MemberEnvironment}
 
 class LanguageConstructBase(val environment : MemberEnvironment, val sourceLocation : SourceLocation) {
 
