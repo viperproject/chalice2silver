@@ -156,3 +156,12 @@ object RdLockNotSupported extends MessageId(
     def data = Nil
   }
 }
+
+object WrongNumberOfTypeParameters extends MessageId(
+  Fault,
+  "semper.chalice2sil.WrongNumberOfTypeParameters",
+  "Sequences and Sets must have exactly one type parameter.") {
+  def apply(location : SourceLocation) = new Message(this,location) {
+    def data = Nil
+  }
+}

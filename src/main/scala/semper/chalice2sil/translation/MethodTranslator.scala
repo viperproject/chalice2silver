@@ -1,25 +1,19 @@
 package semper.chalice2sil.translation
 
 import scala.language.reflectiveCalls
-import semper.chalice2sil
-import chalice2sil._
-import semper.sil.ast.methods.implementations.BasicBlockFactory
-import semper.sil.ast.source.SourceLocation
-import semper.sil.ast.types._
-import semper.sil.ast.programs.symbols.ProgramVariable
-import semper.sil.ast.expressions.terms._
-import semper.sil.ast.expressions._
-import semper.sil.ast.symbols.logical._
-import util._
-import collection._
+import semper.chalice2sil.util._
+import semper.sil.ast._
+import scala.collection.mutable._
 
-class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
-    extends DerivedProgramEnvironment(st)
+// YANNIS: todo: finish method translation
+// anything not used by *my* translation is in comments now!
+class MethodTranslator(st : ProgramTranslator, method : chalice.Method)  extends RealPosition
+/*    extends DerivedProgramEnvironment(st)
     with MemberEnvironment
     with ScopeTranslator
-    with TypeTranslator { thisMethodTranslator =>
+    with TypeTranslator*/ { //thisMethodTranslator =>
 
-  val methodFactory = programFactory.getMethodFactory(fullMethodName(method))(method)
+/*  val methodFactory = programFactory.getMethodFactory(fullMethodName(method))(method)
   protected lazy val implementationFactory = {
     methodFactory.addImplementation(method.body.map(astNodeToSourceLocation).headOption.getOrElse(method))
   }
@@ -74,18 +68,30 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
   override val temporaries = new TemporaryVariableBroker(this)
 
   val blockStack = new mutable.Stack[BasicBlockFactory]
-  def currentExpressionFactory = blockStack.headOption.getOrElse(methodFactory)
+  def currentExpressionFactory = blockStack.headOption.getOrElse(methodFactory)*/
+
+  override val line = method.pos.line
+  override val column = method.pos.column
+
+  val outerEnvironment: ChaliceMethodSpecEnvironment = new ChaliceMethodSpecEnvironment(st.chaliceEnvironment)
+  val innerEnvironment: ChaliceScopeEnvironment = new ChaliceScopeEnvironment(outerEnvironment)
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////      TRANSLATION                                                     /////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  private[this] def createSignature() : ProgramVariable = {
-    val mf = methodFactory
-    method.ins.foreach(i => programVariables.addExternal(mf.addParameter(i.UniqueName, translateTypeExpr(i.t),i)))
-    method.outs.foreach(o => programVariables.addExternal(mf.addResult(o.UniqueName,translateTypeExpr(o.t),o)))
+  def translate() : Method = {
+    val silParameters = new LinkedList
+    var result : Method = null
 
-    pureLanguageConstruct(method){ ctor=>
+    method.ins.foreach(i => outerEnvironment.chaliceParameters += (i.id, i))
+    method.outs.foreach(o => outerEnvironment.chaliceResults += (o.id, o))
+
+    /*YANNIS todo: translate specification*/
+
+    /*YANNIS todo: translate body*/
+
+/*    pureLanguageConstruct(method){ ctor=>
       import ctor._
 
       // this pointer
@@ -109,10 +115,11 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
       // contracts mentioning CurrentThread are located in createContracts below
 
       k
-    }
+    }*/
+    result
   }
   
-  val environmentReadFractionVariable = createSignature()
+  /*val environmentReadFractionVariable = createSignature()
 
   val environmentCurrentThreadVariable = methodFactory.inputProgramVariables.find(_.name.startsWith(prelude.Thread.parameterName)).get
 
@@ -181,5 +188,5 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)
 
   def translate(){
     translateBody(translateStatements(_,method.body))
-  }
+  }*/
 }

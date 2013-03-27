@@ -5,8 +5,8 @@ import scopt._
 import chalice.{Chalice, PrintProgram}
 import translation.ProgramTranslator
 import java.io.File
-import semper.sil.ast.source.NoLocation
-import semper.sil.verifier.{Success, Error}
+// YANNIS import semper.sil.ast.source.NoLocation
+// YANNIS import semper.sil.verifier.{Success, Error}
 import semper.silicon.{Silicon}
 
 object Program {
@@ -76,7 +76,7 @@ object Program {
     translator
   }
 
-  def translateToSil(opts: ProgramOptions, program: scala.List[chalice.TopLevelDecl]): (semper.sil.ast.programs.Program, Seq[Message]) = {
+  def translateToSil(opts: ProgramOptions, program: scala.List[chalice.TopLevelDecl]): (semper.sil.ast.Program, Seq[Message]) = {
     if (opts.verbose)
       Console.out.println("Beginning translation of Chalice program to SIL.")
 
