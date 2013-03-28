@@ -5,8 +5,7 @@ import semper.chalice2sil.util._
 import semper.sil.ast._
 import scala.collection.mutable._
 
-// YANNIS: todo: finish method translation
-// anything not used by *my* translation is in comments now!
+// YANNIS: this file heads for deletion
 class MethodTranslator(st : ProgramTranslator, method : chalice.Method)  extends RealPosition
 /*    extends DerivedProgramEnvironment(st)
     with MemberEnvironment
@@ -87,9 +86,7 @@ class MethodTranslator(st : ProgramTranslator, method : chalice.Method)  extends
     method.ins.foreach(i => outerEnvironment.chaliceParameters += (i.id, i))
     method.outs.foreach(o => outerEnvironment.chaliceResults += (o.id, o))
 
-    /*YANNIS todo: translate specification*/
 
-    /*YANNIS todo: translate body*/
 
 /*    pureLanguageConstruct(method){ ctor=>
       import ctor._
