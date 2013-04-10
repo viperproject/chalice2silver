@@ -5,6 +5,7 @@ import semper.chalice2sil.util._
 import scala.collection.mutable._
 import java.lang.String
 import semper.chalice2sil.messages._
+import chalice.Frac
 
 /**
  * Author: Christian Klauser
@@ -30,6 +31,9 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   // translated symbols
   val symbolMap = new HashMap[chalice.ASTNode, Nodes]
     // maps Chalice class members and local variables to SIL members and local variables
+
+  // global K permission for predicates and invariants
+  val globalK = new LocalVar("globalK")  // YANNIS: todo: may/must I put this in the SIL program?
 
   // the set domain
   val typeVar = new TypeVar("X")
@@ -65,7 +69,8 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         silEnvironment.silPredicates += (p.FullName, newPredicate)
       case m:chalice.Method =>
         val myThis = new LocalVarDecl("this", Ref)
-        val ins = myThis :: translateVars(m.ins)
+        val myK = new LocalVarDecl("PermK", Perm)
+        val ins = myThis :: myK :: translateVars(m.ins)
         val newMethod = new Method(m.FullName, ins, translateVars(m.outs))(new SourcePosition(m.pos.line, m.pos.column))
         symbolMap(m) = newMethod
         silEnvironment.silMethods += (m.FullName, newMethod)
@@ -90,17 +95,16 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
 
 
   protected def translate(classNode: chalice.Class) = {
-    val ths: LocalVar = new LocalVar("this")
+    val ths = new LocalVarDecl("this")
 
     // Translate one member at a time
     classNode.members.foreach({
       case m: chalice.Method  => translateMethod(m)
-      case p: chalice.Predicate =>
-        new PredicateTranslator(this, p).translate() // YANNIS todo: fix predicate translators
+      case p: chalice.Predicate => translatePredicate(p)
       case f: chalice.Function =>
         new FunctionTranslator(this, f).translate() // YANNIS todo: fix function translators
       case i: chalice.MonitorInvariant =>
-        val silCurrent = translateExp(i, ths)
+        val silCurrent = translateExp(i, ths, globalK)
         val silPrevious = silTranslatedInvariants.get(classNode.FullName)
         val silNew = silPrevious match {
           case None => silCurrent
@@ -118,7 +122,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         val tvm = new HashMap[TypeVar, Type]
         val silT = translateType(cType.params.head)
         tvm += (typeVar, silT)
-        new DomainType(seqDomain, tvm)
+        new DomainType(seqDomain, tvm)   // YANNIS: todo: fix
       case "set" =>
         if(typ.params.length != 1) { messages += WrongNumberOfTypeParameters; Int }
         val tvm = new HashMap[TypeVar, Type]
@@ -139,9 +143,16 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     result
   }
 
+  protected def translatePredicate(cPredicate: chalice.Predicate) = {
+    val sPredicate = silEnvironment.silPredicates(cPredicate.FullName)
+    val sThis = sPredicate.formalArgs(0)
+    sPredicate.body = translateExp(cPredicate.definition, sThis, globalK)
+  }
+
   protected def translateMethod(cMethod: chalice.Method) = {
     val sMethod = silEnvironment.silMethods(cMethod.FullName)
     val sThis = sMethod.ins(0)
+    val sK = sMethod.ins(1)
 
     // translate specifications
     val silPreconditions = new LinkedList[Exp]
@@ -159,10 +170,10 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     sMethod.posts = silPostConditions
 
     // translate body
-    translateBody(cMethod, myThis)
+    translateBody(cMethod, sThis, sK)
   }
 
-  protected def translateExp(cExp: chalice.Expression, myThis: LocalVarDecl) : Exp = {
+  protected def translateExp(cExp: chalice.Expression, myThis: LocalVarDecl, myK: LocalVarDecl) : Exp = {
     val position = new SourcePosition(cExp.pos.line, cExp.pos.column)
     cExp match {
       // old expression
@@ -175,30 +186,32 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
 
       // logical operators
       case chalice.And(lhs, rhs) =>
-        new And(translateExp(lhs, myThis), translateExp(rhs, myThis))(position)
+        new And(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK))(position)
       case chalice.Or(lhs, rhs) =>
-        new Or(translateExp(lhs, myThis), translateExp(rhs, myThis))(position)
+        new Or(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK))(position)
       case chalice.Implies(lhs, rhs) =>
-        new Implies(translateExp(lhs, myThis), translateExp(rhs, myThis))(position)
+        new Implies(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK))(position)
       case chalice.Eq(lhs, rhs) =>
-        new EqCmp(translateExp(lhs, myThis), translateExp(rhs, myThis))(position)
+        new EqCmp(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK))(position)
       case chalice.Neq(lhs, rhs) =>
-        new NeCmp(translateExp(lhs, myThis), translateExp(rhs, myThis))(position)
-      case chalice.Not(op) => new Not(translateExp(op, myThis))(position)
+        new NeCmp(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK))(position)
+      case chalice.Not(op) => new Not(translateExp(op, myThis, myK))(position)
       case chalice.IfThenElse(cond, thn, els) =>
-        new CondExp(translateExp(cond, myThis), translateExp(thn, myThis), translateExp(els, myThis))(position)
+        new CondExp(
+          translateExp(cond, myThis, myK), translateExp(thn, myThis, myK), translateExp(els, myThis, myK)
+        )(position)
 
        // arithmetic operators
       case chalice.Plus(lhs, rhs) =>
-        new Add(translateExp(lhs, myThis), translateExp(rhs, myThis))(position)
+        new Add(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK))(position)
       case chalice.Minus(lhs, rhs) =>
-        new Sub(translateExp(lhs, myThis), translateExp(rhs, myThis))(position)
+        new Sub(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK))(position)
       case chalice.Times(lhs, rhs) =>
-        new Mul(translateExp(lhs, myThis), translateExp(rhs, myThis))(position)
+        new Mul(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK))(position)
       case chalice.Div(lhs, rhs) =>
-        new Div(translateExp(lhs, myThis), translateExp(rhs, myThis))(position)
+        new Div(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK))(position)
       case chalice.Mod(lhs, rhs) =>
-        new Mod(translateExp(lhs, myThis), translateExp(rhs, myThis))(position)
+        new Mod(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK))(position)
 
         // YANNIS: todo: arithmetic comparison operators
 
@@ -206,16 +219,16 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case chalice.EmptySeq(t) => new EmptySeq(translateType(t))(position)
       case chalice.ExplicitSeq(elems) => new ExplicitSeq(elems map translateExp(_,myThis))(position)
       case chalice.SeqAccess(lhs, rhs) =>
-        new RangeSeq(translateExp(lhs, locals), translateExp(rhs, myThis))(position)
-      case chalice.Length(e) => new SeqLength(translateExp(e, myThis))(position)
+        new RangeSeq(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK))(position)
+      case chalice.Length(e) => new SeqLength(translateExp(e, myThis, myK))(position)
       case chalice.At(lhs, rhs) =>
-        new SeqIndex(translateExp(lhs, myThis), translateExp(rhs, myThis))(position)
+        new SeqIndex(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK))(position)
       case chalice.Drop(lhs, rhs) =>
-        new SeqDrop(translateExp(lhs, myThis), translateExp(rhs, myThis))(position)
+        new SeqDrop(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK))(position)
       case chalice.Take(lhs, rhs) =>
-        new SeqTake(translateExp(lhs, myThis), translateExp(rhs, myThis))(position)
+        new SeqTake(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK))(position)
       case chalice.Contains(lhs, rhs) =>
-        new SeqContains(translateExp(lhs, myThis), translateExp(rhs, myThis))(position)
+        new SeqContains(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK))(position)
 
         // set operators: YANNIS: todo
 
@@ -231,8 +244,8 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
 
         // access permissions
       case chalice.Access(ma, perm) =>
-        val silma = translateExp(ma, myThis)
-        val silpe = translatePerm(perm, myThis)
+        val silma = translateExp(ma, myThis, myK)
+        val silpe = translatePerm(perm, myThis, myK)
         if (ma.isPredicate) new PredicateAccessPredicate(silma, silpe)(position)
         else new FieldAccessPredicate(silma, silpe)(position)
 
@@ -335,16 +348,16 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     }
   }
 
-  protected def translateBody(cMethod: chalice.Method, myThis: LocalVarDecl) = {
+  protected def translateBody(cMethod: chalice.Method, myThis: LocalVarDecl, myK: LocalVarDecl) = {
     val sMethod = symbolMap(cMethod).asInstanceOf[Method]
-    sMethod.body = new Seqn(cMethod.body.foreach(translateStm(_,myThis)))
+    sMethod.body = new Seqn(cMethod.body.foreach(translateStm(_,myThis,myK)))
   }
 
-  protected def translateStm(cStm: chalice.Statement, myThis: LocalVarDecl) : Stmt = {
+  protected def translateStm(cStm: chalice.Statement, myThis: LocalVarDecl, myK: LocalVarDecl) : Stmt = {
     val position = new SourcePosition(cStm.pos.line, cExp.pos.column)
     st match {
-      case chalice.Assert(e) => Assert(translateExp(e, myThis))(position)
-      case chalice.Assume(e) => Inhale(translateExp(e, myThis))(position)
+      case chalice.Assert(e) => Assert(translateExp(e, myThis, myK))(position)
+      case chalice.Assume(e) => Inhale(translateExp(e, myThis, myK))(position)
     }
     // YANNIS: todo
     /*
@@ -421,6 +434,47 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   }
 
 
-  protected def translatePerm(perm: chalice.Permission, myThis: LocalVarDecl) = { null }
+  protected def translatePerm(perm: chalice.Permission, myThis: LocalVarDecl, myK: LocalVarDecl) = {
+    perm match {
+      case chalice.Full => new FullPerm() // 100% permission
+      case chalice.Frac(n) => new FractionalPerm(translateExp(n, myThis, myK), new IntLit(100)) // n% permission
+      case chalice.Star => new WildcardPerm() // rd* permission
+      case chalice.Epsilon => myK // the k permission parameter given to the method
+        // attention: chalice.Epsilon is a misnomer!!
+        // YANNIS: todo: separate LocalVarDecl from LocalVar everywhere
+      case chalice.MethodEpsilon => myK // YANNIS: todo: what is the difference between chalice.Epsilon and this?
+
+      // for predicate and monitor k permissions, we use one global k value
+      case chalice.PredicateEpsilon => globalK
+      case chalice.MonitorEpsilon => globalK
+        // YANNIS: todo: deal with: case class ForkEpsilon(token: Expression) extends Write
+
+      // counting permissions
+      case chalice.Epsilons(n) => IntPermMul(translateExp(n, myThis, myK), new EpsilonPerm()) // n*ε permissions
+    }
+/*
+    case class PermTimes(val lhs: Permission, val rhs: Permission) extends ArithmeticPermission {
+      override def permissionType = {
+        if (lhs.permissionType == rhs.permissionType) lhs.permissionType
+        else Mixed
+      }
+    }
+    case class IntPermTimes(val lhs: Expression, val rhs: Permission) extends ArithmeticPermission {
+      override def permissionType = rhs.permissionType
+    }
+    case class PermPlus(val lhs: Permission, val rhs: Permission) extends ArithmeticPermission {
+      override def permissionType = {
+        if (lhs.permissionType == rhs.permissionType) lhs.permissionType
+        else Mixed
+      }
+    }
+    case class PermMinus(val lhs: Permission, val rhs: Permission) extends ArithmeticPermission {
+      override def permissionType = {
+        if (lhs.permissionType == rhs.permissionType) lhs.permissionType
+        else Mixed
+      }
+    }
+*/
+  }
   // YANNIS: todo
 }
