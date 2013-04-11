@@ -433,7 +433,6 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
 */
   }
 
-
   protected def translatePerm(perm: chalice.Permission, myThis: LocalVarDecl, myK: LocalVarDecl) = {
     perm match {
       case chalice.Full => new FullPerm() // 100% permission
@@ -450,31 +449,17 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         // YANNIS: todo: deal with: case class ForkEpsilon(token: Expression) extends Write
 
       // counting permissions
-      case chalice.Epsilons(n) => IntPermMul(translateExp(n, myThis, myK), new EpsilonPerm()) // n*ε permissions
+      case chalice.Epsilons(n) => new PermIntMul(translateExp(n, myThis, myK), new EpsilonPerm()) // n*ε permissions
+
+      // operations on permissions
+      case chalice.PermTimesOp(lhs, rhs) => new PermMul(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK))
+        // multiplication of two fractional permissions
+      case chalice.IntPermTimes(n, p) => new PermIntMul(translateExp(n, myThis, myK), translateExp(p, myThis, myK))
+        // multiplication of an integer and a permission
+      case chalice.PermTimesPlus(lhs, rhs) =>
+        new PermAdd(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK)) // p1+p2
+      case chalice.PermTimesMinus(lhs, rhs) =>
+        new PermSub(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK)) // p1-p2
     }
-/*
-    case class PermTimes(val lhs: Permission, val rhs: Permission) extends ArithmeticPermission {
-      override def permissionType = {
-        if (lhs.permissionType == rhs.permissionType) lhs.permissionType
-        else Mixed
-      }
-    }
-    case class IntPermTimes(val lhs: Expression, val rhs: Permission) extends ArithmeticPermission {
-      override def permissionType = rhs.permissionType
-    }
-    case class PermPlus(val lhs: Permission, val rhs: Permission) extends ArithmeticPermission {
-      override def permissionType = {
-        if (lhs.permissionType == rhs.permissionType) lhs.permissionType
-        else Mixed
-      }
-    }
-    case class PermMinus(val lhs: Permission, val rhs: Permission) extends ArithmeticPermission {
-      override def permissionType = {
-        if (lhs.permissionType == rhs.permissionType) lhs.permissionType
-        else Mixed
-      }
-    }
-*/
   }
-  // YANNIS: todo
 }
