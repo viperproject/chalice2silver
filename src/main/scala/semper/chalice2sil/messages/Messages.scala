@@ -165,3 +165,12 @@ object WrongNumberOfTypeParameters extends MessageId(
     def data = Nil
   }
 }
+
+object TypeError extends MessageId(
+  Fault,
+  "semper.chalice2sil.TypeError",
+  "Type Error") {
+  def apply(location : SourceLocation) = new Message(this,channel) {
+    def data = Nil
+  }
+}

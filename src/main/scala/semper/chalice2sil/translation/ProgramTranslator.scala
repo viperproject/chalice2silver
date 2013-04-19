@@ -5,18 +5,28 @@ import semper.chalice2sil.util._
 import scala.collection.mutable._
 import java.lang.String
 import semper.chalice2sil.messages._
-import chalice.Frac
+import semper.chalice2sil.util.SetDomain
 
 /**
  * Author: Christian Klauser
  * Code modified by Yannis Kassios
  */
 
-// YANNIS: todo: fix Chalice resolution phase for general universal quantification and backpointers
+// YANNIS: todo: fix Chalice resolution phase
+  /*
+      - set containment 'in' (perhaps also !in)
+      - set comparison < > <= >=
+      - quantification over sets
+      - aggregation
+      - allow access quantifiers within forall
+      - small tests
+      - examples
+      - 'not supported' exceptions in the translation phase
+  */
 
 // YANNIS: todo: make the program running
 
-// YANNIS: todo: run the correct pretty-printer and check all program functionality
+// YANNIS: todo: run the correct pretty-printer and test all program functionality
 
 class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, val programName: String)
 {
@@ -33,13 +43,8 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     // maps Chalice class members and local variables to SIL members and local variables
 
   // global K permission for predicates and invariants
-  val globalK = new LocalVar("globalK")  // YANNIS: todo: may/must I put this in the SIL program?
-
-  // the set domain
-  val typeVar = new TypeVar("X")
-  val setDomain =
-    new Domain("set", Nil, Nil, List(typeVar))
-    // YANNIS todo: add set functions and axioms
+  val globalK = new Field("::globalK", Perm)
+  silEnvironment.silFields += ("::globalK" -> globalK)
 
   //val prelude = new ChalicePrelude(this)
   // YANNIS todo: fix ChalicePrelude
@@ -47,7 +52,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   def translate(decls : Seq[chalice.TopLevelDecl]) : (Program, LinkedList[MessageId]) = {
     decls.foreach(collectSymbols)
     decls.foreach(translate)
-    (new Program(programName, List(setDomain), silEnvironment.silFields, silEnvironment.silFunctions,
+    (new Program(programName, List(SetDomain), silEnvironment.silFields, silEnvironment.silFunctions,
       silEnvironment.silPredicates, silEnvironment.silMethods), messages)
   }
   
@@ -104,7 +109,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case f: chalice.Function =>
         new FunctionTranslator(this, f).translate() // YANNIS todo: fix function translators
       case i: chalice.MonitorInvariant =>
-        val silCurrent = translateExp(i, ths, globalK)
+        val silCurrent = translateExp(i, ths, null)
         val silPrevious = silTranslatedInvariants.get(classNode.FullName)
         val silNew = silPrevious match {
           case None => silCurrent
@@ -115,20 +120,24 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     })
   }
 
+
   protected def translateType(cType: chalice.Type) : Type = {
     cType.id match {
       case "seq" =>
+        // YANNIS: todo: fix
         if(typ.params.length != 1) { messages += WrongNumberOfTypeParameters; Int }
         val tvm = new HashMap[TypeVar, Type]
         val silT = translateType(cType.params.head)
         tvm += (typeVar, silT)
-        new DomainType(seqDomain, tvm)   // YANNIS: todo: fix
+        new DomainType(seqDomain, tvm)
       case "set" =>
         if(typ.params.length != 1) { messages += WrongNumberOfTypeParameters; Int }
-        val tvm = new HashMap[TypeVar, Type]
-        val silT = translateType(cType.params.head)
-        tvm += (typeVar, silT)
-        new DomainType(setDomain, tvm)
+        else {
+          val silT = translateType(cType.params.head)
+          val tvm = Map(SetDomain.typeVar -> silT)
+          tvm += (typeVar, silT)
+          new DomainType(SetDomain, tvm)
+        }
       case "int" => Int
       case "bool" => Bool
       case _ => Ref
@@ -146,7 +155,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   protected def translatePredicate(cPredicate: chalice.Predicate) = {
     val sPredicate = silEnvironment.silPredicates(cPredicate.FullName)
     val sThis = sPredicate.formalArgs(0)
-    sPredicate.body = translateExp(cPredicate.definition, sThis, globalK)
+    sPredicate.body = translateExp(cPredicate.definition, sThis, null)
   }
 
   protected def translateMethod(cMethod: chalice.Method) = {
@@ -174,6 +183,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   }
 
   protected def translateExp(cExp: chalice.Expression, myThis: LocalVarDecl, myK: LocalVarDecl) : Exp = {
+      // when translating predicates/invariants myK is null.  globalK must be used instead
     val position = new SourcePosition(cExp.pos.line, cExp.pos.column)
     cExp match {
       // old expression
@@ -201,19 +211,40 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
           translateExp(cond, myThis, myK), translateExp(thn, myThis, myK), translateExp(els, myThis, myK)
         )(position)
 
-       // arithmetic operators
+       // arithmetic operators and set union, subtraction, intersection
       case chalice.Plus(lhs, rhs) =>
-        new Add(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK))(position)
+        val l = translateExp(lhs, myThis, myK)
+        val r = translateExp(rhs, myThis, myK)
+        if(lhs.typ == chalice.IntClass) new Add(l, r)(position)
+        else { // if lhs is not int, this translates to set union
+          var t = l.typVarsMap.getOrElse(SetDomain.typeVar, null)
+          if(t == null) { messages += TypeError(l) ; t = Int }
+          new DomainFuncApp(SetDomain.union, List(l, r), t)
+        }
       case chalice.Minus(lhs, rhs) =>
-        new Sub(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK))(position)
+        val l = translateExp(lhs, myThis, myK)
+        val r = translateExp(rhs, myThis, myK)
+        if(lhs.typ == chalice.IntClass) new Sub(l, r)(position)
+        else { // if lhs is not int, this translates to set subtraction
+          var t = l.typVarsMap.getOrElse(SetDomain.typeVar, null)
+          if(t == null) { messages += TypeError(l) ; t = Int }
+          new DomainFuncApp(SetDomain.subtraction, List(l, r), t)
+        }
       case chalice.Times(lhs, rhs) =>
-        new Mul(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK))(position)
+        val l = translateExp(lhs, myThis, myK)
+        val r = translateExp(rhs, myThis, myK)
+        if(lhs.typ == chalice.IntClass) new Mul(l, r)(position)
+        else { // if lhs is not int, this translates to set intersection
+        var t = l.typVarsMap.getOrElse(SetDomain.typeVar, null)
+          if(t == null) { messages += TypeError(l) ; t = Int }
+          new DomainFuncApp(SetDomain.intersection, List(l, r), t)
+        }
       case chalice.Div(lhs, rhs) =>
         new Div(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK))(position)
       case chalice.Mod(lhs, rhs) =>
         new Mod(translateExp(lhs, myThis, myK), translateExp(rhs, myThis, myK))(position)
 
-        // YANNIS: todo: arithmetic comparison operators
+        // YANNIS: todo: arithmetic and set comparison operators
 
         // sequence operators
       case chalice.EmptySeq(t) => new EmptySeq(translateType(t))(position)
@@ -434,14 +465,15 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   }
 
   protected def translatePerm(perm: chalice.Permission, myThis: LocalVarDecl, myK: LocalVarDecl) = {
+      // when translating predicates/invariants myK is null.  globalK must be used instead
     perm match {
       case chalice.Full => new FullPerm() // 100% permission
       case chalice.Frac(n) => new FractionalPerm(translateExp(n, myThis, myK), new IntLit(100)) // n% permission
       case chalice.Star => new WildcardPerm() // rd* permission
       case chalice.Epsilon => myK // the k permission parameter given to the method
         // attention: chalice.Epsilon is a misnomer!!
-        // YANNIS: todo: separate LocalVarDecl from LocalVar everywhere
-      case chalice.MethodEpsilon => myK // YANNIS: todo: what is the difference between chalice.Epsilon and this?
+        // YANNIS: todo: separate LocalVarDecl from LocalVar and Field from FieldAccess everywhere
+      case chalice.MethodEpsilon => myK==null ? globalK : myK // YANNIS: todo: what is the difference between chalice.Epsilon and this?
 
       // for predicate and monitor k permissions, we use one global k value
       case chalice.PredicateEpsilon => globalK
