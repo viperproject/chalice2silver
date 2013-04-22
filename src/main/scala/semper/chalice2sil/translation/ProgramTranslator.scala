@@ -14,8 +14,6 @@ import semper.chalice2sil.util.SetDomain
 
 // YANNIS: todo: fix Chalice resolution phase
   /*
-      - set containment 'in' (perhaps also !in)
-      - set comparison < > <= >=
       - quantification over sets
       - aggregation
       - allow access quantifiers within forall
@@ -39,7 +37,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   val silTranslatedInvariants = new HashMap[chalice.Class, Predicate]
 
   // translated symbols
-  val symbolMap = new HashMap[chalice.ASTNode, Nodes]
+  val symbolMap = new HashMap[chalice.ASTNode, Node]
     // maps Chalice class members and local variables to SIL members and local variables
 
   // global K permission for predicates and invariants
@@ -267,10 +265,18 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case chalice.ThisExpr => myThis
       case ma@chalice.MemberAccess(e, id) =>
         val cls = e.typ.id
-        /*val memb = silEnvironment.silFields(chaliceEnvironment.chaliceFields(cls+"::"+id).FullName)
-        if (ma.isPredicate) new PredicateAccess(translateExp(e, locals), memb)(position)
-        else new FieldAccess(translateExp(e, locals), memb)(position)*/
-        // YANNIS: write this again, in the new refactoring
+        if(cls!=null)
+        {
+          cls.LookupMember(id) match
+          {
+            case f:chalice.Field =>
+              val sf = symbolMap.getOrElse(f, null)
+              if (sf == null) { messages += TypeError(e) ; null }
+              else new FieldAccess(translateExp(e, myThis, myK), sf)(position)
+            case _ => { messages += TypeError(e) ; null }
+          }
+        }
+        else { messages += TypeError(e) ; null }
         // YANNIS: todo: case class BackPointerMemberAccess(ex: Expression, typeId: String, fieldId: String) extends Expression {}
 
         // access permissions
