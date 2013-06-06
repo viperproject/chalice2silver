@@ -5,9 +5,6 @@ import scopt._
 import chalice.{Chalice, PrintProgram}
 import translation.ProgramTranslator
 import java.io.File
-// YANNIS import semper.sil.ast.source.NoLocation
-// YANNIS import semper.sil.verifier.{Success, Error}
-import semper.silicon.{Silicon}
 
 object Program {
 
@@ -20,68 +17,47 @@ object Program {
       else
         chOptsBuilder += "/" + option + ":" + value
     })
-    chOptsBuilder ++= opts.chaliceFiles
+    chOptsBuilder += opts.chaliceFile
     val chOpts = chOptsBuilder.result()
 
     val chaliceParams = Chalice.parseCommandLine(chOpts) match {
       case Some(p) => p
       case None =>
-        if (opts.verbose)
-          Console.out.println("Chalice failed to parse command line options. Chalice2SIL terminates.");
-        return None;
+        Console.out.println("Chalice failed to parse command line options. Chalice2SIL terminates.")
+        return None
     }
 
     val program = Chalice.parsePrograms(chaliceParams) match {
       case Some(p) => p
       case None =>
-        if (opts.verbose)
-          Console.out.println("Chalice program contained syntax errors. Chalice2SIL terminates.");
-        return None; //illegal program, errors have already been displayed
+        Console.out.println("Chalice program contained syntax errors. Chalice2SIL terminates.")
+        return None //illegal program, errors have already been displayed
     }
 
     if (!chaliceParams.doTypecheck || !Chalice.typecheckProgram(chaliceParams, program)) {
-      if (opts.verbose)
-        Console.out.println("Chalice program contained type errors. Chalice2SIL terminates.")
-      return None;
+      Console.out.println("Chalice program contained type errors. Chalice2SIL terminates.")
+      return None
     }
 
     if (chaliceParams.printProgram) {
-      Console.out.println("Program after type checking: ");
+      Console.out.println("Program after type checking: ")
       PrintProgram.P(program)
     }
     Some(program)
   }
 
-  def createTranslator(opts: ProgramOptions, program: scala.List[chalice.TopLevelDecl]) = {
-    // Translate to SIL
-    val programName = opts.chaliceFiles.headOption.map(p => {
-      val ext = ".chalice"
-      val n = new File(p).getName
-      if (n.endsWith(ext))
-        n.dropRight(ext.length)
-      else
-        n
-    }).getOrElse("chalice-program")
-    val programLocation = program.headOption.map(astNodeToSourceLocation).getOrElse(NoLocation)
-    val translator = new ProgramTranslator(opts, programName, programLocation)
+  def createTranslator(opts: ProgramOptions, program: Seq[chalice.TopLevelDecl]) = {
+      // Define program name
+    val ext = ".chalice"
+    val n = new File(opts.chaliceFile).getName
+    val programName = if (n.endsWith(ext)) n.dropRight(ext.length) else n
 
-    translator.onNewMessage += (m => {
-      if (m.severity.indicatesFailure) {
-        Console.err.println(m)
-      } else {
-        Console.out.println(m)
-      }
-    })
-
-    translator
+    new ProgramTranslator(opts, programName)
   }
 
-  def translateToSil(opts: ProgramOptions, program: scala.List[chalice.TopLevelDecl]): (semper.sil.ast.Program, Seq[Message]) = {
-    if (opts.verbose)
-      Console.out.println("Beginning translation of Chalice program to SIL.")
-
+  def translateToSil(opts: ProgramOptions, program: Seq[chalice.TopLevelDecl]):
+      (semper.sil.ast.Program, Seq[semper.chalice2sil.Message]) = {
     val translator = createTranslator(opts, program)
-
     translator.translate(program)
   }
 
@@ -89,27 +65,8 @@ object Program {
     val progOpts = new ProgramOptions()
 
     val cmdParser = new OptionParser("chalice2sil") {
-      // Chalice2SIL options
-      opt("v", "verbose", "Prints additional information about the translation/verification process.", {
-        progOpts.verbose = true
-      })
-      opt("p", "print-sil", "Prints the translated program in SIL.", {
-        progOpts.printSil = true
-      })
-      opt("f", "forward-sil", "class name",
-        "Forwards the translated SIL program to the `public static main(semper.sil.ast.Program)` method of the specified class.",
-        (c: String) => {
-          progOpts.forwardSil = Some(c)
-        })
-      opt("z3", "z3-path", "Custom path to Z3.", p => {
-        progOpts.z3path = Some(p)
-      })
-      opt("noVerify", "Don't invoke a verifier.", {
-        progOpts.noVerify = true
-      })
-
       // Chalice files
-      arglistOpt("<chalice-files...>", "The chalice source files.", (source: String) => progOpts.chaliceFiles.append(source))
+      opt("<chalice-file>", "The chalice source file.", (source: String) => progOpts.chaliceFile = source)
 
       // Options for Chalice
       keyValueOpt("chop", "chalice-option", "<option>", "<value>",
@@ -133,10 +90,6 @@ object Program {
       return;
     }
 
-    if (!progOpts.z3path.isDefined) {
-      progOpts.z3path = Some(DefaultConfig.z3path.toAbsolutePath.toString)
-    }
-
     val program = invokeChalice(progOpts) match {
       case None => return;
       case Some(p) => p
@@ -150,9 +103,7 @@ object Program {
       case n => n.toString + " " + noun + "s"
     }
 
-    if (progOpts.printSil) {
-      Console.out.println(silProgram.toString())
-    }
+    Console.out.println(silProgram.toString())
 
     val warningCount = messages.count(_.severity == Warning)
     val errorCount = messages.count(_.severity.indicatesFailure)
@@ -165,31 +116,5 @@ object Program {
       Console.out.println("[Success] Chalice2SIL detected %s.".format(
         pluralize("warning", warningCount)
       ))
-
-    if (progOpts.noVerify) {
-      return
-    }
-
-    // Forward SIL to a custom backend
-    progOpts.forwardSil match {
-      case None =>
-        val args = Seq("--z3Exe " + progOpts.z3path.get)
-//        val config = new Config(z3exe = progOpts.z3path.get)
-        val silicon = new Silicon(args)
-        val result = silicon.verify(silProgram)
-
-        result match {
-          case Success =>
-        }
-
-        for (m <- messages) {
-          Console.out.println(m.toString) //TODO: unify with chalice2sil message system
-        }
-      case Some(className) =>
-        val classT = java.lang.Class.forName(className)
-        val method = classT.getMethod("main", classOf[semper.sil.ast.programs.Program])
-        method.invoke(null, silProgram.asInstanceOf[AnyRef])
-    }
   }
-
 }

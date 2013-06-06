@@ -11,5 +11,9 @@ abstract class MessageId(val defaultSeverity : Severity, val id : String, val me
 }
 
 object MessageId {
-  private val registry = new HashMap[String, MessageId] with SynchronizedMap[String, MessageId];
+  private val registry = new HashMap[String, MessageId] with SynchronizedMap[String, MessageId]
+
+  def getPos(n: chalice.ASTNode) : semper.sil.ast.SourcePosition = {
+    semper.sil.ast.SourcePosition(null, n.pos.line, n.pos.column)
+  }
 }

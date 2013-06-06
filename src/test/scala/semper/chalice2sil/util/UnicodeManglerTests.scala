@@ -7,7 +7,6 @@ import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.FunSuite
 import org.scalatest.junit.JUnitRunner
 
-import semper.chalice2sil.translation.util.UnicodeMangler
 
 /**
   * @author Christian Klauser
