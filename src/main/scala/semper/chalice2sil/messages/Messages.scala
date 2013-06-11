@@ -4,14 +4,13 @@ import semper.chalice2sil._
 import chalice.{Channel, ASTNode}
 import semper.sil.ast._
 import Severity._
-import translation.LocationTranslator
 
 object ChannelsNotImplemented extends MessageId(
   Fault,
   "semper.chalice2sil.channelsNotImplemented",
   "Could not translate definition of channel %s.") {
   def apply(channel : Channel) = new Message(this, null) {
-    override val position = SourcePosition(channel.pos.line, channel.pos.column)
+    override val position = SourcePosition(null, channel.pos.line, channel.pos.column)
     def data: Iterable[Any] = Array(channel.channelId)
   }
 }
@@ -55,15 +54,15 @@ object FreeVariableInOld extends MessageId(
   Error,
   "semper.chalice2sil.freeVariableInOld",
   "Chalice2SIL cannot handle free variables in old expressions and terms. Offending variable: %s") {
-  def apply(variableExpression: LocalVar) = new Message(this, variableExpression) {
-    def data = Array(variableExpression)
+  def apply() = new Message(this, null) {
+    def data = Array[Any]()
   }
 }
 
 object PredicateScalingNotSupported extends MessageId(Fault,"semper.chalice2sil.predicateScalingNotSupported",
   "Chalice2SIL does not fully support predicate scaling. acc(%s.%s, %s)") {
-  def apply(location1 : semper.sil.ast.expressions.Expression, pred : semper.sil.ast.programs.symbols.Predicate, amount : semper.sil.ast.expressions.Expression) =
-    new Message(this, location1.sourceLocation) {
+  def apply(location1 : semper.sil.ast.Exp, pred : semper.sil.ast.Predicate, amount : semper.sil.ast.Exp) =
+    new Message(this, null) {
     def data = Array(location1, pred.name, amount,pred)
   }
 }
@@ -72,7 +71,7 @@ object ContractNotUnderstood extends MessageId(
   Fault,
 "semper.chalice2sil.contractNotUnderstood",
 "Chalice2SIL does not understand the contract expression %s.") {
-  def apply(node : semper.sil.ast.ASTNode) = new Message(this,node.sourceLocation) {
+  def apply(node : semper.sil.ast.Node) = new Message(this, null) {
     def data = Array(node)
   }
 }
@@ -90,7 +89,7 @@ object PermissionNotUnderstood extends MessageId(
   Fault,
   "semper.chalice2sil.permissionNotUnderstood",
   "Chalice2SIL does not understand the SIL permission amount %s.") {
-  def apply(location: Position, permissionAmount : semper.sil.ast.ASTNode) = new Message(this,location) {
+  def apply(location: Position, permissionAmount : semper.sil.ast.Node) = new Message(this,null) {
     def data : Iterable[Any] = Array(permissionAmount)
   }
 }
@@ -108,14 +107,14 @@ object RdInQuantifier extends MessageId(
   Error,
   "semper.chalice2sil.rdInQuantifier",
   "Cannot translate fractional read permission rd(%s.%s, %s) in quantified expressions.") {
-  def apply(reference : semper.sil.ast.expressions.Expression, location1 : LocationTranslator, permissionAmount : semper.sil.ast.expressions.Expression) = new Message(this,reference.sourceLocation) {
-    def data = Array(reference,location1,permissionAmount)
+  def apply(reference : semper.sil.ast.Exp) = new Message(this, null) {
+    def data = Array(reference)
   }
 }
 
 object NoContextForReadPermission extends MessageId(
 Fault,"semper.chalice2sil.noContextForReadPermission","Unknown interpretation for read permission at %s.") {
- def apply(location1: Position) = new Message(this,location1) {
+ def apply(location1: Position) = new Message(this, null) {
    def data = Array(location1)
  }
 }
@@ -141,7 +140,7 @@ object LockingRelatedInPredicate extends MessageId(
   Fault,
   "semper.chalice2sil.lockingRelatedInPredicate",
   "Due to an internal limitation, Chalice2SIL cannot translate certain locking-related language constructs in predicates or invariants.") {
-  def apply(location: Position) = new Message(this,location) {
+  def apply(location: Position) = new Message(this,null) {
     def data = Nil
   }
 }
@@ -150,7 +149,7 @@ object RdLockNotSupported extends MessageId(
   Fault,
   "semper.chalice2sil.rdLockNotSupported",
   "Rd-locks (acquire, release, lock) are not supported by chalice2sil.") {
-  def apply(location: Position) = new Message(this,location) {
+  def apply() = new Message(this,null) {
     def data = Nil
   }
 }
@@ -159,7 +158,7 @@ object WrongNumberOfTypeParameters extends MessageId(
   Fault,
   "semper.chalice2sil.WrongNumberOfTypeParameters",
   "Sequences and Sets must have exactly one type parameter.") {
-  def apply(location: Position) = new Message(this,location) {
+  def apply() = new Message(this,null) {
     def data = Nil
   }
 }
@@ -168,7 +167,7 @@ object TypeError extends MessageId(
   Fault,
   "semper.chalice2sil.TypeError",
   "Type Error") {
-  def apply(location: Position) = new Message(this,channel) {
+  def apply() = new Message(this,null) {
     def data = Nil
   }
 }

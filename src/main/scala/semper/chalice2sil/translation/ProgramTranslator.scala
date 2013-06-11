@@ -24,8 +24,9 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
 {
    // output of the translator
   val messages = List[MessageId]()  // messages generated in the translation
-  val silEnvironment = new SILProgramEnvironment(Map(), Map(), Map(), Map())
+  val silEnvironment = new SILProgramEnvironment()
     // contains all SIL members and local variables generated in the translation
+    // YANNIS: todo refactor to eliminate this class
 
   // translated invariants
   val silTranslatedInvariants = Map[chalice.Class, Predicate]()
@@ -39,8 +40,8 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
 
   // this domain introduces the constant K permission for use in monitor invariants
   // YANNIS todo: axiom: the K permission is read-only
-  val globalK = DomainFunc(nameGenerator.createIdentifier("globalK"), Seq(), Perm, true)
-  val GlobalKPermissionDomain = Domain("GlobalKPermission", Seq(globalK), Seq(), Seq())
+  val globalK = DomainFunc(nameGenerator.createIdentifier("globalK"), Seq(), Perm, true)()
+  val GlobalKPermissionDomain = Domain("GlobalKPermission", Seq(globalK), Seq(), Seq())()
 
   def translate(decls : Seq[chalice.TopLevelDecl]) : (Program, Seq[semper.chalice2sil.Message]) = {
     decls.foreach(collectSymbols)
@@ -97,10 +98,10 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
 
   protected def translate(classNode: chalice.Class) = {
     // A "this" declaration for the invariants
-    val ths = LocalVarDecl(nameGenerator.createIdentifier("this"), Ref)
+    val ths = LocalVarDecl(nameGenerator.createIdentifier("this"), Ref)()
 
     // An expression to store the monitor invariant
-    var monitorInvariant : Exp = TrueLit()
+    var monitorInvariant : Exp = TrueLit()()
 
     // Translate one member at a time
     classNode.members.foreach({
@@ -185,18 +186,18 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     val permTranslator = MethodPermissionTranslator(sK)
 
     // translate specifications
-    val silPreconditions = List[Exp]()
-    val silPostConditions = List[Exp]()
+    val silPreconditions = scala.collection.mutable.LinkedList[Exp]()
+    val silPostConditions = scala.collection.mutable.LinkedList[Exp]()
     cMethod.spec.foreach {
       _ match {
-        case chalice.Precondition(e) => silPreconditions +=
-          translateExp(e, sThis, permTranslator)
-        case chalice.PostCondition(e) => silPostConditions +=
-          translateExp(e, sThis, permTranslator)
+        case chalice.Precondition(e) =>
+          silPreconditions.append(scala.collection.mutable.LinkedList(translateExp(e, sThis, permTranslator)))
+        case chalice.Postcondition(e) =>
+          silPostConditions.append(scala.collection.mutable.LinkedList(translateExp(e, sThis, permTranslator)))
       }
     }
-    sMethod.pres = silPreconditions
-    sMethod.posts = silPostConditions
+    sMethod.pres = silPreconditions.toSeq
+    sMethod.posts = silPostConditions.toSeq
 
     // translate body
     translateBody(cMethod, sThis, permTranslator)
@@ -365,17 +366,13 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         if(obj==null || obj.typ == null) messages += UnknownAstNode(obj)
         else {
             // add access to all declared fields and predicates
-          obj.typ.DeclaredFields.foreach{
-            case f: chalice.Field =>
-              val sf = symbolMap.getOrElse(f, null)
-              if (sf == null) messages += TypeError(obj)
-              else silexp = And(silexp, FieldAccessPredicate(FieldAccess(silo, sf), silpe))
-            case p: chalice.Predicate =>
-              val sp = symbolMap.getOrElse(p, null)
-              if (sp == null) messages += TypeError(obj)
-              else silexp = And(silexp, PredicateAccessPredicate(PredicateAccess(silo, sp), silpe))
-            case _ => UnknownAstNode(obj)
+          obj.typ.DeclaredFields.foreach{ f =>
+            val sf = symbolMap.getOrElse(f, null)
+            if (sf == null) messages += TypeError(obj)
+            else silexp = And(silexp, FieldAccessPredicate(FieldAccess(silo, sf), silpe))
           }
+
+           // YANNIS: todo: does this cover predicates or only fields?
 
            // YANNIS: todo: add access to backpointer fields
 
@@ -481,18 +478,18 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case chalice.IntLiteral(n) => IntLit(n)(position)
       case chalice.NullLiteral() => NullLit()(position)
       case chalice.StringLiteral(s) => null // YANNIS: todo: SIL does not support strings
-      case chalice.Variable(v) => LocalVar(v)(position)
+      case chalice.VariableExpr(v) => LocalVar(v)(position)
       case chalice.LockBottomLiteral() => null // YANNIS: todo: support later
       case chalice.MaxLockLiteral() => null // YANNIS: todo support later
       case chalice.ImplicitThisExpr() => (myThis.localVar)(position)
       case chalice.ExplicitThisExpr() => (myThis.localVar)(position)
-      case chalice.Variable(v) => LocalVar(v)(position)
+      case chalice.VariableExpr(v) => LocalVar(v)(position)
      }
   }
 
   protected def translateBody(cMethod: chalice.Method, myThis: LocalVarDecl, myK: LocalVarDecl) = {
     val sMethod = symbolMap(cMethod).asInstanceOf[Method]
-    sMethod.body = Seqn(cMethod.body.foreach(translateStm(_,myThis,myK)))
+    sMethod.body = Seqn(cMethod.body.foreach(translateStm(_, myThis, MethodPermissionTranslator(myK))))
   }
 
   protected def translateStm(cStm: chalice.Statement, myThis: LocalVarDecl, pTrans: PermissionTranslator) : Stmt = {
