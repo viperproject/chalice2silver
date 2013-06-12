@@ -23,16 +23,16 @@ import chalice.TypeQuantification
 class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, val programName: String)
 {
    // output of the translator
-  val messages = List[MessageId]()  // messages generated in the translation
+  val messages = scala.collection.mutable.ListBuffer[semper.chalice2sil.Message]()  // messages generated in the translation
   val silEnvironment = new SILProgramEnvironment()
     // contains all SIL members and local variables generated in the translation
     // YANNIS: todo refactor to eliminate this class
 
   // translated invariants
-  val silTranslatedInvariants = Map[chalice.Class, Predicate]()
+  val silTranslatedInvariants = new scala.collection.mutable.HashMap[chalice.Class, Predicate]()
 
   // translated symbols
-  val symbolMap = Map[chalice.ASTNode, Node]()
+  val symbolMap = new scala.collection.mutable.HashMap[chalice.ASTNode, Node]()
     // maps Chalice class members and local variables to SIL members and local variables
 
   // name generator -- ensures uniqueness and validity of names of local variables
@@ -46,8 +46,9 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   def translate(decls : Seq[chalice.TopLevelDecl]) : (Program, Seq[semper.chalice2sil.Message]) = {
     decls.foreach(collectSymbols)
     decls.foreach(translate)
-    (Program(programName, List(GlobalKPermissionDomain), silEnvironment.silFields, silEnvironment.silFunctions,
-      silEnvironment.silPredicates, silEnvironment.silMethods), messages)
+    (Program(List(GlobalKPermissionDomain), silEnvironment.silFields.values.toSeq,
+      silEnvironment.silFunctions.values.toSeq, silEnvironment.silPredicates.values.toSeq,
+      silEnvironment.silMethods.values.toSeq)(), messages.toSeq)
   }
   
   protected def collectSymbols(decl : chalice.TopLevelDecl) { decl match {
@@ -58,35 +59,34 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   protected def collectSymbols(classNode : chalice.Class){
     classNode.members.view foreach  {
       case f:chalice.Field =>
-        val newField = Field(f.FullName, translateType(f.typ))(SourcePosition(f.pos.line, f.pos.column))
+        val newField = Field(f.FullName, translateType(f.typ))(SourcePosition(null, f.pos.line, f.pos.column))
         symbolMap(f) = newField
         silEnvironment.silFields += (f.FullName -> newField)
       case p:chalice.Predicate =>
         val ths = nameGenerator.createIdentifier("this")
         val newPredicate =
-          Predicate(p.FullName, List(LocalVarDecl(ths,Ref)))(SourcePosition(p.pos.line, p.pos.column))
+          Predicate(p.FullName, LocalVarDecl(ths, Ref)(), null)(SourcePosition(null, p.pos.line, p.pos.column))
         symbolMap(p) = newPredicate
-        silEnvironment.silPredicates += (p.FullName, newPredicate)
+        silEnvironment.silPredicates += (p.FullName -> newPredicate)
       case m:chalice.Method =>
         val ths = nameGenerator.createIdentifier("this")
         val k = nameGenerator.createIdentifier("k")
-        val myThis = LocalVarDecl(ths, Ref)
-        val myK = LocalVarDecl(k, Perm)
+        val myThis = LocalVarDecl(ths, Ref)()
+        val myK = LocalVarDecl(k, Perm)()
         val ins = myThis :: myK :: translateVars(m.ins)
-        val newMethod = Method(m.FullName, ins, translateVars(m.outs))(SourcePosition(m.pos.line, m.pos.column))
+        val newMethod = Method(m.FullName, ins, translateVars(m.outs), null, null, null, null)(
+          SourcePosition(null, m.pos.line, m.pos.column))
         symbolMap(m) = newMethod
-        silEnvironment.silMethods += (m.FullName, newMethod)
+        silEnvironment.silMethods += (m.FullName -> newMethod)
       case f:chalice.Function =>
         val ths = nameGenerator.createIdentifier("this")
-        val myThis = LocalVarDecl(ths, Ref)
+        val myThis = LocalVarDecl(ths, Ref)()
         val ins = myThis :: translateVars(f.ins)
-        val newFunction = Function(f.FullName, ins, null, null)(
-          translateType(f.out), SourcePosition(f.pos.line, f.pos.column)
-        )
+        val newFunction = Function(f.FullName, ins, translateType(f.out), null, null, null)(
+          SourcePosition(null, f.pos.line, f.pos.column))
         symbolMap(f) = newFunction
-        silEnvironment.silFunctions += (f.FullName, newFunction)
-      case i:chalice.MonitorInvariant =>  // makes sure that invariant is created lazily
-      case _ => // ignore other symbols
+        silEnvironment.silFunctions += (f.FullName -> newFunction)
+      case _ =>
     }
   }
 
@@ -107,10 +107,10 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     classNode.members.foreach({
       case m: chalice.Method  => translateMethod(m)
       case p: chalice.Predicate => translatePredicate(p)
-      case f: chalice.Function => tranlsateFunction(f)
+      case f: chalice.Function => translateFunction(f)
       case i: chalice.MonitorInvariant =>
-        val currentInv = translateExp(i, ths, PredicatePermissionTranslator(globalK))
-        monitorInvariant = And(currentInv, monitorInvariant)
+        val currentInv = translateExp(i.e, ths, PredicatePermissionTranslator(globalK))
+        monitorInvariant = And(currentInv, monitorInvariant)()
       case otherNode => messages += UnknownAstNode(otherNode)
     })
 
@@ -122,20 +122,22 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     cType.id match {
       case "seq" =>
         // YANNIS: todo: fix. seqs are now built in
-        if(typ.params.length != 1) { messages += WrongNumberOfTypeParameters; Int }
+ /*       if(typ.params.length != 1) { messages += WrongNumberOfTypeParameters; Int }
         val tvm = Map[TypeVar, Type]()
         val silT = translateType(cType.params.head)
         tvm += (typeVar, silT)
-        new DomainType(seqDomain, tvm)
+        new DomainType(seqDomain, tvm)*/
+        null
       case "set" =>
         // YANNIS: todo: fix. sets are now built in
-        if(typ.params.length != 1) { messages += WrongNumberOfTypeParameters; Int }
+/*        if(typ.params.length != 1) { messages += WrongNumberOfTypeParameters; Int }
         else {
           val silT = translateType(cType.params.head)
           val tvm = Map(SetDomain.typeVar -> silT)
           tvm += (typeVar, silT)
           new DomainType(SetDomain, tvm)
-        }
+        }*/
+        null
       case "int" => Int
       case "bool" => Bool
       case "$Permission" => Perm
@@ -144,14 +146,14 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   }
 
   protected def translateVars(cVars: Seq[chalice.Variable]) = {
-    val result = List[LocalVar]()
-    cVars.foreach(x => result += LocalVarDecl(nameGenerator.createIdentifier(x.UniqueName), translateType(x.t)))
-    result
+    val result = scala.collection.mutable.ListBuffer[LocalVarDecl]()
+    cVars.foreach(x => result += LocalVarDecl(nameGenerator.createIdentifier(x.UniqueName), translateType(x.t))())
+    result.toList
   }
 
   protected def translatePredicate(cPredicate: chalice.Predicate) = {
     val sPredicate = silEnvironment.silPredicates(cPredicate.FullName)
-    val sThis = sPredicate.formalArgs(0)
+    val sThis = sPredicate.formalArg
     sPredicate.body = translateExp(cPredicate.definition, sThis, PredicatePermissionTranslator(globalK))
   }
 
@@ -160,22 +162,22 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     val sThis = sFunction.formalArgs(0)
 
     // translate specifications
-    val silPreconditions = List[Exp]()
-    val silPostConditions = List[Exp]()
+    val silPreconditions = scala.collection.mutable.ListBuffer[Exp]()
+    val silPostConditions = scala.collection.mutable.ListBuffer[Exp]()
     cFunction.spec.foreach {
       _ match {
         case chalice.Precondition(e) => silPreconditions +=
           translateExp(e, sThis, FunctionPermissionTranslator())
-        case chalice.PostCondition(e) => silPostConditions +=
+        case chalice.Postcondition(e) => silPostConditions +=
           translateExp(e, sThis, FunctionPermissionTranslator())
       }
     }
-    sFunction.pres = silPreconditions
-    sFunction.posts = silPostConditions
+    sFunction.pres = silPreconditions.toSeq
+    sFunction.posts = silPostConditions.toSeq
 
     // translate body
     cFunction.definition match {
-      case Some(body) => sFunc.exp = List(translateExp(body, sThis, FunctionPermissionTranslator()))
+      case Some(body) => sFunction.exp = translateExp(body, sThis, FunctionPermissionTranslator())
     }
   }
 
@@ -204,15 +206,15 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   }
 
   protected def translateExp(cExp: chalice.Expression, myThis: LocalVarDecl, pTrans: PermissionTranslator) : Exp = {
-    val position = SourcePosition(cExp.pos.line, cExp.pos.column)
+    val position = SourcePosition(null, cExp.pos.line, cExp.pos.column)
     cExp match {
       // old expression
       case chalice.Old(inner) => Old(translateExp(inner, myThis, pTrans))(position)
 
       // chalice2sil ignores all deadlock prevention specs; YANNIS: todo: fix later
-      case chalice.LockBelow(_,_) =>  new TrueLit()
-      case chalice.Eq(chalice.MaxLockLiteral(),_) => new TrueLit()
-      case chalice.Eq(_,chalice.MaxLockLiteral()) => new TrueLit()
+      case chalice.LockBelow(_,_) =>  TrueLit()(position)
+      case chalice.Eq(chalice.MaxLockLiteral(),_) => TrueLit()(position)
+      case chalice.Eq(_,chalice.MaxLockLiteral()) => TrueLit()(position)
 
       // logical operators
       case chalice.And(lhs, rhs) =>
@@ -487,9 +489,9 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
      }
   }
 
-  protected def translateBody(cMethod: chalice.Method, myThis: LocalVarDecl, myK: LocalVarDecl) = {
+  protected def translateBody(cMethod: chalice.Method, myThis: LocalVarDecl, pTrans: PermissionTranslator) = {
     val sMethod = symbolMap(cMethod).asInstanceOf[Method]
-    sMethod.body = Seqn(cMethod.body.foreach(translateStm(_, myThis, MethodPermissionTranslator(myK))))
+    sMethod.body = Seqn(cMethod.body.map(translateStm(_, myThis, pTrans)))()
   }
 
   protected def translateStm(cStm: chalice.Statement, myThis: LocalVarDecl, pTrans: PermissionTranslator) : Stmt = {
