@@ -112,8 +112,11 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case otherNode => messages += UnknownAstNode(otherNode)
     })
 
-    // YANNIS: todo: invariant is translated into a SIL expression monitorInvariant.  Turn it into a SIL predicate
-      // and put it into silTranslatedInvariants(classNode.FullName)
+    // translate monitorInvariant into a SIL predicate
+    val pName = nameGenerator.createIdentifier(classNode.FullName + "_MonitorInvariant")
+    val monitorPredicate = Predicate(pName, ths, monitorInvariant)()
+    silEnvironment.silPredicates += (pName -> monitorPredicate)
+    silTranslatedInvariants(classNode) = monitorPredicate
   }
 
   protected def translateType(cType: chalice.Type) : Type = {
@@ -489,26 +492,28 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
 
   protected def translateBody(cMethod: chalice.Method, myThis: LocalVarDecl, pTrans: PermissionTranslator) = {
     val sMethod = symbolMap(cMethod).asInstanceOf[Method]
-    sMethod.body = Seqn(cMethod.body.map(translateStm(_, myThis, pTrans)))()
+    sMethod.locals = Seq()
+    sMethod.body = Seqn(cMethod.body.map(translateStm(_, myThis, pTrans, sMethod)))()
   }
 
-  protected def translateStm(cStm: chalice.Statement, myThis: LocalVarDecl, pTrans: PermissionTranslator) : Stmt = {
+  protected def translateStm(cStm: chalice.Statement, myThis: LocalVarDecl,
+                             pTrans: PermissionTranslator, silMethod: Method) : Stmt = {
     val position = new SourcePosition(null, cStm.pos.line, cStm.pos.column)
     cStm match {
       case chalice.Assert(e) => Assert(translateExp(e, myThis, pTrans))(position)
       case chalice.Assume(e) => Inhale(translateExp(e, myThis, pTrans))(position)
-      case chalice.BlockStmt(ss) => Seqn(ss.map(translateStm(_, myThis, pTrans)))(position)
+      case chalice.BlockStmt(ss) => Seqn(ss.map(translateStm(_, myThis, pTrans, silMethod)))(position)
       case chalice.IfStmt(guard, chalice.BlockStmt(thn), els) =>
-        If(translateExp(guard, myThis, pTrans), Seqn(thn.map(translateStm(_, myThis, pTrans)))(),
+        If(translateExp(guard, myThis, pTrans), Seqn(thn.map(translateStm(_, myThis, pTrans, silMethod)))(),
           els match {
             case None => Seqn(Seq())()
-            case Some(s) => translateStm(s, myThis, pTrans)
+            case Some(s) => translateStm(s, myThis, pTrans, silMethod)
           }
         )(position)
       case w@chalice.WhileStmt(guard, _, _, _ /*YANNIS: todo: lockchange not supported*/, body) =>
         // YANNIS: todo: what is the difference between newInvs and oldInvs?
         While(translateExp(guard, myThis, pTrans), w.Invs.map(translateExp(_, myThis, pTrans)), Seq(),
-          translateStm(body, myThis, pTrans)
+          translateStm(body, myThis, pTrans, silMethod)
         )(position)
       case chalice.Assign(v@chalice.VariableExpr(name), rhs) =>
         LocalVarAssign(LocalVar(name)(Int /*YANNIS: todo: fix*/),
@@ -520,37 +525,87 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         else FieldAssign(silma.asInstanceOf[FieldAccess],
           translateExp(rhs.asInstanceOf[chalice.Expression], myThis, pTrans))()
           // YANNIS: todo: RValue is richer than Expression in Chalice, but this is not supported here!
-    }
-    // YANNIS: todo
-    /*
+      case chalice.LocalVar(v, rhs) => // YANNIS: todo
+        silMethod.locals = silMethod.locals :+
+          LocalVarDecl(v.id/*YANNIS: todo: name generators?*/, Int /*YANNIS: todo: fix*/)(position)
+        rhs match {
+          case None => Seqn(Seq())()
+          case Some(e) =>
+            LocalVarAssign(LocalVar(v.id)(Int /*YANNIS: todo: fix*/), translateExp(e.asInstanceOf[chalice.Expression],
+              myThis, pTrans))(position)
+        }
 
-      case class LocalVar(v: Variable, rhs: Option[RValue]) extends Statement {
-    override def Declares = List(v)
-    override def Targets = rhs match {case None => Set(); case Some(_) => Set(v)}
+      case chalice.Call(_, lhs, target, methodName, args) =>
+        // YANNIS: todo: implicit locals declaration
+          // the first argument of Call is a mask that defines which variables of the lhs are implicitly defined
+          // the feature is not yet implemented
+
+        // spot Chalice method object
+        val m = target.typ.LookupMember(methodName)
+
+        // spot SIL method object
+        val silMethod = m match {
+          case None => messages += TypeError() ; return null
+          case Some(cMethod) =>
+            val s = symbolMap.getOrElse(cMethod, { messages += TypeError() ; return null })
+            if(!s.isInstanceOf[Method]) { messages += TypeError() ; return null }
+            s.asInstanceOf[Method]
+        }
+
+        // create fresh read permission
+        val newK = LocalVarDecl(nameGenerator.createIdentifier("newK"), Perm)()
+
+        // create a method call inside a fresh permission block
+        FreshReadPerm(Seq(newK.localVar),
+          MethodCall(silMethod,
+               translateExp(target, myThis, pTrans) /*this*/
+            :: newK.localVar /*permission*/
+            :: args.map(translateExp(_, myThis, pTrans))/*arguments*/,
+            lhs.map(x => LocalVar(x.id)(Int /*YANNIS: todo: fix type*/))/*targets*/
+          )(position)
+        )(position)
+
+      case chalice.SpecStmt(_, _, _, _) => messages += TypeError() ; null // YANNIS: todo: SpecStatements not supported
+      case chalice.Install(_, _, _) => messages += TypeError() ; null // YANNIS: todo: mu reordering not supported yet
+
+      case chalice.Share(obj, _, _) => // YANNIS: todo: mu ordering and deadlock avoidance not supported yet
+        // YANNIS: todo: assert that the object is not already shared
+
+        // exhale the monitor invariant
+        val monitorPredicate = silTranslatedInvariants.getOrElse(obj.typ, { messages += TypeError() ; return null })
+        Exhale(PredicateAccess(translateExp(obj, myThis, pTrans), monitorPredicate)(position))(position)
+
+      case chalice.Unshare(_) => messages += TypeError() ; Seqn(Seq())(position) // YANNIS: todo: unsharing not supported
+
+      case chalice.Acquire(obj) => // YANNIS: todo: mu ordering and deadlock avoidance not supported yet
+        // YANNIS: todo: assert that the object is shared, not already held, and the waitlevel is lower than its mu
+
+        // inhale the monitor invariant
+        val monitorPredicate = silTranslatedInvariants.getOrElse(obj.typ, { messages += TypeError() ; return null })
+        Inhale(PredicateAccess(translateExp(obj, myThis, pTrans), monitorPredicate)(position))(position)
+
+      case chalice.Release(obj) => // YANNIS: todo: mu ordering and deadlock avoidance not supported yet
+        // YANNIS: todo: assert that the object is shared and held
+
+        // exhale the monitor invariant
+        val monitorPredicate = silTranslatedInvariants.getOrElse(obj.typ, { messages += TypeError() ; return null })
+        Exhale(PredicateAccess(translateExp(obj, myThis, pTrans), monitorPredicate)(position))(position)
+
+      // YANNIS: todo several unsupported features
+      case chalice.RdAcquire(_) => messages += TypeError() ; null
+      case chalice.RdRelease(_) => messages += TypeError() ; null
+      case chalice.Lock(_, _, true) // this flag indicates "read" locks
+        => messages += TypeError() ; null
+      case chalice.Downgrade(_) => messages += TypeError() ; null
+      case chalice.Free(_) => messages += TypeError() ; null
+
+      case chalice.Lock(obj, block, false) =>
+        val chalEquivalent = chalice.BlockStmt((chalice.Acquire(obj) :: block.ss) :+ chalice.Release(obj))
+        translateStm(chalEquivalent, myThis, pTrans, silMethod)
     }
-      case class Call(declaresLocal: List[Boolean], lhs: List[VariableExpr], obj: Expression, id: String, args: List[Expression]) extends Statement {
-    var locals = List[Variable]()
-    var m: Callable = null
-    override def Declares = locals
-    override def Targets = (lhs :\ Set[Variable]()) { (ve, vars) => if (ve.v != null) vars + ve.v else vars }
-    }
-      case class SpecStmt(lhs: List[VariableExpr], locals:List[Variable], pre: Expression, post: Expression) extends Statement {
-    override def Declares = locals
-    override def Targets = (lhs :\ Set[Variable]()) { (ve, vars) => if (ve.v != null) vars + ve.v else vars }
-    }
-      case class Install(obj: Expression, lowerBounds: List[Expression], upperBounds: List[Expression]) extends Statement
-      case class Share(obj: Expression, lowerBounds: List[Expression], upperBounds: List[Expression]) extends Statement
-      case class Unshare(obj: Expression) extends Statement
-      case class Acquire(obj: Expression) extends Statement
-      case class Release(obj: Expression) extends Statement
-      case class RdAcquire(obj: Expression) extends Statement
-      case class RdRelease(obj: Expression) extends Statement
-      case class Downgrade(obj: Expression) extends Statement
-      case class Lock(obj: Expression, b: BlockStmt, rdLock: Boolean) extends Statement {
-    override def Targets = b.Targets
-    }
-      case class Free(obj: Expression) extends Statement
-      case class CallAsync(declaresLocal: Boolean, lhs: VariableExpr, obj: Expression, id: String, args: List[Expression]) extends Statement {
+    // YANNIS: todo: finish
+    /*
+            case class CallAsync(declaresLocal: Boolean, lhs: VariableExpr, obj: Expression, id: String, args: List[Expression]) extends Statement {
     var local: Variable = null
     var m: Method = null
     override def Declares = if (local != null) List(local) else Nil
