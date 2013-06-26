@@ -26,6 +26,10 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     // contains all SIL members and local variables generated in the translation
     // to be eliminated in future refactoring
 
+  // maps tokens to the corresponding forked Chalice method
+    // at most one method fork per token is allowed within a method
+  val joinTokens = new scala.collection.mutable.HashMap[(Method, String), JoinableInfo]()
+
   // translated invariants
   val silTranslatedInvariants = new scala.collection.mutable.HashMap[chalice.Class, Predicate]()
 
@@ -33,7 +37,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   val symbolMap = new scala.collection.mutable.HashMap[chalice.ASTNode, Node]()
     // maps Chalice class members and local variables to SIL members and local variables
 
-  // name generator -- ensures uniqueness and validity of names of local variables
+  // name generator -- ensures uniqueness and validity of names of identifiers
   val nameGenerator = new semper.sil.utility.SilNameGenerator
 
   // this domain introduces the constant K permission for use in monitor invariants
@@ -151,6 +155,8 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     cVars.foreach(x => result += LocalVarDecl(nameGenerator.createIdentifier(x.UniqueName), translateType(x.t))())
     result.toList
   }
+
+  // YANNIS: todo: revisit preconditions everywhere e.g. this!=null etc.
 
   protected def translatePredicate(cPredicate: chalice.Predicate) = {
     val sPredicate = silEnvironment.silPredicates(cPredicate.FullName)
@@ -602,6 +608,66 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case chalice.Lock(obj, block, false) =>
         val chalEquivalent = chalice.BlockStmt((chalice.Acquire(obj) :: block.ss) :+ chalice.Release(obj))
         translateStm(chalEquivalent, myThis, pTrans, silMethod)
+
+      //forking
+      case chalice.CallAsync(_, lhs, obj, id, args) =>
+        // YANNIS: todo: implicit locals declaration
+
+        // check if token has appeared in another fork (which is not supported)
+        if (joinTokens.contains((silMethod, lhs.id))) { messages += TypeError() ; return null }
+
+        // all generated statements are going here
+        val statements = new mutable.MutableList[Stmt]()
+
+        // assert that the token is not joinable
+        // todo
+
+        // spot chalice method and store it in joinTokens
+        val m = obj.typ.LookupMember(id)
+        val cMethod = m match {
+          case None => messages += TypeError() ; return null
+          case Some(cM) => cM
+        }
+        val joinableInfo = new JoinableInfo(cMethod.asInstanceOf[chalice.Method])
+        joinTokens((silMethod, lhs.id)) = joinableInfo
+
+        // ensure args.length is equal to the number of arguments expected by cMethod
+        // todo
+
+        // evaluate arguments and "old" expressions of the postcondition of cMethod and store them in local variables
+        // also store the local variable names into joinableInfo.oldExpressions: first all arguments and then all "old"
+        // expressions in order of appearance
+        val argsAndOldIds = new mutable.MutableList[String]()
+        for(i <- 0 until args.length) {
+          val name = nameGenerator.createIdentifier("a" + i)
+          argsAndOldIds += name
+          val silLocalVariable = LocalVarDecl(name, Int /*todo:fix*/)(position)
+          silMethod.locals = silMethod.locals :+ silLocalVariable
+          statements += LocalVarAssign(silLocalVariable.localVar, translateExp(args(0), myThis, pTrans))(position)
+        }
+        val oldExpressions = Util.getOldExpressions(silMethod.posts)
+        for(i <- 0 until oldExpressions.length) {
+          val name = nameGenerator.createIdentifier("o" + i)
+          argsAndOldIds += name
+          val silLocalVariable = LocalVarDecl(name, Int /*todo:fix*/)(position)
+          silMethod.locals = silMethod.locals :+ silLocalVariable
+          statements += LocalVarAssign(silLocalVariable.localVar, oldExpressions(i))(position)
+        }
+        joinableInfo.argsAndOldIds = argsAndOldIds.toSeq
+
+        // generate fresh permission variable
+        // todo
+
+        // spot SIL method; take its precondition and make argument substitutions (this and K inclusive)
+        // store the result into sPre
+        // todo
+
+        // exhale sPre
+        // todo
+
+        // make token joinable
+        // todo
+        null
     }
     // YANNIS: todo: finish
     /*
@@ -687,3 +753,18 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   }
 }
 
+object Util {
+  // takes a SIL expression and returns the sequence of all "old" expressions in the order they appear in it
+  // (the "old" node is stripped off from the result
+  def getOldExpressions(sExp: Seq[Exp]) : Seq[Exp] = {
+    val oldExpressions = new mutable.MutableList[Exp]()
+    sExp.foreach((e:Exp) => e.visit(
+      (n:Node) => { if(n.isInstanceOf[Old]) oldExpressions += n.asInstanceOf[Old].exp ; Unit }
+    ))
+    oldExpressions
+  }
+}
+
+class JoinableInfo(val cMethod: chalice.Method) {
+  var argsAndOldIds: Seq[String]
+}
