@@ -64,7 +64,7 @@ object Chalice2SilBuild extends Build {
     lazy val chaliceDir = RootProject(new java.io.File("../Chalice"))
 
     lazy val scalatest = "org.scalatest" %% "scalatest" % "1.8" % "test" withJavadoc() withSources()
-    lazy val scopt = "com.github.scopt" % "scopt_2.10" % "2.1.0"
+    lazy val scopt = "com.github.scopt" %% "scopt" % "3.1.0"
     lazy val junit = "junit" % "junit" % "4.8.1" % "test"
       /* JUnit seems to only be required by semper.chalice2sil.util.UnicodeManglerTests. */
   }

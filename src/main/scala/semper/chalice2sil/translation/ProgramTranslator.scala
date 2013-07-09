@@ -758,13 +758,13 @@ object Util {
   // (the "old" node is stripped off from the result
   def getOldExpressions(sExp: Seq[Exp]) : Seq[Exp] = {
     val oldExpressions = new mutable.MutableList[Exp]()
-    sExp.foreach((e:Exp) => e.visit(
-      (n:Node) => { if(n.isInstanceOf[Old]) oldExpressions += n.asInstanceOf[Old].exp ; Unit }
+    sExp.foreach((e:Exp) => semper.sil.ast.utility.Visitor.visit(e)(
+      { case n:Node => { if(n.isInstanceOf[Old]) oldExpressions += n.asInstanceOf[Old].exp ; Unit } }
     ))
     oldExpressions
   }
 }
 
 class JoinableInfo(val cMethod: chalice.Method) {
-  var argsAndOldIds: Seq[String]
+  var argsAndOldIds: Seq[String] = null
 }

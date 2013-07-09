@@ -7,6 +7,7 @@ import translation.ProgramTranslator
 import java.io.File
 
 object Program {
+  // todo: fix! chalice options should pass as a string->string map
 
   def invokeChalice(opts: ProgramOptions): Option[scala.List[chalice.TopLevelDecl]] = {
     val chOptsBuilder = scala.collection.mutable.ArrayBuilder.make[String]()
@@ -65,18 +66,18 @@ object Program {
     val progOpts = new ProgramOptions()
 
     val cmdParser = new OptionParser("chalice2sil") {
-      // Chalice files
-      opt("<chalice-file>", "The chalice source file.", (source: String) => progOpts.chaliceFile = source)
+      // Chalice file
+      arg[File]("<chalice-file>")
+        action { (source: String) => progOpts.chaliceFile = source }
+        text ("The chalice source file.")
 
       // Options for Chalice
-      keyValueOpt("chop", "chalice-option", "<option>", "<value>",
-        "Passes an option to Chalice. Can be specified multiple times. A leading dash is added to the chalice option name automatically.",
-        (o: String, v: String) => {
-          progOpts.chaliceOptions += (o -> v); ()
-        })
+      opt[String]("chop")
+        action { (opt: String) => progOpts.chaliceOptions = opt; Unit }
+        text("Passes options to Chalice.")
 
       // Help
-      help("?", "help", "Displays this help message.")
+      help("?") text ("Displays this help message.")
     }
 
     def convertSlash(s: String): String =
