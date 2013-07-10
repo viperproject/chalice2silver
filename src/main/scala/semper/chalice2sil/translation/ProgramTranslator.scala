@@ -12,8 +12,7 @@ import chalice.TypeQuantification
  * Author: Yannis Kassios (based on an older version by Christian Klauser)
  */
 
-// todo: run and test program functionality
-// later add the following functionality: deadlock avoidance, set/seq support, fix epsilon permissions,
+// todo: later add the following functionality: deadlock avoidance, set/seq support, fix epsilon permissions,
 // error-message and obsolete classes refactoring, aggregates support, channels support
 
 class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, val programName: String)
@@ -61,13 +60,17 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   protected def collectSymbols(classNode : chalice.Class){
     classNode.members.view foreach  {
       case f:chalice.Field =>
-        val newField = Field(f.FullName, translateType(f.typ))(SourcePosition(null, f.pos.line, f.pos.column))
+        val newField = Field(nameGenerator.createIdentifier(f.FullName), translateType(f.typ))(
+          SourcePosition(null, f.pos.line, f.pos.column)
+        )
         symbolMap(f) = newField
         silEnvironment.silFields += (f.FullName -> newField)
       case p:chalice.Predicate =>
         val ths = nameGenerator.createIdentifier("this")
         val newPredicate =
-          Predicate(p.FullName, LocalVarDecl(ths, Ref)(), null)(SourcePosition(null, p.pos.line, p.pos.column))
+          Predicate(nameGenerator.createIdentifier(p.FullName), LocalVarDecl(ths, Ref)(), null)(
+            SourcePosition(null, p.pos.line, p.pos.column)
+          )
         symbolMap(p) = newPredicate
         silEnvironment.silPredicates += (p.FullName -> newPredicate)
       case m:chalice.Method =>
@@ -76,16 +79,17 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         val myThis = LocalVarDecl(ths, Ref)()
         val myK = LocalVarDecl(k, Perm)()
         val ins = myThis :: myK :: translateVars(m.ins)
-        val newMethod = Method(m.FullName, ins, translateVars(m.outs), null, null, null, null)(
-          SourcePosition(null, m.pos.line, m.pos.column))
+          Console.out.println("Argument list: " + m.ins)
+        val newMethod = Method(nameGenerator.createIdentifier(m.FullName), ins, translateVars(m.outs),
+          null, null, null, null)(SourcePosition(null, m.pos.line, m.pos.column))
         symbolMap(m) = newMethod
         silEnvironment.silMethods += (m.FullName -> newMethod)
       case f:chalice.Function =>
         val ths = nameGenerator.createIdentifier("this")
         val myThis = LocalVarDecl(ths, Ref)()
         val ins = myThis :: translateVars(f.ins)
-        val newFunction = Function(f.FullName, ins, translateType(f.out), null, null, null)(
-          SourcePosition(null, f.pos.line, f.pos.column))
+        val newFunction = Function(nameGenerator.createIdentifier(f.FullName), ins, translateType(f.out),
+          null, null, null)(SourcePosition(null, f.pos.line, f.pos.column))
         symbolMap(f) = newFunction
         silEnvironment.silFunctions += (f.FullName -> newFunction)
       case _ =>
@@ -123,6 +127,10 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     silTranslatedInvariants(classNode) = monitorPredicate
   }
 
+  protected def translateType(cType: chalice.Class) : Type = {
+    translateType(Util.convertToType(cType))
+  }
+
   protected def translateType(cType: chalice.Type) : Type = {
     cType.id match {
       case "seq" =>
@@ -147,6 +155,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case "bool" => Bool
       case "$Permission" => Perm
       case _ => Ref
+        // todo: add other Chalice-internal classes
     }
   }
 
@@ -532,12 +541,13 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
           translateExp(rhs.asInstanceOf[chalice.Expression], myThis, pTrans))()
           // YANNIS: todo: RValue is richer than Expression in Chalice, but this is not supported here!
       case chalice.LocalVar(v, rhs) => // YANNIS: todo
+        val silType = translateType(v.t)
         silMethod.locals = silMethod.locals :+
-          LocalVarDecl(v.id/*YANNIS: todo: name generators?*/, Int /*YANNIS: todo: fix*/)(position)
+          LocalVarDecl(v.id/*YANNIS: todo: name generators?*/, silType)(position)
         rhs match {
           case None => Seqn(Seq())()
           case Some(e) =>
-            LocalVarAssign(LocalVar(v.id)(Int /*YANNIS: todo: fix*/), translateExp(e.asInstanceOf[chalice.Expression],
+            LocalVarAssign(LocalVar(v.id)(silType), translateExp(e.asInstanceOf[chalice.Expression],
               myThis, pTrans))(position)
         }
 
@@ -641,7 +651,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         for(i <- 0 until args.length) {
           val name = nameGenerator.createIdentifier("a" + i)
           argsAndOldIds += name
-          val silLocalVariable = LocalVarDecl(name, Int /*todo:fix*/)(position)
+          val silLocalVariable = LocalVarDecl(name, translateType(args(i).typ))(position)
           silMethod.locals = silMethod.locals :+ silLocalVariable
           statements += LocalVarAssign(silLocalVariable.localVar, translateExp(args(0), myThis, pTrans))(position)
         }
@@ -649,7 +659,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         for(i <- 0 until oldExpressions.length) {
           val name = nameGenerator.createIdentifier("o" + i)
           argsAndOldIds += name
-          val silLocalVariable = LocalVarDecl(name, Int /*todo:fix*/)(position)
+          val silLocalVariable = LocalVarDecl(name, oldExpressions(i).typ)(position)
           silMethod.locals = silMethod.locals :+ silLocalVariable
           statements += LocalVarAssign(silLocalVariable.localVar, oldExpressions(i))(position)
         }
@@ -762,6 +772,14 @@ object Util {
       { case n:Node => { if(n.isInstanceOf[Old]) oldExpressions += n.asInstanceOf[Old].exp ; Unit } }
     ))
     oldExpressions
+  }
+
+  // converts a Chalice class to a Chalice type
+  def convertToType(cClass: chalice.Class) : chalice.Type = {
+    if(cClass == null) return null
+    var tParams : List[chalice.Type] = Nil
+    if(cClass.parameters != null) tParams = cClass.parameters map convertToType
+    new chalice.Type(cClass.classId, tParams)
   }
 }
 

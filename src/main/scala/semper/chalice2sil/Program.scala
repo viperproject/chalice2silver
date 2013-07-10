@@ -6,9 +6,10 @@ import chalice.{Chalice, PrintProgram}
 import translation.ProgramTranslator
 import java.io.File
 
-object Program {
-  // todo: fix! chalice options should pass as a string->string map
+case class ProgramOptions (chaliceOptions : Map[String, String] = new scala.collection.immutable.HashMap[String, String],
+                           chaliceFile : java.io.File = null)
 
+object Program {
   def invokeChalice(opts: ProgramOptions): Option[scala.List[chalice.TopLevelDecl]] = {
     val chOptsBuilder = scala.collection.mutable.ArrayBuilder.make[String]()
     opts.chaliceOptions.foreach((entry) => {
@@ -18,39 +19,36 @@ object Program {
       else
         chOptsBuilder += "/" + option + ":" + value
     })
-    chOptsBuilder += opts.chaliceFile
+    chOptsBuilder += opts.chaliceFile.getAbsolutePath
     val chOpts = chOptsBuilder.result()
+    val chaliceOptions = Chalice.parseCommandLine(chOpts)
 
-    val chaliceParams = Chalice.parseCommandLine(chOpts) match {
-      case Some(p) => p
+    val chaliceOptions1 = chaliceOptions match {
+      case Some(c) => c
       case None =>
-        Console.out.println("Chalice failed to parse command line options. Chalice2SIL terminates.")
+        Console.out.println("Chalice could not parse its options.  Chalice2SIL terminates")
         return None
     }
 
-    val program = Chalice.parsePrograms(chaliceParams) match {
+    val program = Chalice.parsePrograms(chaliceOptions1) match {
       case Some(p) => p
       case None =>
         Console.out.println("Chalice program contained syntax errors. Chalice2SIL terminates.")
         return None //illegal program, errors have already been displayed
     }
 
-    if (!chaliceParams.doTypecheck || !Chalice.typecheckProgram(chaliceParams, program)) {
+    if (!Chalice.typecheckProgram(chaliceOptions1, program)) {
       Console.out.println("Chalice program contained type errors. Chalice2SIL terminates.")
       return None
     }
 
-    if (chaliceParams.printProgram) {
-      Console.out.println("Program after type checking: ")
-      PrintProgram.P(program)
-    }
     Some(program)
   }
 
   def createTranslator(opts: ProgramOptions, program: Seq[chalice.TopLevelDecl]) = {
       // Define program name
     val ext = ".chalice"
-    val n = new File(opts.chaliceFile).getName
+    val n = opts.chaliceFile.getName
     val programName = if (n.endsWith(ext)) n.dropRight(ext.length) else n
 
     new ProgramTranslator(opts, programName)
@@ -63,40 +61,31 @@ object Program {
   }
 
   def main(args: Array[String]) {
-    val progOpts = new ProgramOptions()
-
-    val cmdParser = new OptionParser("chalice2sil") {
+    val cmdParser = new OptionParser[ProgramOptions]("chalice2sil") {
       // Chalice file
-      arg[File]("<chalice-file>")
-        action { (source: String) => progOpts.chaliceFile = source }
-        text ("The chalice source file.")
+      arg[File]("<chalice-file>") action {
+        (source, c) => c.copy(chaliceFile = source)
+      } text ("The chalice source file.")
 
       // Options for Chalice
-      opt[String]("chop")
-        action { (opt: String) => progOpts.chaliceOptions = opt; Unit }
-        text("Passes options to Chalice.")
+      opt[(String, String)]("chop") action {
+        case ((opt, value), c) => c.copy(chaliceOptions = c.chaliceOptions + (opt -> value ))
+      } text("Passes options to Chalice.")
 
       // Help
       help("?") text ("Displays this help message.")
     }
 
-    def convertSlash(s: String): String =
-      if (s.startsWith("/", 0))
-        s.updated(0, '-')
-      else
-        s
+    var progOptions : ProgramOptions = cmdParser.parse(args, ProgramOptions()) map { opts => opts } getOrElse {
+      Console.out.println("Option parsing failed.  Run with -? for more details.")
+      return
+    }.asInstanceOf[ProgramOptions]
+    progOptions = progOptions.copy(chaliceOptions = progOptions.chaliceOptions + ("noVerify" -> ""))
 
-    if (!cmdParser.parse(args.view.map(convertSlash))) {
-      // Help has already been printed
-      return;
-    }
-
-    val program = invokeChalice(progOpts) match {
-      case None => return;
-      case Some(p) => p
-    }
-
-    val (silProgram, messages) = translateToSil(progOpts, program)
+    val chaliceProg = invokeChalice(progOptions)
+    if (chaliceProg == None) return
+    val chaliceProg1 = chaliceProg match { case Some(c) => c }
+    val (silProgram, messages) = translateToSil(progOptions, chaliceProg1)
 
     def pluralize(noun: String, count: Int) = count match {
       case 0 => "no " + noun + "s"
@@ -104,7 +93,7 @@ object Program {
       case n => n.toString + " " + noun + "s"
     }
 
-    Console.out.println(silProgram.toString())
+    Console.out.println(silProgram)
 
     val warningCount = messages.count(_.severity == Warning)
     val errorCount = messages.count(_.severity.indicatesFailure)
