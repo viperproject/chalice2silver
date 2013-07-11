@@ -231,6 +231,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   // **
   protected def translatePredicate(cPredicate: chalice.Predicate) = {
     // obtain the corresponding SIL predicate
+      // todo: bugfix: use symbolmap here!
     val sPredicate = silEnvironment.silPredicates(cPredicate.FullName + "$")
 
     // obtain the single argument of the predicate as the receiver object
@@ -246,13 +247,14 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   // **
   protected def translateFunction(cFunction: chalice.Function) = {
     // obtain the corresponding SIL function
+      // todo: bugfix: use symbolmap here!
     val sFunction = silEnvironment.silFunctions(cFunction.FullName + "$")
 
     // obtain the receiver, which is the first in the list of formal arguments of the SIL function
     val sThis = sFunction.formalArgs(0)
 
     // precondition this!=null
-    val thisNotNull = NeCmp(sThis.localVar, NullLit)
+    val thisNotNull = NeCmp(sThis.localVar, NullLit()())()
 
     // translate specifications
       // all permissions in the preconditions are rendered to a read permission
@@ -281,6 +283,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   // **
   protected def translateMethod(cMethod: chalice.Method) = {
     // obtain the corresponding SIL method
+      // todo: bugfix: use symbolmap here!
     val sMethod = silEnvironment.silMethods(cMethod.FullName + "$")
 
     // obtain receiver, unidentified read permission argument and create a method permission translator
@@ -289,8 +292,8 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     val permTranslator = MethodPermissionTranslator(sK)
 
     // precondition this!=null && K>0
-    val thisNotNull = NeCmp(sThis.localVar, NullLit)
-    val kRead = PermGtCmp(sK.localVar, NoPerm)
+    val thisNotNull = NeCmp(sThis.localVar, NullLit()())()
+    val kRead = PermGtCmp(sK.localVar, NoPerm()())()
 
     // translate specifications
     val silPreconditions = scala.collection.mutable.LinkedList[Exp](thisNotNull, kRead)
