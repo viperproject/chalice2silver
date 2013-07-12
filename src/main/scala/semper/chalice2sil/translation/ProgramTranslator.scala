@@ -412,7 +412,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case chalice.Take(lhs, rhs) =>
         SeqTake(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
 
-      // set operators todo: set containment, set size
+      // set operators
       case chalice.EmptySet(t) => EmptySet(translateType(t))(position)
       case chalice.ExplicitSet(elems) => ExplicitSet(elems.map(translateExp(_, myThis, pTrans)))(position)
 
@@ -432,16 +432,18 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         val silexp = translateExp(e, myThis, pTrans)
 
         // from the field or predicate name that is being accessed, obtain the relevant SIL object
-        val sf = symbolMap(e.typ.LookupMember(id) match { case Some(m) => m })
+        val sf = symbolMap(e.typ.LookupMember(id) match { case Some(m) => m ; case None => null })
 
         if(sf.isInstanceOf[Field]) FieldAccess(silexp, sf.asInstanceOf[Field])(position)
         else PredicateAccess(silexp, sf.asInstanceOf[Predicate])(position)
           // the above code assumes that all bookkeeping has been done correctly
           // otherwise it may throw several exceptions
 
-      // todo: case class BackPointerMemberAccess(ex: Expression, typeId: String, fieldId: String) extends Expression {}
+      // backpointer member access
+        // todo: case class BackPointerMemberAccess(ex: Expression, typeId: String, fieldId: String) extends Expression {}
+      case _: chalice.BackPointerMemberAccess => null // not supported yet
 
-      // access permissions
+      // access permissions to a field or predicate
       case chalice.Access(ma, perm) =>
         val silma = translateExp(ma, myThis, pTrans)
         val silpe = pTrans(perm, myThis)
@@ -452,69 +454,62 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         val silpe = pTrans(perm, myThis)
         FieldAccessPredicate(silma.asInstanceOf[FieldAccess], silpe)(position)
 
+      // acc(x.*): access permissions to all members of an object
       case chalice.AccessAll(obj, perm) =>
+        // obtain SIL receiver and permission
         val silo = translateExp(obj, myThis, pTrans)
         val silpe = pTrans(perm, myThis)
-        var silexp : Exp = TrueLit()()
 
-        if(obj==null || obj.typ == null) messages += UnknownAstNode(obj)
-        else {
-            // add access to all declared fields and predicates
-          obj.typ.DeclaredFields.foreach{ f =>
-            val sf = symbolMap.getOrElse(f, null)
-            if (sf == null) messages += TypeError()
-            else silexp = And(silexp, FieldAccessPredicate(FieldAccess(silo, sf.asInstanceOf[Field])(), silpe)())()
-          }
+        // return the complete permission expression
+        grantPermissionToAllFields(obj.typ, silo, silpe, position)
 
-           // YANNIS: todo: does this cover predicates or only fields?
+      // access to a specific member (or all members) of all objects in a sequence
+      case chalice.AccessSeq(seq, member, perm) =>
+        // obtain the SIL sequence expression and the permission
+        val silseq = translateExp(seq, myThis, pTrans)
+        val silpe = pTrans(perm, myThis)
 
-           // YANNIS: todo: add access to backpointer fields
+        // the following closure takes a SIL object expression and returns a SIL expression that grants appropriate
+        // access to member "member" of the corresponding SIL object
+        // if "member" is None, this means access to all fields of the object
+        var permissionPerObject : Exp => Exp = null
+        member match {
+          case None =>
+            // permissionPerObject must return permission to all the fields of silo
+            permissionPerObject = (silo:Exp) => {
+              // return permission to all the fields of silo
+              grantPermissionToAllFields(seq.typ.parameters(0), silo, silpe, position)
+            }
+          case Some(m) =>
+            // permissionPerObject must return permission to member m
+            if(m.isPredicate)
+              permissionPerObject = (silo: Exp) =>
+                PredicateAccessPredicate(silo.asInstanceOf[PredicateAccess], silpe)(position)
+            else
+              permissionPerObject = (silo: Exp) =>
+                FieldAccessPredicate(silo.asInstanceOf[FieldAccess], silpe)(position)
+        }
+          // todo: treat backpointer objects in the code above
 
-         }
+        // return a universal quantification on all sequence elements
+        // bounded identifier
+        val boundedId = LocalVarDecl(nameGenerator.createIdentifier("i$"), Int)()
 
-         // return the complete access permission expression
-         silexp
+        // restrain identifier to sequence indices
+        val boundedIdDomain = And(
+          LeCmp(IntLit(0)(), boundedId.localVar)(),
+          LtCmp(boundedId.localVar, SeqLength(silseq)())()
+        )()
 
-      case chalice.AccessSeq(seq, member, perm) => // YANNIS: todo: refactor this case
-          val silseq = translateExp(seq, myThis, pTrans)
-          val silpe = pTrans(perm, myThis)
-          var permissionPerObject : Exp => Unit = null
-          var silexp: Exp = TrueLit()()
-            // this closure will return the permission expression for each element of the sequence
+        // grant permissions for any object i in the sequence
+        val quantBody = permissionPerObject(SeqIndex(silseq, boundedId.localVar)())
 
-          // define permissionPerObject
-          member match {
-            case None =>
-              if(seq==null || seq.typ==null) messages += UnknownAstNode(seq) // YANNIS: todo: other health conditions
-              else {
-                  permissionPerObject = (exp => {
-                    seq.typ.parameters(0).DeclaredFields.foreach{ f =>
-                        val sf = symbolMap.getOrElse(f, null)
-                        if (sf == null) messages += TypeError()
-                        else
-                          silexp = And(silexp, FieldAccessPredicate(FieldAccess(exp, sf.asInstanceOf[Field])(), silpe)())() }
-                    // YANNIS: todo: fix.  the above code includes Chalice predicates, which should be coded as
-                       // PredicateAccessPredicate objects
-                    // YANNIS: todo: add access to backpointer fields
-                  })
-               }
-            case Some(f) =>
-              if(f.isPredicate) permissionPerObject =
-                (exp => { silexp = PredicateAccessPredicate(exp.asInstanceOf[PredicateAccess], silpe)(position)})
-              else permissionPerObject =
-                (exp => silexp = FieldAccessPredicate(silseq.asInstanceOf[FieldAccess], silpe)(position))
-           }
+        // return the full quantification
+        Forall(List(boundedId), List(), Implies(boundedIdDomain, quantBody)())(position)
 
-                    // YANNIS: todo: check: is this enough for backpointer access here?
 
-         // return a universal quantification on all sequence elements
-         val boundedId = nameGenerator.createIdentifier("i")
-         permissionPerObject(SeqIndex(silseq, LocalVar(boundedId)(Int))())
-          // YANNIS: todo: ensure that (in exceptional conditions) the flow does not reach this point
-          // YANNIS: todo: bound the index of the array in the quantification
-         Forall(List(LocalVarDecl(boundedId, Int)()), List(), silexp)(position)
      /*
-           // YANNIS: todo: this case
+           // todo: this case
       case expression@chalice.Access(chalice.MemberAccess(tokenExpr, joinableName), permission)
         if tokenExpr.typ.IsToken && joinableName == prelude.Token.joinable.name => {
         // translate `acc(token.joinable,X)` to `(acc(token.joinable,X) && acc(token.args/olds,X)...)`
@@ -538,8 +533,8 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       // eval is not supported
       case e: chalice.Eval => messages += GeneralEvalNotImplemented(e) ; null
 
-       // quantification and aggregation
-        // YANNIS: todo: bounded identifiers must be constructed with the name generator too
+      // quantification and aggregation
+        // todo: bounded identifiers must be constructed with the name generator too
       case e: chalice.Quantification =>
         var boundedVars : List[LocalVarDecl] = null
         var boundingExpression: Exp = null
@@ -787,6 +782,21 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case class Unfold(pred: Access) extends Statement
 
 */
+  }
+
+  protected def grantPermissionToAllFields(cls: chalice.Class, silo: Exp, silpe: Exp, position: Position) : Exp = {
+    var silexp : Exp = TrueLit()(position)
+    cls.DeclaredFields.foreach{ f =>
+      val sf = symbolMap(f)
+      val newConjunct =
+        if(sf.isInstanceOf[Field])
+          FieldAccessPredicate(FieldAccess(silo, sf.asInstanceOf[Field])(position), silpe)(position)
+        else PredicateAccessPredicate(PredicateAccess(silo, sf.asInstanceOf[Predicate])(position), silpe)(position)
+      silexp = And(silexp, newConjunct)(position)
+    }
+    silexp
+      // todo: check if this code actually covers predicates and not only fields
+      // todo: add access to backpointer fields
   }
 
   abstract class PermissionTranslator{
