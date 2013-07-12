@@ -41,9 +41,13 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   val nameGenerator = new semper.sil.utility.SilNameGenerator
 
   // this domain introduces the constant K permission for use in monitor invariants
-    // todo: axiom: the K permission is read-only
+    // axiom: the K permission is read-only
   val globalK = DomainFunc(nameGenerator.createIdentifier("globalK$"), Seq(), Perm, true)()
-  val GlobalKPermissionDomain = Domain("GlobalKPermission", Seq(globalK), Seq(), Seq())()
+  val globalKApp = DomainFuncApp(globalK, Seq(), new scala.collection.immutable.HashMap[TypeVar,Type]())()
+  val axiomKReadOnly = DomainAxiom("globalKReadOnly",
+    And(PermGtCmp(globalKApp, NoPerm()())(), PermGtCmp(FullPerm()(), globalKApp)())()
+  )()
+  val GlobalKPermissionDomain = Domain("GlobalKPermission", Seq(globalK), Seq(axiomKReadOnly))()
 
   // **
   // takes a Chalice program as a sequence of Chalice top level declarations
@@ -57,7 +61,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     decls.foreach(translate)
 
     // return the final SIL program together with the list of error/warnings produced
-    (Program(List(GlobalKPermissionDomain), silEnvironment.silFields.values.toSeq,
+    (Program(Seq(GlobalKPermissionDomain), silEnvironment.silFields.values.toSeq,
       silEnvironment.silFunctions.values.toSeq, silEnvironment.silPredicates.values.toSeq,
       silEnvironment.silMethods.values.toSeq)(),
      messages.toSeq)
@@ -231,8 +235,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   // **
   protected def translatePredicate(cPredicate: chalice.Predicate) = {
     // obtain the corresponding SIL predicate
-      // todo: bugfix: use symbolmap here!
-    val sPredicate = silEnvironment.silPredicates(cPredicate.FullName + "$")
+    val sPredicate = symbolMap(cPredicate).asInstanceOf[Predicate]
 
     // obtain the single argument of the predicate as the receiver object
     val sThis = sPredicate.formalArg
@@ -247,8 +250,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   // **
   protected def translateFunction(cFunction: chalice.Function) = {
     // obtain the corresponding SIL function
-      // todo: bugfix: use symbolmap here!
-    val sFunction = silEnvironment.silFunctions(cFunction.FullName + "$")
+    val sFunction = symbolMap(cFunction).asInstanceOf[Function]
 
     // obtain the receiver, which is the first in the list of formal arguments of the SIL function
     val sThis = sFunction.formalArgs(0)
@@ -283,20 +285,20 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   // **
   protected def translateMethod(cMethod: chalice.Method) = {
     // obtain the corresponding SIL method
-      // todo: bugfix: use symbolmap here!
-    val sMethod = silEnvironment.silMethods(cMethod.FullName + "$")
+    val sMethod = symbolMap(cMethod).asInstanceOf[Method]
 
     // obtain receiver, unidentified read permission argument and create a method permission translator
     val sThis = sMethod.formalArgs(0)
     val sK = sMethod.formalArgs(1)
     val permTranslator = MethodPermissionTranslator(sK)
 
-    // precondition this!=null && K>0
+    // precondition this!=null && K>0 && K<Full
     val thisNotNull = NeCmp(sThis.localVar, NullLit()())()
     val kRead = PermGtCmp(sK.localVar, NoPerm()())()
+    val kNoWrite = PermGtCmp(FullPerm()(), sK.localVar)()
 
     // translate specifications
-    val silPreconditions = scala.collection.mutable.LinkedList[Exp](thisNotNull, kRead)
+    val silPreconditions = scala.collection.mutable.LinkedList[Exp](thisNotNull, kRead, kNoWrite)
     val silPostConditions = scala.collection.mutable.LinkedList[Exp]()
     cMethod.spec.foreach {
       _ match {
@@ -313,13 +315,21 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     translateBody(cMethod, sThis, permTranslator)
   }
 
+  // **
+  // translate a Chalice expression to the corresponding SIL expression
+  // uses myThis: the SIL local variable that corresponds to the receiver object of Chalice
+  // uses pTrans: a PermissionTranslation object that is used to translate permission-valued expressions according to
+  //   whether the expression is found in a method, predicate, or function
+  // **
   protected def translateExp(cExp: chalice.Expression, myThis: LocalVarDecl, pTrans: PermissionTranslator) : Exp = {
+    // obtain the Chalice source code position
     val position = SourcePosition(null, cExp.pos.line, cExp.pos.column)
+
     cExp match {
       // old expression
       case chalice.Old(inner) => Old(translateExp(inner, myThis, pTrans))(position)
 
-      // chalice2sil ignores all deadlock prevention specs;
+      // chalice2sil ignores all deadlock prevention specs in the present version
       case chalice.LockBelow(_,_) =>  TrueLit()(position)
       case chalice.Eq(chalice.MaxLockLiteral(),_) => TrueLit()(position)
       case chalice.Eq(_,chalice.MaxLockLiteral()) => TrueLit()(position)
@@ -341,38 +351,26 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
           translateExp(cond, myThis, pTrans), translateExp(thn, myThis, pTrans), translateExp(els, myThis, pTrans)
         )(position)
 
-      // arithmetic operators and set union, subtraction, intersection
+      // arithmetic operators and set union, difference, intersection
       case chalice.Plus(lhs, rhs) =>
         val l = translateExp(lhs, myThis, pTrans)
         val r = translateExp(rhs, myThis, pTrans)
-        if(lhs.typ == chalice.IntClass) Add(l, r)(position)
-        else { // if lhs is not int, this translates to set union
-/*          var t = l.typVarsMap.getOrElse(SetDomain.typeVar, null)
-          if(t == null) { messages += TypeError(l) ; t = Int }
-          new DomainFuncApp(SetDomain.union, List(l, r), t)*/ null // sets are not supported
-        }
+        if(lhs.typ == chalice.IntClass) Add(l, r)(position) // integer addition
+        else AnySetUnion(l, r)(position) // set union
       case chalice.Minus(lhs, rhs) =>
         val l = translateExp(lhs, myThis, pTrans)
         val r = translateExp(rhs, myThis, pTrans)
-        if(lhs.typ == chalice.IntClass) Sub(l, r)(position)
-        else { // if lhs is not int, this translates to set subtraction
-          /*var t = l.typVarsMap.getOrElse(SetDomain.typeVar, null)
-          if(t == null) { messages += TypeError(l) ; t = Int }
-          new DomainFuncApp(SetDomain.subtraction, List(l, r), t)*/  null // sets are not supported
-        }
+        if(lhs.typ == chalice.IntClass) Sub(l, r)(position) // integer subtraction
+        else AnySetMinus(l, r)(position) // set difference
       case chalice.Times(lhs, rhs) =>
         val l = translateExp(lhs, myThis, pTrans)
         val r = translateExp(rhs, myThis, pTrans)
-        if(lhs.typ == chalice.IntClass) Mul(l, r)(position)
-        else { // if lhs is not int, this translates to set intersection
-          /*var t = l.typVarsMap.getOrElse(SetDomain.typeVar, null)
-          if(t == null) { messages += TypeError(l) ; t = Int }
-          new DomainFuncApp(SetDomain.intersection, List(l, r), t)*/ null // sets are not supported
-        }
+        if(lhs.typ == chalice.IntClass) Mul(l, r)(position) // integer multiplication
+        else AnySetIntersection(l, r)(position) // set intersection
       case chalice.Div(lhs, rhs) =>
-        Div(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
+        Div(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position) // integer division
       case chalice.Mod(lhs, rhs) =>
-        Mod(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
+        Mod(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position) // integer modulo
 
       // equality and inequality
       case chalice.Eq(lhs, rhs) =>
@@ -384,39 +382,23 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case chalice.Less(lhs, rhs) =>
         val l = translateExp(lhs, myThis, pTrans)
         val r = translateExp(rhs, myThis, pTrans)
-        if(lhs.typ == chalice.IntClass) LtCmp(l, r)(position)
-        else { // if lhs is not int, this translates to set proper inclusion
-          /*var t = l.typVarsMap.getOrElse(SetDomain.typeVar, null)
-          if(t == null) { messages += TypeError(l) ; t = Int }
-          new DomainFuncApp(SetDomain.subset, List(l, r), t)*/ null // sets are not supported
-        }
+        if(lhs.typ == chalice.IntClass) LtCmp(l, r)(position) // integer <
+        else And(AnySetSubset(l, r)(position), NeCmp(l, r)(position))(position) // strict subset
       case chalice.AtMost(lhs, rhs) =>
         val l = translateExp(lhs, myThis, pTrans)
         val r = translateExp(rhs, myThis, pTrans)
-        if(lhs.typ == chalice.IntClass) LeCmp(l, r)(position)
-        else { // if lhs is not int, this translates to set proper inclusion
-          /*var t = l.typVarsMap.getOrElse(SetDomain.typeVar, null)
-          if(t == null) { messages += TypeError(l) ; t = Int }
-          new DomainFuncApp(SetDomain.subsetEq, List(l, r), t)*/  null // sets are not supported
-        }
+        if(lhs.typ == chalice.IntClass) LeCmp(l, r)(position) // integer <=
+        else AnySetSubset(l, r)(position) // non-strict subset
       case chalice.AtLeast(lhs, rhs) =>
         val l = translateExp(lhs, myThis, pTrans)
         val r = translateExp(rhs, myThis, pTrans)
-        if(lhs.typ == chalice.IntClass) GeCmp(l, r)(position)
-        else { // if lhs is not int, this translates to set proper inclusion
-          /*var t = l.typVarsMap.getOrElse(SetDomain.typeVar, null)
-          if(t == null) { messages += TypeError(l) ; t = Int }
-          new DomainFuncApp(SetDomain.supsetEq, List(l, r), t)*/  null // sets are not supported
-        }
+        if(lhs.typ == chalice.IntClass) GeCmp(l, r)(position) // integer >=
+        else AnySetSubset(r, l)(position) // non-strict superset
       case chalice.Greater(lhs, rhs) =>
         val l = translateExp(lhs, myThis, pTrans)
         val r = translateExp(rhs, myThis, pTrans)
-        if(lhs.typ == chalice.IntClass) GtCmp(l, r)(position)
-        else { // if lhs is not int, this translates to set proper inclusion
-          /*var t = l.typVarsMap.getOrElse(SetDomain.typeVar, null)
-          if(t == null) { messages += TypeError(l) ; t = Int }
-          new DomainFuncApp(SetDomain.supset, List(l, r), t)*/  null // sets are not supported
-        }
+        if(lhs.typ == chalice.IntClass) GtCmp(l, r)(position) // integer >
+        else And(AnySetSubset(r, l)(position), NeCmp(l, r)(position))(position) // strict superset
 
       // sequence operators
       case chalice.EmptySeq(t) => EmptySeq(translateType(t))(position)
@@ -433,7 +415,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case chalice.Contains(lhs, rhs) =>
         SeqContains(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
 
-      // remaining set operators: not supported
+      // todo: empty set, explicit set, set containment, set size (and remove explicit range set from Chalice)
 
       // member access
       case _:chalice.ThisExpr => myThis.localVar
