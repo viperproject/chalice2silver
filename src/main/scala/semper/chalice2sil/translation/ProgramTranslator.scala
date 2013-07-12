@@ -10,7 +10,7 @@ import scala.Some
  * Author: Yannis Kassios (based on an older version by Christian Klauser)
  */
 
-// todo: later add the following functionality: deadlock avoidance, set/seq support, fix epsilon permissions,
+// todo: later add the following functionality: deadlock avoidance, fix epsilon permissions,
   // error-message and obsolete classes refactoring, aggregates support, channels support
 
 class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, val programName: String)
@@ -534,47 +534,55 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case e: chalice.Eval => messages += GeneralEvalNotImplemented(e) ; null
 
       // quantification and aggregation
-        // todo: bounded identifiers must be constructed with the name generator too
       case e: chalice.Quantification =>
+        // keep list of bounded variables and domain expression
         var boundedVars : List[LocalVarDecl] = null
-        var boundingExpression: Exp = null
+        var domainExpression: Exp = TrueLit()()
+
+        // populate boundedVars and domainExpression according to the flavor of the quantification
+        // CONVENTION: like other local Chalice variables, the bounded variables retain their name in SIL!
         if (e.isInstanceOf[chalice.TypeQuantification])
           boundedVars = e.Is map { i => LocalVarDecl(i, translateType(e.asInstanceOf[chalice.TypeQuantification].t))() }
         else if (e.isInstanceOf[chalice.SeqQuantification]) {
           val seq = e.asInstanceOf[chalice.SeqQuantification].seq
           val silseq = translateExp(seq, myThis, pTrans)
-          val tp = translateType(new chalice.Type(seq.typ.asInstanceOf[chalice.SeqClass].parameter))
+          val tp = translateType(seq.typ.asInstanceOf[chalice.SeqClass].parameter)
           boundedVars = e.Is map { i =>
-            boundingExpression = And(boundingExpression, SeqContains(LocalVar(i)(tp), silseq)())()
+            domainExpression = And(domainExpression, SeqContains(LocalVar(i)(tp), silseq)())()
             LocalVarDecl(i, tp)()
           }
         }
-        else {
+        else {  // set quantification
           val set =  e.asInstanceOf[chalice.SetQuantification].dom
-          val tp = translateType(new chalice.Type(set.typ.asInstanceOf[chalice.SetClass].parameter))
+          val tp = translateType(set.typ.asInstanceOf[chalice.SetClass].parameter)
           val silset = translateExp(set, myThis, pTrans)
           boundedVars = e.Is map { i =>
-            boundingExpression = And(boundingExpression, SeqContains /*YANNIS: todo: SetContains*/ (LocalVar(i)(tp), silset)())()
+            domainExpression = And(domainExpression, AnySetContains(LocalVar(i)(tp), silset)())()
             LocalVarDecl(i, tp)()
           }
         }
-        val silbody = translateExp(e.E, myThis, pTrans)  // e.E refers to the body of the quantification
+
+        // translate the body of the quantification
+        val silbody = translateExp(e.E, myThis, pTrans) // e.E refers to the body of the quantification
         e.Q match {
-          case chalice.Forall => Forall(boundedVars, Seq(), Implies(boundingExpression, silbody)())(position)
-          case chalice.Exists =>  Exists(boundedVars, And(boundingExpression, silbody)())(position)
-          case _ => messages += UnknownAstNode(e) ; null
+          case chalice.Forall => Forall(boundedVars, Seq(), Implies(domainExpression, silbody)())(position)
+          case chalice.Exists =>  Exists(boundedVars, And(domainExpression, silbody)())(position)
+          case _ => messages += UnknownAstNode(e) ; null // todo: aggregates are not supported
         }
 
+      // litterals
       case chalice.BoolLiteral(b) => if(b) TrueLit()(position) else FalseLit()(position)
       case chalice.IntLiteral(n) => IntLit(n)(position)
       case chalice.NullLiteral() => NullLit()(position)
-      case chalice.StringLiteral(s) => null // YANNIS: todo: SIL does not support strings
-      case chalice.LockBottomLiteral() => null
-      case chalice.MaxLockLiteral() => null
+      case chalice.StringLiteral(s) => null // todo: SIL does not support strings
+      case chalice.LockBottomLiteral() => null // todo: support deadlock freedom
+      case chalice.MaxLockLiteral() => null // todo: support deadlock freedom
       case chalice.ImplicitThisExpr() => myThis.localVar
       case chalice.ExplicitThisExpr() => myThis.localVar
+
+      // local variable
       case chalice.VariableExpr(v) => LocalVar(v)(translateType(cExp.typ))
-     }
+    }
   }
 
   protected def translateBody(cMethod: chalice.Method, myThis: LocalVarDecl, pTrans: PermissionTranslator) = {
