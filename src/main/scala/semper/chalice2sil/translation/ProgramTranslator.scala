@@ -405,38 +405,41 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case chalice.ExplicitSeq(elems) => ExplicitSeq(elems.map(translateExp(_, myThis, pTrans)))(position)
       case chalice.Range(lhs, rhs) =>
         new RangeSeq(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
-      case chalice.Length(e) => SeqLength(translateExp(e, myThis, pTrans))(position)
       case chalice.At(lhs, rhs) =>
         SeqIndex(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
       case chalice.Drop(lhs, rhs) =>
         SeqDrop(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
       case chalice.Take(lhs, rhs) =>
         SeqTake(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
-      case chalice.Contains(lhs, rhs) =>
-        SeqContains(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
 
-      // todo: empty set, explicit set, set containment, set size (and remove explicit range set from Chalice)
+      // set operators todo: set containment, set size
+      case chalice.EmptySet(t) => EmptySet(translateType(t))(position)
+      case chalice.ExplicitSet(elems) => ExplicitSet(elems.map(translateExp(_, myThis, pTrans)))(position)
+
+      // operators common to sets and sequences
+      case chalice.Length(e) =>
+        val silexp = translateExp(e, myThis, pTrans)
+        if(e.typ == chalice.SeqClass) SeqLength(silexp)(position) else AnySetCardinality(silexp)(position)
+      case chalice.Contains(lhs, rhs) =>
+        val l = translateExp(lhs, myThis, pTrans)
+        val r = translateExp(rhs, myThis, pTrans)
+        if(rhs.typ == chalice.SeqClass) SeqContains(l, r)(position) else AnySetContains(l, r)(position)
 
       // member access
-      case _:chalice.ThisExpr => myThis.localVar
+      case _: chalice.ThisExpr => myThis.localVar
       case ma@chalice.MemberAccess(e, id) =>
-        val cls = e.typ
-        if(cls!=null)
-        {
-          cls.LookupMember(id) match {
-            case None => messages += TypeError() ; null
-            case Some(f) =>
-              val sf = symbolMap.getOrElse(f, null)
-              if (sf == null) { messages += TypeError() ; null }
-              else {
-                if(f.isInstanceOf[chalice.Field])
-                  FieldAccess(translateExp(e, myThis, pTrans), sf.asInstanceOf[Field])(position)
-                else PredicateAccess(translateExp(e, myThis, pTrans), sf.asInstanceOf[Predicate])(position)
-              }
-          }
-        }
-        else { messages += TypeError() ; null }
-        // YANNIS: todo: case class BackPointerMemberAccess(ex: Expression, typeId: String, fieldId: String) extends Expression {}
+        // translate the receiver expression
+        val silexp = translateExp(e, myThis, pTrans)
+
+        // from the field or predicate name that is being accessed, obtain the relevant SIL object
+        val sf = symbolMap(e.typ.LookupMember(id) match { case Some(m) => m })
+
+        if(sf.isInstanceOf[Field]) FieldAccess(silexp, sf.asInstanceOf[Field])(position)
+        else PredicateAccess(silexp, sf.asInstanceOf[Predicate])(position)
+          // the above code assumes that all bookkeeping has been done correctly
+          // otherwise it may throw several exceptions
+
+      // todo: case class BackPointerMemberAccess(ex: Expression, typeId: String, fieldId: String) extends Expression {}
 
       // access permissions
       case chalice.Access(ma, perm) =>
