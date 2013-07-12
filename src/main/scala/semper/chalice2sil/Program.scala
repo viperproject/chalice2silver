@@ -106,5 +106,6 @@ object Program {
       Console.out.println("[Success] Chalice2SIL detected %s.".format(
         pluralize("warning", warningCount)
       ))
+    messages.foreach(m => Console.out.println(m))
   }
 }

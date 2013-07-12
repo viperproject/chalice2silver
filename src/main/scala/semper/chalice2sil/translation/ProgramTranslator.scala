@@ -73,9 +73,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   protected def collectSymbols(decl : chalice.TopLevelDecl) {
     decl match {
       case c:chalice.Class if c.IsNormalClass => collectSymbols(c)
-
-      // only classes are supported as top-level declarations in the present version
-      case node => messages += UnknownAstNode(node)
+      case node =>
     }
   }
 
