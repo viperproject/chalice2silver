@@ -98,12 +98,12 @@ object Program {
     val warningCount = messages.count(_.severity == Warning)
     val errorCount = messages.count(_.severity.indicatesFailure)
     if (errorCount > 0)
-      Console.out.println("[Failure] Chalice2SIL detected %s and %s.".format(
+      Console.err.println("[Failure] Chalice2SIL detected %s and %s.".format(
         pluralize("error", errorCount),
         pluralize("warning", warningCount)
       ))
     else
-      Console.out.println("[Success] Chalice2SIL detected %s.".format(
+      Console.err.println("[Success] Chalice2SIL detected %s.".format(
         pluralize("warning", warningCount)
       ))
     messages.foreach(m => Console.out.println(m))

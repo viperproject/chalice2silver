@@ -11,7 +11,8 @@ import scala.Some
  */
 
 // todo: later add the following functionality: deadlock avoidance, fix epsilon permissions,
-  // error-message and obsolete classes refactoring, aggregates support, channels support
+  // error-message and obsolete classes refactoring, aggregates support, channels support, self-framing,
+  // resolve compiler warnings, fix Chalice set quantification syntax (use in instead of :)
 
 class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, val programName: String)
 {
@@ -167,6 +168,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
           // all invariants refer to the same receiver object and their read permission is given by globalK
         val currentInv = translateExp(i.e, ths, PredicatePermissionTranslator(globalK))
         monitorInvariant = And(currentInv, monitorInvariant)()
+      case f: chalice.Field => // nothing to do here
 
       // no other nodes are supported
       case otherNode => messages += UnknownAstNode(otherNode)
@@ -190,24 +192,8 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     // todo: refactor: move the translateType methods into Util object
   protected def translateType(cType: chalice.Type) : Type = {
     cType.id match {
-      case "seq" =>
-        // YANNIS: todo
- /*       if(typ.params.length != 1) { messages += WrongNumberOfTypeParameters; Int }
-        val tvm = Map[TypeVar, Type]()
-        val silT = translateType(cType.params.head)
-        tvm += (typeVar, silT)
-        new DomainType(seqDomain, tvm)*/
-        null
-      case "set" =>
-        // YANNIS: todo
-/*        if(typ.params.length != 1) { messages += WrongNumberOfTypeParameters; Int }
-        else {
-          val silT = translateType(cType.params.head)
-          val tvm = Map(SetDomain.typeVar -> silT)
-          tvm += (typeVar, silT)
-          new DomainType(SetDomain, tvm)
-        }*/
-        null
+      case "seq" => SeqType(translateType(cType.params(0)))
+      case "set" => SetType(translateType(cType.params(0)))
       case "int" => Int
       case "bool" => Bool
       case "$Permission" => Perm
@@ -296,14 +282,13 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     val kNoWrite = PermGtCmp(FullPerm()(), sK.localVar)()
 
     // translate specifications
-    val silPreconditions = scala.collection.mutable.LinkedList[Exp](thisNotNull, kRead, kNoWrite)
-    val silPostConditions = scala.collection.mutable.LinkedList[Exp]()
+    val silPreconditions = new scala.collection.mutable.ListBuffer[Exp]()
+    silPreconditions += (thisNotNull, kRead, kNoWrite)
+    val silPostConditions = new scala.collection.mutable.ListBuffer[Exp]()
     cMethod.spec.foreach {
       _ match {
-        case chalice.Precondition(e) =>
-          silPreconditions.append(scala.collection.mutable.LinkedList(translateExp(e, sThis, permTranslator)))
-        case chalice.Postcondition(e) =>
-          silPostConditions.append(scala.collection.mutable.LinkedList(translateExp(e, sThis, permTranslator)))
+        case chalice.Precondition(e) => silPreconditions += translateExp(e, sThis, permTranslator)
+        case chalice.Postcondition(e) => silPostConditions += translateExp(e, sThis, permTranslator)
       }
     }
     sMethod.pres = silPreconditions.toSeq
@@ -417,11 +402,11 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       // operators common to sets and sequences
       case chalice.Length(e) =>
         val silexp = translateExp(e, myThis, pTrans)
-        if(e.typ == chalice.SeqClass) SeqLength(silexp)(position) else AnySetCardinality(silexp)(position)
+        if(silexp.typ.isInstanceOf[SeqType]) SeqLength(silexp)(position) else AnySetCardinality(silexp)(position)
       case chalice.Contains(lhs, rhs) =>
         val l = translateExp(lhs, myThis, pTrans)
         val r = translateExp(rhs, myThis, pTrans)
-        if(rhs.typ == chalice.SeqClass) SeqContains(l, r)(position) else AnySetContains(l, r)(position)
+        if(r.typ == SeqType(l.typ)) SeqContains(l, r)(position) else AnySetContains(l, r)(position)
 
       // member access
       case _: chalice.ThisExpr => myThis.localVar
@@ -480,6 +465,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
             }
           case Some(m) =>
             // permissionPerObject must return permission to member m
+              // todo: fix.  probably buggy, has thrown illegal casting exception (on sequence of integers!)
             if(m.isPredicate)
               permissionPerObject = (silo: Exp) =>
                 PredicateAccessPredicate(silo.asInstanceOf[PredicateAccess], silpe)(position)
@@ -504,6 +490,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
 
         // return the full quantification
         Forall(List(boundedId), List(), Implies(boundedIdDomain, quantBody)())(position)
+          // todo: fix SIL, which currently does not support access permissions within forall quantifiers
 
 
      /*
@@ -522,7 +509,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         }
       }  */
 
-      // unfolding
+      // unfolding // todo: test
       case unfolding@chalice.Unfolding(predicateAccess, body) =>
         val silpa = translateExp(predicateAccess, myThis, pTrans)
         val silbody = translateExp(body, myThis, pTrans)
@@ -531,7 +518,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       // eval is not supported
       case e: chalice.Eval => messages += GeneralEvalNotImplemented(e) ; null
 
-      // quantification and aggregation
+      // quantification and aggregation // todo: test
       case e: chalice.Quantification =>
         // keep list of bounded variables and domain expression
         var boundedVars : List[LocalVarDecl] = null
@@ -568,7 +555,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
           case _ => messages += UnknownAstNode(e) ; null // todo: aggregates are not supported
         }
 
-      // litterals
+      // literals // todo: test
       case chalice.BoolLiteral(b) => if(b) TrueLit()(position) else FalseLit()(position)
       case chalice.IntLiteral(n) => IntLit(n)(position)
       case chalice.NullLiteral() => NullLit()(position)
@@ -578,7 +565,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case chalice.ImplicitThisExpr() => myThis.localVar
       case chalice.ExplicitThisExpr() => myThis.localVar
 
-      // local variable
+      // local variable // todo: test
       case chalice.VariableExpr(v) => LocalVar(v)(translateType(cExp.typ))
     }
   }
@@ -801,7 +788,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       silexp = And(silexp, newConjunct)(position)
     }
     silexp
-      // todo: check if this code actually covers predicates and not only fields
+      // todo: add access to predicates
       // todo: add access to backpointer fields
   }
 
