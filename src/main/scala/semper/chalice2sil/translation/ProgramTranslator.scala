@@ -14,6 +14,8 @@ import scala.Some
   // error-message and obsolete classes refactoring, aggregates support, channels support, self-framing,
   // resolve compiler warnings, fix Chalice set quantification syntax (use in instead of :)
 
+// todo: add automated testing
+
 class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, val programName: String)
 {
   // messages generated in the translation
@@ -555,6 +557,8 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
           case _ => messages += UnknownAstNode(e) ; null // todo: aggregates are not supported
         }
 
+      case p:chalice.Permission => pTrans(p, myThis)
+
       // literals // todo: test
       case chalice.BoolLiteral(b) => if(b) TrueLit()(position) else FalseLit()(position)
       case chalice.IntLiteral(n) => IntLit(n)(position)
@@ -708,6 +712,22 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         val chalEquivalent = chalice.BlockStmt((chalice.Acquire(obj) :: block.ss) :+ chalice.Release(obj))
         translateStm(chalEquivalent, myThis, pTrans, silMethod)
 
+      // folding and unfolding
+      case chalice.Fold(access) =>
+        Fold(
+          PredicateAccessPredicate(
+            translateExp(access.ma, myThis, pTrans).asInstanceOf[PredicateAccess],
+            translateExp(access.perm, myThis, pTrans).asInstanceOf[PermExp]
+          )(position)
+        )(position)
+      case chalice.Unfold(access) =>
+        Unfold(
+          PredicateAccessPredicate(
+            translateExp(access.ma, myThis, pTrans).asInstanceOf[PredicateAccess],
+            translateExp(access.perm, myThis, pTrans).asInstanceOf[PermExp]
+          )(position)
+        )(position)
+
       // several unsupported features
         // todo: correct reporting / no exception thrown
       case chalice.RdAcquire(_) => messages += TypeError() ; null
@@ -721,7 +741,8 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
 
       //forking -- under construction
       case chalice.CallAsync(_, lhs, obj, id, args) =>
-        // todo: implicit locals declaration
+/*        // todo: implicit locals declaration
+          // todo: implement.  the code below is outdated!
 
         // check if token has appeared in another fork (which is not supported)
         if (joinTokens.contains((silMethod, lhs.id))) { messages += TypeError() ; return null }
@@ -730,7 +751,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         val statements = new mutable.MutableList[Stmt]()
 
         // assert that the token is not joinable
-        // todo
+        //
 
         // spot chalice method and store it in joinTokens
         val m = obj.typ.LookupMember(id)
@@ -742,7 +763,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         joinTokens((silMethod, lhs.id)) = joinableInfo
 
         // ensure args.length is equal to the number of arguments expected by cMethod
-        // todo
+        //
 
         // evaluate arguments and "old" expressions of the postcondition of cMethod and store them in local variables
         // also store the local variable names into joinableInfo.oldExpressions: first all arguments and then all "old"
@@ -766,20 +787,20 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         joinableInfo.argsAndOldIds = argsAndOldIds.toSeq
 
         // generate fresh permission variable
-        // todo
+        //
 
         // spot SIL method; take its precondition and make argument substitutions (this and K inclusive)
         // store the result into sPre
-        // todo
+        //
 
         // exhale sPre
-        // todo
+        //
 
         // make token joinable
-        // todo
+        // */
         null
     }
-    // todo: finish: join, wait, signal, send, receive, fold and unfold
+    // todo: finish: join, wait, signal, send, receive
     /*  corresponding Chalice code copied here for convenience
             case class CallAsync(declaresLocal: Boolean, lhs: VariableExpr, obj: Expression, id: String, args: List[Expression]) extends Statement {
     var local: Variable = null
@@ -803,8 +824,6 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     override def Declares = locals
     override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != null) vars + ve.v else vars }
     }
-      case class Fold(pred: Access) extends Statement
-      case class Unfold(pred: Access) extends Statement
 
 */
   }
