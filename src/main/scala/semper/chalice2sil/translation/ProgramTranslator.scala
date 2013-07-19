@@ -10,11 +10,14 @@ import scala.Some
  * Author: Yannis Kassios (based on an older version by Christian Klauser)
  */
 
-// todo: later add the following functionality: deadlock avoidance, fix epsilon permissions,
-  // error-message and obsolete classes refactoring, aggregates support, channels support, self-framing,
-  // resolve compiler warnings, fix Chalice set quantification syntax (use in instead of :)
+// todo: fork/join, deadlock avoidance, fix epsilon permissions, error-message and obsolete classes refactoring,
+  // aggregates support, channels support, self-framing, resolve compiler warnings
+  // fix Chalice set quantification syntax (use in instead of :)
 
 // todo: add automated testing
+// todo: documentation
+
+// todo: Chalice bug: expression {this} throws matching expression!
 
 class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, val programName: String)
 {
@@ -83,6 +86,16 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   // collects all symbols associated with a class and populates silEnvironment and silInvariants
   // **
   protected def collectSymbols(classNode : chalice.Class){
+    // create a predicate that corresponds to the monitor invariant of this class
+    // the body is to be populated later
+    val ths = nameGenerator.createIdentifier("this$")
+    val myThis = LocalVarDecl(ths, Ref)()
+    val pName = nameGenerator.createIdentifier(classNode.FullName + "$MonitorInvariant")
+    val invariant = Predicate(pName, List(myThis), null)()
+    silTranslatedInvariants(classNode) = invariant
+    silEnvironment.silPredicates += (pName -> invariant)
+
+    // collect all symbols for the Chalice class
     classNode.members.view foreach {
       // field
       case f:chalice.Field =>
@@ -96,7 +109,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case p:chalice.Predicate =>
         val ths = nameGenerator.createIdentifier("this$")
         val newPredicate =
-          Predicate(nameGenerator.createIdentifier(p.FullName+"$"), LocalVarDecl(ths, Ref)(), null)(
+          Predicate(nameGenerator.createIdentifier(p.FullName+"$"), List(LocalVarDecl(ths, Ref)()), null)(
             SourcePosition(null, p.pos.line, p.pos.column)
           )
           // a predicate has a single reference parameter that refers to the receiver
@@ -131,8 +144,8 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         symbolMap(f) = newFunction
         silEnvironment.silFunctions += (newFunction.name -> newFunction)
 
-      // other members (e.g., monitor invariants) are ignored for now
-      case _ =>
+      // monitor invariant: ignore in this phase
+      case i:chalice.MonitorInvariant =>
     }
   }
 
@@ -153,11 +166,12 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   // also deals with the monitor invariant of a class
   // **
   protected def translate(classNode: chalice.Class) = {
-    // a "this" declaration for the invariants
-    val ths = LocalVarDecl(nameGenerator.createIdentifier("this$"), Ref)()
+    // get the (bodyless) invariant predicate corresponding to this class, and its receiver
+    val invariant = silTranslatedInvariants(classNode)
+    val ths = invariant.formalArgs(0)
 
     // an expression to store the monitor invariant
-    var monitorInvariant : Exp = TrueLit()()
+    var monitorInvariantBody : Exp = TrueLit()()
 
     // translate one member at a time
     classNode.members.foreach({
@@ -168,18 +182,15 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         // translate the found invariant expression and conjoin it to the already translated invariants
           // all invariants refer to the same receiver object and their read permission is given by globalK
         val currentInv = translateExp(i.e, ths, PredicatePermissionTranslator(globalK))
-        monitorInvariant = And(currentInv, monitorInvariant)()
+        monitorInvariantBody = And(currentInv, monitorInvariantBody)()
       case f: chalice.Field => // nothing to do here
 
       // no other nodes are supported
       case otherNode => messages += UnknownAstNode(otherNode)
     })
 
-    // translate monitorInvariant into a SIL predicate
-    val pName = nameGenerator.createIdentifier(classNode.FullName + "$MonitorInvariant")
-    val monitorPredicate = Predicate(pName, ths, monitorInvariant)()
-    silEnvironment.silPredicates += (pName -> monitorPredicate)
-    silTranslatedInvariants(classNode) = monitorPredicate
+    // populate the body of the invariant predicate
+    invariant.body = monitorInvariantBody
   }
 
   // **
@@ -222,8 +233,9 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     // obtain the corresponding SIL predicate
     val sPredicate = symbolMap(cPredicate).asInstanceOf[Predicate]
 
-    // obtain the single argument of the predicate as the receiver object
-    val sThis = sPredicate.formalArg
+    // obtain the first argument of the predicate as the receiver object
+      // note that Chalice has no support for predicates with arguments
+    val sThis = sPredicate.formalArgs(0)
 
     // populate the predicate body translating the corresponding Chalice body and using the given receiver and the
     // global unidentified read permission for predicates
@@ -395,6 +407,8 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         SeqDrop(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
       case chalice.Take(lhs, rhs) =>
         SeqTake(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
+      case chalice.Append(lhs, rhs) =>
+        SeqAppend(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
 
       // set operators
       case chalice.EmptySet(t) => EmptySet(translateType(t))(position)
@@ -420,9 +434,9 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         val sf = symbolMap(e.typ.LookupMember(id) match { case Some(m) => m ; case None => null })
 
         if(sf.isInstanceOf[Field]) FieldAccess(silexp, sf.asInstanceOf[Field])(position)
-        else PredicateAccess(silexp, sf.asInstanceOf[Predicate])(position)
-          // the above code assumes that all bookkeeping has been done correctly
-          // otherwise it may throw several exceptions
+        else PredicateAccess(List(silexp), sf.asInstanceOf[Predicate])(position)
+
+          // todo: deal with the implicit conversion between acc(e.p) and e.p; currently not supported!
 
       // backpointer member access
         // todo: case class BackPointerMemberAccess(ex: Expression, typeId: String, fieldId: String) extends Expression {}
@@ -511,7 +525,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         }
       }  */
 
-      // unfolding // todo: test
+      // unfolding
       case unfolding@chalice.Unfolding(predicateAccess, body) =>
         val silpa = translateExp(predicateAccess, myThis, pTrans)
         val silbody = translateExp(body, myThis, pTrans)
@@ -520,7 +534,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       // eval is not supported
       case e: chalice.Eval => messages += GeneralEvalNotImplemented(e) ; null
 
-      // quantification and aggregation // todo: test
+      // quantification and aggregation
       case e: chalice.Quantification =>
         // keep list of bounded variables and domain expression
         var boundedVars : List[LocalVarDecl] = null
@@ -571,8 +585,6 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
 
       // local variable
       case chalice.VariableExpr(v) => LocalVar(v)(translateType(cExp.typ))
-
-      // todo: permission operators are not supported
     }
   }
 
@@ -643,42 +655,33 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case chalice.LocalVar(v, newO) => null // todo
 
       // call
-       // todo: remove all this mess! there is a Call statement in SIL
       case chalice.Call(_, lhs, target, methodName, args) =>
         // todo: implicit locals declaration
           // the first argument of Call is a mask that defines which variables of the lhs are implicitly defined
           // the feature is not yet implemented
 
-        // spot Chalice method object
-        val m = target.typ.LookupMember(methodName)
-
-        // spot SIL method object
-        val silMethod = m match {
-          case None => messages += TypeError() ; return null
-          case Some(cMethod) =>
-            val s = symbolMap.getOrElse(cMethod, { messages += TypeError() ; return null })
-            if(!s.isInstanceOf[Method]) { messages += TypeError() ; return null }
-            s.asInstanceOf[Method]
-        }
+        // spot Chalice and SIL method object
+        val chaliceMethod = target.typ.LookupMember(methodName).get
+        val silMethod = symbolMap(chaliceMethod).asInstanceOf[Method]
 
         // create fresh read permission
-        val newK = LocalVarDecl(nameGenerator.createIdentifier("newK"), Perm)()
+        val newK = LocalVarDecl(nameGenerator.createIdentifier("newK$"), Perm)()
 
         // create a method call inside a fresh permission block
         FreshReadPerm(Seq(newK.localVar),
           MethodCall(silMethod,
                translateExp(target, myThis, pTrans) /*this*/
             :: newK.localVar /*permission*/
-            :: args.map(translateExp(_, myThis, pTrans))/*arguments*/,
-            lhs.map(x => LocalVar(x.id)(Int /*YANNIS: todo: fix type*/))/*targets*/
+            :: args.map(translateExp(_, myThis, pTrans)) /*arguments*/,
+            lhs.map(x => LocalVar(x.id)(translateType(x.typ)))/*targets*/
           )(position)
         )(position)
 
       // locks
-        // todo: mu ordering and deadlock avoidance not supported yet; there is no way to assert if an object is shared
-        // or not
+        // todo: mu ordering and deadlock avoidance not supported yet
+        // there is no way to assert if an object is shared/held or not
 
-      // mu reording
+      // mu reordering
       case chalice.Install(_, _, _) => messages += TypeError() ; null
         // todo: correct reporting / no exception thrown (and decide whether this will be supported or not)
 
@@ -687,24 +690,40 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         // todo: assert that the object is not already shared
 
         // exhale the monitor invariant
-        val monitorPredicate = silTranslatedInvariants.getOrElse(obj.typ, { messages += TypeError() ; return null })
-        Exhale(PredicateAccess(translateExp(obj, myThis, pTrans), monitorPredicate)(position))(position)
+           Console.out.println("sharing " + obj.toString + " of class " + obj.typ);
+        val monitorPredicate = silTranslatedInvariants(obj.typ)
+        Exhale(
+          PredicateAccessPredicate(
+            PredicateAccess(List(translateExp(obj, myThis, pTrans)), monitorPredicate)(position),
+            FullPerm()()
+          )(position)
+        )(position)
 
       // acquiring
       case chalice.Acquire(obj) =>
         // todo: assert that the object is shared, not already held, and the waitlevel is lower than its mu
 
         // inhale the monitor invariant
-        val monitorPredicate = silTranslatedInvariants.getOrElse(obj.typ, { messages += TypeError() ; return null })
-        Inhale(PredicateAccess(translateExp(obj, myThis, pTrans), monitorPredicate)(position))(position)
+        val monitorPredicate = silTranslatedInvariants(obj.typ)
+        Inhale(
+          PredicateAccessPredicate(
+            PredicateAccess(List(translateExp(obj, myThis, pTrans)), monitorPredicate)(position),
+            FullPerm()()
+          )(position)
+        )(position)
 
       // release
       case chalice.Release(obj) =>
         // todo: assert that the object is shared and held
 
         // exhale the monitor invariant
-        val monitorPredicate = silTranslatedInvariants.getOrElse(obj.typ, { messages += TypeError() ; return null })
-        Exhale(PredicateAccess(translateExp(obj, myThis, pTrans), monitorPredicate)(position))(position)
+        val monitorPredicate = silTranslatedInvariants(obj.typ)
+        Exhale(
+          PredicateAccessPredicate(
+            PredicateAccess(List(translateExp(obj, myThis, pTrans)), monitorPredicate)(position),
+            FullPerm()()
+          )(position)
+        )(position)
 
       // the lock statement [[...]]
       case chalice.Lock(obj, block, false) => // this flag indicates normal "write" locks
@@ -835,7 +854,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       val newConjunct =
         if(sf.isInstanceOf[Field])
           FieldAccessPredicate(FieldAccess(silo, sf.asInstanceOf[Field])(position), silpe)(position)
-        else PredicateAccessPredicate(PredicateAccess(silo, sf.asInstanceOf[Predicate])(position), silpe)(position)
+        else PredicateAccessPredicate(PredicateAccess(List(silo), sf.asInstanceOf[Predicate])(position), silpe)(position)
       silexp = And(silexp, newConjunct)(position)
     }
     silexp
