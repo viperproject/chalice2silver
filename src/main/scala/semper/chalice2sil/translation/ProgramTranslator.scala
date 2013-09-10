@@ -316,8 +316,14 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   // uses myThis: the SIL local variable that corresponds to the receiver object of Chalice
   // uses pTrans: a PermissionTranslation object that is used to translate permission-valued expressions according to
   //   whether the expression is found in a method, predicate, or function
+  // uses accessMemberSubexpression: to distinguish between two cases in the translation of e.p where p is a predicate
+  //   name.  If accessMemberSubexpression is false (default case), then we are not reading within an acc expression,
+  //   which translates e.p to a SIL boolean (in fact, acc(e.p, write)).  Otherwise e.p is in the context of an acc
+  //   expression (e.g., acc(e.p)) and must be translated as a ``member access'' AST node.  This takes care of an
+  //   ambiguity that the Chalice parser causes, because it translates expressions e.p and acc(e.p) differently
   // **
-  protected def translateExp(cExp: chalice.Expression, myThis: LocalVarDecl, pTrans: PermissionTranslator) : Exp = {
+  protected def translateExp(cExp: chalice.Expression, myThis: LocalVarDecl, pTrans: PermissionTranslator,
+                             accessMemberSubexpression: Boolean = false) : Exp = {
     // obtain the Chalice source code position
     val position = SourcePosition(null, cExp.pos.line, cExp.pos.column)
 
@@ -434,9 +440,16 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         val sf = symbolMap(e.typ.LookupMember(id) match { case Some(m) => m ; case None => null })
 
         if(sf.isInstanceOf[Field]) FieldAccess(silexp, sf.asInstanceOf[Field])(position)
-        else PredicateAccess(List(silexp), sf.asInstanceOf[Predicate])(position)
-
-          // todo: deal with the implicit conversion between acc(e.p) and e.p; currently not supported!
+        else{
+          val predAccess = PredicateAccess(List(silexp), sf.asInstanceOf[Predicate])(position)
+          if(accessMemberSubexpression)
+            // we are within an acc predicate: must translate as a ``member access'' SIL AST node
+            predAccess
+          else
+            // this is the case where e.p (where p is a predicate name) appears ``naked'' in a specification
+            // what is meant is acc(e.p, write).  the conversion happens here
+            PredicateAccessPredicate(predAccess, pTrans(chalice.Full, myThis))(position)
+        }
 
       // backpointer member access
         // todo: case class BackPointerMemberAccess(ex: Expression, typeId: String, fieldId: String) extends Expression {}
@@ -444,7 +457,8 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
 
       // access permissions to a field or predicate
       case chalice.Access(ma, perm) =>
-        val silma = translateExp(ma, myThis, pTrans)
+        val silma = translateExp(ma, myThis, pTrans, true)
+          // note that the content of the acc expression is translated under condition accessMemberSubexpression
         val silpe = pTrans(perm, myThis)
         if (ma.isPredicate) PredicateAccessPredicate(silma.asInstanceOf[PredicateAccess], silpe)(position)
         else FieldAccessPredicate(silma.asInstanceOf[FieldAccess], silpe)(position)
@@ -862,7 +876,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       // todo: add access to backpointer fields
   }
 
-  abstract class PermissionTranslator{
+  abstract class PermissionTranslator {
     def getK : Exp  // this is the permission expression that corresponds to rd(o.f)
     // getK is different depending on whether we are in a method, predicate or invariant context
     // in function contexts there is no such value
