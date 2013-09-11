@@ -485,6 +485,8 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         // the following closure takes a SIL object expression and returns a SIL expression that grants appropriate
         // access to member "member" of the corresponding SIL object
         // if "member" is None, this means access to all fields of the object
+        // NOTE: acc(x[*].*) silently succeeds and produces "true" when x[i] is not a reference. This is allowed here,
+        // since it is allowed in Chalice (either as a bug or as a feature)
         var permissionPerObject : Exp => Exp = null
         member match {
           case None =>
@@ -495,13 +497,16 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
             }
           case Some(m) =>
             // permissionPerObject must return permission to member m
-              // todo: fix.  probably buggy, has thrown illegal casting exception (on sequence of integers!)
-            if(m.isPredicate)
+            if(m.isPredicate) {
+               val silm = symbolMap(m.predicate).asInstanceOf[Predicate]
+               permissionPerObject = (silo: Exp) =>
+                PredicateAccessPredicate(PredicateAccess(Seq(silo), silm)(position), silpe)(position)
+            }
+            else {
+              val silm = symbolMap(m.f).asInstanceOf[Field]
               permissionPerObject = (silo: Exp) =>
-                PredicateAccessPredicate(silo.asInstanceOf[PredicateAccess], silpe)(position)
-            else
-              permissionPerObject = (silo: Exp) =>
-                FieldAccessPredicate(silo.asInstanceOf[FieldAccess], silpe)(position)
+                FieldAccessPredicate(FieldAccess(silo, silm)(position), silpe)(position)
+            }
         }
           // todo: treat backpointer objects in the code above
 
