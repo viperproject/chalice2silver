@@ -29,11 +29,6 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     // the string "FullName" of each Chalice member followed by a $ sign is used as key
   val silEnvironment = new SILProgramEnvironment()
 
-  // maps tokens to the corresponding forked Chalice method
-    // at most one method fork per token is allowed within a method
-    // todo: refactor joining, using information from the "joinable" Chalice class
-  val joinTokens = new scala.collection.mutable.HashMap[(Method, String), JoinableInfo]()
-
   // maps monitor invariants from Chalice to SIL predicates
   val silTranslatedInvariants = new scala.collection.mutable.HashMap[chalice.Class, Predicate]()
 
@@ -64,6 +59,12 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
 
     // translate each class
     decls.foreach(translate)
+
+    // translate the bodies of all methods
+    symbolMap.foreach(p => (p _1) match {
+      case c: chalice.Method => translateBody(c, (p _2).asInstanceOf[Method])
+      case _ =>
+    })
 
     // return the final SIL program together with the list of error/warnings produced
     (Program(Seq(GlobalKPermissionDomain), silEnvironment.silFields.values.toSeq,
@@ -175,7 +176,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
 
     // translate one member at a time
     classNode.members.foreach({
-      case m: chalice.Method  => translateMethod(m)
+      case m: chalice.Method  => translateMethodEarly(m) // translate a method but not its body
       case p: chalice.Predicate => translatePredicate(p)
       case f: chalice.Function => translateFunction(f)
       case i: chalice.MonitorInvariant =>
@@ -280,7 +281,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   // **
   // translate a Chalice method into a SIL method
   // **
-  protected def translateMethod(cMethod: chalice.Method) = {
+  protected def translateMethodEarly(cMethod: chalice.Method) = {
     // obtain the corresponding SIL method
     val sMethod = symbolMap(cMethod).asInstanceOf[Method]
 
@@ -307,8 +308,8 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     sMethod.pres = silPreconditions.toSeq
     sMethod.posts = silPostConditions.toSeq
 
-    // translate body into SIL and populate the body of the SIL method appropriately
-    translateBody(cMethod, sThis, permTranslator)
+    // todo add information to be stored by forks in this method
+      // joinableInfo += new JoinableInfo(sMethod, joinableInfo.length)
   }
 
   // **
@@ -428,7 +429,6 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         val l = translateExp(lhs, myThis, pTrans)
         val r = translateExp(rhs, myThis, pTrans)
         if(r.typ == SeqType(l.typ)) SeqContains(l, r)(position) else AnySetContains(l, r)(position)
-          // todo: fix in Chalice: x++[null] does not type-check: too rigid type-checking for polymorphic types!
 
       // member access
       case _: chalice.ThisExpr => myThis.localVar
@@ -508,7 +508,6 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
                 FieldAccessPredicate(FieldAccess(silo, silm)(position), silpe)(position)
             }
         }
-          // todo: treat backpointer objects in the code above
 
         // return a universal quantification on all sequence elements
         // bounded identifier
@@ -610,15 +609,15 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
   // **
   // translate the body of a Chalice method and then assign it to the corresponding SIL method
   // **
-  protected def translateBody(cMethod: chalice.Method, myThis: LocalVarDecl, pTrans: PermissionTranslator) = {
-    // get the corresponding SIL method
-    val sMethod = symbolMap(cMethod).asInstanceOf[Method]
+  protected def translateBody(cMethod: chalice.Method, sMethod: Method) {
+    val sThis = sMethod.formalArgs(0)
+    val pTrans = new MethodPermissionTranslator(sMethod.formalArgs(1))
 
     // start with no local variables -- the solution uses immutable sequences and perhaps is not the most efficient
     sMethod.locals = Seq()
 
     // translate all statements in the Chalice body and assign the result to the SIL method body
-    sMethod.body = Seqn(cMethod.body.map(translateStm(_, myThis, pTrans, sMethod)))()
+    sMethod.body = Seqn(cMethod.body.map(translateStm(_, sThis, pTrans, sMethod)))()
   }
 
   // **
@@ -646,7 +645,6 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         )(position)
       case w@chalice.WhileStmt(guard, _, _, _ /*todo: lockchange not supported*/, body) =>
         // todo: what is the difference between newInvs and oldInvs?
-        // todo: use of k$ is probably wrong in the invariant!
         While(translateExp(guard, myThis, pTrans), w.Invs.map(translateExp(_, myThis, pTrans)), Seq(),
           translateStm(body, myThis, pTrans, silMethod)
         )(position)
@@ -722,7 +720,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case chalice.Acquire(obj) =>
         // todo: assert that the object is shared, not already held, and the waitlevel is lower than its mu
 
-        // inhale the monitor invariant
+        // inhale the monitor invariant todo: unfold
         val monitorPredicate = silTranslatedInvariants(obj.typ)
         Inhale(
           PredicateAccessPredicate(
@@ -777,66 +775,38 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case chalice.Free(_) => messages += TypeError() ; null
       case chalice.Unshare(_) => messages += TypeError() ; Seqn(Seq())(position)
 
-      //forking -- under construction
-      case chalice.CallAsync(_, lhs, obj, id, args) =>
-/*        // todo: implicit locals declaration
-          // todo: implement.  the code below is outdated!
+      //forking
+      case chalice.CallAsync(_, lhs, target, id, args) =>
+        // spot Chalice and SIL method object
+        val chaliceMethod = target.typ.LookupMember(id).get.asInstanceOf[chalice.Method]
+        val silMethod = symbolMap(chaliceMethod).asInstanceOf[Method]
 
-        // check if token has appeared in another fork (which is not supported)
-        if (joinTokens.contains((silMethod, lhs.id))) { messages += TypeError() ; return null }
+        // create fresh read permission
+        val newK = LocalVarDecl(nameGenerator.createIdentifier("newK$"), Perm)()
 
-        // all generated statements are going here
-        val statements = new mutable.MutableList[Stmt]()
+        // calculate target
+        val targetObject = translateExp(target, myThis, pTrans)
 
-        // assert that the token is not joinable
-        //
+        // substitute parameters in preconditions
+        var actualParameters = collection.mutable.Map(
+          myThis.name -> targetObject, pTrans.asInstanceOf[MethodPermissionTranslator].KVar.name -> newK.localVar
+        )
+        var i = 0
+        args foreach ({
+          a =>
+            actualParameters += (chaliceMethod.ins(i).id -> translateExp(a, myThis, MethodPermissionTranslator(newK)))
+            i+=1
+        })
+        val preconditionsWithActualParameters = silMethod.pres.map({
+         prec => prec.transform()(post = { case n@LocalVar(id) => actualParameters.getOrElse(id, n) })
+        })
+        val preconditionToExhale = preconditionsWithActualParameters.asInstanceOf[Seq[Exp]].
+          fold(TrueLit()(position))((x, y) => And(x, y)(position))
 
-        // spot chalice method and store it in joinTokens
-        val m = obj.typ.LookupMember(id)
-        val cMethod = m match {
-          case None => messages += TypeError() ; return null
-          case Some(cM) => cM
-        }
-        val joinableInfo = new JoinableInfo(cMethod.asInstanceOf[chalice.Method])
-        joinTokens((silMethod, lhs.id)) = joinableInfo
+        // todo: deal with ``old'' expressions, outputs and the joinable token
 
-        // ensure args.length is equal to the number of arguments expected by cMethod
-        //
-
-        // evaluate arguments and "old" expressions of the postcondition of cMethod and store them in local variables
-        // also store the local variable names into joinableInfo.oldExpressions: first all arguments and then all "old"
-        // expressions in order of appearance
-        val argsAndOldIds = new mutable.MutableList[String]()
-        for(i <- 0 until args.length) {
-          val name = nameGenerator.createIdentifier("a" + i)
-          argsAndOldIds += name
-          val silLocalVariable = LocalVarDecl(name, translateType(args(i).typ))(position)
-          silMethod.locals = silMethod.locals :+ silLocalVariable
-          statements += LocalVarAssign(silLocalVariable.localVar, translateExp(args(0), myThis, pTrans))(position)
-        }
-        val oldExpressions = Util.getOldExpressions(silMethod.posts)
-        for(i <- 0 until oldExpressions.length) {
-          val name = nameGenerator.createIdentifier("o" + i)
-          argsAndOldIds += name
-          val silLocalVariable = LocalVarDecl(name, oldExpressions(i).typ)(position)
-          silMethod.locals = silMethod.locals :+ silLocalVariable
-          statements += LocalVarAssign(silLocalVariable.localVar, oldExpressions(i))(position)
-        }
-        joinableInfo.argsAndOldIds = argsAndOldIds.toSeq
-
-        // generate fresh permission variable
-        //
-
-        // spot SIL method; take its precondition and make argument substitutions (this and K inclusive)
-        // store the result into sPre
-        //
-
-        // exhale sPre
-        //
-
-        // make token joinable
-        // */
-        null
+        // create an exhale inside a fresh permission block
+        FreshReadPerm(Seq(newK.localVar), Exhale(preconditionToExhale)(position))(position)
     }
     // todo: finish: join, wait, signal, send, receive
     /*  corresponding Chalice code copied here for convenience
@@ -878,7 +848,6 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     }
     silexp
       // todo: add access to predicates
-      // todo: add access to backpointer fields
   }
 
   abstract class PermissionTranslator {
@@ -955,14 +924,23 @@ object Util {
   }
 }
 
-class JoinableInfo(val cMethod: chalice.Method) {
-  var argsAndOldIds: Seq[String] = null
+class JoinableInfo(val method: Method, val methodKey: Integer) {
+  // stores expressions found within "old" in the postconditions of the method
+  val oldExpressions = Util.getOldExpressions(method.posts)
+
+  // for each "old" expression, generates a field of the appropriate type
+    // the policy for names of such fields guarantees no clashes with other names generated by Chalice2SIL
+  val oldFields = for(i <- 0 until oldExpressions.length) yield Field("old$" + method.name + i, oldExpressions(i).typ)()
 }
 
-class SILProgramEnvironment(val silFields: Map[String, Field] = new mutable.HashMap[String, Field],
+class SILProgramEnvironment(
+ val silFields: Map[String, Field] = new mutable.HashMap[String, Field],
  val silFunctions: Map[String, Function] = new mutable.HashMap[String, Function],
  val silPredicates: Map[String, Predicate] = new mutable.HashMap[String, Predicate],
  val silMethods: Map[String, Method] = new mutable.HashMap[String, Method]) {
-  // field for fork/join tokens
-  silFields("joinable") = Field("joinable", Bool)()
+  // each fork stores the abstract permission associated with it in this field of the token it returns
+  silFields += ("old$methodPermission" -> Field("old$methodPermission", Perm)())
+
+  // each fork stores the method key associated with the forked method in this field of the token it returns
+  silFields += ("old$methodKey" -> Field("old$methodKey", Int)())
 }
