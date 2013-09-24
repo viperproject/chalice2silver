@@ -314,7 +314,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     sMethod.posts = silPostConditions.toSeq
 
     // add information to be stored by forks in this method
-    joinableInfo += new JoinableInfo(sMethod, joinableInfo.length)
+    joinableInfo += new JoinableInfo(sMethod, joinableInfo.length, silEnvironment.silFields)
   }
 
   // **
@@ -678,7 +678,7 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
 
       // call
       case chalice.Call(_, lhs, target, methodName, args) =>
-        // todo: implicit locals declaration
+        // todo: implicit locals declaration (same issue in joins)
           // the first argument of Call is a mask that defines which variables of the lhs are implicitly defined
           // the feature is not yet implemented
 
@@ -799,7 +799,8 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         var i = 0
         args foreach ({
           a =>
-            actualParameters += (forkedChaliceMethod.ins(i).id -> translateExp(a, myThis, MethodPermissionTranslator(newK)))
+            actualParameters +=
+              (forkedChaliceMethod.ins(i).id -> translateExp(a, myThis, MethodPermissionTranslator(newK)))
             i+=1
         })
         val preconditionsWithActualParameters = forkedSilMethod.pres.map({
@@ -839,23 +840,74 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
               transform()(post = { case n@LocalVar(id) => actualParameters.getOrElse(id, n) })
           )(position)
 
+        // assign to parameter fields the current values of the input parameters
+        val parAssignments = for(i <- 0 until thisJoinableInfo.parameterFields.length) yield
+          FieldAssign(
+            FieldAccess(tokenVar.localVar, thisJoinableInfo.parameterFields(i))(position),
+            actualParameters(forkedSilMethod.formalArgs(i).name)
+          )(position)
+
         // exhale the precondition
         val exhalePrecondition = Exhale(preconditionToExhale)(position)
 
         // put everything inside a fresh permission block
         FreshReadPerm(Seq(newK.localVar),
-          Seqn(Seq(assignToken, assignPermission) ++ oldAssignments ++ Seq(exhalePrecondition))(position)
+          Seqn(
+            Seq(assignToken, assignPermission) ++ oldAssignments ++ parAssignments ++ Seq(exhalePrecondition)
+          )(position)
         )(position)
 
+      // joining
       case chalice.JoinAsync(lhs, token) =>
+        // translate the token expression
+        val silToken = translateExp(token, myThis, pTrans)
+
+        // for each existing method generate the following code: if token == method key then join that method
         Seqn(
-          for(i <- 0 until silEnvironment.silMethods.length)
+          for(i <- 0 until joinableInfo.length)
             yield If(
-               EqCmp(translateExp(token, myThis, pTrans), IntLit(BigInt(i))(position))(position),
-               null, // todo: here join method i
+               EqCmp(
+                 FieldAccess(silToken, Field("old$methodKey", Int)(position))(position), IntLit(BigInt(i))(position)
+               )(position),
+               { // join method with key i
+
+                 // calculate actual condition to inhale
+                   // take method postconditions and substitute in-parameters with corresponding par-fields accesses,
+                   // old expressions with corresponding old-fields accesses, and out-parameters with variables from
+                   // the lhs of the join
+                 var oldExpIndex = -1
+                 val postconditionsWithActualParameters = joinableInfo(i).method.posts.map({
+                   post => post.transform()(post = {
+                       case n@LocalVar(id) =>
+                         if(joinableInfo(i).method.formalArgs.map(_.name).contains(id)) {
+                           // this is an in-parameter, to be substituted with the corresponding par-field
+                           FieldAccess(silToken, joinableInfo(i).yieldParFieldByName(id).get)()
+                         }
+                         else if(joinableInfo(i).method.formalReturns.map(_.name).contains(id)) {
+                           // this is an out-parameter, to be substituted with the corresponding local variable that
+                             // appears in the join statement
+                           val indexOfReturnArgument =
+                             joinableInfo(i).method.formalReturns.map(_.name).indexWhere(n => n==id)
+                           LocalVar(lhs(indexOfReturnArgument).id)(translateType(lhs(indexOfReturnArgument).typ))
+                         }
+                         else n // no substitution
+                       case Old(_) =>
+                         // "old" expression found, to be substituted with corresponding field access
+                         oldExpIndex += 1
+                         FieldAccess(silToken, joinableInfo(i).oldFields(oldExpIndex))()
+                     }
+                   )
+                 })
+
+                 // inhale all postconditions
+                 Inhale(
+                   postconditionsWithActualParameters.fold(TrueLit()(position))((x, y) => And(x, y)(position))
+                 )(position)
+               },
                Seqn(Nil)(position)
             )(position)
         )(position)
+        // todo: what happens if an application tries to join the same token twice?
     }
     // todo: finish: wait, signal, send, receive
     /*
@@ -967,13 +1019,27 @@ object Util {
   }
 }
 
-class JoinableInfo(val method: Method, val methodKey: Integer) {
+class JoinableInfo(val method: Method, val methodKey: Integer, val silFields: mutable.Map[String, Field]) {
   // stores expressions found within "old" in the postconditions of the method
   val oldExpressions = Util.getOldExpressions(method.posts)
 
   // for each "old" expression, generates a field of the appropriate type
     // the policy for names of such fields guarantees no clashes with other names generated by Chalice2SIL
-  val oldFields = for(i <- 0 until oldExpressions.length) yield Field("old$" + method.name + i, oldExpressions(i).typ)()
+  val oldFields = for(i <- 0 until oldExpressions.length) yield {
+    val res = Field("old$" + method.name + i, oldExpressions(i).typ)()
+    silFields += (res.name -> res)
+    res
+  }
+
+  // for each input parameter, generates a field of the appropriate type
+  val parameterFields = for(i <- 0 until method.formalArgs.length)  yield {
+    val res = Field("par$" + method.name + method.formalArgs(i).name, method.formalArgs(i).typ)()
+    silFields += (res.name -> res)
+    res
+  }
+
+  // searches parameter fields by name of field
+  def yieldParFieldByName(name: String) = parameterFields.find(f => f.name == "par$" + method.name + name)
 }
 
 class SILProgramEnvironment(
