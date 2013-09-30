@@ -1,9 +1,0 @@
-// @Ignore Silicon does not support epsilons
-class Main{
-    var f : int;
-
-    method main()
-        requires acc(f,2*rd(f)) // @Error 1030   (or some other error)
-    {
-    }
-}

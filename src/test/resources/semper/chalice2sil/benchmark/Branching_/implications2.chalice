@@ -1,9 +1,0 @@
-class Impl {
-	method impl1(x: int, z: int) returns (r: int)
-		ensures r == 0 ==> x == 0 /* @Error 310 */
-	{}
-	
-	method impl2(x: int, z: int) returns (r: int)
-		ensures r == 0 ==> x == 0
-	{ r := 1 }
-}

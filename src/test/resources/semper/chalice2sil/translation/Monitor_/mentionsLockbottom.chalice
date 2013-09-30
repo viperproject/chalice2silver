@@ -1,6 +1,0 @@
-class Main{
-    method main(x : Main)
-        requires x != null && rd(x.mu)
-        requires x.mu == lockbottom
-    {}
-}

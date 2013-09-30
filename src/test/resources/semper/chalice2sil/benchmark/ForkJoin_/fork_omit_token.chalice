@@ -1,8 +1,0 @@
-class Test {
-	method f() {}
-	
-	method test() {
-		/* Just making sure that omitting a target token is supported */
-		fork this.f()
-	}
-}

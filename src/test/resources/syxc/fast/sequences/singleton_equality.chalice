@@ -1,9 +1,0 @@
-class C {
-  var foo: seq<int>;
-  
-  method m(x:int, y:int)
-  {
-		assert(x==y ==> [x]==[y]);
-		assert([x]==[y] ==> x==y);
-  }
-}

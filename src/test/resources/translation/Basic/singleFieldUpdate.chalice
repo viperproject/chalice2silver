@@ -1,9 +1,0 @@
-class Main{
-    var f : int
-    method main()
-        requires acc(f)
-    {
-        f := 5;
-        this.f := 6;
-    }
-}

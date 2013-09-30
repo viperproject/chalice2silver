@@ -1,6 +1,0 @@
-class Foo {
-  method m1() {
-    var a: int
-    a := 0
-  }
-}

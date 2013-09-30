@@ -1,7 +1,0 @@
-class C {
-    var x : int;
-    predicate V { acc(x) }
-
-	function failUnfoldingV(): int
-	{ unfolding V in x /* Error 830 */ }   // UNSOUND succeeds in Chalice2SIL+Silicon
-}

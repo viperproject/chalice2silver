@@ -1,7 +1,0 @@
-class Test {
-	var m: int
-	
-	function f(a: int): int
-		requires acc(m)
-	{ a + m }
-}

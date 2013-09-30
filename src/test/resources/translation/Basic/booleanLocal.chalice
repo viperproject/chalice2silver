@@ -1,7 +1,0 @@
-class Main {
-    method main(){
-        var x : bool := true;
-        var y : bool := false;
-        var z : bool := x && y;
-    }
-}

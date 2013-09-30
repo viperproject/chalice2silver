@@ -1,9 +1,0 @@
-class Main {
-    var f : int;
-    method main(m : Main)
-        requires acc(m.f,rd)
-        ensures rd(m.f)
-    {
-
-    }
-}

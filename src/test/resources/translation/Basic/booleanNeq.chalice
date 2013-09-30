@@ -1,9 +1,0 @@
-class Main {
-    method main(b1: bool) returns (b2: bool)
-        requires b1 == false
-        ensures b2 != b1
-      {
-        b2 := !b1
-      }
-
-}

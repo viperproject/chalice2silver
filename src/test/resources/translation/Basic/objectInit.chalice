@@ -1,9 +1,0 @@
-class Main {
-    var f : int;
-    var p : bool;
-    var k : int;
-    method main() {
-        var m : Main := new Main {f := 3, p := false};
-        assert acc(m.k) && m.f == 3 && !m.p;
-    }
-}
