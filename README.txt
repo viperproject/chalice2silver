@@ -38,11 +38,11 @@ supported and/or adequately tested.
   0.3   Clone the Chalice repository in its own folder named chalice under
         %PROJECT_ROOT%
 		
-		***IMPORTANT*** Make sure you clone the correct Chalice branch.  The
-		main Chalice branch maintained by Microsoft does not have many features
-		required by Chalice2SIL.  The correct branch can be found under:
-		
-		https://chalice.codeplex.com/SourceControl/network/forks/ykass/PuQBP
+        ***IMPORTANT*** Make sure you clone the correct Chalice branch.  The
+        main Chalice branch maintained by Microsoft does not have many features
+        required by Chalice2SIL.  The correct branch can be found under:
+
+        https://chalice.codeplex.com/SourceControl/network/forks/ykass/PuQBP
 		
 
 ================================================================================
@@ -52,12 +52,12 @@ supported and/or adequately tested.
   
       sbt compile
 	  
-	  to produce the following executable jar:
+      to produce the following executable jar:
   
       %PROJECT_ROOT%/target/chalice2sil.jar
 
       If you want a jar file that contains all the dependencies of the project,
-	  then use the command:
+      then use the command:
 	  
 	  sbt assembly
 
@@ -74,34 +74,34 @@ supported and/or adequately tested.
 
     sbt run <args...>
 
-    Currently the only supported option is: --chop:<chalice-option> which
-	passes an option to the underlying Chalice parser.  The command also takes
-	a single Chalice file.
+    Currently the only supported option is: --chop:<chalice-options> which
+    passes options to the underlying Chalice parser.  The command also takes
+    a single Chalice file.
 	
-	Should the parsing and resolution phase of Chalice be successful, the
-	resulting SIL program will be pretty-printed and output at the standard
-	output stream.  Otherwise, an error will be reported at the standard error
-	stream.
+    Should the parsing and resolution phase of Chalice be successful, the
+    resulting SIL program will be pretty-printed and output at the standard
+    output stream.  Otherwise, an error will be reported at the standard error
+    stream.
 	
   2.1 Running as a library:  To trigger a translation, use the following call:
 	
-	val (silProgram, messages) = new semper.chalice2sil.translation.
-	  ProgramTranslator(programOptions, chaliceFileName).translate(chaliceAST)
+    val (silProgram, messages) = new semper.chalice2sil.translation.
+       ProgramTranslator(programOptions, chaliceFileName).translate(chaliceAST)
 	  
-	where:
-	  - silProgram: semper.sil.ast.Program
+    where:
+      - silProgram: semper.sil.ast.Program
 	      is the resulting SIL program in AST form
-	  - message: Seq[semper.chalice2sil.Message]
+      - message: Seq[semper.chalice2sil.Message]
 	      is a sequence of warnings and errors produced during the translation
-		  process
-	  - programOptions: semper.chalice2sil.ProgramOptions
-	      contains a map of options for the translation
-		  (this feature is currently NOT USED -- use code ProgramOptions() to
-		  produce an empty options map)
-	  - chaliceFileName: String
-	      (optional) the file name of the Chalice program
-	  - chaliceAST: Seq[chalice.TopLevelDecl]
-	      is an AST produced by the Chalice parser and type checker
+          process
+      - programOptions: semper.chalice2sil.ProgramOptions
+          contains a map of options for the translation
+          (this feature is currently NOT USED -- use code ProgramOptions() to
+          produce an empty options map)
+      - chaliceFileName: String
+          (optional) the file name of the Chalice program
+      - chaliceAST: Seq[chalice.TopLevelDecl]
+          is an AST produced by the Chalice parser and type checker
 	
 
 ================================================================================
@@ -110,11 +110,11 @@ supported and/or adequately tested.
   3.0  The testing infrastructure and the unit test suite are currently under
     construction.  To test the whole test suite use command:
 	
-	sbt test
+    sbt test
 	
-	The test suite consists of Chalice files and their corresponding
-	pretty-printed SIL translations.  An test failure is reported if the output
-	of Chalice2SIL does not match the corresponding translation.  If the
-	Chalice program cannot be parsed or type-checked, or if there is no
-	corresponding SIL program, the fact is reported, but not counted as a
-	testing failure.
+    The test suite consists of Chalice files and their corresponding
+    pretty-printed SIL translations.  An test failure is reported if the output
+    of Chalice2SIL does not match the corresponding translation.  If the
+    Chalice program cannot be parsed or type-checked, or if there is no
+    corresponding SIL program, the fact is reported, but not counted as a
+    testing failure.
