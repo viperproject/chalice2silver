@@ -1,0 +1,27 @@
+class Cell { var x: int }
+
+class Test {
+	var c: Cell
+	
+	function get(): Cell 
+		requires rd(c)
+	{ c }
+	
+	method acquireDirectly()
+		requires rd(c) && c != null
+		requires acc(c.mu)
+		requires waitlevel << c.mu
+	{
+		acquire c
+		release c
+	}
+	
+	method acquireIndirectly()
+		requires rd(c) && get() != null
+		requires acc(get().mu)
+		requires waitlevel << get().mu
+	{
+		acquire get()
+		release get()
+	}
+}

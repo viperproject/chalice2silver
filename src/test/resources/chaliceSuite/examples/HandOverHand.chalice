@@ -1,0 +1,132 @@
+class List {
+  ghost var sum_: int
+  var head: Node
+  invariant acc(head) && head != null
+  invariant rd(head.val) && head.val == -1
+  invariant rd(mu) && acc(head.mu,50) && this << head
+  invariant acc(sum_,20) && acc(head.sum_, 50) && sum_ == head.sum_
+
+  method Main()
+  {
+    var list := new List
+    call list.Init()
+    call list.Insert(8)
+    call list.Insert(12)
+    call list.Insert(4)
+    assert list.sum_ == 24
+  }
+
+  method Init()
+    requires acc(mu) && mu == lockbottom && acc(head) && acc(sum_)
+    ensures rd*(mu) && waitlevel << this
+    ensures acc(sum_,80) && sum_ == 0
+  {
+    var t := new Node
+    t.val := -1
+    t.next := null
+    t.sum_ := 0
+    share t
+    head := t
+    sum_ := 0
+    share this between waitlevel and t
+  }
+
+  method Insert(x: int)
+    requires rd(mu) && waitlevel << this
+    requires acc(sum_,80) && 0 <= x
+    ensures rd(mu)
+    ensures acc(sum_,80) && sum_ == old(sum_) + x
+  {
+    acquire this
+    assert waitlevel == this.mu;
+    sum_ := sum_ + x
+    var p: Node := head
+    acquire p
+    p.sum_ := p.sum_ + x
+    release this
+
+    while (p.next != null && p.next.val < x)
+      invariant p != null && acc(p.next) && acc(p.val,rd(p)) && acc(p.mu,50)
+      invariant holds(p) && waitlevel == p.mu
+      invariant !old(holds(p)) && !old(rd holds(p))
+      invariant p.next != null ==> acc(p.next.mu,50) && p << p.next
+      invariant p.next != null ==> acc(p.next.val,rd(p.next)) && p.val <= p.next.val
+      invariant acc(p.sum_, 50)
+      invariant p.next == null ==> p.sum_ == x
+      invariant p.next != null ==> acc(p.next.sum_, 50) && p.sum_ == p.next.val + p.next.sum_ + x
+      invariant p.val <= x
+      lockchange p
+    {
+      var nx: Node := p.next
+      acquire nx
+      nx.sum_ := nx.sum_ + x
+      release p
+      p := nx
+    }
+    var t := new Node
+    t.val := x
+    t.next := p.next
+    if (t.next == null) { t.sum_ := 0 } else { t.sum_ := p.next.val + p.next.sum_ }
+    share t between p and p.next
+    p.next := t
+    release p
+  }
+
+  method Delete(x: int) returns (wasPresent: bool)
+    requires rd(mu) && waitlevel << this
+    requires acc(sum_,80) && 0 <= x
+    ensures acc(sum_,80) && (wasPresent ==> sum_ == old(sum_) - x) && (!wasPresent ==> sum_ == old(sum_))
+  {
+    ghost const c
+
+    acquire this
+    sum_ := sum_ - c
+    var p: Node := head
+    acquire p
+    p.sum_ := p.sum_ - c
+    release this
+
+    while (p.next != null && p.next.val < x)
+      invariant p != null && acc(p.next) && acc(p.val,rd(p)) && acc(p.mu,50)
+      invariant holds(p) && waitlevel == p.mu && !assigned(c)
+      invariant !old(holds(p)) && !old(rd holds(p))
+      invariant p.next != null ==> acc(p.next.mu,50) && p << p.next
+      invariant p.next != null ==> acc(p.next.val,rd(p.next)) && p.val <= p.next.val
+      invariant acc(p.sum_, 50)
+      invariant p.next == null ==> p.sum_ == 0 - c
+      invariant p.next != null ==> acc(p.next.sum_, 50) && p.sum_ == p.next.val + p.next.sum_ - c
+      invariant p.val <= x
+      lockchange p
+    {
+      var nx: Node := p.next
+      acquire nx
+      nx.sum_ := nx.sum_ - c
+      release p
+      p := nx
+    }
+    if (p.next != null && p.next.val == x) {
+      wasPresent := true
+      c := x
+      var nx: Node := p.next
+      acquire nx
+      p.next := nx.next
+      unshare nx
+    } else {
+      wasPresent := false
+      c := 0
+    }
+    release p
+  }
+}
+
+class Node {
+  ghost var sum_: int
+  var val: int
+  var next: Node
+  invariant acc(next) && rd(val)
+  invariant next != null ==> rd(next.val) && val <= next.val
+  invariant acc(sum_, 50)
+  invariant next == null ==> sum_ == 0
+  invariant next != null ==> acc(next.sum_, 50) && sum_ == next.val + next.sum_
+  invariant acc(mu,50) && (next != null ==> acc(next.mu,50) && this << next)
+}

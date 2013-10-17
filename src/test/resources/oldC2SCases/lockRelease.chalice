@@ -1,0 +1,19 @@
+class C {
+    var f : int;
+
+    invariant acc(f);
+
+    method main(){
+        var c : C;
+        c := new C;
+        c.f := 5;
+
+        share c;
+
+        acquire c;
+        c.f := 6;
+        release c;
+
+        c.f := 7;   // @Error 630
+    }
+}

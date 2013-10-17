@@ -1,0 +1,229 @@
+// @Ignore (currently fails with an exception in chalice2sil, see issue 14)
+class ComplexPredicates {
+	var x: int
+	var y: int
+	var z: int
+	var b: bool
+	
+	predicate XY { acc(x) && acc(y) }
+	predicate Z { acc(z) }
+	predicate ZZ { Z }
+	
+	predicate V { XY && Z }
+	predicate W { XY && Z && acc(b) }
+	
+	predicate P { XY && acc(b) && (b == true ==> Z ) }
+	
+	method reqxy()
+		requires acc(x)
+		requires acc(y)
+		ensures acc(y) && y == -1
+		ensures acc(x) && x == 1
+	{
+		x := 1
+		y := -1
+	}
+	
+	method useXY()
+		requires XY
+		ensures rd(XY)
+		ensures unfolding rd(XY) in x == 22 && y == 3
+	{
+		unfold XY
+		x := 22
+		y := 3
+		fold rd(XY)
+	}
+	
+	method useZ()
+		requires Z
+		ensures Z
+		ensures unfolding Z in z == z
+		// ensures unfolding Z in z == old(z)
+			/* TODO: FAILS in Syxc - there was no z-chunk in the 
+			 * requires-heap - but succeeds in Chalice.
+			 */
+	{}	
+	
+	method useZZ1()
+		requires ZZ
+		ensures ZZ
+		ensures unfolding ZZ in
+			unfolding Z in
+				z == z
+				// z == old(z)
+					/* TODO: FAILS in Syxc - there was no z-chunk in the 
+					 * requires-heap - but succeeds in Chalice.
+					 */
+	{}
+	
+	method useZZ2(a: int)
+		requires ZZ
+		ensures ZZ
+		ensures unfolding ZZ in
+			unfolding Z in
+				z == a + 1
+	{
+		unfold ZZ
+		unfold Z
+		z := a + 1
+		fold Z
+		fold ZZ
+	}
+	
+	method unfoldingZZ()
+		requires ZZ
+		ensures ZZ
+	{ var b: bool := unfolding ZZ in unfolding Z in z == z }
+	
+	method failUseZZ()
+		requires ZZ
+		ensures unfolding ZZ in /* @Error 830 */
+			unfolding Z in
+				z == old(z)
+	{}	
+	
+	method useV()
+		requires V
+		ensures V
+		ensures unfolding V in
+			unfolding XY in
+				unfolding Z in
+					x == 1 && y == 2 && z == 3
+	{
+		unfold V
+		assert(XY)
+		assert(Z)
+		unfold XY
+		unfold Z
+		x := 1
+		y := 2
+		z := 3
+		fold Z
+		fold XY
+		fold V
+	}
+	
+	method fail1UseV()
+		requires V
+		ensures V
+		ensures unfolding V in
+			unfolding XY in
+				x == 1 && y == 2 && z == 3 /* @Error 830 */
+	{
+		unfold V
+		unfold XY
+		unfold Z
+		x := 1
+		y := 2
+		z := 3
+		fold Z
+		fold XY
+		fold V
+	}
+	
+	method fail2UseV()
+		requires V
+		ensures V
+		ensures unfolding V in
+			unfolding XY in
+				x == 1
+		ensures y == 2 /* @Error 330 */
+	{
+		unfold V
+		unfold XY
+		x := 1
+		y := 2
+		fold XY
+		fold V
+	}
+	
+	/*
+	 * Permission scaling
+	 */
+	
+	method scaleXY()
+		requires XY
+		ensures acc(x, 1)
+		ensures acc(y, 1)
+		ensures acc(XY, 99)
+	{
+		unfold acc(XY, 13)
+		assert(acc(x, 13))
+		assert(acc(y, 13))
+		assert(acc(XY, 87))
+		fold acc(XY, 12)
+	}
+	
+	method fail1ScaleXY()
+		requires XY
+	{
+		unfold acc(XY, 13)
+		assert(acc(x, 14)) /* @Error 430 */
+	}	
+	
+	method fail2ScaleXY()
+		requires XY
+	{
+		unfold acc(XY, 13)
+		assert(acc(y, 14)) /* @Error 430 */
+	}
+	
+	method fail3ScaleXY()
+		requires XY
+	{
+		unfold acc(XY, 13)
+		assert(acc(XY, 88)) /* @Error 430 */
+	}
+
+	method useZZ()
+		requires ZZ
+		ensures acc(z, 10)
+		ensures acc(ZZ, 90)
+	{
+		unfold acc(ZZ, 40)
+			// ZZ@60, Z@40
+		unfold acc(Z, 20)
+			// ZZ@60, Z@20, z@20
+		fold acc(Z, 10)
+			// ZZ@60, Z@30, z@10
+		fold acc(ZZ, 30)
+			// ZZ@90, z@20
+		// fold acc(ZZ, 31) /* Also fails in Syxc */
+			/* TODO: Fails in Chalice:
+			 *   Fold might fail because the definition of ComplexPredicates.ZZ 
+			 *   does not hold. Insufficient fraction at _ for ComplexPredicates.Z.
+			 * but succeeds in Syxc.
+			 */
+	}
+	
+	method scaleZZ()
+		requires ZZ
+		ensures acc(z, 1)
+		ensures acc(Z, 1)
+		ensures acc(ZZ, 98)
+		// ensures acc(ZZ, 99) /* FAILS */
+	{
+		unfold acc(ZZ, 40)
+		assert(acc(Z, 40))
+		assert(acc(ZZ, 60))
+		
+		unfold acc(Z, 20)
+		assert(acc(z, 20))
+		assert(acc(Z, 20))
+		assert(acc(ZZ, 60))
+		
+		fold acc(Z, 19)
+		unfold acc(Z, 19)
+		// unfold acc(Z, 20) /* FAILS */
+		fold acc(Z, 19)
+		
+		fold acc(ZZ, 38)
+			/* TODO: Fails in Chalice:
+			 *   Fold might fail because the definition of ComplexPredicates.ZZ 
+			 *   does not hold. Insufficient fraction at _ for ComplexPredicates.Z.
+			 * but succeeds in Syxc.
+			 */
+		// fold acc(ZZ, 39) /* FAILS */
+	}
+}

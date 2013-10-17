@@ -1,0 +1,17 @@
+// @Ignore (unknown cause, but possibly related to other issues which should be fixed first, see issue 13 of chalice2sil)
+class Test {
+  var x: int
+  predicate P { true }
+
+  method test(a: Test, b: Test)
+    requires a != null && b != null
+    requires rd(a.x) && acc(b.x, rd(P))
+  {
+    if (a == b) {
+      assert true /* Syxc: triggers a heap merger in. */
+      assert acc(a.x, rd(P))   // Succeeds in Syxc, fails in Chalice2SIL+Silicon
+    }
+
+    assert acc(a.x, rd(P)) /* @Error 430 */
+  }
+}

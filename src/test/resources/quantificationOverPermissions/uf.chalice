@@ -1,0 +1,81 @@
+class Node
+{
+  //private
+  var parent: Node;
+    
+  //public
+  ghost var collection: NodeCollection;
+  
+  method init(col: NodeCollection)
+    requires col!=null && col.inv
+	requires acc(collection) && acc(parent) && collection==null && parent==null
+	requires this !in col.getAllNodes()
+	ensures rd*(collection) && collection == col
+	ensures col.inv
+	ensures col.getAllNodes() == old(col.getAllNodes()) + {this}
+	ensures (forall n, m: old(col.getAllNodes()) :: (n.find()==m.find() <==> old(n.find())==old(m.find())) && n.find()!=find());
+  {
+    collection := col
+    parent := this
+	
+	unfold col.inv
+	col.allNodes := col.allNodes+{this}
+	fold col.inv
+  }
+  
+  function find() : Node
+    requires rd*(collection) && collection!=null && collection.inv && this in collection.getAllNodes()  // no termination check
+	ensures find() in collection.getAllNodes()
+  {
+    (unfolding collection.inv in this==parent) ? this : parent.find()
+  }
+  
+  method findLemma()
+    requires rd*(collection) && collection!=null && collection.inv && this in collection.getAllNodes()
+	ensures find().find() == find();
+  {}
+  
+  method union(other: Node)
+    requires rd*(collection) && collection!=null && collection.inv && this in collection.getAllNodes()
+	requires other!=null && rd*(other.collection) && other.collection==collection && other in collection.getAllNodes()
+	ensures collection.inv
+	ensures collection.getAllNodes() == old(collection.getAllNodes())
+    ensures (forall n, m: collection.getAllNodes() ::
+	              (old(n.find()) !in {old(find()), old(other.find())} || old(m.find()) !in {old(find()), old(other.find())} ==> (n.find()==m.find() <==> old(n.find())==old(m.find())))
+			   && ({old(n.find()), old(m.find())} <= {old(find()), old(other.find())} ==> n.find()==m.find())
+			); 
+  {
+	var this1:Node 
+	var other1:Node
+	this1:=find()
+	other1:=other.find()
+	if(other1!=this1)
+	{
+	  this1.parent := other1
+	}
+	
+	// note: it is impossible to verify this method without auxiliary lemmas!    
+  }
+}
+
+class NodeCollection
+{
+  // private
+  ghost var allNodes: set<Node>;
+  
+  // public  TODO: translate inv
+  predicate inv
+  {
+       acc(allNodes)
+	&& (forall n: (allNodes) :: n!=null && rd*(n.collection) && acc(n.parent) && n.collection==this && n.parent!=null && n.parent in allNodes)
+  }
+  
+  function getAllNodes() : set<Node>
+    requires inv
+	ensures null !in getAllNodes()
+  {
+    unfolding inv in allNodes
+  }
+}
+
+

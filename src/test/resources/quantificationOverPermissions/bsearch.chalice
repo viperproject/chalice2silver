@@ -1,0 +1,32 @@
+class Cell
+{
+  var value: int
+}
+
+class Static
+{
+  method contains(collection: seq<Cell>, value: int) returns(found:bool)
+    requires |collection| >= 1
+	requires (forall c in collection :: rd(c.value))
+	requires (forall i: int :: 0<=i && i<|collection|-1 ==> collection[i].value<=collection[i+1].value)
+	ensures (forall c in collection :: rd(c.value))
+	ensures found == (exists c in collection :: c.value == value)
+  {
+    var l: int
+	var h: int
+	var m: int
+	l := 0
+	h := |collection|
+	while(h-l>1 && collection[l].value<value)
+	  invariant (forall c in collection :: rd(c.value))
+	  invariant 0<=l && l<=h && h<=|collection|
+	  invariant collection[l].value<value ==> (forall i: int :: 0<=i && i<l ==> collection[i].value < value)
+	  invariant (forall i: int :: h<=i && i<|collection| ==> collection[i].value > value)
+	{
+	  m := l + (h-l)/2
+	  if(collection[m].value > value) { h:=m }
+	  if(collection[m].value <= value) { l:=m }
+	}
+	found := h>l && collection[l].value == value
+  }
+}

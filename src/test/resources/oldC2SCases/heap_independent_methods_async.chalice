@@ -1,0 +1,41 @@
+class Async {
+	method double(a: int) returns (r: int)
+		ensures r == 2 * a
+	{ r := a + a }
+	
+	method callDouble(b: int) returns (s: int)
+		ensures s == 2 * b
+	{
+		fork tk := double(b)
+		join s := tk
+	}
+	
+	method failCallDouble1(b: int) returns (s: int)
+		ensures s == 2 * b /* -Error 310 */
+	{
+	    fork tk := double(b)
+	    assert s == 2*b /* @Error 410 */
+	}
+	
+	method failCallDouble2(b: int) returns (s: int)
+		ensures s == 2 * b
+	{
+		fork tk := double(b)
+		join s := tk
+		join s := tk /* @Error 410 */ // @Syxc(Error 920)
+	}	
+	
+	method callDoubleTwice(b: int) returns (s: int)
+		ensures s == 4 * b
+	{
+		var s1: int
+		var s2: int
+		fork tk1 := double(b)
+		fork tk2 := double(b)
+		join s1 := tk2
+		assert(s1 == 2 * b)
+		join s2 := tk1
+		assert(s2 == 2 * b)
+		s := s1 + s2
+	}
+}

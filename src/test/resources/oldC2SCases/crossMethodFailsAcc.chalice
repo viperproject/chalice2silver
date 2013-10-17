@@ -1,0 +1,24 @@
+class Main{
+    var f : int;
+    method work()
+        requires acc(f)
+        ensures acc(f)
+    {
+    }
+
+    method main()
+        requires acc(f)
+        ensures acc(f)
+    {
+        f := 3;
+        fork tk := work();
+        call client(tk);
+    }
+
+    method client(tk : token<Main.work>)
+        requires acc(tk.joinable) && tk.joinable
+        ensures acc(f) // @Error 330 // Postcondition might not hold, because we don't know that tk.thisPtr == obj
+    {
+        join tk;
+    }
+}

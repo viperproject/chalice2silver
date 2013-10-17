@@ -1,0 +1,19 @@
+channel C();
+
+
+class Level {
+  method Foo(c: C)
+    requires rd(mu) && c != null && rd(c.mu) && this << c;
+    requires credit(c, -1) && waitlevel << this;
+  {
+    assert false;
+    send c();
+  }
+
+  method Main()
+    requires rd(mu) && waitlevel << this;
+  {
+    var c: C := new C above this;
+    call Foo(c);    
+  }
+}

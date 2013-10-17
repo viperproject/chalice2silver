@@ -1,0 +1,126 @@
+class RingBuffer
+{
+  var data: seq<int>;  // the storage
+  var first: int;      // index of the first element in the queue
+  var len: int;        // number of elements in the queue
+
+  predicate Valid {
+    acc(data) && acc(first) && acc(len) &&
+    0 <= first && 0 <= len &&
+    (|data| == 0 ==> len == 0 && first == 0) &&
+    (|data| > 0 ==> len <= |data| && first < |data|)
+  }
+
+  function Contents(): seq<int>
+    requires rd(Valid)
+  {
+    unfolding rd(Valid) in
+                  (first + len <= |data| ? data[first..first+len] 
+                                         : data[first..] ++ data[..first+len-|data|])
+  }
+
+  function Capacity(): int
+    requires rd(Valid)
+  {
+    unfolding rd(Valid) in |data|
+  }
+
+
+  method Create(n: int)
+    requires 0 <= n;
+    requires acc(data) && acc(first) && acc(len);
+    ensures Valid;
+    ensures Contents() == [] && Capacity() == n;
+  {
+    // simulate creating an array of length n
+    var i := n;
+    data := nil<int>;
+    while(0 < i)
+      invariant acc(data) && 0 <= i && |data| == n - i;
+    {
+      data := data ++ [0];
+      i := i - 1;
+    }
+    first := 0;
+    len := 0;
+    fold Valid;
+  }
+
+  method Clear()
+    requires Valid;
+    ensures Valid;
+    ensures Contents() == [] && Capacity() == old(Capacity());
+  {
+    unfold Valid;
+    len := 0;
+    fold Valid;
+  }
+
+  function Head(): int
+    requires rd(Valid);
+    requires Contents() != [];
+    ensures result == Contents()[0];
+  {
+    unfolding rd(Valid) in data[first]
+  }
+
+  method Push(x: int)
+    requires Valid;
+    requires |Contents()| != Capacity();
+    ensures Valid;
+    ensures Contents() == old(Contents()) ++ [x];
+    ensures Capacity() == old(Capacity());
+  {
+    unfold Valid;
+    var nextEmpty: int;
+    if (first + len < |data|)
+    {
+      nextEmpty := first + len;
+    }
+    else
+    {
+      nextEmpty := first + len - |data|;
+    }
+    data := data[..nextEmpty] ++ [x] ++  data[nextEmpty+1..];
+    len := len + 1;
+    fold Valid;
+  }
+
+  method Pop() returns (x: int)
+    requires Valid;
+    requires Contents() != [];
+    ensures Valid;
+    ensures x == old(Contents())[0];
+    ensures Contents() == old(Contents())[1..];
+    ensures Capacity() == old(Capacity());
+  {
+    unfold Valid;
+    x := data[first];
+    if(first + 1 == |data|)
+    {
+      first := 0;
+    }
+    else
+    {
+      first := first + 1;
+    }
+    len := len - 1;
+    fold Valid;
+  }
+}
+
+class Client {
+  method TestHarness(x: int, y: int, z: int)
+  {
+    var b := new RingBuffer;
+    call b.Create(2);
+    call b.Push(x);
+    call b.Push(y);     
+    var h: int;
+    call h := b.Pop();  assert h == x;
+    call b.Push(z);
+    call h := b.Pop();  assert h == y;
+    call h := b.Pop();  assert h == z;
+  }
+}
+

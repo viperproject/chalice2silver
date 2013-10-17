@@ -1,0 +1,24 @@
+class Main {
+    var f : int;
+    var g : int;
+
+    invariant acc(f);
+
+    method lockObj() {
+        var m : Main;
+        call m := shareObj();
+
+        acquire m;
+        assert(acc(m.f));
+        release m;
+    }
+
+    method shareObj() returns (m: Main)
+        ensures m != null && acc(m.mu)
+        ensures waitlevel << m.mu
+        ensures !holds(m)
+    {
+        m := new Main;
+        share m;
+    }
+}

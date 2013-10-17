@@ -1,0 +1,22 @@
+class A
+{
+  var x:int
+  
+  method foo()
+    requires (forall y: int :: y!=y+1)
+	requires (forall y in [1, 2, 3] :: y<4)
+	requires (forall y: {1, 2, 3} :: y<4)
+	requires (exists y: int :: y!=y+1)
+	requires (exists y in [1, 2, 3] :: y<4)
+	requires (exists y: {1, 2, 3} :: y<4)
+	ensures (forall y: seq<int> :: (forall z: (y) :: z==z))
+	ensures (exists y in {1, 2, 3} :: 4+y)
+	ensures (forall y:int :: 4) && (exists y in {1, 2, 3} :: 4+y) && (forall y:empty<int> :: y)
+  {
+    assert x == (sum y: int :: y!=y+1) + (max y in [1, 2, 3] :: y<4) + (sum y: {1, 2, 3} :: y<4)
+	assert (sum y:int :: 4) + (max y in {1, 2, 3} :: 4+y) + (sum y:empty<int> :: y+x)
+	assert (sum y:int :: 4) + (max y in [1, 2, 3] :: 4+y) + (sum y:empty<int> :: y+x)
+	assert (sum z:{1} :: (max y in [2, 3] :: z+y)+z) == 5
+	assert (forall y: seq<int> :: (forall z in (y) :: z==z))
+  }
+}

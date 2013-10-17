@@ -1,0 +1,33 @@
+// @Ignore support for monitors is insufficient, see issue 16 of chalice2sil
+class Cell {
+    var f : int;
+    invariant acc(f);
+}
+class Unshare {
+    method work_a(c : Cell)
+        requires rd(c.mu) && waitlevel << c.mu
+    {
+        acquire c;
+        // unshare needs to fail, otherwise we might have a deadlock.
+        unshare c; // @Error 410
+    }
+
+    method work_b(c : Cell)
+        requires rd(c.mu) && waitlevel << c.mu
+    {
+        acquire c;
+        release c;
+    }
+
+    method main() {
+        var c : Cell := new Cell;
+
+        share c;
+
+        fork tk_a := work_a(c);
+        fork tk_b := work_b(c);
+
+        join tk_a;
+        join tk_b;
+    }
+}

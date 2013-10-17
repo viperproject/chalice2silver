@@ -1,0 +1,231 @@
+class Cell {
+	var x: int
+}
+
+/* I assume the implementation of Syxc by the time my thesis was submitted. /*
+
+/* The getter-problem is the following:
+ *   - h: tc.x -> tx
+ *   - assert rd(get().x), where get() == c
+ *   - get() evaluates to FApp(tc, t, get),
+ *     evaluation adds FApp(tc, t, get) = tc to π,
+ *   - but FApp(tc, t, get).x -> tx ∉ h, chunk lookup thus fails
+ */
+/* Using Z3 it would be able to find the chunks, but we of course would like to
+ * invoke Z3 as seldom as possible. 
+ *
+ * This problem can be overcome by evaluating get() to its body instead to
+ * an FApp-term if the evaluation is not recursive. FApp = FBody must still be
+ * added to π.
+ *
+ * Alternatively, one could manually search for FApp(tc, t, get) = tc in π when
+ * a chunk lookup fails.
+ */
+
+// class GetterProblem {
+	// var c: Cell
+	
+	// function get(): Cell 
+		// requires rd(c)
+	// { c }
+	
+	// method accessFieldThroughGetter()
+		// requires acc(c) && c != null && acc(c.x)
+	// {
+		// var d: Cell := new Cell
+		// assert acc(d.x)
+		
+		// c := d		
+		// assert d == get() && c == get()
+		
+		// assert acc(c.x)
+		// assert acc(get().x) /* @Fails in Syxc, holds in Chalice */
+			// /* Syxc tries to find 'FApp(tc, t, get).x' in h which fails since
+			 // * the current search considers lexical equivalence only. If this fails,
+			 // * Z3 should be used instead. Problem: If we loose access, we still have
+			 // * to remove the corresponding chunk from h, hence Z3 must also determine
+			 // * the correct receiver term.
+			 // *
+			 // * An alternative might be to perform textual substitution on terms
+			 // * instead of adding equivalence terms such as 'FApp = tb' to π.
+			 // */
+	// }
+// }
+
+/* The following case suffers from the same incompleteness, it is just more
+ * complex. The same solution as before applies.
+ */
+
+// class GetterWithConditional {
+	// var c1: Cell
+	// var c2: Cell
+	
+	// function f(b: bool): Cell
+		// requires rd(c1) && rd(c2)
+	// { b ? c1 : c2 }
+	
+	// method foo(a: int)
+		// requires acc(c1) && c1 != null && acc(c1.x)
+		// requires acc(c2) && c2 != null && acc(c2.x)
+	// {
+		// c1.x := a
+		// var d1: Cell := f(a == 0)
+		// var d2: Cell := f(a != 0)
+		
+		// assert d1.x == a || d2.x == a /* @Fails */
+	// }
+// }
+
+/* This problem already is quite intricate and it took me some time to figure
+ * out why it failed. I assume the getter-problem has been solved as described.
+ */
+/* Consider verification of method test():
+ *   - Production precondition V adds chunk t.V[tv] to h
+ *   - Evaluation of get() implies production of V's body when 
+ *     get()'s body is evaluated. Since V's body consists of a conjunction,
+ *     each conjunct will be produced with a fresh (!) snapshot tv1, tv2, and
+ *     tv = Combine(tv1, tv2) will be added to π               */ /*
+ *   - Production of acc(get().x) implies evaluation of get(), which implies
+ *     production of V's body which creates a chunk t.c -> tc1, where tc1 is 
+ *     such an aforementioned fresh chunk. The evaluation thus returns tc1 and 
+ *     the production finally creates a chunk tc1.x -> tx.
+ *   - assert acc(get().x) proceeds similarly and produces V's body again with
+ *     fresh chunks. Evaluation of get() thus returns tc2, but there is no
+ *     chunk tc2.x -> tx in h.
+ */
+/* Again, Z3 could be used to identify the chunk, since the first evaluation
+ * of get() adds FApp(tv, t, get) = tc1 to π and the adds 
+ * second FApp(tc, t, get) = tc2, hence tc1 = tc2 is known and the lookup would
+ * be possible.
+ *
+ * A solution without Z3 is to keep a record of function evaluations, i.e.
+ * a mapping from FApp-terms to "evaluated function body"-terms, and to use this
+ * to returns the same result if a function is reevaluatd. This in generally
+ * improves performance by not having to reevaluate functions all over again.
+ */
+
+class GetterWithSeparatingPredicateProblem {
+	var c: Cell
+	
+	predicate V { acc(c) && c != null }
+	
+	function get(): Cell
+		requires V
+	{ unfolding V in c }
+	
+	method test()
+		requires V && acc(get().x)
+	{ assert acc(get().x) /* Used to fail */ }
+}
+
+/* The setter-getter-problem is the following (assuming the getter-problem has
+ * been solved by returning evaluated fct. body instead of an FApp-term):
+ *  - td.x -> tx ∈ h after instantiation of Cell
+ *  - set(d) adds td = tc to π
+ *  - now acc(c.x) and acc(get().x) fail because in both cases tc.x -> tx is
+ *    not to be found in the heap without considering the path conditions
+ */
+/* Possible solution which would also solve the basic getter-problem: maintain
+ * a union-find data structure (hash map might also work) to resolve a heap
+ * lookup for ta when an equivalent tb is in the heap.
+ * If the lookup fails we have to utilise the prover to identify such a chunk,
+ * and to update the data structure accordingly.
+ * Failing lookups would then result in a (failing) data structure lookup 
+ * followed by (failing) prover invocations.
+ */
+
+// class SetterGetter {
+	// var c: Cell
+	
+	// function get(): Cell
+		// requires rd(c)
+	// { c }
+	
+	// method set(d: Cell)
+		// requires acc(c)
+		// ensures acc(c) && c == d && get() == d
+	// { c := d }
+	
+	// method test()
+		// requires acc(c)
+	// {
+		// var d: Cell := new Cell
+		// call set(d)
+		// assert acc(d.x)      /* Ok */
+		// assert acc(c.x)      /* Fails */
+		// assert acc(get().x)  /* Fails */
+	// }
+// }
+
+// class CellHolder2 {
+	// var c: Cell
+	
+	// method init(d: Cell)
+		// requires acc(c) && d != null
+		// ensures V && get() == d
+	// { 
+		// c := d
+		// fold V
+	// }
+	
+	// method run()
+		// requires V && acc(get().mu)
+	// {
+		// assert true
+		// assert rd(get().mu)
+	// }
+	
+	// function get(): Cell
+		// requires V
+	// { unfolding V in c }
+	
+	// predicate V { acc(c) && c != null }
+// }
+
+// class ProducerConsumer {
+	// method test() {
+		// var c: Cell := new Cell
+		// share c
+		
+		// var ch: CellHolder2 := new CellHolder2
+		// call ch.init(c)
+		// assert acc((ch.get()).mu)
+		// fork tk := ch.run()
+	// }
+// }
+
+
+
+// /* The following cases suffers from a similar, but harder to overcome 
+ // * incompleteness. The reason here is that access to field x is distributed
+ // * over two objects, which are known aliases. This nevertheless results in two 
+ // * heap chunks, whose fractions add up to 100, but a corresponding access
+ // * fails.
+ // * dining-philosophers.chalice in the Chalice test suite fails for the same 
+ // * reasons.
+ // */
+
+// class CellHolder {
+  // var c: Cell
+  
+  // method init(d: Cell)
+    // requires acc(c) && d != null && acc(d.x, 10)
+    // ensures rd(c) && c != null && acc(c.x, 10) && c == d
+  // { c := d }
+// }
+
+// class Test3 {
+  // method foo() {
+    // var c: Cell := new Cell
+    // var ch: CellHolder := new CellHolder
+    // call ch.init(c)
+    // // assert rd(c.x)
+    // // assert rd(ch.c)
+    // // assert c == ch.c
+    // assert acc(c.x, 90)
+    // assert acc(ch.c.x, 10)
+    // assert c == ch.c
+    // assert c.x == ch.c.x /* @Fails in Syxc, holds in Chalice */
+    // // assert acc(c.x, 100) /* @Fails in Syxc, holds in Chalice */
+  // }
+// }

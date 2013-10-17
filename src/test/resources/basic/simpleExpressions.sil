@@ -1,0 +1,33 @@
+domain GlobalKPermission {
+  
+  unique function globalK$(): Perm
+  
+  axiom globalKReadOnly {
+    (globalK$() > none) && (write > globalK$())
+  }
+}
+
+var joinable: Bool
+
+var Dx$: Int
+
+predicate D$MonitorInvariant(this$: Ref) {
+  true
+}
+
+predicate Dp$(this$: Ref) {
+  true
+}
+
+method Dfoo$(this$: Ref, k$: Perm) returns (r: Int)
+  requires this$ != null
+  requires k$ > none
+  requires write > k$
+  requires acc(this$.Dp$(), write)
+  requires acc(this$.Dp$(), 100 / 100) && acc(this$.Dx$, write) && (this$.Dx$ == 2)
+  ensures acc(this$.Dp$(), write) && acc(this$.Dx$, write) && (this$.Dx$ == 2)
+  ensures acc(this$.Dp$(), write) && (2 == 2)
+{
+  r := (unfolding acc(this$.Dp$(), write) in 2)
+  r := (unfolding acc(this$.Dp$(), write) in 2)
+}

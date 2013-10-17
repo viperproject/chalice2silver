@@ -1,0 +1,58 @@
+// @Ignore (unknown cause, but possibly related to other issues which should be fixed first, see issue 13 of chalice2sil)
+class Node {
+  var next: Node
+  invariant acc(next)
+  invariant acc(mu,50) && (next != null ==> acc(next.mu,50) && this << next)
+}
+
+class List {
+  var head: Node
+  invariant acc(head) && head != null
+  invariant rd(mu) && acc(head.mu,50) && this << head
+
+  method iterate()
+    requires rd(mu) && waitlevel << this
+    ensures rd(mu)
+  {
+    acquire this
+    assert waitlevel == this.mu;
+    var p: Node := head
+    acquire p
+    release this
+
+    while (p.next != null) /* @Fails but holds in Chalice */
+      invariant p != null && acc(p.next) && acc(p.mu,50)
+      invariant holds(p)
+      invariant waitlevel == p.mu
+      invariant !old(holds(p)) && !old(rd holds(p))
+				/* Comment the above line and Chalice complaints about lockchange clause.
+				 * How are the above two lines to be interpreted anyway? At the end of
+				 * the loop,
+				 *  - holds(p) is true since p == nx and nx has been acquired
+				 *  - but old(p) must have been held since it was released inside the
+				 *    loop, hence, how can !old(holds(p)) hold?
+				 */
+      invariant p.next != null ==> acc(p.next.mu,50) && p << p.next
+      lockchange p //, this
+    {
+      assert p.mu == waitlevel
+      var nx: Node := p.next
+      acquire nx
+      assert nx.mu == waitlevel
+      assert p.mu << nx.mu
+      release p
+      assert nx.mu == waitlevel
+      p := nx
+    }
+
+		assert p.next == null
+		
+    var t := new Node
+    t.next := p.next
+    // share t between p and p.next
+    share t above p
+
+    p.next := t
+    release p
+  }
+}

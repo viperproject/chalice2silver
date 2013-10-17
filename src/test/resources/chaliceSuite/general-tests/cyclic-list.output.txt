@@ -1,0 +1,10 @@
+Verification of cyclic-list.chalice using parameters="" 
+
+  23.5: Fold might fail because the definition of List.valid does not hold. Insufficient fraction at 6.66 for List.valid.
+  32.12: Precondition at 9.14 might not hold. Insufficient fraction at 9.14 for List.valid.
+
+The program did not fully verify; the smoke warnings might be misleading if contradictions are introduced by failing proof attempts of the verification.
+  17.3: The end of method test1 is unreachable.
+  26.3: The end of method test2 is unreachable.
+
+Boogie program verifier finished with 2 errors and 2 smoke test warnings

@@ -1,0 +1,29 @@
+// Successfully verified by Syxc (0 errors)
+// @Ignore support for monitors is insufficient, see issue 16 of chalice2sil
+class Main {
+    var f : int;
+    var g : int;
+
+    invariant acc(f);
+
+    method main()
+    {
+        var m : Main;
+
+        call m := shareObj();
+
+        share m;
+
+        acquire m;
+        assert(acc(m.f));
+        release m;
+
+    }
+
+    method shareObj() returns (m: Main)
+            ensures m != null && acc(m.mu)
+            ensures acc(m.f) && m.mu == lockbottom
+    {
+        m := new Main;
+    }
+}

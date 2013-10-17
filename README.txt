@@ -1,191 +1,120 @@
 Chalice2SIL - README
-Christian Klauser <klauserc@student.ethz.ch>
+Ioannis Kassios <ioannis.kassios@inf.ethz.ch>
 
-Chalice2SIL is an alternative verification tool for Chalice.  Instead of 
-targeting Boogie, it translates Chalice programs into SIL. By default, it uses
-the symbolic verification tool "Silicon" to verify the input program.
+The present version of Chalice2SIL is a translator from front-end verification
+language Chalice to the intermediate representation language SIL, which is used
+by static analysis tools, such as the symbolic execution engine Silicon.
+
+Chalice2SIL is based on the MSc thesis of Christian Klauser.  Klauser's version
+would also invoke Silicon on the produced program.  The present version is a
+pure translator that does not depend on Silicon or any other SIL-related tool.
+
+In comparison with the previous version, Chalice2SIL now supports the new SIL
+AST library, as well as extensions to the Chalice language that are not
+supported by the main branch of Chalice in Codeplex.  Note that some old
+Chalice features are deprecated in the new version.
+
+Chalice2SIL is currently under construction.  Many features are not yet
+supported and/or adequately tested.
+
 
 ================================================================================
-1. Setup
+0. Setup
 
-Chalice2SIL comes with a set of shell scripts that make setup easier, but also 
-impose some restrictions on how your directory structure is laid out.
-
---------------------------------------------------------------------------------
-1.1 Quick Setup
-
-  0.  Prerequisites. Make sure you have the following installed
-        - Java 7 JDK, java.exe must be on the PATH
-        - Z3, version 4.0
-            Silicon is very particular about the location and version of Z3
-        - Subversion. The `svn` tool must be on the PATH
-        - Mercurial. The `hg` tool must be on the PATH
-            Boogie lives in a mercurial repository
-        - PowerShell (comes with Windows 7)
-            By default, PowerShell does not execute unsigned shell scripts.
-            See appendix A1.
-
-  1.  Put this folder into a directory of it's own. The setup script will place 
-      dependencies next to the Chalice2SIL folder.
-      
-      the-project-directory/
-          Chalice2SIL/
-
-  2.  Open a PowerShell and navigate to the-project-directory/Chalice2SIL
-
-  3.  Have setup-repositories.ps1 download the source code for Chalice, SIL and 
-      Silicon.
-
-      PS> .\setup-repositories.ps1
-
-      This will take a while. You should end up with a directory structure like 
-      this:
-
-      the-project-directory/
-          Chalice2SIL/
-          boogie/
-              Chalice/
-          silast
-          silicon
-
-  4.  Have build-dependencies.ps1 build Chalice, SIL and Silicon. 
-      
-      PS> .\build-dependencies.ps1
-
-      This will take even longer, especially the first time around. This step
-      has to be repeated every time one of Chalice2SIL's dependencies changes.
-
-  5.  Build Chalice2SIL using sbt.ps1
-
-  5a. Standalone *.jar file
-
-      PS> .\sbt.ps1 assembly
-
-      Creates the-project-directory/Chalice2SIL/target/chalice2sil.jar
-
-      This archive is purely for convenience. It includes a (statically linked)
-      copy of all libraries used by Chalice2SIL, except for Z3, of course.
-
-  5b. Run unit-tests
-
-      PS> .\sbt.ps1 test
-      
-      Will probably take a while and generate a lot of diagnostic output.
-
---------------------------------------------------------------------------------
-1.2 Manual setup
-
-    0.  Prerequisites. Make sure you have the following installed
+  0.0  Prerequisites: Make sure you have the following installed
         - Java 7 JDK
-        - Z3, version 4.0
-            Silicon is very particular about the location and version of Z3.
-
-    1.  Get copies of the Chalice, SILAST and Silicon source code
-
-    2.  Use SBT's publish-local task to build Chalice, SILAST and Silicon
-        and have SBT put the results in your local ivy repository. 
-        Make sure to publish SILAST *before* building Silicon.
-
-    3.  Use SBT to build, test and/or run Chalice2SIL
-
-    3a. PS> .\sbt.ps1 assembly
-        Creates target/chalice2sil.jar which contains all prerequisite Java and 
-        Scala libraries (even the Scala runtime itself).
-
-    3b. PS> .\sbt.ps1 gen-idea
-        Creates/updates project files for IntelliJ.
+		- Scala 2.10
+        - SBT
+        
+  0.1.  Clone the repository under a parent folder, from now on referred to as
+        %PROJECT_ROOT%
+      
+        %PROJECT_ROOT%/
+          chalice2sil/
+		
+  0.2   Clone the SIL AST library repository in its own folder named sil under
+        %PROJECT_ROOT%
+  
+  0.3   Clone the Chalice repository in its own folder named chalice under
+        %PROJECT_ROOT%
+		
+		***IMPORTANT*** Make sure you clone the correct Chalice branch.  The
+		main Chalice branch maintained by Microsoft does not have many features
+		required by Chalice2SIL.  The correct branch can be found under:
+		
+		https://chalice.codeplex.com/SourceControl/network/forks/ykass/PuQBP
+		
 
 ================================================================================
-2. Using Chalice2SIL
+1. Building 
+		
+  1.0 Use the command:
+  
+      sbt compile
+	  
+	  to produce the following executable jar:
+  
+      %PROJECT_ROOT%/target/chalice2sil.jar
 
-    You can run Chalice2SIL via the assembled *.jar file using
+      If you want a jar file that contains all the dependencies of the project,
+	  then use the command:
+	  
+	  sbt assembly
 
-    PS> java -Xmx512M -Xss512M -jar target/chalice2sil.jar <args...>
+
+================================================================================
+2. Using
+
+  2.0  Running as an independent program: You can run Chalice2SIL via the
+    assembled *.jar file using
+
+    java -jar %PROJECT_ROOT%/target/chalice2sil.jar <args...>
 
     or via SBT using
 
-    PS> .\sbt.ps1 "run <args...>"
+    sbt run <args...>
 
-    Note that SBT expects the arguments to be together with the "run" task in 
-    one command line argument. Also, SBT only works when you are currently in
-    the Chalice2SIL directory.
-
-    Alternatively, you can dot-source env.ps1 to get the Run-Chalice2SIL 
-    function loaded into your shell:
-
-    PS> . .\env.ps1
-    (There are two dots in front of the \, separated by a space)
-
-    After that, you can use
-
-    PS> Run-Chalice2SIL -File "path\to\program.chalice" <args..>
-
-    Run-Chalice2SIL internally uses SBT, but you do not need to be in the 
-    Chalice2SIL directory. Don't forget to pass the chalice program via the
-    -File parameter.
-
-    Useful command line options:
-
-      -v | --verbose
-        Prints additional information about the translation/verification process
-
-      -p | --print-sil
-            Prints the translated program in SIL. SIL doesn't currently have a
-            proper textual representation. The result might not be unambiguous.
-
-      -f class name | --forward-sil class name
-            Forwards the translated SIL program to the 
-            `public static main(semper.sil.ast.Program)` method of the specified class.
-            When no -f switch is given, Chalice2SIL forwards the program to
-            Silicon.
-
-      -z3 <value> | --z3-path <value>
-            Custom path to Z3, will be forwarded to Silicon
-
-      -chop:<option>=<value> | --chalice-option:<option>=<value>
-            Passes an option to Chalice. Can be specified multiple times. 
-            A leading dash is added to the chalice option name automatically. 
-            As only the Chalice parser and type-checker are used, options that
-            only affect the Boogie-based verification will have no effect.    
-
-      -? | --help
-            Displays this help message.
+    Currently the only supported option is: --chop:<chalice-option> which
+	passes an option to the underlying Chalice parser.  The command also takes
+	a single Chalice file.
+	
+	Should the parsing and resolution phase of Chalice be successful, the
+	resulting SIL program will be pretty-printed and output at the standard
+	output stream.  Otherwise, an error will be reported at the standard error
+	stream.
+	
+  2.1 Running as a library:  To trigger a translation, use the following call:
+	
+	val (silProgram, messages) = new semper.chalice2sil.translation.
+	  ProgramTranslator(programOptions, chaliceFileName).translate(chaliceAST)
+	  
+	where:
+	  - silProgram: semper.sil.ast.Program
+	      is the resulting SIL program in AST form
+	  - message: Seq[semper.chalice2sil.Message]
+	      is a sequence of warnings and errors produced during the translation
+		  process
+	  - programOptions: semper.chalice2sil.ProgramOptions
+	      contains a map of options for the translation
+		  (this feature is currently NOT USED -- use code ProgramOptions() to
+		  produce an empty options map)
+	  - chaliceFileName: String
+	      (optional) the file name of the Chalice program
+	  - chaliceAST: Seq[chalice.TopLevelDecl]
+	      is an AST produced by the Chalice parser and type checker
+	
 
 ================================================================================
-A1. Have PowerShell execute unsigned scripts
+3. Testing
 
-    While PowerShell is installed on Windows 7, by default it refuses to execute
-    script files without a cryptographic signature. In order to use the 
-    PowerShell scripts provided with Chalice2SIL, you'll have to change* this 
-    behaviour.
-
-    1.  Open PowerShell as an administrator or with administrative privileges.
-        You can do this by right-clicking on the PowerShell entry in the start 
-        menu, for instance, and selecting the option with the shield icon next 
-        to it.
-
-    2.  PS> Set-ExecutionPolicy RemoteSigned
-
-        Configures PowerShell to only require signatures for scripts that 
-        come from a network location.
-
-         -- OR --
-
-         PS> Set-ExecutionPolicy Unrestricted
-
-         Will still ask for confirmation on scripts that come from a network
-         location
-
-         -- OR --
-
-         PS> Set-ExecutionPolicy Bypass
-
-         Allow execution of all PowerShell scripts.
-
-    Note: At ETH (and in other "corporate" environments) the desktop and user
-    profile can be a "network location". In that case, the only real option may
-    be "Bypass", unfortunately.
-
-    * You could also sign the scripts using a certificate that you configured 
-    PowerShell to trust. It is possible to create and install a certificate
-    with just the tools available on Windows 7. Google will help you there.
+  3.0  The testing infrastructure and the unit test suite are currently under
+    construction.  To test the whole test suite use command:
+	
+	sbt test
+	
+	The test suite consists of Chalice files and their corresponding
+	pretty-printed SIL translations.  An test failure is reported if the output
+	of Chalice2SIL does not match the corresponding translation.  If the
+	Chalice program cannot be parsed or type-checked, or if there is no
+	corresponding SIL program, the fact is reported, but not counted as a
+	testing failure.

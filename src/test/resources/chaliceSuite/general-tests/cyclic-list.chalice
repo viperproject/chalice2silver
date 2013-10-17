@@ -1,0 +1,34 @@
+// Example to illustrate how unsoundness is avoided for cyclic lists
+class List {
+  var value: int;
+  var next: List;
+
+  predicate valid { acc(value) && acc(next) && (next != null ==> next.valid) }
+
+  function length(): int
+    requires valid;
+    ensures result > 0;
+  { unfolding valid in next == null ? 1 : 1 + next.length() }
+
+  function itemAt(i: int): int
+    requires valid && 0 <= i && i<length();
+  { unfolding valid in i == 0 || next == null ? value : next.itemAt(i-1) }
+  
+  method test1()
+  {
+    var x: List
+    x := new List
+    x.next := x
+    // this fold FAILS, because x.valid requires x.next.valid, which is not available
+    fold x.valid
+  }
+  
+  method test2()
+  {
+    var x: List
+    x := new List
+    x.next := x
+    // without folding the predicate, the functions cannot be used (precondition not satisfied)
+    assert x.length() == x.next.length() + 1;
+  }
+}

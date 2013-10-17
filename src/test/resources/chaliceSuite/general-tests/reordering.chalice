@@ -1,0 +1,59 @@
+class C {
+ 
+ method reordering(x : C, y:C, z:C)
+ requires x != null && acc(x.mu) && acc(y.mu,rd) && acc(z.mu,rd) && holds(x) && y.mu << z.mu
+ ensures acc(x.mu) && acc(y.mu,rd) && y.mu << x.mu
+ { 
+   assume waitlevel << z.mu
+   unshare x; 
+   share x above z;
+   acquire x;
+ }
+ 
+ method main(b:bool)
+ {
+   var x := new C; var y := new C; var z := new C;
+   share x;
+   share y above x;
+  
+   share z above y;
+  
+   acquire x; acquire y; release y;
+   call reordering(x,y,z);
+   acquire y; // fails, as we don't remember x.mu in the case that holds(x) is passed on (and we do not hold permission) - compare with forking_main below
+   assert false; // passes, as y.mu << x.mu is known, x is held, and so the line above contradicts what we know
+ }
+ 
+ method forked_reordering(x : C, y:C, z:C)
+ requires x != null && acc(x.mu) && acc(y.mu,rd) && acc(z.mu,rd) && y.mu << z.mu
+ ensures acc(x.mu) && acc(y.mu,rd) && y.mu << x.mu
+ { 
+   assume waitlevel << x.mu // needed because we cannot initialise waitlevel correctly
+   acquire x;
+   unshare x; 
+   share x above z;
+ }
+ 
+ method forking_main(b:bool)
+ {
+   var x := new C; var y := new C; var z := new C;
+   share x;
+   share y above x;
+  
+   share z above y;
+  
+   acquire x; acquire y; release y;
+   fork tk := forked_reordering(x,y,z); // notionally, fork tk below x.mu and above old(waitlevel)
+   acquire y; // even though we cannot read x.mu, we get to remember its value so long as we hold the lock
+   release x; // but now we forget x.mu (which is good, since the other thread will change it)
+   release y;
+   if(b) {
+     acquire x; release x // fails, as we cannot read x.mu
+   } else {
+     acquire y; release y // no problem; y.mu is still known
+   }
+   join tk;
+   assert false; // should fail - we have forgotten the old value of x.mu by the time it can be changed to the new one
+ }
+
+}

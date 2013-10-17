@@ -1,0 +1,76 @@
+class Test {
+	method plusLiterals()
+		requires 1 + 2 == 3
+		requires 1 + -1 == 0
+		requires 4 + 4 + 4 == 6 + 6
+		ensures 1 + 2 == 3
+		ensures 1 + -1 == 0
+		ensures 4 + 4 + 4 == 6 + 6		
+	{ }
+	
+	method minusLiterals()
+		requires 1 - 1 == 0
+		requires 1 - -1 == 2
+		requires 5 - 4 - 3 == -1 - 1
+		ensures 1 - 1 == 0
+		ensures 1 - -1 == 2
+		ensures 5 - 4 - 3 == -1 - 1		
+	{ }
+	
+	method timesLiterals()
+		requires 2 * 2 == 4
+		requires 2 * -3 == -6
+		requires 2 * 5 * 10 == 4 * 25
+		ensures 2 * 2 == 4
+		ensures 2 * -3 == -6
+		ensures 2 * 5 * 10 == 4 * 25
+	{ }
+	
+	method divLiterals()
+		requires 4 / 2 == 2
+		requires 33 / -3 == -11
+		requires (6 / 2) / 3 == 5 / 5
+		ensures 4 / 2 == 2
+		ensures 33 / -3 == -11
+		ensures (6 / 2) / 3 == 5 / 5		
+	{ }	
+	
+	method modLiterals()
+		requires 10 % 4 == 2
+		requires 11 % 4 == 3
+		requires 12 % 4 == 0
+		requires (100 % 26) % 13 == 9 % 10
+		ensures 10 % 4 == 2
+		ensures 11 % 4 == 3
+		ensures 12 % 4 == 0
+		ensures (100 % 26) % 13 == 9 % 10		
+	{ }
+	
+	method falseArithmetics()
+		requires 1 + 2 == 4
+		requires 1 - -1 == 0
+		requires 2 * 2 == 2
+		requires 6 / 2 == 2
+		requires 10 % 4 == 0
+	{}
+	
+	method failPlusLiterals()
+		ensures 1 + 2 == 4 /* @Error 310 */
+	{ }
+	
+	method failMinusLiterals()
+		ensures 1 - -1 == 0 /* @Error 310 */
+	{ }
+	
+	method failTimesLiterals()
+		ensures 2 * 2 == 2 /* @Error 310 */
+	{ }
+	
+	method failDivLiterals()
+		ensures 6 / 2 == 2 /* @Error 310 */
+	{ }	
+	
+	method failModLiterals()
+		ensures 10 % 4 == 0 /* @Error 310 */
+	{ }
+}

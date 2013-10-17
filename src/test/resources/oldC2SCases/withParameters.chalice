@@ -1,0 +1,10 @@
+class Main{
+    method main (x : int, y : int) returns (r : int) {
+        r := 1;
+        var e : int := y
+        while(e > 0){
+            r := r*x;
+            e := e - 1;
+        }
+    }
+}

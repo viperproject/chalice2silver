@@ -1,0 +1,28 @@
+class Cell { var x: int }
+
+class Test {
+	method lockchangeOld(c: Cell)
+		requires c != null && rd(c.mu)
+		requires !holds(c) ==> waitlevel << c.mu
+		ensures old(holds(c)) == !holds(c)
+		lockchange c
+	{ if (holds(c)) { release c } else { acquire c } }
+	
+	/* TODO: Syxc currently neither supports 'waitlevel == waitlevel'
+	 *       nor 'old(waitlevel)'.
+	 */
+	// method waitlevelOld3()
+		// ensures waitlevel == old(waitlevel)
+	// {}
+	
+	method waitlevelOld1() returns (c: Cell)
+		lockchange c
+		ensures c != null && holds(c)
+		// ensures old(waitlevel) == waitlevel /* FAILS */
+		// ensures old(waitlevel) << waitlevel /* Chalice: Boogie errors */
+	{
+		c := new Cell
+		share c
+		acquire c
+	}
+}

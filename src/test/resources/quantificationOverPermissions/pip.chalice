@@ -1,0 +1,44 @@
+class Node
+{
+  var initValue: int
+  var value: int
+  tracked var parent: Node
+  
+  function mx(a:int, b:int) : int
+  {
+    a>b ? a : b
+  }
+  
+  invariant   rd*(initValue) && rd*(parent) && acc(value, 50) && acc(~(Node.parent)) && (forall n:~(Node.parent) :: acc(n.value, 50))
+           && (parent==null ==> /*shared(parent) &&*/ acc(value, 50)) && value == mx(initValue, (max n:~(Node.parent) :: n.value))
+		   // todo: fix the missing "shared" conjunct
+  
+  method init(newInitValue:int, newParent:Node)
+    requires acc(initValue) && acc(parent) && parent==null && acc(value) && acc(~(Node.parent)) && ~(Node.parent)==empty<Node> /*&& !shared(this)*/
+	requires newParent!=null /*&& shared(newParent)*/ && (forall n:Node :: !holds(n))
+	ensures rd*(initValue) && rd*(parent) && initValue==newInitValue && parent==newParent /*&& shared(this)*/
+	ensures (forall n:Node :: !holds(n))
+  {
+    acquire newParent
+    initValue := newInitValue
+	value := newInitValue
+	parent := newParent
+	share this
+	call parent.update(value)
+  }
+  
+  method update(newValue: int)
+    requires /*shared(this) &&*/ holds(this) && newValue==(max n:~(Node.parent) :: n.value)
+	requires rd*(initValue) && rd*(parent) && acc(value, 50) && acc(~(Node.parent)) && (forall n:~(Node.parent) :: acc(n.value, 50))
+	requires (parent==null ==> /*shared(parent) &&*/ acc(value, 50)) && value>=initValue
+	lockchange this
+  {
+    if(value < newValue)
+	{
+	  if(parent!=null) { acquire parent }
+	  value := newValue
+	  if(parent!=null) { call parent.update(value) }
+	}
+	release this
+  }
+}

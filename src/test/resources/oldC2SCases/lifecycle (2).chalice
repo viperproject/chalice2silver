@@ -1,0 +1,389 @@
+// @Ignore support for monitors is insufficient, see issue 16 of chalice2sil
+class Cell { var x: int }
+
+class LifeCycleTests {
+	var c: Cell
+  
+  method failUnknownState1()
+    requires rd(c) && c != null && rd(c.mu)
+  { assert waitlevel << c.mu /* @Error 410 */ }
+  
+  method failUnknownState2()
+    requires rd(c) && c != null && rd(c.mu)
+  { assert !(waitlevel << c.mu) /* @Error 410 */  }
+  
+  method failUnknownState3()
+    requires rd(c) && c != null && rd(c.mu)
+  { assert waitlevel == c.mu /* @Error 410 */ }
+  
+  method failUnknownState4()
+    requires rd(c) && c != null && rd(c.mu)
+  { assert waitlevel != c.mu /* @Error 410 */  }
+  
+  method succeedInitialWaitlevel1()
+    requires rd(c) && c != null && rd(c.mu) && lockbottom != c.mu
+    requires waitlevel << lockbottom
+  { assert waitlevel << c.mu }
+  
+  method succeedInitialWaitlevel2()
+    requires rd(c) && c != null && rd(c.mu) && lockbottom << c.mu
+    requires waitlevel << lockbottom
+  { assert waitlevel << c.mu }
+  
+  method succeedInitialWaitlevel3()
+    requires rd(c) && c != null && rd(c.mu) && lockbottom != c.mu
+    requires waitlevel == lockbottom
+  {
+		assert waitlevel << c.mu
+		/* Fails in Chalice. My guess is that an axiom such as
+		 *   forall m: Mu :: lockbottom != m ==> lockbottom < m
+		 * is missing.
+		 */
+	}
+  
+  method succeedInitialWaitlevel4()
+    requires rd(c) && c != null && rd(c.mu) && lockbottom << c.mu
+    requires waitlevel == lockbottom
+  { assert waitlevel << c.mu }
+  
+	/*
+  method shouldRaiseAWarningOrAnError() {
+    var c1: Cell := new Cell
+    share c1 below lockbottom
+  }
+	*/
+	
+	method succeedsEqWaitlevel1() {
+		var c1: Cell := new Cell
+		c1.x := 1; share c1
+		assert c1.mu == waitlevel
+	}
+	
+	method failNeqWaitlevel1() {
+		var c1: Cell := new Cell { x := 1 }
+		share c1
+		assert c1.mu != waitlevel /* @Error 410 */
+	}
+	
+	method failEqWaitlevel1(c1: Cell, c2: Cell)
+		requires c1 != null && rd(c1.mu) && waitlevel << c1.mu
+		requires c2 != null && rd(c2.mu) && waitlevel << c2.mu
+	{
+		// assert c1 != c2 // FAILS
+		// assert waitlevel << c1.mu // OK
+		// assert waitlevel << c2.mu // OK
+		acquire c1
+    // // assert c1.mu << c2.mu // FAILS
+		// // assert waitlevel << c1.mu // FAILS
+		assert waitlevel == c1.mu
+		assert waitlevel == c2.mu /* @Error 410 */
+	}
+	
+	method succeedShare1()
+		requires acc(c)
+		ensures acc(c)
+	{
+		c := new Cell
+		assert c.mu == lockbottom
+		share c
+		assert c.mu != lockbottom	
+	}
+	
+	method failShare4() {
+		var c2: Cell := new Cell
+		assert c2.mu != lockbottom /* @Error 410 */
+	}
+	
+	method failShare2(c1: Cell)
+		requires c1 != null && acc(c1.mu)
+	{ share c1 /* @Error 1142 */	}
+	
+	method failShare6(c1: Cell)
+		requires c1 != null && rd(c1.mu) && c1.mu == lockbottom
+	{ share c1 /* @Error 1130 */	}	
+	
+	method succeedShare3(c1: Cell)
+		requires c1 != null && acc(c1.mu) && c1.mu == lockbottom
+		requires acc(c1.x) && c1.x > 0
+	{ share c1 }
+	
+	method failShare5(c1: Cell)
+		requires c1 != null && acc(c1.mu) && c1.mu == lockbottom
+		requires acc(c1.x) && c1.x > 0		
+	{
+		share c1
+		assert c1.mu == lockbottom /* @Error 410 */
+	}
+	
+	method operandRewriting() {
+		var c1: Cell := new Cell
+		var c2: Cell := new Cell
+		share c1
+		share c2 above c1 			/* Interpreted as share c1 above c2.mu */
+		assert waitlevel << c1 	/* Interpreted as wl << c1.mu */
+		assert waitlevel << c1.mu
+		assert c1 << c2 				/* Interpreted as c2.mu << c1.mu */
+		assert c1 << c2.mu
+		assert c1.mu << c2
+		assert c1.mu << c2.mu
+	}
+	
+	method failShareAboveLockOrders3() {
+		var c1: Cell := new Cell
+		var c2: Cell := new Cell
+		share c1
+		share c2 above c1
+		acquire c2
+		acquire c1 /* @Error 1280 */
+	}
+	
+	method failShareBelowLockOrders2() {
+		var c1: Cell := new Cell
+		var c2: Cell := new Cell
+		share c1
+		share c2 below c1
+		assert waitlevel << c2.mu /* @Error 410 */
+	}	
+	
+	method failShareBelowLockOrders3() {
+		var c1: Cell := new Cell
+		var c2: Cell := new Cell
+		share c1
+		share c2 below c1
+		assert waitlevel << c1.mu
+		assert c2.mu << c1.mu
+		assert c2 << c1
+		acquire c1
+		acquire c2 /* @Error 1280 */
+	}
+	
+	method succeedLockOrders3() {
+		var c1: Cell := new Cell
+		var c2: Cell := new Cell
+		share c1
+		share c2 above c1
+		assert waitlevel << c1.mu && c1.mu << c2.mu
+		assert waitlevel << c2.mu
+	}	
+	
+	method succeedLockOrders1() {
+		var c1: Cell := new Cell
+		var c2: Cell := new Cell
+		var c3: Cell := new Cell
+		var c4: Cell := new Cell
+		var c5: Cell := new Cell
+		share c1
+		share c2 above c1
+		share c3 above c2
+		// // share c4 above c4 /* OK? */
+		share c4 above c3
+		share c5 between c1,c2 and c3, c4
+		assert c1.mu << c5.mu && c2.mu << c5.mu
+		assert c5.mu << c3.mu && c5.mu << c4.mu
+		// // assert c1 << c2 || c2 << c1 /* Fails */
+
+		acquire c1
+		acquire c2
+		acquire c5
+		acquire c3
+		acquire c4
+		release c1
+		release c2
+		release c3
+		release c4
+		release c5
+	}
+	
+	method succeedLockOrders4() {
+		var c1: Cell := new Cell
+		var c2: Cell := new Cell
+		share c1 above waitlevel
+		assert waitlevel << c1.mu		
+		share c2 between waitlevel and c1
+		assert waitlevel << c1.mu && c2.mu << c1.mu
+		assert waitlevel << c2.mu
+	}
+	
+	method failsLockOrders5() {
+		var c1: Cell := new Cell
+		var c2: Cell := new Cell
+		share c1
+		share c2 between c1 and c1 /* @Error 1410 */
+	}
+	
+	
+
+	// /* TODO: Sharing below waitlevel isn't yet supported by Syxc */
+	// // // method succeedLockOrders5() {
+		// // // var c1: Cell := new Cell
+		// // // var c2: Cell := new Cell
+		// // // share c1 below waitlevel
+		// // // assert c1.mu << waitlevel /* Holds in Syxc, fails in Chalice */
+		// // // share c2 between c1 and waitlevel /* Holds in Syxc, fails in Chalice */
+	// // // }
+	
+	// // // method succeedLockOrders6() {
+		// // // var c1: Cell := new Cell
+		// // // var c2: Cell := new Cell
+		// // // var c3: Cell := new Cell
+		// // // share c1 below waitlevel
+		// // // share c2 below c1
+		// // // share c3 between c2 and c1, waitlevel /* Holds in Syxc, fails in Chalice */
+	// // // }
+	
+	
+	
+	method succeedAcquire1()
+		requires acc(c) && c != null && rd(c.mu)
+		requires waitlevel << c.mu
+		// // requires waitlevel >> c.mu /* Syntax error */
+	{
+		acquire c
+		assert c.mu == waitlevel
+		// // assert c.mu <= waitlevel			/* Type error */
+		// // var t: int := waitlevel * 3	/* Type error */
+		// // assert c.mu + waitlevel < t	/* Type error */
+		release c
+	}
+	
+	method succeedAcquireLockOrder1(c1: Cell, c2: Cell)
+		requires c1 != null && rd(c1.mu) && waitlevel << c1.mu
+		requires c2 != null && rd(c2.mu) && c1.mu << c2.mu
+	{
+		assert !holds(c1)
+		assert !holds(c2)
+		acquire c1
+		acquire c2
+		release c2
+		release c1
+	}
+	
+	method failAcquireLockOrder1(c1: Cell, c2: Cell)
+		requires c1 != null && rd(c1.mu) && waitlevel << c1.mu
+		requires c2 != null && rd(c2.mu) && waitlevel << c2.mu
+	{
+		acquire c1
+		acquire c2 /* @Error 1280 */
+	}
+	
+	method failReacquireLockOrder1(c1: Cell, c2: Cell)
+		requires c1 != null && rd(c1.mu) && waitlevel << c1.mu
+		requires c2 != null && rd(c2.mu) && c1.mu << c2.mu
+	{
+		acquire c1
+		acquire c2
+		release c1
+		acquire c1 /* @Error 1280 */
+	}		
+	
+	method failRelease1(c1: Cell, c2: Cell)
+		requires c1 != null && rd(c1.mu) && waitlevel << c1.mu
+		requires c2 != null && rd(c2.mu) && c1.mu << c2.mu
+	{
+		acquire c1
+		release c2 /* @Error 1346 */
+	}
+	
+	method failRelease2(c1: Cell, c2: Cell)
+		requires c1 != null && rd(c1.mu) && waitlevel << c1.mu
+	{
+		acquire c1
+		release c1
+		release c1 /* @Error 1346 */
+	}
+	
+	method succeedReleaseAcquire1() {
+		var c1: Cell := new Cell
+		var c2: Cell := new Cell
+		share c1
+		share c2
+		acquire c1
+		release c1
+		acquire c2
+		release c2
+	}
+	
+	method succeedReleaseAcquire2() {
+		var c1: Cell := new Cell
+		var c2: Cell := new Cell
+		var c3: Cell := new Cell
+		share c1
+		share c2 above c1
+		share c3 above c1		
+		acquire c1
+		acquire c2
+		release c2
+		acquire c3
+		release c1
+		release c3
+	}
+	
+	method succeedUnshare1()
+		requires acc(c) && c != null && acc(c.mu) && c.mu == lockbottom
+	{
+		share c
+		acquire c
+		unshare c
+		assert c.mu == lockbottom
+	}
+	
+	method failUnshare1()
+		requires acc(c) && c != null && acc(c.mu) && c.mu == lockbottom
+	{
+		share c
+		unshare c /* @Error 1546 */
+	}
+	
+	method consumeAccMu(c1: Cell)
+		requires c1 != null && rd(c1.mu)
+	{}
+	
+	method failUnshare3()
+		requires acc(c) && c != null && acc(c.mu) && c.mu == lockbottom
+	{
+		share c
+		call consumeAccMu(c)
+		acquire c
+		unshare c /* @Error 1530 */
+	}
+	
+	// // // method succeedEqWaitlevel1() {
+		// // // var c1: Cell := new Cell
+		// // // c1.x := 1
+		// // // var c2: Cell := new Cell
+		// // // c2.x := 1		
+		
+		// // // /* Verify each assert on its own! */
+		// // // // assert c1.mu == lockbottom /* True */
+		// // // // assert c1.mu != lockbottom /* False */
+		// // // // assert c1.mu == waitlevel /* False */
+		// // // // assert c1.mu != waitlevel /* False */
+		
+		// // // share c1 above waitlevel
+		// // // share c2 above c1
+		// // // /* Verify each assert on its own! */
+		// // // // assert c1.mu == lockbottom /* False */
+		// // // // assert c1.mu != lockbottom /* True */
+		// // // assert c1.mu == waitlevel /* True */
+		// // // assert c2.mu == waitlevel /* True */
+		// // // assert c2.mu != c1.mu /* True */
+		// // // // assert c2.mu == c1.mu /* False */
+		// // // assert waitlevel << c1.mu /* True */
+		// // // assert c1.mu == c2.mu /* False */
+		// // // assert c1.mu << c2.mu /* True */
+		// // // // assert c1.mu != waitlevel /* False */
+		
+		// // // acquire c1
+		// // // assert c1.mu == waitlevel /* True */
+		
+		// // // acquire c2
+		// // // assert c1.mu != waitlevel /* True */
+		// // // assert c2.mu == waitlevel /* True */
+		
+		// // // /* Verify each assert on its own! */
+		// // // // assert c1.mu == lockbottom /* False */
+		// // // // assert c1.mu != lockbottom /* True */
+		// // // assert c1.mu == waitlevel /* True */
+		// // // assert c1.mu != waitlevel /* False */
+	// // // }
+}

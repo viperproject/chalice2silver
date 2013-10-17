@@ -1,0 +1,11 @@
+class Main {
+    method main(b: bool) {
+      var x: int
+
+      if (!b) {
+        assert x == 1 /* @Error 410 */
+      } else {
+        assert x == 2 // would also be Error 410, but  Silicon stops after the one above
+      }
+    }
+}

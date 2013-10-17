@@ -1,0 +1,69 @@
+// @Ignore (unknown cause, but possibly related to other issues which should be fixed first, see issue 13 of chalice2sil)
+/* Ensure that heap-dependent operations also work with boolean fields,
+ * which involves the boolToInt and intToBool wrapper terms (symb. ex.) and
+ * functions (Z3 encoding).
+ */
+class BooleanHeapChunks {
+	var b: bool
+	var x: bool
+	var y: bool
+	var z: bool
+
+	predicate B { acc(b) }
+	predicate XY { acc(x) && acc(y) }
+	predicate Z { acc(z) }
+	predicate V { XY && Z }
+
+	method reqAccVarB()
+		requires acc(b)
+		ensures acc(b)
+	{}
+
+	method reqAccPredB()
+		requires acc(B)
+		ensures acc(B)
+	{}
+
+	method foldB()
+		requires acc(b)
+		ensures B
+	{ fold B }
+
+	method unfoldB()
+		requires B
+		ensures acc(b)
+	{ unfold B }
+
+
+	method useXY()
+		requires XY
+		ensures rd(XY)
+		ensures unfolding rd(XY) in x && !y
+	{
+		unfold XY
+		x := true
+		y := false
+		fold rd(XY)
+	}
+
+	method useV()
+		requires V
+		ensures V
+		ensures unfolding V in
+			unfolding XY in
+				unfolding Z in
+					!x && y && z
+	{
+		unfold V
+		assert(XY)
+		assert(Z)
+		unfold XY
+		unfold Z
+		x := false
+		y := true
+		z := true
+		fold Z
+		fold XY
+		fold V
+	}
+}

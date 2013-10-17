@@ -1,0 +1,32 @@
+class NewRhsInits {
+	var x: int
+	var y: int
+	var n: NewRhsInits
+	
+	method succeed(a: int, b: NewRhsInits)
+		requires b != null
+	{
+		var n: NewRhsInits
+
+		n := new NewRhsInits {
+			x := a,
+			n := b
+			// , x := 0 /* The field x occurs more than once in initialize */
+			// , y := x + a /* Location might not be readable. */
+			// , n := new NewRhsInits { x := y + a } /* Syntax error */
+		}
+		
+		assert n.x == a
+		assert n.n != null
+	}
+	
+	method fail1(b: NewRhsInits) {
+		var n: NewRhsInits := new NewRhsInits { n := b }
+		assert n.n != null /* @Error 410 */
+	}
+	
+	method fail2() {
+		var n: NewRhsInits := new NewRhsInits
+		assert n.x != 0 /* @Error 410 */
+	}
+}

@@ -1,0 +1,27 @@
+class Main{
+    var f : int;
+    method work(x : int) returns (y : int)
+        requires rd(f)
+        ensures rd(f) && y == x + f
+    {
+        y := x + f;
+    }
+
+    method main()
+        requires acc(f)
+        // would like to ensures rd(f)
+    {
+        f := 3;
+        fork tk := work(5);
+        call client(tk);
+    }
+
+    method client(tk : token<Main.work>)
+        requires acc(tk.joinable) && tk.joinable
+        // would like to ensure rd(f)
+        // cannot express that tk.thisPtr == this
+    {
+        var y : int;
+        join y := tk;
+    }
+}

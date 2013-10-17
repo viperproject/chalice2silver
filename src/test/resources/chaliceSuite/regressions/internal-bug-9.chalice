@@ -1,0 +1,16 @@
+class C {
+  
+  method main()
+  {
+    var x: Ch := new Ch
+    call t(x)
+  }
+  
+  method t(x: Ch)
+    requires x != null && acc(x.mu) && credit(x, -1) && waitlevel << x
+  {
+    assert false
+  }
+}
+
+channel Ch()

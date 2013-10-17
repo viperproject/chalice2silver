@@ -1,0 +1,33 @@
+class Node
+{
+  var val: int
+  var next: Node
+  
+  predicate valid
+  {
+    acc(val) && acc(next) && (next!=null ==> next.valid)
+  }
+  
+  function length():int
+    requires valid
+    ensures 0 <= result
+  {
+    unfolding valid in (next==null ? 1 : 1+next.length())
+  }   
+  
+  // ERROR: method does not terminate
+  function t(): int
+    requires rd*(valid)
+  {
+    unfolding rd*(valid) in t()
+  }
+  
+  predicate p { p }
+  
+  // method precondition is equal to 'false', thus it is ok for the termination checks to not fail
+  function t2(): int
+    requires p
+  {
+    unfolding p in t()
+  }
+}

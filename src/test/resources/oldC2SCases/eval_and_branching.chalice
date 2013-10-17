@@ -1,0 +1,241 @@
+//@Ignore rd(predicate) not supported by silicon
+
+/* When evaluating a conditional such as e0 ==> e1 or e0 ? e1 : e2, it seems
+ * natural to proceed as done in consume/produce, that is, to branch, once
+ * assuming e0 and evaluating e1 (and executing the rest of the programming),
+ * and once assuming !e0 (and executing the rest of the programming).
+ * The evaluation of an if-then-else would be similar.
+ *//*
+ * The problem with this approach, howeever, is illustrated by the snippet
+ *   assume e0 ? e1 : e2
+ *   assert e4 ? e1 : e2
+ * where e0 ==> e4.
+ * Evaluating assume's body would branch, assuming e0 and e1, and continue the
+ * execution. Evaluating assert's body would also branch and the first branch
+ * would verify. The second branch, however, could fail 
+ */
+ 
+/* There was an incompleteness in the handling of implications.
+ * Evaluating e0 ==> e1 failed if e0 establishes a precondition which is
+ * necessary to evaluate e1, because e0 was not assumed when evaluating e1.
+ * Note: necessary to evaluate e1, not necessary for e1 to be true!
+ *//*
+ * For example, evaluating a > 1 ==> f(a) failed because the function
+ * application f(a) was evaluated in a state where a > 1 had not been assumed.
+ * The same holds for if-then-else expressions.
+ *
+ * The same incompleteness exists in VeriCool 3.3.
+ */
+ 
+class Implies {
+	var x: int
+	
+	function f(a: int): int
+		requires a > 1
+	{ -a }
+	
+	method succeeds(a: int) {
+		assert a > 5 ==> f(a) == -a
+		assert forall i: int :: i > 1 ==> f(i) < 0 
+	}
+	
+	method fails1()	{
+		assert forall i: int :: 0 <= i ==> false /* @Error 410 */
+	}
+}
+
+class Implies2 {
+	var x: int
+	
+	function f(i: int): int
+		requires rd(x)
+	{x * i}
+	
+	function g(j: int): int
+		requires rd(x)
+	{x * j}
+	
+	method test2()
+		requires acc(x)
+	{
+		assume forall i, j, k: int :: i == j ==> f(i) == g(j)
+		assert forall i, j, k: int :: i == j ==> f(i) == g(j)
+	}
+}
+
+class IfThenElse {
+	var x: int
+	
+	function f(i: int): int
+		requires rd(x)
+	{x * i}
+	
+	function g(j: int): int
+		requires rd(x)
+	{x * j}	
+	
+	method test(i: int, j: int, k: int)
+		requires acc(x)
+	{
+		assume i == j ? k == f(i) : k == g(j)
+		assert i == j ? k == f(i) : k == g(j)
+	}
+	
+	method test3()
+		requires acc(x)
+	{
+		assume forall i, j, k: int :: i == j ? f(i) == g(j) : f(i) != g(j)
+		assert forall i, j, k: int :: i == j ? f(i) == g(j) : f(i) != g(j)
+	}
+}
+
+class PseudoList {
+	var y: int
+  var value: int;
+  var next: PseudoList;
+  
+  predicate inv {
+			 acc(value)
+		&& acc(next)
+		&& next != null && next.inv
+	}
+	
+  function len():int
+    requires rd(inv);
+  { unfolding rd(inv) in (next == null) ? 1 : (1 + next.len()) }
+  
+  function get(index: int): bool
+    requires rd(inv)
+  { unfolding rd(inv) in (index == 0) ? true : next.get(index - 1) }
+	
+	/* Workarounds are not longer necessary */
+	
+	method static_range_workaround()
+		requires inv
+		ensures inv
+	{
+		assume get(0)
+		assume forall i in [1..4] :: get(i)
+		assert forall i in [0..4] :: get(i)
+	}
+	
+	method dynamic_range_fails1()
+		requires inv
+		ensures inv
+	{
+		assume forall i in [0..len()] :: get(i)
+		assert forall i in [0..len()] :: get(i)
+	}
+	
+	method dynamic_range_fails2()
+		requires inv
+		ensures inv
+	{
+		assume get(0)
+		assume forall i in [1..len()] :: get(i)
+		assert forall i in [0..len()] :: get(i)
+	}
+	
+	method dynamic_range_fails3()
+		requires inv
+		ensures inv
+	{
+		assume get(0)
+		assume forall i in [1..len()] :: get(i)
+		assert get(0)
+		assert forall i in [1..len()] :: get(i)
+	}
+}
+
+class Test4 {
+	var value: int
+	var y: int
+	
+	predicate P { acc(value) }
+	
+	function f(i: int): bool
+		requires P
+	{ unfolding P in value > i }
+	
+	function g(): int
+		requires rd(y)
+	{ y }
+
+	method merging_ranges()
+		requires P && rd(y)
+		ensures P && rd(y)
+	{
+		assume f(0)
+		assume forall i in [1..g()] :: f(i)
+		assert forall i in [0..g()] :: f(i)
+	}
+	
+	method merging_ranges2()
+		requires P && rd(y)
+		ensures P && rd(y)
+	{
+		assume f(0)
+		assume f(1)
+		assume f(2)
+		assert forall i in [0..3] :: f(i)
+		assert forall i in [0..4] :: f(i) /* @Error 410 */
+	}	
+}
+
+class Test10 {
+	var next: Test10
+	
+  predicate P { acc(next) && next != null && next.P }
+  predicate Q { true && true }
+	
+	function f(i: int): bool
+	{ f(i - 1) }
+	
+	function g(): int
+		requires P
+	{ unfolding P in (next == null) ? 1 : next.g() }
+	
+	function h(i: int): bool
+		requires Q
+	{ unfolding Q in (i < 1 ? true : s()) }
+	
+	function s(): bool
+	{ true }
+	
+	method foralls_branchings_fapps()
+		requires P && Q
+		ensures P && Q
+	{
+		// assume forall i: int :: 1 <= i ==> h(i)
+		// assume forall i: int :: 1 <= i ==> h(i)
+		// assume forall i: int :: 1 <= i ==> h(i)
+		
+		assume g() >= 1
+		// assert false
+		
+		assume forall i: int :: 1 <= i ==> h(i)
+		assert forall i: int :: 1 <= i ==> h(i)
+		// assert false
+		
+		assume forall i: int :: 1 <= i ==> f(i)
+		assert forall i: int :: 1 <= i ==> f(i)
+		
+		assume forall i: int :: 1 <= g() ==> f(i)
+		assert forall i: int :: 1 <= g() ==> f(i)
+		
+		assume forall i: int :: (1 <= i && i < g()) ==> f(i)
+		assert forall i: int :: (1 <= i && i < g()) ==> f(i)
+		
+		assume forall i in [1..g()] :: f(i)
+		assert forall i in [1..g()] :: f(i)		
+		// assert false
+		
+		/* TODO: Z3 won't terminate in a reasonable amount of time. Might be due to
+		 * nested quantifiers or just due to poor triggers.
+		 */
+		// assert forall i in [0..len()] ::
+			// i == 0 ? get(0) : (forall j in [1..len()] :: get(j))
+
+		// assert forall i in [0..len()] :: get(i) /* @Fails still :-( */
+	}
+}

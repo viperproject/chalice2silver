@@ -1,0 +1,29 @@
+// @Ignore support for monitors is insufficient, see issue 16 of chalice2sil
+class Cell {
+    var f : int;
+    invariant acc(f) && f > 0;
+}
+
+class Program {
+    method main(c : Cell, n : int)
+        requires c != null;
+        requires acc(c.mu,rd) && waitlevel << c.mu
+        requires n > 0;
+    {
+        var i : int := n;
+        while(i > 0)
+            invariant acc(c.mu,rd)
+            invariant waitlevel << c.mu
+        {
+            acquire c;
+
+            c.f := -c.f;
+            c.f := c.f - i;
+            if(c.f < 0) {
+                c.f := -c.f;
+            }
+
+            release c;
+        }
+    }
+}

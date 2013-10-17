@@ -1,0 +1,25 @@
+// @Ignore sequences are not supported, see chalice2sil issue 4
+class FunctionEnsures {
+	var xs: seq<int>
+	
+	method concat(a: int)
+		requires acc(xs)
+		ensures acc(xs)
+		ensures size() == old(size()) + 1
+		ensures |xs| == old(|xs|) + 1
+		ensures xs[size() - 1] == a
+		ensures get(size() - 1) == a
+		ensures xs[|xs| - 1] == a
+	{ xs := xs ++ [a] }	
+	
+	function size(): int
+		requires rd(xs)
+		ensures result == |xs|
+	{ |xs| }
+	
+	function get(i: int): int
+		requires rd(xs)
+		requires i >= 0
+		requires i < |xs|
+	{ xs[i] }
+}

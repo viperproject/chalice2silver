@@ -1,0 +1,10 @@
+class C {
+  
+  method main()
+  {
+    var c: C := new C
+    share c below lockbottom // does not make sense, there is nothing below lockbottom
+    assert false // should not be provable
+  }
+}
+

@@ -1,0 +1,23 @@
+class Abs {
+	method failAbsOnePathEnsures(x: int) returns (r: int)
+		ensures r >= 0 /* -Error 310 */
+	{
+		if (x < 0) {
+			r := x
+		} else {
+			r := x
+		}
+
+		assert (r >= 0) /* @Error 410 */
+	}
+	
+	method failAbsOnePathAssert(x: int) returns (r: int) {
+		if (x < 0) {
+			r := x
+		} else {
+			r := x
+		}
+		
+		assert(r >= 0) /* @Error 410 */
+	}
+}

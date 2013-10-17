@@ -1,0 +1,51 @@
+
+class Indentation {
+    var count : int;
+
+    predicate valid
+    { acc(count) && 0 <= count }
+
+    function getCount() : int
+        requires valid;
+    { unfolding valid in count }
+
+    method increaseOld(amount : int)
+            requires valid && 0 <= amount;
+            ensures valid;
+            ensures 0 <= old(getCount());
+    {
+        unfold valid;
+        count := count + amount;
+        fold valid;
+    }
+
+    method increaseNew(amount : int)
+            requires valid && 0 <= amount;
+            ensures valid;
+            ensures 0 <= getCount();
+    {
+        unfold valid;
+        count := count + amount;
+        fold valid;
+    }
+
+    method increaseNewOld(amount : int)
+            requires valid && 0 <= amount;
+            ensures valid;
+            ensures 0 <= getCount() && 0 <= old(getCount());
+    {
+        unfold valid;
+        count := count + amount;
+        fold valid;
+    }
+
+    method increase(amount : int)
+        requires valid && 0 <= amount;
+        ensures valid;
+        ensures old(getCount()) <= getCount(); // @IgnoreError 310: Currently not supported by Silicon, see issue #7.
+    {
+        unfold valid;
+        count := count + amount;
+        fold valid;
+    }
+}

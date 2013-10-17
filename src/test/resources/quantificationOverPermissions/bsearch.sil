@@ -1,0 +1,62 @@
+domain GlobalKPermission {
+  
+  unique function globalK$(): Perm
+  
+  axiom globalKReadOnly {
+    (globalK$() > none) && (write > globalK$())
+  }
+}
+
+var par$Staticcontains$this$: Ref
+
+var par$Staticcontains$collection: Seq[Ref]
+
+var old$methodKey: Int
+
+var Cellvalue$: Int
+
+var par$Staticcontains$k$: Perm
+
+var par$Staticcontains$value: Int
+
+var old$methodPermission: Perm
+
+predicate Static$MonitorInvariant(this$: Ref) {
+  true
+}
+
+predicate Cell$MonitorInvariant(this$: Ref) {
+  true
+}
+
+method Staticcontains$(this$: Ref, k$: Perm, collection: Seq[Ref], value: Int) returns (found: Bool)
+  requires this$ != null
+  requires k$ > none
+  requires write > k$
+  requires |collection| >= 1
+  requires (forall c: Ref :: true && c in collection ==> acc(c.Cellvalue$, k$))
+  requires (forall i: Int :: true ==> (0 <= i) && (i < |collection| - 1) ==> (collection[i].Cellvalue$ <= collection[i + 1].Cellvalue$))
+  ensures (forall c: Ref :: true && c in collection ==> acc(c.Cellvalue$, k$))
+  ensures found == (exists c: Ref :: true && c in collection && (c.Cellvalue$ == value))
+{
+  var l: Int
+  var h: Int
+  var m: Int
+  l := 0
+  h := |collection|
+  while ((h - l > 1) && (collection[l].Cellvalue$ < value))
+    invariant (forall c: Ref :: true && c in collection ==> acc(c.Cellvalue$, k$))
+    invariant (0 <= l) && (l <= h) && (h <= |collection|)
+    invariant (collection[l].Cellvalue$ < value) ==> (forall i: Int :: true ==> (0 <= i) && (i < l) ==> (collection[i].Cellvalue$ < value))
+    invariant (forall i: Int :: true ==> (h <= i) && (i < |collection|) ==> (collection[i].Cellvalue$ > value)) 
+  {
+    m := l + (h - l) \ 2
+    if (collection[m].Cellvalue$ > value) {
+      h := m
+    }
+    if (collection[m].Cellvalue$ <= value) {
+      l := m
+    }
+  }
+  found := (h > l) && (collection[l].Cellvalue$ == value)
+}

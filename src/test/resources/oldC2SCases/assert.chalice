@@ -1,0 +1,57 @@
+class Assert {
+	method boolean() {
+		assert(true == true)
+	}
+
+	method mod(x: int)	returns (r: int)
+		ensures r % 2 == 1
+	{
+		var y: int := 2 * x		
+		assert(y % 2 == 0)		
+		r := y + 1
+	}
+	
+	method conditional(x: int, y: int) returns (r: int)
+		ensures r % 2 == 1
+	{
+		if (x == y) {
+			r := x + y
+			assert(x - r == -y)
+		} else {
+			r := 2 * y
+			assert(x != y)
+		}
+		
+		assert(r % 2 == 0)
+		
+		r := r + 1
+	}
+	
+	method failBoolean() {
+		assert(true == false) /* @Error 410 */
+	}
+	
+	method failMod(x: int)	returns (r: int)
+		ensures r % 2 == 1
+	{
+		var y: int := 3 * x		
+		assert(y % 2 == 0) /* @Error 410 */
+		r := y + 1
+	}
+	
+	method failConditional(x: int, y: int) returns (r: int)
+		ensures r % 2 == 1
+	{
+		if (x == y) {
+			r := x + y
+			assert(x - r == -y)
+		} else {
+			r := 2 * y
+			assert(x == y) /* @Error 410 */
+		}
+		
+		assert(r % 2 == 0)
+		
+		r := r + 1
+	}
+}
