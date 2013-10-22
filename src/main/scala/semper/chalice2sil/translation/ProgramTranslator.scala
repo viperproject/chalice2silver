@@ -127,11 +127,14 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case m:chalice.Method =>
         val ths = nameGenerator.createIdentifier("this$")
         val k = nameGenerator.createIdentifier("k$")
+        val n = nameGenerator.createIdentifier("n$")
+          // this local variable is used always as a temporary variable for storing newly created objects
         val myThis = LocalVarDecl(ths, Ref)()
         val myK = LocalVarDecl(k, Perm)()
+        val myN = LocalVarDecl(n, Ref)()
         val ins = myThis :: myK :: translateVars(m.ins)
         val newMethod = Method(nameGenerator.createIdentifier(m.FullName+"$"), ins, translateVars(m.outs),
-          null, null, null, null)(SourcePosition(null, m.pos.line, m.pos.column))
+          null, null, Seq(myN), null)(SourcePosition(null, m.pos.line, m.pos.column))
           // a method in SIL has a reference parameter that refers to the receiver and a permission parameter that
           // refers to all unspecified read permissions in its precondition
           // the body and the specs are to be filled in later
@@ -337,10 +340,13 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       // old expression
       case chalice.Old(inner) => Old(translateExp(inner, myThis, pTrans))(position)
 
-      // chalice2sil ignores all deadlock prevention specs in the present version
+      // chalice2sil ignores all deadlock prevention specs in the present version todo: implement deadlock avoidance
       case chalice.LockBelow(_,_) =>  TrueLit()(position)
       case chalice.Eq(chalice.MaxLockLiteral(),_) => TrueLit()(position)
       case chalice.Eq(_,chalice.MaxLockLiteral()) => TrueLit()(position)
+
+      // predicate 'holds' is ignored, because it is deprecated todo: implement new obligations model
+      case chalice.Holds(_) | chalice.RdHolds(_) => TrueLit()(position)
 
       // logical operators
       case chalice.And(lhs, rhs) =>
@@ -350,7 +356,10 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case chalice.Implies(lhs, rhs) =>
         Implies(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
       case chalice.Eq(lhs, rhs) =>
-        EqCmp(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
+        val silLhs = translateExp(lhs, myThis, pTrans)
+        val silRhs = translateExp(rhs, myThis, pTrans)
+        if(silLhs == null || silRhs == null) TrueLit()(position) else EqCmp(silLhs, silRhs)(position)
+          // this check avoids mu-comparisons todo: support deadlock avoidance
       case chalice.Neq(lhs, rhs) =>
         NeCmp(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
       case chalice.Not(op) => Not(translateExp(op, myThis, pTrans))(position)
@@ -438,6 +447,9 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       // member access
       case _: chalice.ThisExpr => myThis.localVar
       case ma@chalice.MemberAccess(e, id) =>
+        // special field "mu" is ignored.  todo: support deadlock prevention
+        if(id == "mu") return null
+
         // translate the receiver expression
         val silexp = translateExp(e, myThis, pTrans)
 
@@ -464,9 +476,13 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case chalice.Access(ma, perm) =>
         val silma = translateExp(ma, myThis, pTrans, true)
           // note that the content of the acc expression is translated under condition accessMemberSubexpression
+        if(silma == null) return TrueLit()(position)
+          // in this case we are accessing special field "mu" todo: support deadlock prevention
+
         val silpe = pTrans(perm, myThis)
         if (ma.isPredicate) PredicateAccessPredicate(silma.asInstanceOf[PredicateAccess], silpe)(position)
         else FieldAccessPredicate(silma.asInstanceOf[FieldAccess], silpe)(position)
+
       case chalice.BackPointerAccess(ma, perm) =>
         val silma = translateExp(ma, myThis, pTrans)
         val silpe = pTrans(perm, myThis)
@@ -618,9 +634,6 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     val sThis = sMethod.formalArgs(0)
     val pTrans = new MethodPermissionTranslator(sMethod.formalArgs(1))
 
-    // start with no local variables -- the solution uses immutable sequences and perhaps is not the most efficient
-    sMethod.locals = Seq()
-
     // translate all statements in the Chalice body and assign the result to the SIL method body
     sMethod.body = Seqn(cMethod.body.map(translateStm(_, sThis, pTrans, sMethod)))()
   }
@@ -654,17 +667,21 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
           translateStm(body, myThis, pTrans, silMethod)
         )(position)
 
-      // assignments, field updates, local variables, creation of new objects
-        // todo: fix known bug: 'new' expressions are not supported
-      case chalice.Assign(v@chalice.VariableExpr(name), rhs) =>
+      // assignments
+      case chalice.Assign(v@chalice.VariableExpr(name), rhs) if rhs.isInstanceOf[chalice.Expression] =>
         LocalVarAssign(LocalVar(name)(translateType(rhs.typ)),
           translateExp(rhs.asInstanceOf[chalice.Expression], myThis, pTrans))(position)
-      case chalice.FieldUpdate(ma, rhs) =>
+      case chalice.FieldUpdate(ma, rhs) if rhs.isInstanceOf[chalice.Expression] =>
         val silma = translateExp(ma, myThis, pTrans)
-        if (!silma.isInstanceOf[FieldAccess]) { messages += TypeError(); null }
-        else FieldAssign(silma.asInstanceOf[FieldAccess],
-          translateExp(rhs.asInstanceOf[chalice.Expression], myThis, pTrans))()
-      case chalice.LocalVar(v, rhs) if rhs.isInstanceOf[Option[chalice.Expression]] =>
+        FieldAssign(silma.asInstanceOf[FieldAccess],
+          translateExp(rhs.asInstanceOf[chalice.Expression], myThis, pTrans))(position)
+      case chalice.LocalVar(v, rhs) if (rhs match {
+          // the purpose of this ugly check is to ensure that the rhs is not a "new" expression
+          // this patch is a workaround through erasure
+          case None => true
+          case Some(e) => try { e.asInstanceOf[chalice.Expression]; true } catch { case _ => false }
+        })
+          =>
         val silType = translateType(v.t)
         silMethod.locals = silMethod.locals :+ LocalVarDecl(v.id, silType)(position)
         rhs match {
@@ -674,7 +691,25 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
               position
             )
         }
-      case chalice.LocalVar(v, newO) => null // todo
+
+      // creation of new objects
+      case chalice.Assign(v@chalice.VariableExpr(name), _) =>
+        val newVariable = silMethod.locals(0)
+        Seqn(Seq(
+          Util.newObject(newVariable.localVar, position),
+          LocalVarAssign(LocalVar(name)(Ref), newVariable.localVar)(position)
+        ))(position)
+      case chalice.FieldUpdate(ma, _) =>
+        val newVariable = silMethod.locals(0)
+        val silma = translateExp(ma, myThis, pTrans)
+        Seqn(Seq(
+          Util.newObject(newVariable.localVar, position),
+          FieldAssign(silma.asInstanceOf[FieldAccess], newVariable.localVar)(position)
+        ))(position)
+      case chalice.LocalVar(v, _) =>
+        val newVariable = LocalVarDecl(v.id, Ref)(position)
+        silMethod.locals = silMethod.locals :+ newVariable
+        Util.newObject(newVariable.localVar, position)
 
       // call
       case chalice.Call(_, lhs, target, methodName, args) =>
@@ -701,15 +736,15 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
 
       // locks
         // todo: mu ordering and deadlock avoidance not supported yet
-        // there is no way to assert if an object is shared/held or not
+        // there is no way to assert if an object is shared/held or not; todo: implement new obligations model
 
       // mu reordering
-      case chalice.Install(_, _, _) => messages += TypeError() ; null
-        // todo: correct reporting / no exception thrown (and decide whether this will be supported or not)
+      case chalice.Install(_, _, _) => messages += TypeError() ; Seqn(Seq())(position)
+        // todo: decide whether this will be supported or not
 
       // sharing
       case chalice.Share(obj, _, _) =>
-        // todo: assert that the object is not already shared
+        // todo: assert that the object is not already shared (implement new obligations model)
 
         // exhale the monitor invariant
            Console.out.println("sharing " + obj.toString + " of class " + obj.typ);
@@ -1017,6 +1052,11 @@ object Util {
     if(cClass.parameters != null) tParams = cClass.parameters map convertToType
     new chalice.Type(cClass.classId, tParams)
   }
+
+  // generates a SIL 'new' statement
+  def newObject(n: LocalVar, p: Position) = NewStmt(n)(p)
+    // note that this code will have to change at least when backpointers are supported
+    // also if NewStmt changes in SIL AST
 }
 
 class JoinableInfo(val method: Method, val methodKey: Integer, val silFields: mutable.Map[String, Field]) {
