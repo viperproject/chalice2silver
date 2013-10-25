@@ -1,0 +1,91 @@
+class Cell { var value: int }
+
+class ArrayOfInt { var array: seq<Cell> }
+
+class ParMethods
+{
+  function contains(a: ArrayOfInt, start: int, end: int, item: int) : boolean
+    requires a != null && rd*(a.array) && 0 <= start && start <= end && end < |a.array|
+	requires (forall i: int :: start <= i && i < end ==> rd(a.array[i].value))
+  {
+    start != end && (a.array[start].value == item || contains(a, start+1, end, item))
+  }
+
+  method parallel_mergesort(a: ArrayOfInt, start: int, end: int)
+    requires a != null && rd*(a.array) && (forall i, j: int :: 0 <= i && i<j && j < |a.array| ==> a[i] != a[j])
+	requires 0 <= start && start <= end && end < |a.array|
+	requires (forall i: int :: start <= i && i < end ==> acc(a.array[i].value)) && (forall i, j: int :: start <= i && i<j && j < end ==> a[i].value != a[j].value)
+	ensures (forall i: int :: start <= i && i < end ==> acc(a.array[i].value))
+	ensures (forall i, j: int :: start <= i && i<j && j < end ==> a[i].value < a[j].value)
+	ensures (forall x: int :: found(a, start, end, x) == old(found(a, start, end, x))
+  {
+    var middle: int
+	if(end-start > 1)
+	{
+	  middle := start + (end-start)/2
+	  fork tLeft := parallel_mergesort(a, start, middle)
+	  fork tRight := parallel_mergesort(a, middle, end)
+	  join tLeft
+	  join tRight
+	  call merge(a, start, middle, end)
+	}
+  }
+  
+  method merge(a: ArrayOfInt, start, middle, end)
+    requires a != null && rd*(a.array) && (forall i, j: int :: 0 <= i && i<j && j < |a.array| ==> a[i] != a[j])
+	requires 0 <= start && start < middle && middle < end && end < |a.array|
+	requires (forall i: int :: start <= i && i < end ==> acc(a.array[i].value))
+	requires (forall i, j: int :: start <= i && i<j && j < middle ==> a[i].value < a[j].value)
+	requires (forall i, j: int :: middle <= i && i<j && j < end ==> a[i].value < a[j].value)
+	ensures (forall i, j: int :: start <= i && i<j && j < end ==> a[i].value < a[j].value)
+	ensures (forall x: int :: found(a, start, end, x) == old(found(a, start, end, x))
+  {
+    var I := start
+	var J := middle
+	var h: int
+	
+	while(I < middle && J < end)
+	  invariant start<=I && I<=middle && middle<=J && J<=end
+	  invariant rd*(a.array) && (forall i: int :: start<=i && i<end ==> acc(a.array[i].value))
+	  invariant (forall i, j: int :: start<=i && i<j && j<middle ==> a[i].value<a[j].value)
+	  invariant (forall i, j: int :: middle<=i && i<j && j<J ==> a[i].value<a[j].value)
+	  invariant (forall i, j: int :: J<=i && i<j && j<end ==> a[i].value<a[j].value)
+	  invariant (forall i, j: int :: start<=i && i<I && middle<=j && j<J ==> a[i].value<a[j].value)
+	  invariant (forall x: int :: found(a, start, end, x) == old(found(a, start, end, x))   // not sure exactly how to prove this
+	{
+	  if(a.array[I].value < a.array[J].value) I:=I+1
+	  else
+	  {
+	    h := a.array[J].value
+		a.array[J].value := a.array[I].value
+		a.array[I].value := h
+		J:=J+1
+	  }
+	}
+  }
+  
+  method parallel_max(a: ArrayOfInt, start: int, end: int) returns (max: int)
+    requires a != null && rd*(a.array) && (forall i, j: int :: 0 <= i && i<j && j < |a.array| ==> a[i] != a[j])
+	requires 0 <= start && start <= end && end < |a.array|
+	requires (forall i: int :: start <= i && i < end ==> rd(a.array[i].value))
+	requires |a.array| >= 1
+	ensures rd*(a.array) && (forall i: int :: start <= i && i < end ==> rd(a.array[i].value))
+	ensures contains(a, start, end, max)
+	ensures (forall i: int :: start<=i && i<end ==> a.array[i].value<=max)
+  {
+    var middle: int
+	var ml: int
+	var mr: int
+	
+	if(end-start > 1)
+	{
+	  middle := start + (end-start)/2
+	  fork tLeft := parallel_max(a, start, middle)
+	  fork tRight := parallel_max(a, middle, end)
+	  join ml := tLeft
+	  join mr := tRight
+	  max := ml>mr ? ml : mr
+	}
+	else max := a.array[start]
+  }
+}

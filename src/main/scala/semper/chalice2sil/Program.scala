@@ -1,6 +1,5 @@
 package semper.chalice2sil
 
-import messages.Severity._
 import scopt._
 import chalice.{Chalice, PrintProgram}
 import translation.ProgramTranslator
@@ -55,7 +54,7 @@ object Program {
   }
 
   def translateToSil(opts: ProgramOptions, program: Seq[chalice.TopLevelDecl]):
-      (semper.sil.ast.Program, Seq[semper.chalice2sil.Message]) = {
+      (semper.sil.ast.Program, Seq[semper.chalice2sil.messages.ReportMessage]) = {
     val translator = createTranslator(opts, program)
     translator.translate(program)
   }
@@ -94,18 +93,7 @@ object Program {
     }
 
     Console.out.println(silProgram)
-
-    val warningCount = messages.count(_.severity == Warning)
-    val errorCount = messages.count(_.severity.indicatesFailure)
-    if (errorCount > 0)
-      Console.err.println("[Failure] Chalice2SIL detected %s and %s.".format(
-        pluralize("error", errorCount),
-        pluralize("warning", warningCount)
-      ))
-    else
-      Console.err.println("[Success] Chalice2SIL detected %s.".format(
-        pluralize("warning", warningCount)
-      ))
-    messages.foreach(m => Console.out.println(m))
+    messages.foreach(m => Console.err.println("[Chalice2SIL] " + m))
+    Console.err.println("Chalice2SIL produced %s.".format(pluralize("message", messages.length)))
   }
 }

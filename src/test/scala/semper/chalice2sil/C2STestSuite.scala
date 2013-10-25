@@ -1,5 +1,6 @@
 package semper.chalice2sil
 
+import messages.ReportMessage
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
 import java.nio.file._
@@ -30,19 +31,31 @@ class C2STestSuite extends FunSuite with ShouldMatchers {
     ds foreach { p => testFile(p) }
   }
 
-  def testFile(p:Path) {
+  def testFile(p: Path) {
     val chaliceFileName = p.toString
+    var s: Scanner = null
+    val fileName = chaliceFileName.substring(0, chaliceFileName.lastIndexOf('.'))
 
-    var s:Scanner = null
     val silFileContents = try {
-      val silFileName = chaliceFileName.substring(0, chaliceFileName.lastIndexOf('.')) + ".sil"
-      s = new Scanner(new File(silFileName))
+      val f = fileName + ".sil"
+      s = new Scanner(new File(f))
       s.useDelimiter("\\Z").next
     } catch {
        case e =>
          println("Cannot open expected SIL output for " + chaliceFileName)
          println("  " + e)
          return
+    } finally { if(s!=null) s.close() }
+
+    val expectedWarnings = try {
+      val f = fileName + ".report"
+      s = new Scanner(new File(f))
+      s.useDelimiter("\\Z").next
+    } catch {
+       case e =>
+        println("Cannot open expected warnings for " + chaliceFileName)
+        println("  " + e)
+        return
     } finally { if(s!=null) s.close() }
 
     val chaliceProgram = try {
@@ -68,12 +81,9 @@ class C2STestSuite extends FunSuite with ShouldMatchers {
          return
     }
 
-    if(!messages.isEmpty) {
-      println("Translation for " + chaliceFileName + " generated warnings")
-      messages.foreach(m => println("   " + m))
-      return
+    test(chaliceFileName) { assert(silFileContents === silProgram.toString) }
+    test(chaliceFileName + " warnings") {
+      assert(expectedWarnings === messages.fold("", ((x: String, y: ReportMessage) => x + "\n" + y.toString)))
     }
-
-     test(chaliceFileName) { assert(silFileContents === silProgram.toString) }
   }
 }

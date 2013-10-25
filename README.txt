@@ -91,7 +91,7 @@ supported and/or adequately tested.
     where:
       - silProgram: semper.sil.ast.Program
           is the resulting SIL program in AST form
-      - messages: Seq[semper.chalice2sil.Message]
+      - messages: Seq[semper.chalice2sil.ReportMessage]
           is a sequence of warnings and errors produced during the translation
           process
       - programOptions: semper.chalice2sil.ProgramOptions
