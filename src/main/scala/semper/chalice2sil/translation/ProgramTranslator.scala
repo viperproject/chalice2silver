@@ -345,11 +345,13 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         Or(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
       case chalice.Implies(lhs, rhs) =>
         Implies(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
+      case chalice.Iff(lhs, rhs) =>
+        EqCmp(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
       case chalice.Eq(lhs, rhs) =>
         val silLhs = translateExp(lhs, myThis, pTrans)
         val silRhs = translateExp(rhs, myThis, pTrans)
-        // this check avoids mu-comparisons
-      if(silLhs == null || silRhs == null) { messages += DeadlockAvoidance(position) ; TrueLit()(position) }
+        // the following check avoids mu-comparisons
+        if(silLhs == null || silRhs == null) { messages += DeadlockAvoidance(position) ; TrueLit()(position) }
         else EqCmp(silLhs, silRhs)(position)
       case chalice.Neq(lhs, rhs) =>
         NeCmp(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
@@ -358,6 +360,8 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         CondExp(
           translateExp(cond, myThis, pTrans), translateExp(thn, myThis, pTrans), translateExp(els, myThis, pTrans)
         )(position)
+      case chalice.Neq(lhs, rhs) =>
+        NeCmp(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
 
       // arithmetic operators and set union, difference, intersection
       case chalice.Plus(lhs, rhs) =>
@@ -379,12 +383,6 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
         Div(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position) // integer division
       case chalice.Mod(lhs, rhs) =>
         Mod(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position) // integer modulo
-
-      // equality and inequality
-      case chalice.Eq(lhs, rhs) =>
-        EqCmp(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
-      case chalice.Neq(lhs, rhs) =>
-        NeCmp(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
 
       // arithmetic and set comparison operators
       case chalice.Less(lhs, rhs) =>
@@ -788,14 +786,14 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
       case chalice.Fold(access) =>
         Fold(
           PredicateAccessPredicate(
-            translateExp(access.ma, myThis, pTrans).asInstanceOf[PredicateAccess],
+            translateExp(access.ma, myThis, pTrans, true).asInstanceOf[PredicateAccess],
             translateExp(access.perm, myThis, pTrans).asInstanceOf[PermExp]
           )(position)
         )(position)
       case chalice.Unfold(access) =>
         Unfold(
           PredicateAccessPredicate(
-            translateExp(access.ma, myThis, pTrans).asInstanceOf[PredicateAccess],
+            translateExp(access.ma, myThis, pTrans, true).asInstanceOf[PredicateAccess],
             translateExp(access.perm, myThis, pTrans).asInstanceOf[PermExp]
           )(position)
         )(position)
@@ -863,50 +861,54 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
         // find corresponding joinable object
         val thisJoinableInfo = joinableInfo(joinableInfo.map(_.method).indexOf(forkedSilMethod))
 
-        // find or create local variable that corresponds to the join token
-        val tokenVar = silMethod.locals.find((lvd) => lvd.name == lhs.id).getOrElse {
-          val newTokenVar = LocalVarDecl(lhs.id, Ref)(position)
-          silMethod.locals = silMethod.locals ++ Seq(newTokenVar)
-          newTokenVar
-        }
+        val joinTokenAssignments =
+          if(lhs != null) {
+            // find or create local variable that corresponds to the join token
+            val tokenVar =
+              silMethod.locals.find((lvd) => lvd.name == lhs.id).getOrElse {
+              val newTokenVar = LocalVarDecl(lhs.id, Ref)(position)
+              silMethod.locals = silMethod.locals ++ Seq(newTokenVar)
+              newTokenVar
+            }
 
-        // assign to token the key of the forked method
-        val assignToken =
-          FieldAssign(
-            FieldAccess(tokenVar.localVar, Field("old$methodKey", Int)())(position),
-            IntLit(BigInt(thisJoinableInfo.methodKey))(position)
-          )(position)
+            // assign to token the key of the forked method
+            val assignToken =
+              FieldAssign(
+                FieldAccess(tokenVar.localVar, Field("old$methodKey", Int)())(position),
+                IntLit(BigInt(thisJoinableInfo.methodKey))(position)
+              )(position)
 
-        // assign to token the fresh local permission
-        val assignPermission =
-          FieldAssign(
-            FieldAccess(tokenVar.localVar, Field("old$methodPermission", Perm)())(position), newK.localVar
-          )(position)
+            // assign to token the fresh local permission
+            val assignPermission =
+              FieldAssign(
+                FieldAccess(tokenVar.localVar, Field("old$methodPermission", Perm)())(position), newK.localVar
+              )(position)
 
-        // calculate all old expressions and assign them to the fields of the token
-        val oldAssignments = for(i <- 0 until thisJoinableInfo.oldExpressions.length)
-          yield FieldAssign(
-            FieldAccess(tokenVar.localVar, thisJoinableInfo.oldFields(i))(position),
-            thisJoinableInfo.oldExpressions(i).
-              transform()(post = { case n@LocalVar(id) => actualParameters.getOrElse(id, n) })
-          )(position)
+            // calculate all old expressions and assign them to the fields of the token
+            val oldAssignments = for(i <- 0 until thisJoinableInfo.oldExpressions.length)
+            yield FieldAssign(
+                FieldAccess(tokenVar.localVar, thisJoinableInfo.oldFields(i))(position),
+                thisJoinableInfo.oldExpressions(i).
+                  transform()(post = { case n@LocalVar(id) => actualParameters.getOrElse(id, n) })
+              )(position)
 
-        // assign to parameter fields the current values of the input parameters
-        val parAssignments = for(i <- 0 until thisJoinableInfo.parameterFields.length) yield
-          FieldAssign(
-            FieldAccess(tokenVar.localVar, thisJoinableInfo.parameterFields(i))(position),
-            actualParameters(forkedSilMethod.formalArgs(i).name)
-          )(position)
+            // assign to parameter fields the current values of the input parameters
+            val parAssignments = for(i <- 0 until thisJoinableInfo.parameterFields.length) yield
+              FieldAssign(
+                FieldAccess(tokenVar.localVar, thisJoinableInfo.parameterFields(i))(position),
+                actualParameters(forkedSilMethod.formalArgs(i).name)
+              )(position)
+
+            // put all join-token-related assignments together
+            Seq(assignToken, assignPermission) ++ oldAssignments ++ parAssignments
+          }
+          else Seq()
 
         // exhale the precondition
         val exhalePrecondition = Exhale(preconditionToExhale)(position)
 
         // put everything inside a fresh permission block
-        FreshReadPerm(Seq(newK.localVar),
-          Seqn(
-            Seq(assignToken, assignPermission) ++ oldAssignments ++ parAssignments ++ Seq(exhalePrecondition)
-          )(position)
-        )(position)
+        FreshReadPerm(Seq(newK.localVar), Seqn(joinTokenAssignments ++ Seq(exhalePrecondition))(position))(position)
 
       // joining
       case chalice.JoinAsync(lhs, token) =>
