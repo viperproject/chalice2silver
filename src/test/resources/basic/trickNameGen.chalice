@@ -1,0 +1,5 @@
+class g { var lobalK: int }
+
+class C { var xy: int }
+
+class Cx { var y: int }

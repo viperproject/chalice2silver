@@ -1,0 +1,6 @@
+class D
+{
+  var x: int
+  
+  predicate { acc(x.x) }
+}

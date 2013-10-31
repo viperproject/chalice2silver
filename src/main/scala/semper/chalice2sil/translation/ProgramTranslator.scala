@@ -1,3 +1,7 @@
+/**
+ * Author: Yannis Kassios (based on an older version by Christian Klauser)
+ */
+
 package semper.chalice2sil.translation
 
 import semper.sil.ast._
@@ -6,15 +10,16 @@ import mutable.Map
 import semper.chalice2sil.messages._
 import scala.Some
 
-/**
- * Author: Yannis Kassios (based on an older version by Christian Klauser)
- */
-
-// todo: epsilon permissions, self-framing, resolve compiler warnings, fix Chalice set quantification syntax
-  // (use in instead of :)
+// todo: epsilon permissions, resolve compiler warnings, fix Chalice set quantification syntax (use in instead of :)
 // todo: Chalice bug: expression {this} throws matching expression!
+// todo: fix horrible join implementation!
+// todo: positions do not contain the file name in the reports: fix!
+// todo: fix name generator at ast library
 
-class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, val programName: String)
+// **
+// This is were the magic happens
+// **
+class ProgramTranslator(val programName: String)
 {
   // messages generated in the translation
   val messages = scala.collection.mutable.ListBuffer[ReportMessage]()
@@ -28,6 +33,9 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
 
   // maps Chalice members (fields, methods, function, predicates) to corresponding SIL members
   val symbolMap = new scala.collection.mutable.HashMap[chalice.ASTNode, Node]()
+    // note: symbolMap does not make the collections in silEnvironment obsolete!  The SIL program has extra symbols
+    // silEnvironment does not make symbolMap obsolete either.  symbolMap maps Chalice entities to SIL entities directly
+      // the name of the SIL entity cannot be inferred from the name of the Chalice entity
 
   // a sequence of JoinableInfo objects, one per SIL method.  These objects contain information on the specifications
     // of each method, to be used for forking/joing
@@ -59,10 +67,10 @@ class ProgramTranslator(val programOptions: semper.chalice2sil.ProgramOptions, v
     decls.foreach(translate)
 
     // translate the bodies of all methods
-    symbolMap.foreach(p => (p _1) match {
-      case c: chalice.Method => translateBody(c, (p _2).asInstanceOf[Method])
+    symbolMap.foreach{
+      case (chm@chalice.Method(_,_,_,_,_), silm@Method(_,_,_,_,_,_,_)) => translateBody(chm, silm)
       case _ =>
-    })
+    }
 
     // return the final SIL program together with the list of error/warnings produced
     (Program(Seq(GlobalKPermissionDomain), silEnvironment.silFields.values.toSeq,

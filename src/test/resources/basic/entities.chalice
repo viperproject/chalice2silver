@@ -1,0 +1,8 @@
+class C
+{
+  var x: C
+  function f(x:int) : int { x + 1 }
+  predicate p { rd(x) }
+  var y: int
+  method m(a: int) returns(b: C, c: C) { b:= new C; c:= new C }
+}

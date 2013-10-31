@@ -1,0 +1,11 @@
+class A
+{
+  tracked ghost var p: A
+  var q: A
+  var r: set<A>
+  var s: int
+  
+  method m()
+    requires q.~(A.p) == r && s==34
+  {}
+}
