@@ -309,6 +309,7 @@ class ProgramTranslator(val programName: String)
       _ match {
         case chalice.Precondition(e) => silPreconditions += translateExp(e, sThis, permTranslator)
         case chalice.Postcondition(e) => silPostConditions += translateExp(e, sThis, permTranslator)
+        case chalice.LockChange(_) => messages += OldLockModel()
       }
     }
     sMethod.pres = silPreconditions.toSeq
@@ -567,7 +568,16 @@ class ProgramTranslator(val programName: String)
         Unfolding(silpa.asInstanceOf[PredicateAccessPredicate], silbody)(position)
 
       // eval is not supported
-      case e: chalice.Eval => messages += Eval(position) ; null
+      case e: chalice.Eval => messages += Eval(position) ; TrueLit()(position)
+        // todo: the above code assumes that the eval expression is always of type bool. check if this is the case
+
+      // function application
+      case fa@chalice.FunctionApplication(receiver, funName, args) =>
+        val chaliceFunction = receiver.typ.LookupMember(funName).get
+        val silFunction = symbolMap(chaliceFunction).asInstanceOf[Function]
+        val silReceiver = translateExp(receiver, myThis, pTrans)
+        val silArgs = args.map(translateExp(_, myThis, pTrans))
+        FuncApp(silFunction, silReceiver :: silArgs)(position)
 
       // quantification and aggregation
       case e: chalice.Quantification =>
