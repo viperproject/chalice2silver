@@ -55,6 +55,10 @@ class ProgramTranslator(val programName: String)
   )()
   val GlobalKPermissionDomain = Domain("GlobalKPermission", Seq(globalK), Seq(axiomKReadOnly))()
 
+  // this variable holds the sil object which is being currently created
+    // currently used only for function postconditions
+  var workingOn: Node = null
+
   // **
   // takes a Chalice program as a sequence of Chalice top level declarations
   // produces a SIL program and a sequence of error/warnings
@@ -106,7 +110,7 @@ class ProgramTranslator(val programName: String)
     classNode.members.view foreach {
       // field
       case f:chalice.Field =>
-        val newField = Field(nameGenerator.createIdentifier(f.FullName+"$"), translateType(f.typ))(
+        val newField = Field(nameGenerator.createIdentifier(f.FullName+"$"), Util.translateType(f.typ))(
           SourcePosition(null, f.pos.line, f.pos.column)
         )
         symbolMap(f) = newField
@@ -147,7 +151,7 @@ class ProgramTranslator(val programName: String)
         val ths = nameGenerator.createIdentifier("this$")
         val myThis = LocalVarDecl(ths, Ref)()
         val ins = myThis :: translateVars(f.ins)
-        val newFunction = Function(nameGenerator.createIdentifier(f.FullName+"$"), ins, translateType(f.out),
+        val newFunction = Function(nameGenerator.createIdentifier(f.FullName+"$"), ins, Util.translateType(f.out),
           null, null, null)(SourcePosition(null, f.pos.line, f.pos.column))
           // a function has a reference parameter that refers to the receiver
           // the body and the precondition are to be filled later
@@ -201,34 +205,13 @@ class ProgramTranslator(val programName: String)
   }
 
   // **
-  // translates a Chalice class into a SIL type
-  // **
-  protected def translateType(cType: chalice.Class) : Type = translateType(Util.convertToType(cType))
-
-  // **
-  // translates a Chalice type into a SIL type
-  // **
-    // todo: refactor: move the translateType methods into Util object
-  protected def translateType(cType: chalice.Type) : Type = {
-    cType.id match {
-      case "seq" => SeqType(translateType(cType.params(0)))
-      case "set" => SetType(translateType(cType.params(0)))
-      case "int" => Int
-      case "bool" => Bool
-      case "$Permission" => Perm
-      case _ => Ref
-        // todo: add other Chalice-internal classes
-    }
-  }
-
-  // **
   // translates a list of Chalice arguments into the corresponding SIL arguments
   // new local variables with the same name are created
   // **
   protected def translateVars(cVars: Seq[chalice.Variable]) = {
     val result = scala.collection.mutable.ListBuffer[LocalVarDecl]()
     cVars.foreach((x: chalice.Variable) =>
-      result += LocalVarDecl(x.id, translateType(x.t))(SourcePosition(null, x.pos.line, x.pos.column))
+      result += LocalVarDecl(x.id, Util.translateType(x.t))(SourcePosition(null, x.pos.line, x.pos.column))
     )
     result.toList
   }
@@ -255,6 +238,7 @@ class ProgramTranslator(val programName: String)
   protected def translateFunction(cFunction: chalice.Function) = {
     // obtain the corresponding SIL function
     val sFunction = symbolMap(cFunction).asInstanceOf[Function]
+    workingOn = sFunction
 
     // obtain the receiver, which is the first in the list of formal arguments of the SIL function
     val sThis = sFunction.formalArgs(0)
@@ -329,6 +313,7 @@ class ProgramTranslator(val programName: String)
   //   which translates e.p to a SIL boolean (in fact, acc(e.p, write)).  Otherwise e.p is in the context of an acc
   //   expression (e.g., acc(e.p)) and must be translated as a ``member access'' AST node.  This takes care of an
   //   ambiguity that the Chalice parser causes, because it translates expressions e.p and acc(e.p) differently
+  // uses silFunction: optionally, if the expression is found within the specifications of a function
   // **
   protected def translateExp(cExp: chalice.Expression, myThis: LocalVarDecl, pTrans: PermissionTranslator,
                              accessMemberSubexpression: Boolean = false) : Exp = {
@@ -416,7 +401,7 @@ class ProgramTranslator(val programName: String)
         else And(AnySetSubset(r, l)(position), NeCmp(l, r)(position))(position) // strict superset
 
       // sequence operators
-      case chalice.EmptySeq(t) => EmptySeq(translateType(t))(position)
+      case chalice.EmptySeq(t) => EmptySeq(Util.translateType(t))(position)
       case chalice.ExplicitSeq(elems) => ExplicitSeq(elems.map(translateExp(_, myThis, pTrans)))(position)
       case chalice.Range(lhs, rhs) =>
         new RangeSeq(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
@@ -430,7 +415,7 @@ class ProgramTranslator(val programName: String)
         SeqAppend(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
 
       // set operators
-      case chalice.EmptySet(t) => EmptySet(translateType(t))(position)
+      case chalice.EmptySet(t) => EmptySet(Util.translateType(t))(position)
       case chalice.ExplicitSet(elems) => ExplicitSet(elems.map(translateExp(_, myThis, pTrans)))(position)
 
       // operators common to sets and sequences
@@ -588,11 +573,13 @@ class ProgramTranslator(val programName: String)
         // populate boundedVars and domainExpression according to the flavor of the quantification
         // CONVENTION: like other local Chalice variables, the bounded variables retain their name in SIL!
         if (e.isInstanceOf[chalice.TypeQuantification])
-          boundedVars = e.Is map { i => LocalVarDecl(i, translateType(e.asInstanceOf[chalice.TypeQuantification].t))() }
+          boundedVars = e.Is map {
+            i => LocalVarDecl(i, Util.translateType(e.asInstanceOf[chalice.TypeQuantification].t))()
+          }
         else if (e.isInstanceOf[chalice.SeqQuantification]) {
           val seq = e.asInstanceOf[chalice.SeqQuantification].seq
           val silseq = translateExp(seq, myThis, pTrans)
-          val tp = translateType(seq.typ.asInstanceOf[chalice.SeqClass].parameter)
+          val tp = Util.translateType(seq.typ.asInstanceOf[chalice.SeqClass].parameter)
           boundedVars = e.Is map { i =>
             domainExpression = And(domainExpression, SeqContains(LocalVar(i)(tp), silseq)())()
             LocalVarDecl(i, tp)()
@@ -600,7 +587,7 @@ class ProgramTranslator(val programName: String)
         }
         else {  // set quantification
           val set =  e.asInstanceOf[chalice.SetQuantification].dom
-          val tp = translateType(set.typ.asInstanceOf[chalice.SetClass].parameter)
+          val tp = Util.translateType(set.typ.asInstanceOf[chalice.SetClass].parameter)
           val silset = translateExp(set, myThis, pTrans)
           boundedVars = e.Is map { i =>
             domainExpression = And(domainExpression, AnySetContains(LocalVar(i)(tp), silset)())()
@@ -629,7 +616,10 @@ class ProgramTranslator(val programName: String)
       case chalice.ExplicitThisExpr() => myThis.localVar
 
       // local variable
-      case chalice.VariableExpr(v) => LocalVar(v)(translateType(cExp.typ))
+      case chalice.VariableExpr(v) => LocalVar(v)(Util.translateType(cExp.typ))
+
+      // result
+      case chalice.Result() => Result()(workingOn.asInstanceOf[Function].typ)
     }
   }
 
@@ -667,7 +657,10 @@ class ProgramTranslator(val programName: String)
             case Some(s) => translateStm(s, myThis, pTrans, silMethod)
           }
         )(position)
-      case w@chalice.WhileStmt(guard, _, _, _ /*todo: lockchange not supported -- report*/, body) =>
+      case w@chalice.WhileStmt(guard, _, _, lockchange, body) =>
+        // lockchange is not supported anymore
+        if(lockchange!=null && !lockchange.isEmpty) messages += OldLockModel(position)
+
         // todo: what is the difference between newInvs and oldInvs?
         While(translateExp(guard, myThis, pTrans), w.Invs.map(translateExp(_, myThis, pTrans)), Seq(),
           translateStm(body, myThis, pTrans, silMethod)
@@ -675,7 +668,7 @@ class ProgramTranslator(val programName: String)
 
       // assignments
       case chalice.Assign(v@chalice.VariableExpr(name), rhs) if rhs.isInstanceOf[chalice.Expression] =>
-        LocalVarAssign(LocalVar(name)(translateType(rhs.typ)),
+        LocalVarAssign(LocalVar(name)(Util.translateType(rhs.typ)),
           translateExp(rhs.asInstanceOf[chalice.Expression], myThis, pTrans))(position)
       case chalice.FieldUpdate(ma, rhs) if rhs.isInstanceOf[chalice.Expression] =>
         val silma = translateExp(ma, myThis, pTrans)
@@ -688,7 +681,7 @@ class ProgramTranslator(val programName: String)
           case Some(e) => try { e.asInstanceOf[chalice.Expression]; true } catch { case _ => false }
         })
           =>
-        val silType = translateType(v.t)
+        val silType = Util.translateType(v.t)
         val localVar = LocalVarDecl(v.id, silType)(position)
 
         // declare the variable only if it is not declared
@@ -741,7 +734,7 @@ class ProgramTranslator(val programName: String)
                translateExp(target, myThis, pTrans) /*this*/
             :: newK.localVar /*permission*/
             :: args.map(translateExp(_, myThis, pTrans)) /*arguments*/,
-            lhs.map(x => LocalVar(x.id)(translateType(x.typ)))/*targets*/
+            lhs.map(x => LocalVar(x.id)(Util.translateType(x.typ)))/*targets*/
           )(position)
         )(position)
 
@@ -749,8 +742,8 @@ class ProgramTranslator(val programName: String)
         // mu ordering and deadlock avoidance not supported yet
         // there is no way to assert if an object is shared/held or not: implement new obligations model
 
-      // mu reordering; todo: decide if this will be supported or not
-      case chalice.Install(_, _, _) => messages += DeadlockAvoidance(position) ; Seqn(Seq())(position)
+      // mu reordering; not supported
+      case chalice.Install(_, _, _) => messages += MuReordering(position) ; Seqn(Seq())(position)
 
       // sharing
       case chalice.Share(obj, _, _) =>
@@ -962,7 +955,7 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
                              // appears in the join statement
                            val indexOfReturnArgument =
                              joinableInfo(i).method.formalReturns.map(_.name).indexWhere(n => n==id)
-                           LocalVar(lhs(indexOfReturnArgument).id)(translateType(lhs(indexOfReturnArgument).typ))
+                           LocalVar(lhs(indexOfReturnArgument).id)(Util.translateType(lhs(indexOfReturnArgument).typ))
                          }
                          else n // no substitution
                        case Old(_) =>
@@ -1076,6 +1069,26 @@ object Util {
   def newObject(n: LocalVar, p: Position) = NewStmt(n)(p)
     // note that this code will have to change at least when backpointers are supported
     // also if NewStmt changes in SIL AST
+
+  // **
+  // translates a Chalice class into a SIL type
+  // **
+  def translateType(cType: chalice.Class) : Type = translateType(convertToType(cType))
+
+  // **
+  // translates a Chalice type into a SIL type
+  // **
+  def translateType(cType: chalice.Type) : Type = {
+    cType.id match {
+      case "seq" => SeqType(translateType(cType.params(0)))
+      case "set" => SetType(translateType(cType.params(0)))
+      case "int" => Int
+      case "bool" => Bool
+      case "$Permission" => Perm
+      case _ => Ref
+      // todo: add other Chalice-internal classes
+    }
+  }
 }
 
 class JoinableInfo(val method: Method, val methodKey: Integer, val silFields: mutable.Map[String, Field]) {
