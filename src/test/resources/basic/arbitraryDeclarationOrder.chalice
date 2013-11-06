@@ -1,0 +1,39 @@
+class D
+{
+  method m() requires acc(c) && c!=null && c.p
+  {
+    acquire c
+	release c
+  }
+  var c: C
+}
+
+class C {
+  invariant p
+  
+  function g() : bool
+    requires p && unfolding p in x>0
+  { unfolding p in f() }
+  
+  predicate p { acc(x, 50) && f() }
+  
+  function f() : bool
+    requires rd(x)
+  { x>10 }
+  
+  method m()
+  {
+    [[
+	  unfold p
+	  x:=2
+	  call n()
+	  fold p
+	]]
+  }
+  
+  method n() { call m () }
+  
+  invariant acc(x, 50)
+  
+  var x: int
+}

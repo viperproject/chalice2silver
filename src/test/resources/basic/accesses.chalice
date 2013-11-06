@@ -1,0 +1,18 @@
+class A
+{
+  var x:A
+  
+  method m(other:A)
+    requires acc(x) && acc(mu) && && acc(other.x) && acc(other.x.mu) && other.x == this.x
+	requires p && acc(other.p) && acc(this.p) && acc(p, 50)
+  {
+  }
+
+  method n(other: seq<A>)
+    requires other[*].p && acc(other[*].p) && acc(other[*].x)
+	ensures rd(other[*].*)
+  {
+  }
+	
+  predicate p { true }
+}

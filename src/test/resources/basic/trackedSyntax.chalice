@@ -17,7 +17,7 @@ class D
   tracked var p: int
   tracked var q: seq<A>
   tracked var r: seq<F>
-  /*tracked var s: set<A>*/
+  tracked var s: set<A>
   tracked var t: F
   tracked var u: seq<int>
 }

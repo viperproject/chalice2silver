@@ -1,0 +1,7 @@
+class C
+{
+  method m(other:C)
+    requires acc(mu) && this<<this.mu && waitlevel==mu && mu==waitlevel && acc(other.mu) && other.mu==mu
+  {
+  }
+}

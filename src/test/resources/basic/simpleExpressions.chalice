@@ -1,37 +1,20 @@
-class D
+class C
 {
-  var x: D
+  var x: int
+  var y: int
   
-  method goo() {
-    var a: int
-	var b: seq<int>
-	
-    fork t := x.x.foo(15, empty<D>, nil<D>)
-	fork u := goo()
-	fork t := x.foo(1, {this}, nil<D>)
-	join a, b:= t
-  }
-  
-  method foo(x: int, y: set<D>, z: seq<D>) returns (r:int, s: seq<int>)
-    requires rd(this.x) && x > 0 && |y|==|z|
-	requires x > 2 && z[1] in y && acc(this.x.x.x)
-	ensures rd(this.x) && s == [r, r] && old(this.x) == this
-	ensures old(this.x.x.x.x) == this && r == 10
+  method m()
+    requires acc(x) && (x>0 || x<0) && (x==x <==> x!=0) && (x==x ==> true) && (x==x)==(x==x)
+	ensures acc(x) && old(x) >= x && x!=x-1 && !(x==x+1) && ((x==x) ? x==x : x==1111)
+	ensures this != null && lockbottom == waitlevel && "a"=="a"
   {
-    fork t := this.x.x.foo(15+x, {this.x}, [this.x, this.x.x])
+    var y: int
+    x := x*x
+	x := x/x
+	if(x<=1) { y: = 1 }	
   }
   
-  method hoo(e: E)
-  {
-    fork t := e.hoo(this)
-  }
+  function f() : bool
+    ensures result
+  { true }
 }
-
-class E
-{
-  method hoo(d: D)
-  {
-    fork t := d.goo()
-  }
-}
-

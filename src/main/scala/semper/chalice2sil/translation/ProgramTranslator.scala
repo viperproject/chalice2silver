@@ -10,9 +10,8 @@ import mutable.Map
 import semper.chalice2sil.messages._
 import scala.Some
 
-// todo: epsilon permissions, resolve compiler warnings, fix Chalice set quantification syntax (use in instead of :)
+// todo: resolve compiler warnings
 // todo: Chalice bug: expression {this} throws matching expression!
-// todo: fix horrible join implementation!
 // todo: positions do not contain the file name in the reports: fix!
 // todo: fix name generator at ast library
 
@@ -472,7 +471,7 @@ class ProgramTranslator(val programName: String)
         val silpe = pTrans(perm, myThis)
         FieldAccessPredicate(silma.asInstanceOf[FieldAccess], silpe)(position)
 
-      // acc(x.*): access permissions to all members of an object
+      // acc(x.*): access permissions to all fields of an object (todo: predicates?)
       case chalice.AccessAll(obj, perm) =>
         // obtain SIL receiver and permission
         val silo = translateExp(obj, myThis, pTrans)
@@ -978,6 +977,9 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
     }
   }
 
+  // **
+  // creates a SIL expression that grants permission to all fields of an object
+  // **
   protected def grantPermissionToAllFields(cls: chalice.Class, silo: Exp, silpe: Exp, position: Position) : Exp = {
     var silexp : Exp = TrueLit()(position)
     cls.DeclaredFields.foreach{ f =>
@@ -989,14 +991,24 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
       silexp = And(silexp, newConjunct)(position)
     }
     silexp
-      // todo: add access to predicates
+      // todo: predicates?
   }
 
-  abstract class PermissionTranslator {
-    def getK : Exp  // this is the permission expression that corresponds to rd(o.f)
-    // getK is different depending on whether we are in a method, predicate or invariant context
-    // in function contexts there is no such value
 
+  // **
+  // superclass of all permission translators
+  // a permission translator takes a Chalice permission expression and translates it to the appropriate SIL permission
+  // expresssion
+  // **
+  abstract class PermissionTranslator {
+    def getK : Exp
+      // this is the permission expression that corresponds to rd(o.f)
+      // getK is different depending on whether we are in a method, predicate or invariant context
+      // in function contexts there is no such value
+
+    // **
+    // default translation
+    // **
     def apply(perm: chalice.Permission, myThis: LocalVarDecl) = {
       perm match {
         case chalice.Full => FullPerm()() // 100% permission
@@ -1046,9 +1058,14 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
   }
 }
 
+// **
+// utility functions
+// **
 object Util {
+  // **
   // takes a SIL expression and returns the sequence of all "old" expressions in the order they appear in it
   // (the "old" node is stripped off from the result
+  // **
   def getOldExpressions(sExp: Seq[Exp]) : Seq[Exp] = {
     val oldExpressions = new mutable.MutableList[Exp]()
     sExp.foreach((e:Exp) => semper.sil.ast.utility.Visitor.visit(e)(
@@ -1057,7 +1074,9 @@ object Util {
     oldExpressions
   }
 
+  // **
   // converts a Chalice class to a Chalice type
+  // **
   def convertToType(cClass: chalice.Class) : chalice.Type = {
     if(cClass == null) return null
     var tParams : List[chalice.Type] = Nil
@@ -1065,7 +1084,9 @@ object Util {
     new chalice.Type(cClass.classId, tParams)
   }
 
+  // **
   // generates a SIL 'new' statement
+  // **
   def newObject(n: LocalVar, p: Position) = NewStmt(n)(p)
     // note that this code will have to change at least when backpointers are supported
     // also if NewStmt changes in SIL AST
@@ -1091,6 +1112,9 @@ object Util {
   }
 }
 
+// **
+// stores information about a token
+// **
 class JoinableInfo(val method: Method, val methodKey: Integer, val silFields: mutable.Map[String, Field]) {
   // stores expressions found within "old" in the postconditions of the method
   val oldExpressions = Util.getOldExpressions(method.posts)
@@ -1114,6 +1138,10 @@ class JoinableInfo(val method: Method, val methodKey: Integer, val silFields: mu
   def yieldParFieldByName(name: String) = parameterFields.find(f => f.name == "par$" + method.name + name)
 }
 
+
+// **
+// lexical environment of the SIL program
+// **
 class SILProgramEnvironment(
  val silFields: Map[String, Field] = new mutable.HashMap[String, Field],
  val silFunctions: Map[String, Function] = new mutable.HashMap[String, Function],
