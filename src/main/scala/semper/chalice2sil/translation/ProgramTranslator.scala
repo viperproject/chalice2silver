@@ -599,7 +599,7 @@ class ProgramTranslator(val programName: String)
         e.Q match {
           case chalice.Forall => Forall(boundedVars, Seq(), Implies(domainExpression, silbody)())(position)
           case chalice.Exists =>  Exists(boundedVars, And(domainExpression, silbody)())(position)
-          case _ => messages += Aggregates(position) ; null
+          case _ => messages += Aggregates(position) ; null // todo: fix null pointer exceptions here!
         }
 
       case p:chalice.Permission => pTrans(p, myThis)
@@ -751,26 +751,32 @@ class ProgramTranslator(val programName: String)
 
         // exhale the monitor invariant
         val monitorPredicate = silTranslatedInvariants(obj.typ)
-        Exhale(
-          PredicateAccessPredicate(
-            PredicateAccess(List(translateExp(obj, myThis, pTrans)), monitorPredicate)(position),
-            FullPerm()()
-          )(position)
-        )(position)
+        val target = List(translateExp(obj, myThis, pTrans))
+        Seqn(Seq(
+         Fold(
+           PredicateAccessPredicate(
+             PredicateAccess(target, monitorPredicate)(position), FullPerm()())(position))(position),
+         Exhale(
+             PredicateAccessPredicate(PredicateAccess(target, monitorPredicate)(position), FullPerm()())(position)
+         )(position)
+        ))(position)
 
       // acquiring
       case chalice.Acquire(obj) =>
         messages += DeadlockAvoidance(position)
         messages += OldLockModel(position)
 
-        // inhale the monitor invariant todo: unfold
+        // inhale the monitor invariant
         val monitorPredicate = silTranslatedInvariants(obj.typ)
-        Inhale(
-          PredicateAccessPredicate(
-            PredicateAccess(List(translateExp(obj, myThis, pTrans)), monitorPredicate)(position),
-            FullPerm()()
-          )(position)
-        )(position)
+        val target = List(translateExp(obj, myThis, pTrans))
+        Seqn(Seq(
+          Inhale(
+            PredicateAccessPredicate(PredicateAccess(target, monitorPredicate)(position), FullPerm()())(position)
+          )(position),
+          Unfold(
+            PredicateAccessPredicate(
+              PredicateAccess(target, monitorPredicate)(position), FullPerm()())(position))(position)
+        ))(position)
 
       // release
       case chalice.Release(obj) =>
@@ -779,12 +785,15 @@ class ProgramTranslator(val programName: String)
 
         // exhale the monitor invariant
         val monitorPredicate = silTranslatedInvariants(obj.typ)
-        Exhale(
-          PredicateAccessPredicate(
-            PredicateAccess(List(translateExp(obj, myThis, pTrans)), monitorPredicate)(position),
-            FullPerm()()
+        val target = List(translateExp(obj, myThis, pTrans))
+        Seqn(Seq(
+          Fold(
+            PredicateAccessPredicate(
+              PredicateAccess(target, monitorPredicate)(position), FullPerm()())(position))(position),
+          Exhale(
+            PredicateAccessPredicate(PredicateAccess(target, monitorPredicate)(position), FullPerm()())(position)
           )(position)
-        )(position)
+        ))(position)
 
       // the lock statement [[...]]
       case chalice.Lock(obj, block, false) => // this flag indicates normal "write" locks
@@ -894,6 +903,12 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
                 FieldAccess(tokenVar.localVar, Field("old$methodPermission", Perm)())(position), newK.localVar
               )(position)
 
+            // make token joinable
+            val makeJoinable =
+              FieldAssign(
+                FieldAccess(tokenVar.localVar, Field("joinable$", Bool)())(position), TrueLit()(position)
+              )(position)
+
             // calculate all old expressions and assign them to the fields of the token
             val oldAssignments = for(i <- 0 until thisJoinableInfo.oldExpressions.length)
             yield FieldAssign(
@@ -910,7 +925,7 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
               )(position)
 
             // put all join-token-related assignments together
-            Seq(assignToken, assignPermission) ++ oldAssignments ++ parAssignments
+            Seq(assignToken, makeJoinable, assignPermission) ++ oldAssignments ++ parAssignments
           }
           else Seq()
 
@@ -930,7 +945,8 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
 
         // for each existing method generate the following code: if token == method key then join that method
         Seqn(
-          for(i <- 0 until joinableInfo.length)
+          Seq(Assert(FieldAccess(silToken, Field("joinable$", Bool)(position))(position))(position)) ++
+          (for(i <- 0 until joinableInfo.length)
             yield If(
                EqCmp(
                  FieldAccess(silToken, Field("old$methodKey", Int)(position))(position), IntLit(BigInt(i))(position)
@@ -971,7 +987,11 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
                  )(position)
                },
                Seqn(Nil)(position)
-            )(position)
+            )(position))
+            ++ Seq(
+              FieldAssign(
+                FieldAccess(silToken, Field("joinable$", Bool)(position))(position), FalseLit()(position))(position)
+            )
         )(position)
         // todo: what happens if an application tries to join the same token twice?
     }
@@ -1152,4 +1172,7 @@ class SILProgramEnvironment(
 
   // each fork stores the method key associated with the forked method in this field of the token it returns
   silFields += ("old$methodKey" -> Field("old$methodKey", Int)())
+
+  // field joinable$ records whether a token can be joined
+  silFields += ("joinable$" -> Field("joinable$", Bool)())
 }

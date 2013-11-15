@@ -11,7 +11,7 @@ import translation.ProgramTranslator
 import chalice.Chalice
 
 /**
-
+    Author: Yannis Kassios
  */
 class C2STestSuite extends FunSuite with ShouldMatchers {
   val allTestDirectories = Seq(
