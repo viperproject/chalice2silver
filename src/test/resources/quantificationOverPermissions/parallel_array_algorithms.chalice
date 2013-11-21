@@ -12,60 +12,66 @@ class ParMethods
     start != end && (a.array[start].value == item || contains(a, start+1, end, item))
   }
 
-  method parallel_mergesort(a: ArrayOfInt, start: int, end: int)
+  method parallel_mergesort(a: ArrayOfInt, b: ArrayOfInt, start: int, end: int) returns(dummy: int) /* patch to avoid a known bug in Chalice2SIL -- to be removed soon */
     requires a != null && rd*(a.array) && (forall i, j: int :: 0 <= i && i<j && j < |a.array| ==> a.array[i] != a.array[j])
-	requires 0 <= start && start <= end && end < |a.array|
-	requires (forall i: int :: start <= i && i < end ==> acc((a.array[i]).value)) && (forall i, j: int :: start <= i && i<j && j < end ==> (a.array[i]).value != (a.array[j]).value)
-	ensures (forall i: int :: start <= i && i < end ==> acc((a.array[i]).value))
-	ensures (forall i, j: int :: start <= i && i<j && j < end ==> (a.array[i]).value < (a.array[j]).value)
-	ensures (forall x: int :: contains(a, start, end, x) == old(contains(a, start, end, x)))
+	requires b != null && rd*(b.array) && (forall i, j: int :: 0 <= i && i<j && j < |b.array| ==> b.array[i] != b.array[j])
+	requires (forall i, j: int :: 0 <= i && i < |a.array| && 0 <= j && j < |b.array| ==> a.array[i] != b.array[j])
+	requires 0 <= start && start <= end && end <= |a.array| && |a.array| == |b.array|
+	requires (forall i: int :: start <= i && i < end ==> rd((a.array[i]).value)) && (forall i, j: int :: start <= i && i<j && j < end ==> (a.array[i]).value != (a.array[j]).value)
+	requires (forall i: int :: start <= i && i < end ==> acc((b.array[i]).value))
+	ensures (forall i: int :: start <= i && i < end ==> rd((a.array[i]).value)) && (forall i: int :: start <= i && i < end ==> acc((b.array[i]).value))
+	ensures (forall i, j: int :: start <= i && i<j && j < end ==> (b.array[i]).value < (b.array[j]).value)
+	ensures (forall x: int :: contains(a, start, end, x) == contains(b, start, end, x))
   {
     var middle: int
 	if(end-start > 1)
 	{
 	  middle := start + (end-start)/2
-	  fork tLeft := parallel_mergesort(a, start, middle)
-	  fork tRight := parallel_mergesort(a, middle, end)
-	  join tLeft
-	  join tRight
-	  call merge(a, start, middle, end)
+	  fork tLeft := parallel_mergesort(a, b, start, middle)
+	  fork tRight := parallel_mergesort(a, b, middle, end)
+	  join dummy := tLeft
+	  join dummy := tRight
+	  call dummy := merge(a, b, start, middle, end)
 	}
   }
   
-  method merge(a: ArrayOfInt, start, middle, end)
+  method merge(a: ArrayOfInt, b: ArrayOfInt, start, middle, end) returns(dummy: int) /* patch to avoid a known bug in Chalice2SIL -- to be removed soon */
     requires a != null && rd*(a.array) && (forall i, j: int :: 0 <= i && i<j && j < |a.array| ==> a.array[i] != a.array[j])
-	requires 0 <= start && start < middle && middle < end && end < |a.array|
-	requires (forall i: int :: start <= i && i < end ==> acc((a.array[i]).value))
+	requires b != null && rd*(b.array) && (forall i, j: int :: 0 <= i && i<j && j < |b.array| ==> b.array[i] != b.array[j])
+	requires (forall i, j: int :: 0 <= i && i < |a.array| && 0 <= j && j < |b.array| ==> a.array[i] != b.array[j])
+	requires 0 <= start && start <= end && end <= |a.array| && |a.array| == |b.array|
+	requires (forall i: int :: start <= i && i < end ==> rd((a.array[i]).value)) && (forall i, j: int :: start <= i && i<j && j < end ==> (a.array[i]).value != (a.array[j]).value)
+	requires (forall i: int :: start <= i && i < end ==> acc((b.array[i]).value))
 	requires (forall i, j: int :: start <= i && i<j && j < middle ==> (a.array[i]).value < (a.array[i]).value)
 	requires (forall i, j: int :: middle <= i && i<j && j < end ==> (a.array[i]).value < (a.array[i]).value)
-	ensures (forall i, j: int :: start <= i && i<j && j < end ==> (a.array[i]).value < (a.array[i]).value)
-	ensures (forall x: int :: contains(a, start, end, x) == old(contains(a, start, end, x)))
+	ensures (forall i, j: int :: start <= i && i<j && j < end ==> (b.array[i]).value < (b.array[i]).value)
+	ensures (forall x: int :: contains(a, start, end, x) == contains(b, start, end, x))
   {
     var I := start
 	var J := middle
-	var h: int
-	var s1: Cell
-	var s2: Cell
+	var N := start
 	
-	while(I < middle && J < end)
-	  invariant start<=I && I<=middle && middle<=J && J<=end
-	  invariant rd*(a.array) && (forall i: int :: start<=i && i<end ==> acc((a.array[i]).value))
-	  invariant (forall i, j: int :: start<=i && i<j && j<middle ==> (a.array[i]).value<(a.array[j]).value)
-	  invariant (forall i, j: int :: middle<=i && i<j && j<J ==> (a.array[i]).value<(a.array[j]).value)
-	  invariant (forall i, j: int :: J<=i && i<j && j<end ==> (a.array[i]).value<(a.array[j]).value)
-	  invariant (forall i, j: int :: start<=i && i<I && middle<=j && j<J ==> (a.array[i]).value<(a.array[j]).value)
-	  invariant (forall x: int :: contains(a, start, end, x) == old(contains(a, start, end, x)))
+	while(N < end)
+	  invariant a != null && rd*(a.array) && (forall i, j: int :: 0 <= i && i<j && j < |a.array| ==> a.array[i] != a.array[j])
+	  invariant b != null && rd*(b.array) && (forall i, j: int :: 0 <= i && i<j && j < |b.array| ==> b.array[i] != b.array[j])
+	  invariant (forall i, j: int :: 0 <= i && i < |a.array| && 0 <= j && j < |b.array| ==> a.array[i] != b.array[j])
+	  invariant start <= I && I <= middle && middle <= J && J <= end && end <= |a.array| && |a.array| == |b.array| && start <= N && N <= end && N == I+J-middle
+	  invariant (forall i: int :: start <= i && i < end ==> rd((a.array[i]).value)) && (forall i, j: int :: start <= i && i<j && j < end ==> (a.array[i]).value != (a.array[j]).value)
+	  invariant (forall i: int :: start <= i && i < end ==> acc((b.array[i]).value))
+	  invariant (forall i, j: int :: start <= i && i < j && i < N ==> (b.array[i]).value < (b.array[j]).value && (b.array[j]).value < (a.array[I]).value && (b.array[j]).value < (a.array[J]).value)
+	  invariant (forall i: int :: start <= i && i < N ==> contains(a, start, end, (b.array[i]).value))
 	{
-	  if((a.array[I]).value < (a.array[J]).value) { I:=I+1 }
+	  if(J == end || (a.array[I]).value < (a.array[J]).value)
+	  {
+	    (b.array[N]).value := (a.array[I]).value
+	    I:=I+1
+	  }
 	  else
 	  {
-		s1 := a.array[J]
-		s2 := a.array[I]
-	    h := s1.value
-		s2.value := s1.value
-		s2.value := h
+		(b.array[N]).value := (a.array[J]).value
 		J:=J+1
 	  }
+	  N := N+1
 	}
   }
   
