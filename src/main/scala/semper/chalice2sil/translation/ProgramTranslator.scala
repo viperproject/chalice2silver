@@ -28,7 +28,7 @@ class ProgramTranslator(val programName: String)
   val silEnvironment = new SILProgramEnvironment()
 
   // maps monitor invariants from Chalice to SIL predicates
-  val silTranslatedInvariants = new scala.collection.mutable.HashMap[chalice.Class, Predicate]()
+  val silTranslatedInvariants = new scala.collection.mutable.LinkedHashMap[chalice.Class, Predicate]()
 
   // maps Chalice members (fields, methods, function, predicates) to corresponding SIL members
   val symbolMap = new scala.collection.mutable.HashMap[chalice.ASTNode, Node]()
@@ -1163,10 +1163,10 @@ class JoinableInfo(val method: Method, val methodKey: Integer, val silFields: mu
 // lexical environment of the SIL program
 // **
 class SILProgramEnvironment(
- val silFields: Map[String, Field] = new mutable.HashMap[String, Field],
- val silFunctions: Map[String, Function] = new mutable.HashMap[String, Function],
- val silPredicates: Map[String, Predicate] = new mutable.HashMap[String, Predicate],
- val silMethods: Map[String, Method] = new mutable.HashMap[String, Method]) {
+ val silFields: Map[String, Field] = new mutable.LinkedHashMap[String, Field],
+ val silFunctions: Map[String, Function] = new mutable.LinkedHashMap[String, Function],
+ val silPredicates: Map[String, Predicate] = new mutable.LinkedHashMap[String, Predicate],
+ val silMethods: Map[String, Method] = new mutable.LinkedHashMap[String, Method]) {
   // each fork stores the abstract permission associated with it in this field of the token it returns
   silFields += ("old$methodPermission" -> Field("old$methodPermission", Perm)())
 
