@@ -2,21 +2,18 @@ class A
 {
   tracked ghost var p: A
   var q: B
-  
-  predicate r { true }
 }
 
 class B
 {
   method m(x:A)
-    requires ~(C.f) - (x.p).~(A.q) == ~(A.f)
-	requires acc((x.p).~(A.p)) && rd*(~(A.p)) && acc((x.p).~(A.q), 50)
-	requires (x.p).~(A.p) == ~(A.p)
-	ensures ~(A.r) == x.~(A.p)
+    requires ~(C.f) - (x.p.q).~(C.f) == ~(C.f)
+	requires acc((x.p).~(A.p), 50) && rd*(x.~(A.p))
+	requires (x.p).~(A.p) == x.~(A.p)
   {
-    assert ~(C.f) - (x.p).~(A.q) == ~(A.f)
-	assert ~(A.p) == x.~(A.p)
-	assert (x.p).~(A.p) == ~(A.p)
+    assert ~(C.f) == ~(C.f)
+	assert (x.p).~(A.p) == x.~(A.p)
   }
 }
 
+class C { tracked ghost var f: B }

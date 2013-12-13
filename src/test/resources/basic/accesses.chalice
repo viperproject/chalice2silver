@@ -3,15 +3,22 @@ class A
   var x:A
   
   method m(other:A)
-    requires acc(x) && acc(mu) && && acc(other.x) && acc(other.x.mu) && other.x == this.x
+    requires acc(x) && acc(mu) && acc(other.x) && acc(other.x.mu) && other.x == this.x
 	requires p && acc(other.p) && acc(this.p) && acc(p, 50)
   {
   }
 
   method n(other: seq<A>)
-    requires other[*].p && acc(other[*].p) && acc(other[*].x)
-	ensures rd(other[*].*)
+    requires acc(other[*].p) && acc(other[*].x)
+	ensures rd(other[*].*) && rd(this.*)
   {
+  }
+  
+  method o()
+  {
+    fork t:= n([this]);
+	assert acc(t.joinable) && acc(this.mu);
+	assert acc(t.*);
   }
 	
   predicate p { true }

@@ -19,7 +19,7 @@ class Program {
     x.l := 20;
     fork tok := x.run();
     x.l := 10;
-    join tok;
+ //   join tok;
     assert x.k == 18 && x.l == 10;
   }
 
