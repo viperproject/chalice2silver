@@ -1,0 +1,21 @@
+class C {
+  var sq: seq<D>
+  
+  method tricky()
+    requires (forall i: int :: i>=0 && i<|sq| ==> sq[i]!=null && acc(sq[i].f))
+    ensures (forall i: int :: i>=0 && i<|sq| ==> rd*(sq[i].f))
+    ensures (forall i, j: int :: 0<=i && i<j && j<|sq| ==> sq[i]!=sq[j])
+  {
+    var I: int
+    I := 0
+    while (i<|sq|)
+      invariant (forall i: int :: i>=I && i<|sq| ==> sq[i]!=null && acc(sq[i].f))
+      invariant (forall i: int :: i>=0 && i<I ==> rd*(sq[i].f))
+      invariant (forall i, j: int :: 0<=i && i<j && j<|sq| ==> sq[i]!=sq[j])
+    {
+      I := I+1
+    }
+  }
+}
+
+class D { var f: C }
