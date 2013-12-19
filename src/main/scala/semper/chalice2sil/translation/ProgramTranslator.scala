@@ -817,18 +817,18 @@ class ProgramTranslator(val programName: String)
         translateStm(chalEquivalent, myThis, pTrans, silMethod)
 
       // folding and unfolding
-      case chalice.Fold(access) =>
+      case e @ chalice.Fold(access) =>
         Fold(
           PredicateAccessPredicate(
             translateExp(access.ma, myThis, pTrans, true).asInstanceOf[PredicateAccess],
-            translateExp(access.perm, myThis, pTrans).asInstanceOf[PermExp]
+            pTrans(access.perm, myThis)
           )(position)
         )(position)
       case chalice.Unfold(access) =>
         Unfold(
           PredicateAccessPredicate(
             translateExp(access.ma, myThis, pTrans, true).asInstanceOf[PredicateAccess],
-            translateExp(access.perm, myThis, pTrans).asInstanceOf[PermExp]
+            pTrans(access.perm, myThis)
           )(position)
         )(position)
 

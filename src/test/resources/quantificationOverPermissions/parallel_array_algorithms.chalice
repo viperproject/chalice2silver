@@ -12,7 +12,7 @@ class ParMethods
     start != end && (a.array[start].value == item || contains(a, start+1, end, item))
   }
 
-  method parallel_mergesort(a: ArrayOfInt, b: ArrayOfInt, start: int, end: int) returns(dummy: int) /* patch to avoid a known bug in Chalice2SIL -- to be removed soon */
+  method parallel_mergesort(a: ArrayOfInt, b: ArrayOfInt, start: int, end: int)
     requires a != null && rd*(a.array) && (forall i, j: int :: 0 <= i && i<j && j < |a.array| ==> a.array[i] != a.array[j])
 	requires b != null && rd*(b.array) && (forall i, j: int :: 0 <= i && i<j && j < |b.array| ==> b.array[i] != b.array[j])
 	requires (forall i, j: int :: 0 <= i && i < |a.array| && 0 <= j && j < |b.array| ==> a.array[i] != b.array[j])
@@ -29,13 +29,13 @@ class ParMethods
 	  middle := start + (end-start)/2
 	  fork tLeft := parallel_mergesort(a, b, start, middle)
 	  fork tRight := parallel_mergesort(a, b, middle, end)
-	  join dummy := tLeft
-	  join dummy := tRight
-	  call dummy := merge(a, b, start, middle, end)
+	  join tLeft
+	  join tRight
+	  call merge(a, b, start, middle, end)
 	}
   }
   
-  method merge(a: ArrayOfInt, b: ArrayOfInt, start, middle, end) returns(dummy: int) /* patch to avoid a known bug in Chalice2SIL -- to be removed soon */
+  method merge(a: ArrayOfInt, b: ArrayOfInt, start, middle, end)
     requires a != null && rd*(a.array) && (forall i, j: int :: 0 <= i && i<j && j < |a.array| ==> a.array[i] != a.array[j])
 	requires b != null && rd*(b.array) && (forall i, j: int :: 0 <= i && i<j && j < |b.array| ==> b.array[i] != b.array[j])
 	requires (forall i, j: int :: 0 <= i && i < |a.array| && 0 <= j && j < |b.array| ==> a.array[i] != b.array[j])

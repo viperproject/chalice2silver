@@ -10,6 +10,7 @@ class D
 	fork u := goo()
 	fork t := x.foo(1, {this}, nil<D>)
 	join a, b:= t
+	join u
   }
   
   method foo(x: int, y: set<D>, z: seq<D>) returns (r:int, s: seq<int>)
@@ -32,6 +33,7 @@ class E
   method hoo(d: D)
   {
     fork t := d.goo()
+	join t
   }
 }
 

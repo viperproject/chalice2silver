@@ -44,7 +44,7 @@ class BooleanHeapChunks {
 		x := true
 		y := false
 		fold rd(XY)
-	}
+	} 
 
 	method useV()
 		requires V
@@ -65,5 +65,5 @@ class BooleanHeapChunks {
 		fold Z
 		fold XY
 		fold V
-	}
+	} 
 }
