@@ -14,7 +14,6 @@ import chalice.BackPointerMemberAccess
 // todo: resolve compiler warnings
 // todo: Chalice bug: expression {this} throws matching expression!
 // todo: positions do not contain the file name in the reports: fix!
-// todo: fix name generator at ast library
 
 // **
 // This is were the magic happens
