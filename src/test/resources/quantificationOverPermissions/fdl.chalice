@@ -10,12 +10,12 @@ class List
 
   function toSeq():seq<int>
     requires inv
-  { unfolding inv in head==null ? [] : head.toSeq() }
+  { unfolding inv in head==null ? nil<int> : head.toSeq() }
 
   method initEmpty()
     requires acc(head) && acc(mu) && mu==lockbottom && head==null
     ensures inv && rd*(mu) && waitlevel<<mu
-    ensures toSeq() == []
+    ensures toSeq() == nil<int>
   {
     share this above waitlevel
     fold inv
@@ -104,7 +104,7 @@ class Node
 
   invariant /*A*/ acc(refCount) && acc(transRefCount, 50) && acc(value, 100-rd(transRefCount)) && acc(next, 100-rd(transRefCount))
   invariant /*D*/ next==null ==> acc(transRefCount, 50)
-  invariant /*F*/ acc(this.~(Node.next)) && acc(this.~(List.head))
+  //invariant /*F*/ acc(this.~(Node.next)) && acc(this.~(List.head))
   invariant /*B*/ refCount == |~(Node.next)| + |~(List.head)|
   invariant /*E*/ (forall n: ~(Node.next) :: acc(n.transRefCount, 50))
   invariant /*C*/ transRefCount == (sum n: ~(Node.next) :: n.transRefCount) + |~(List.head)|
@@ -117,7 +117,7 @@ class Node
 
   function toSeq():seq<int>
     requires inv
-  { unfolding inv in [value] ++ (next==null ? [] : next.toSeq()) }
+  { unfolding inv in [value] ++ (next==null ? nil<int> : next.toSeq()) }
 
   method set_(index: int, newValue:int)
     requires inv && rd*(mu)

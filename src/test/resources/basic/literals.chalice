@@ -1,0 +1,8 @@
+class C {
+  var x: int
+
+  method m()
+    requires true && !false && 1==1 && "ABC" == "ABC" && 'a' == 'a'
+	requires acc(mu) && mu << waitlevel && lockbottom << mu && this.x == 1
+  {}
+}

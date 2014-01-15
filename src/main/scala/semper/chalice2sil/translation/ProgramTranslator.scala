@@ -52,7 +52,7 @@ class ProgramTranslator(val programName: String)
 
   // this domain introduces the constant K permission for use in monitor invariants
     // axiom: the K permission is read-only
-  val globalK = DomainFunc(nameGenerator.createIdentifier("globalK$"), Seq(), Perm, true)()
+  val globalK = DomainFunc(nameGenerator.createUniqueIdentifier("globalK$"), Seq(), Perm, true)()
   val globalKApp = DomainFuncApp(globalK, Seq(), new scala.collection.immutable.HashMap[TypeVar,Type]())()
   val axiomKReadOnly = DomainAxiom("globalKReadOnly",
     And(PermGtCmp(globalKApp, NoPerm()())(), PermGtCmp(FullPerm()(), globalKApp)())()
@@ -103,9 +103,9 @@ class ProgramTranslator(val programName: String)
   protected def collectSymbols(classNode : chalice.Class){
     // create a predicate that corresponds to the monitor invariant of this class
     // the body is to be populated later
-    val ths = nameGenerator.createIdentifier("this$")
+    val ths = nameGenerator.createUniqueIdentifier("this$")
     val myThis = LocalVarDecl(ths, Ref)()
-    val pName = nameGenerator.createIdentifier(classNode.FullName + "$MonitorInvariant")
+    val pName = nameGenerator.createUniqueIdentifier(classNode.FullName + "$MonitorInvariant")
     val invariant = Predicate(pName, List(myThis), null)()
     silTranslatedInvariants(classNode) = invariant
     silEnvironment.silPredicates += (pName -> invariant)
@@ -114,7 +114,7 @@ class ProgramTranslator(val programName: String)
     classNode.members.view foreach {
       // field
       case f:chalice.Field =>
-        val newField = Field(nameGenerator.createIdentifier(f.FullName+"$"), Util.translateType(f.typ))(
+        val newField = Field(nameGenerator.createUniqueIdentifier(f.FullName+"$"), Util.translateType(f.typ))(
           SourcePosition(null, f.pos.line, f.pos.column)
         )
         symbolMap(f) = newField
@@ -122,7 +122,7 @@ class ProgramTranslator(val programName: String)
         if (f.isTracked) {
           // this is a tracked reference: create backpointer field
           val newBackPointerField =
-            Field(nameGenerator.createIdentifier("BP$" + f.FullName+"$"), SetType(Ref))(
+            Field(nameGenerator.createUniqueIdentifier("BP$" + f.FullName+"$"), SetType(Ref))(
               SourcePosition(null, f.pos.line, f.pos.column)
             )
           silEnvironment.silFields += (newBackPointerField.name -> newBackPointerField)
@@ -131,9 +131,9 @@ class ProgramTranslator(val programName: String)
 
       // predicate
       case p:chalice.Predicate =>
-        val ths = nameGenerator.createIdentifier("this$")
+        val ths = nameGenerator.createUniqueIdentifier("this$")
         val newPredicate =
-          Predicate(nameGenerator.createIdentifier(p.FullName+"$"), List(LocalVarDecl(ths, Ref)()), null)(
+          Predicate(nameGenerator.createUniqueIdentifier(p.FullName+"$"), List(LocalVarDecl(ths, Ref)()), null)(
             SourcePosition(null, p.pos.line, p.pos.column)
           )
           // a predicate has a single reference parameter that refers to the receiver
@@ -143,15 +143,15 @@ class ProgramTranslator(val programName: String)
 
       // method
       case m:chalice.Method =>
-        val ths = nameGenerator.createIdentifier("this$")
-        val k = nameGenerator.createIdentifier("k$")
-        val n = nameGenerator.createIdentifier("n$")
+        val ths = nameGenerator.createUniqueIdentifier("this$")
+        val k = nameGenerator.createUniqueIdentifier("k$")
+        val n = nameGenerator.createUniqueIdentifier("n$")
           // this local variable is used always as a temporary variable for storing newly created objects
         val myThis = LocalVarDecl(ths, Ref)()
         val myK = LocalVarDecl(k, Perm)()
         val myN = LocalVarDecl(n, Ref)()
         val ins = myThis :: myK :: translateVars(m.ins)
-        val newMethod = Method(nameGenerator.createIdentifier(m.FullName+"$"), ins, translateVars(m.outs),
+        val newMethod = Method(nameGenerator.createUniqueIdentifier(m.FullName+"$"), ins, translateVars(m.outs),
           null, null, Seq(myN), null)(SourcePosition(null, m.pos.line, m.pos.column))
           // a method in SIL has a reference parameter that refers to the receiver and a permission parameter that
           // refers to all unspecified read permissions in its precondition
@@ -161,10 +161,10 @@ class ProgramTranslator(val programName: String)
 
       // function
       case f:chalice.Function =>
-        val ths = nameGenerator.createIdentifier("this$")
+        val ths = nameGenerator.createUniqueIdentifier("this$")
         val myThis = LocalVarDecl(ths, Ref)()
         val ins = myThis :: translateVars(f.ins)
-        val newFunction = Function(nameGenerator.createIdentifier(f.FullName+"$"), ins, Util.translateType(f.out),
+        val newFunction = Function(nameGenerator.createUniqueIdentifier(f.FullName+"$"), ins, Util.translateType(f.out),
           null, null, null)(SourcePosition(null, f.pos.line, f.pos.column))
           // a function has a reference parameter that refers to the receiver
           // the body and the precondition are to be filled later
@@ -415,7 +415,10 @@ class ProgramTranslator(val programName: String)
 
       // sequence operators
       case chalice.EmptySeq(t) => EmptySeq(Util.translateType(t))(position)
-      case chalice.ExplicitSeq(elems) => ExplicitSeq(elems.map(translateExp(_, myThis, pTrans)))(position)
+      case s @ chalice.ExplicitSeq(elems) =>
+        if (elems.length > 0)
+          ExplicitSeq(elems.map(translateExp(_, myThis, pTrans)))(position)
+        else EmptySeq(Util.translateType(s.typ))(position)
       case chalice.Range(lhs, rhs) =>
         new RangeSeq(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
       case chalice.At(lhs, rhs) =>
@@ -430,6 +433,7 @@ class ProgramTranslator(val programName: String)
       // set operators
       case chalice.EmptySet(t) => EmptySet(Util.translateType(t))(position)
       case chalice.ExplicitSet(elems) => ExplicitSet(elems.map(translateExp(_, myThis, pTrans)))(position)
+        // todo: what happens with explicitly empty sets?
 
       // operators common to sets and sequences
       case chalice.Length(e) =>
@@ -541,7 +545,7 @@ class ProgramTranslator(val programName: String)
 
         // return a universal quantification on all sequence elements
         // bounded identifier
-        val boundedId = LocalVarDecl(nameGenerator.createIdentifier("i$"), Int)()
+        val boundedId = LocalVarDecl(nameGenerator.createUniqueIdentifier("i$"), Int)()
 
         // restrain identifier to sequence indices
         val boundedIdDomain = And(
@@ -740,7 +744,7 @@ class ProgramTranslator(val programName: String)
         val silMethod = symbolMap(chaliceMethod).asInstanceOf[Method]
 
         // create fresh read permission
-        val newK = LocalVarDecl(nameGenerator.createIdentifier("newK$"), Perm)()
+        val newK = LocalVarDecl(nameGenerator.createUniqueIdentifier("newK$"), Perm)()
 
         // create a method call inside a fresh permission block
         FreshReadPerm(Seq(newK.localVar),
@@ -870,7 +874,7 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
         val forkedSilMethod = symbolMap(forkedChaliceMethod).asInstanceOf[Method]
 
         // create fresh read permission
-        val newK = LocalVarDecl(nameGenerator.createIdentifier("newK$"), Perm)()
+        val newK = LocalVarDecl(nameGenerator.createUniqueIdentifier("newK$"), Perm)()
 
         // calculate target
         val targetObject = translateExp(target, myThis, pTrans)

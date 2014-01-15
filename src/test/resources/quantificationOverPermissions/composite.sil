@@ -1,0 +1,196 @@
+domain GlobalKPermission {
+  
+  unique function globalK$(): Perm
+  
+  axiom globalKReadOnly {
+    (globalK$() > none) && (write > globalK$())
+  }
+}
+
+var old$methodPermission: Perm
+
+var joinable$: Bool
+
+var Compositeall$: Set[Ref]
+
+var Nodevalue$: Int
+
+var Nodeleft$: Ref
+
+var Noderight$: Ref
+
+var Nodeparent$: Ref
+
+var NodeparentStruct$: Ref
+
+var par$NodeinitSingle$this$_8: Ref
+
+var par$NodeinitSingle$k$: Perm
+
+var old$Nodeinit$0: Set[Ref]
+
+var par$Nodeinit$this$_9: Ref
+
+var par$Nodeinit$k$_1: Perm
+
+var par$Nodeinit$newParent: Ref
+
+var par$Nodeinit$putLeft: Bool
+
+var par$NodefixInvariant$this$_10: Ref
+
+var par$NodefixInvariant$k$_2: Perm
+
+var par$Clientmain$this$_12: Ref
+
+var par$Clientmain$k$_3: Perm
+
+function Nodevalid$(this$_3: Ref): Bool
+  requires this$_3 != null
+  requires acc(this$_3.NodeparentStruct$, wildcard) && (this$_3.NodeparentStruct$ != null) && acc(this$_3.NodeparentStruct$.Compositeinv$(), wildcard)
+{
+  (unfolding acc(this$_3.NodeparentStruct$.Compositeinv$(), wildcard) in this$_3 in this$_3.NodeparentStruct$.Compositeall$)
+}
+
+function NodegetLeft$(this$_4: Ref): Ref
+  requires this$_4 != null
+  requires acc(this$_4.NodeparentStruct$, wildcard) && (this$_4.NodeparentStruct$ != null) && acc(this$_4.NodeparentStruct$.Compositeinv$(), wildcard) && Nodevalid$(this$_4)
+{
+  (unfolding acc(this$_4.NodeparentStruct$.Compositeinv$(), wildcard) in this$_4.Nodeleft$)
+}
+
+function NodegetRight$(this$_5: Ref): Ref
+  requires this$_5 != null
+  requires acc(this$_5.NodeparentStruct$, wildcard) && (this$_5.NodeparentStruct$ != null) && acc(this$_5.NodeparentStruct$.Compositeinv$(), wildcard) && Nodevalid$(this$_5)
+{
+  (unfolding acc(this$_5.NodeparentStruct$.Compositeinv$(), wildcard) in this$_5.Noderight$)
+}
+
+function NodegetValue$(this$_6: Ref): Int
+  requires this$_6 != null
+  requires acc(this$_6.NodeparentStruct$, wildcard) && (this$_6.NodeparentStruct$ != null) && acc(this$_6.NodeparentStruct$.Compositeinv$(), wildcard) && Nodevalid$(this$_6)
+{
+  (unfolding acc(this$_6.NodeparentStruct$.Compositeinv$(), wildcard) in this$_6.Nodevalue$)
+}
+
+function NodegetAllNodes$(this$_7: Ref): Set[Ref]
+  requires this$_7 != null
+  requires acc(this$_7.NodeparentStruct$, wildcard) && (this$_7.NodeparentStruct$ != null) && acc(this$_7.NodeparentStruct$.Compositeinv$(), wildcard) && Nodevalid$(this$_7)
+{
+  (unfolding acc(this$_7.NodeparentStruct$.Compositeinv$(), wildcard) in this$_7.NodeparentStruct$.Compositeall$)
+}
+
+predicate Composite$MonitorInvariant(this$: Ref) {
+  true
+}
+
+predicate Compositeinv$(this$_1: Ref) {
+  acc(this$_1.Compositeall$, write) && !null in this$_1.Compositeall$ && (forall n: Ref :: true && n in this$_1.Compositeall$ ==> acc(n.Nodevalue$, write) && acc(n.Nodeparent$, wildcard) && ((n.Nodeparent$ != null) ==> n.Nodeparent$ in this$_1.Compositeall$) && acc(n.NodeparentStruct$, wildcard) && (n.NodeparentStruct$ == this$_1) && acc(n.Nodeleft$, 50 / 100) && (n.Nodeleft$ != null ? n.Nodeleft$ in this$_1.Compositeall$ && (n.Nodeleft$.Nodeparent$ == n) : acc(n.Nodeleft$, 50 / 100)) && acc(n.Noderight$, 50 / 100) && (n.Noderight$ != null ? n.Noderight$ in this$_1.Compositeall$ && (n.Noderight$.Nodeparent$ == n) : acc(n.Noderight$, 50 / 100)) && (n.Nodevalue$ == (n.Nodeleft$ == null ? 0 : n.Nodeleft$.Nodevalue$) + (n.Noderight$ == null ? 0 : n.Noderight$.Nodevalue$) + 1))
+}
+
+predicate Node$MonitorInvariant(this$_2: Ref) {
+  true
+}
+
+predicate Client$MonitorInvariant(this$_11: Ref) {
+  true
+}
+
+method NodeinitSingle$(this$_8: Ref, k$: Perm)
+  requires this$_8 != null
+  requires k$ > none
+  requires write > k$
+  requires acc(this$_8.Nodevalue$, write) && acc(this$_8.Nodeleft$, write) && acc(this$_8.Noderight$, write) && acc(this$_8.Nodeparent$, write) && acc(this$_8.NodeparentStruct$, write)
+  requires (this$_8.Nodeleft$ == null) && (this$_8.Noderight$ == null) && (this$_8.Nodeparent$ == null) && (this$_8.NodeparentStruct$ == null)
+  ensures acc(this$_8.NodeparentStruct$, wildcard) && (this$_8.NodeparentStruct$ != null) && acc(this$_8.NodeparentStruct$.Compositeinv$(), write)
+  ensures Nodevalid$(this$_8) && (NodegetAllNodes$(this$_8) == Set(this$_8))
+{
+  var n$: Ref
+  this$_8.Nodevalue$ := 1
+  n$ := new()
+  this$_8.NodeparentStruct$ := n$
+  this$_8.NodeparentStruct$.Compositeall$ := Set(this$_8)
+  fold acc(this$_8.NodeparentStruct$.Compositeinv$(), write)
+}
+
+method Nodeinit$(this$_9: Ref, k$_1: Perm, newParent: Ref, putLeft: Bool)
+  requires this$_9 != null
+  requires k$_1 > none
+  requires write > k$_1
+  requires acc(this$_9.Nodevalue$, write) && acc(this$_9.Nodeleft$, write) && acc(this$_9.Noderight$, write) && acc(this$_9.Nodeparent$, write) && acc(this$_9.NodeparentStruct$, write)
+  requires (this$_9.Nodeleft$ == null) && (this$_9.Noderight$ == null) && (this$_9.Nodeparent$ == null) && (this$_9.NodeparentStruct$ == null)
+  requires (newParent != null) && acc(newParent.NodeparentStruct$, wildcard)
+  requires (newParent.NodeparentStruct$ != null) && acc(newParent.NodeparentStruct$.Compositeinv$(), write) && Nodevalid$(newParent)
+  requires (putLeft ? NodegetLeft$(newParent) == null : NodegetRight$(newParent) == null)
+  ensures acc(this$_9.NodeparentStruct$, wildcard) && (this$_9.NodeparentStruct$ == newParent.NodeparentStruct$) && acc(this$_9.NodeparentStruct$.Compositeinv$(), write) && Nodevalid$(this$_9)
+  ensures (putLeft ? NodegetLeft$(newParent) == this$_9 : NodegetRight$(newParent) == this$_9)
+  ensures NodegetAllNodes$(this$_9) == old(NodegetAllNodes$(newParent)) union Set(this$_9)
+{
+  var n$_1: Ref
+  this$_9.Nodevalue$ := 1
+  this$_9.NodeparentStruct$ := newParent.NodeparentStruct$
+  this$_9.Nodeparent$ := newParent
+  unfold acc(newParent.NodeparentStruct$.Compositeinv$(), write)
+  if (putLeft) {
+    newParent.Nodeleft$ := this$_9
+  } else {
+    newParent.Noderight$ := this$_9
+  }
+  this$_9.NodeparentStruct$.Compositeall$ := this$_9.NodeparentStruct$.Compositeall$ union Set(this$_9)
+  fresh(newK$) {
+    NodefixInvariant$(newParent, newK$)
+  }
+  fold acc(this$_9.NodeparentStruct$.Compositeinv$(), write)
+}
+
+method NodefixInvariant$(this$_10: Ref, k$_2: Perm)
+  requires this$_10 != null
+  requires k$_2 > none
+  requires write > k$_2
+  requires acc(this$_10.NodeparentStruct$.Compositeall$, k$_2) && !null in this$_10.NodeparentStruct$.Compositeall$
+  requires (forall n: Ref :: true && n in this$_10.NodeparentStruct$.Compositeall$ ==> acc(n.Nodevalue$, write) && acc(n.Nodeparent$, wildcard) && ((n.Nodeparent$ != null) ==> n.Nodeparent$ in this$_10.NodeparentStruct$.Compositeall$) && acc(n.NodeparentStruct$, wildcard) && (n.NodeparentStruct$ == this$_10.NodeparentStruct$) && acc(n.Nodeleft$, 50 / 100) && (n.Nodeleft$ != null ? n.Nodeleft$ in this$_10.NodeparentStruct$.Compositeall$ && (n.Nodeleft$.Nodeparent$ == n) : acc(n.Nodeleft$, 50 / 100)) && acc(n.Noderight$, 50 / 100) && (n.Noderight$ != null ? n.Noderight$ in this$_10.NodeparentStruct$.Compositeall$ && (n.Noderight$.Nodeparent$ == n) : acc(n.Noderight$, 50 / 100)) && ((n != this$_10) ==> (n.Nodevalue$ == (n.Nodeleft$ == null ? 0 : n.Nodeleft$.Nodevalue$) + (n.Noderight$ == null ? 0 : n.Noderight$.Nodevalue$) + 1)))
+  requires this$_10.Nodevalue$ == (this$_10.Nodeleft$ == null ? 0 : this$_10.Nodeleft$.Nodevalue$) + (this$_10.Noderight$ == null ? 0 : this$_10.Noderight$.Nodevalue$)
+  ensures acc(this$_10.NodeparentStruct$.Compositeall$, k$_2) && !null in this$_10.NodeparentStruct$.Compositeall$
+  ensures (forall n: Ref :: true && n in this$_10.NodeparentStruct$.Compositeall$ ==> acc(n.Nodevalue$, write) && acc(n.Nodeparent$, wildcard) && ((n.Nodeparent$ != null) ==> n.Nodeparent$ in this$_10.NodeparentStruct$.Compositeall$) && acc(this$_10.NodeparentStruct$, wildcard) && (n.NodeparentStruct$ == this$_10.NodeparentStruct$) && acc(n.Nodeleft$, 50 / 100) && (n.Nodeleft$ != null ? n.Nodeleft$ in this$_10.NodeparentStruct$.Compositeall$ && (this$_10.Nodeleft$.Nodeparent$ == this$_10) : acc(n.Nodeleft$, 50 / 100)) && acc(n.Noderight$, 50 / 100) && (n.Noderight$ != null ? n.Noderight$ in this$_10.NodeparentStruct$.Compositeall$ && (this$_10.Noderight$.Nodeparent$ == this$_10) : acc(n.Noderight$, 50 / 100)))
+  ensures (forall n: Ref :: true && n in this$_10.NodeparentStruct$.Compositeall$ ==> (n.Nodevalue$ == (n.Nodeleft$ == null ? 0 : n.Nodeleft$.Nodevalue$) + (n.Noderight$ == null ? 0 : n.Noderight$.Nodevalue$) + 1))
+{
+  var n$_2: Ref
+  this$_10.Nodevalue$ := this$_10.Nodevalue$ + 1
+  if (this$_10.Nodeparent$ != null) {
+    fresh(newK$_5) {
+      NodefixInvariant$(this$_10.Nodeparent$, newK$_5)
+    }
+  }
+}
+
+method Clientmain$(this$_12: Ref, k$_3: Perm)
+  requires this$_12 != null
+  requires k$_3 > none
+  requires write > k$_3
+{
+  var n$_3: Ref
+  var a: Ref
+  var b: Ref
+  var c: Ref
+  n$_3 := new()
+  a := n$_3
+  fresh(newK$_1) {
+    NodeinitSingle$(a, newK$_1)
+  }
+  n$_3 := new()
+  b := n$_3
+  fresh(newK$_2) {
+    Nodeinit$(b, newK$_2, a, true)
+  }
+  n$_3 := new()
+  b := n$_3
+  fresh(newK$_3) {
+    Nodeinit$(b, newK$_3, a, false)
+  }
+  n$_3 := new()
+  c := n$_3
+  fresh(newK$_4) {
+    Nodeinit$(c, newK$_4, b, true)
+  }
+  assert NodegetValue$(a) == 4
+}

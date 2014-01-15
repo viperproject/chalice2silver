@@ -7,30 +7,30 @@ domain GlobalKPermission {
   }
 }
 
-var par$Staticcontains$this$: Ref
+var old$methodPermission: Perm
 
-var par$Staticcontains$collection: Seq[Ref]
-
-var old$methodKey: Int
+var joinable$: Bool
 
 var Cellvalue$: Int
 
+var par$Staticcontains$this$_2: Ref
+
 var par$Staticcontains$k$: Perm
 
+var par$Staticcontains$collection: Seq[Ref]
+
 var par$Staticcontains$value: Int
-
-var old$methodPermission: Perm
-
-predicate Static$MonitorInvariant(this$: Ref) {
-  true
-}
 
 predicate Cell$MonitorInvariant(this$: Ref) {
   true
 }
 
-method Staticcontains$(this$: Ref, k$: Perm, collection: Seq[Ref], value: Int) returns (found: Bool)
-  requires this$ != null
+predicate Static$MonitorInvariant(this$_1: Ref) {
+  true
+}
+
+method Staticcontains$(this$_2: Ref, k$: Perm, collection: Seq[Ref], value: Int) returns (found: Bool)
+  requires this$_2 != null
   requires k$ > none
   requires write > k$
   requires |collection| >= 1
@@ -39,6 +39,7 @@ method Staticcontains$(this$: Ref, k$: Perm, collection: Seq[Ref], value: Int) r
   ensures (forall c: Ref :: true && c in collection ==> acc(c.Cellvalue$, k$))
   ensures found == (exists c: Ref :: true && c in collection && (c.Cellvalue$ == value))
 {
+  var n$: Ref
   var l: Int
   var h: Int
   var m: Int

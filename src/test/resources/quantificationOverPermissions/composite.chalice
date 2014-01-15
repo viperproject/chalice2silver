@@ -7,8 +7,8 @@ class Composite
        acc(all) && !(null in all)
     && (forall n: (all) ::  acc(n.value)
 	                   && rd*(n.parent) && (n.parent!=null ==> n.parent in all) && rd*(n.parentStruct) && n.parentStruct==this
-	                   && acc(n.left, 50) && (n.left!=null ? n.left in all && left.parent==this : acc(n.left, 50))
-	                   && acc(n.right, 50) && (n.right!=null ? n.right in all && right.parent==this : acc(n.right, 50))
+	                   && acc(n.left, 50) && (n.left!=null ? n.left in all && n.left.parent==n : acc(n.left, 50))
+	                   && acc(n.right, 50) && (n.right!=null ? n.right in all && n.right.parent==n : acc(n.right, 50))
                        && n.value == (n.left==null ? 0 : n.left.value) + (n.right==null ? 0 : n.right.value) + 1)
   }
 }
@@ -39,7 +39,7 @@ class Node
     unfolding parentStruct.inv in right
   }
   
-  function getValue() : Node
+  function getValue() : int
     requires rd*(parentStruct) && parentStruct!=null && parentStruct.inv && valid()
   {
     unfolding parentStruct.inv in value
@@ -107,9 +107,9 @@ class Node
 	ensures rd(parentStruct.all) && !(null in parentStruct.all)
 	ensures (forall n: parentStruct.all ::
 	            acc(n.value)
-	         && rd*(n.parent) && (n.parent!=null ==> n.parent in all) && rd*(parentStruct) && parentStruct==this)
-	         && acc(n.left, 50) && (n.left!=null ? n.left in all && left.parent==this : acc(n.left, 50))
-	         && acc(n.right, 50) && (n.right!=null ? n.right in all && right.parent==this : acc(n.right, 50))
+	         && rd*(n.parent) && (n.parent!=null ==> n.parent in parentStruct.all) && rd*(parentStruct) && n.parentStruct==parentStruct
+	         && acc(n.left, 50) && (n.left!=null ? n.left in parentStruct.all && left.parent==this : acc(n.left, 50))
+	         && acc(n.right, 50) && (n.right!=null ? n.right in parentStruct.all && right.parent==this : acc(n.right, 50)))
 	ensures (forall n: parentStruct.all :: n.value == (n.left==null ? 0 : n.left.value) + (n.right==null ? 0 : n.right.value) + 1)
   {
     value := value+1

@@ -1,0 +1,30 @@
+class C
+{
+  invariant acc(x) && x==1
+  var x: int
+  
+  method m()
+    requires acc(x) && x==1
+  {
+    var c: C
+	
+	c.x := 1
+	share c
+	
+	acquire c
+	c.x := 1
+	release c
+	
+	[[ x:=1 ]]
+	
+	fold p
+	unfold p
+	
+	fold acc(p)
+	unfold acc(p)
+	
+	fold acc(p, 10)
+  }
+  
+  predicate p { acc(x) }
+}
