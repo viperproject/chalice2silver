@@ -5,19 +5,13 @@ class A
   predicate p { acc(x) }
   
   method m()
-    requires (forall o:A :: acc(x)) 
-	requires (exists o:A :: acc(x))
-	requires (sum o in nil<A> :: acc(o.x)) == 0
-	requires (max o : empty<A> :: acc(o.x)) == 0
+    requires (forall o:A :: acc(x))
+	requires (sum o in nil<A> :: o.x) == 0
+	requires (max o : empty<A> :: o.x) == 0
 	ensures (forall o:A :: p)
-	ensures (exists o:A :: p)
-	ensures (sum o in nil<A> :: p) == 0
-	ensures (max o : empty<A> :: p) == 0
   {
     assert (forall a:int :: (forall b:A :: a>0 ==> acc(b.x)))
 	assert (forall a:int :: (forall b:A :: a>0 ==> b.p))
-	assert (forall a:int :: (forall b:A :: b.p ==> a>0))
-	assert (forall a:int :: (forall b:A :: acc(b.x) || a>0))
 	assume (forall o:A :: acc(x))
 	assume (forall a:int :: (forall b:A :: a>0 ==> b.p))
   }

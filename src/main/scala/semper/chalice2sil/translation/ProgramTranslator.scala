@@ -612,7 +612,7 @@ class ProgramTranslator(val programName: String)
         e.Q match {
           case chalice.Forall => Forall(boundedVars, Seq(), Implies(domainExpression, silbody)())(position)
           case chalice.Exists =>  Exists(boundedVars, And(domainExpression, silbody)())(position)
-          case _ => messages += Aggregates(position) ; null // todo: fix null pointer exceptions here!
+          case _ => messages += Aggregates(position) ; IntLit(0)(position)
         }
 
       case p:chalice.Permission => pTrans(p, myThis)
@@ -880,7 +880,7 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
 
         // substitute parameters in preconditions
         var actualParameters = collection.mutable.Map(
-          myThis.name -> targetObject, pTrans.asInstanceOf[MethodPermissionTranslator].KVar.name -> newK.localVar
+          forkedSilMethod.formalArgs(0).name -> targetObject, forkedSilMethod.formalArgs(1).name -> newK.localVar
         )
         var i = 0
         args foreach ({

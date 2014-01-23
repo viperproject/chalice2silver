@@ -104,7 +104,7 @@ class Node
 
   invariant /*A*/ acc(refCount) && acc(transRefCount, 50) && acc(value, 100-rd(transRefCount)) && acc(next, 100-rd(transRefCount))
   invariant /*D*/ next==null ==> acc(transRefCount, 50)
-  //invariant /*F*/ acc(this.~(Node.next)) && acc(this.~(List.head))
+  invariant /*F*/ acc(this.~(Node.next)) && acc(this.~(List.head))
   invariant /*B*/ refCount == |~(Node.next)| + |~(List.head)|
   invariant /*E*/ (forall n: ~(Node.next) :: acc(n.transRefCount, 50))
   invariant /*C*/ transRefCount == (sum n: ~(Node.next) :: n.transRefCount) + |~(List.head)|

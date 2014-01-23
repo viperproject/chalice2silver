@@ -1,0 +1,79 @@
+domain GlobalKPermission {
+  
+  unique function globalK$(): Perm
+  
+  axiom globalKReadOnly {
+    (globalK$() > none) && (write > globalK$())
+  }
+}
+
+var old$methodPermission: Perm
+
+var joinable$: Bool
+
+var Ax$: Ref
+
+var par$Am$this$_1: Ref
+
+var par$Am$k$: Perm
+
+var par$Am$other: Ref
+
+var par$An$this$_2: Ref
+
+var par$An$k$_1: Perm
+
+var par$An$other: Seq[Ref]
+
+var par$Ao$this$_3: Ref
+
+var par$Ao$k$_2: Perm
+
+predicate A$MonitorInvariant(this$: Ref) {
+  true
+}
+
+predicate Ap$(this$_4: Ref) {
+  true
+}
+
+method Am$(this$_1: Ref, k$: Perm, other: Ref)
+  requires this$_1 != null
+  requires k$ > none
+  requires write > k$
+  requires acc(this$_1.Ax$, write) && true && acc(other.Ax$, write) && true && (other.Ax$ == this$_1.Ax$)
+  requires acc(this$_1.Ap$(), write) && acc(other.Ap$(), write) && acc(this$_1.Ap$(), write) && acc(this$_1.Ap$(), 50 / 100)
+{
+  var n$: Ref
+  
+}
+
+method An$(this$_2: Ref, k$_1: Perm, other: Seq[Ref])
+  requires this$_2 != null
+  requires k$_1 > none
+  requires write > k$_1
+  requires (forall i$: Int :: (0 <= i$) && (i$ < |other|) ==> acc(other[i$].Ap$(), write)) && (forall i$_1: Int :: (0 <= i$_1) && (i$_1 < |other|) ==> acc(other[i$_1].Ax$, write))
+  ensures (forall i$_2: Int :: (0 <= i$_2) && (i$_2 < |other|) ==> true && acc(other[i$_2].Ax$, k$_1) && acc(other[i$_2].Ap$(), k$_1)) && (true && acc(this$_2.Ax$, k$_1) && acc(this$_2.Ap$(), k$_1))
+{
+  var n$_1: Ref
+  
+}
+
+method Ao$(this$_3: Ref, k$_2: Perm)
+  requires this$_3 != null
+  requires k$_2 > none
+  requires write > k$_2
+{
+  var n$_2: Ref
+  var t: Ref
+  fresh(newK$) {
+    t.joinable$ := true
+    t.old$methodPermission := newK$
+    t.par$An$this$_2 := this$_3
+    t.par$An$k$_1 := newK$
+    t.par$An$other := Seq(this$_3)
+    exhale true && (this$_3 != null) && (newK$ > none) && (write > newK$) && ((forall i$: Int :: (0 <= i$) && (i$ < |Seq(this$_3)|) ==> acc(Seq(this$_3)[i$].Ap$(), write)) && (forall i$_1: Int :: (0 <= i$_1) && (i$_1 < |Seq(this$_3)|) ==> acc(Seq(this$_3)[i$_1].Ax$, write)))
+  }
+  assert acc(t.joinable$, write) && true
+  assert true
+}
