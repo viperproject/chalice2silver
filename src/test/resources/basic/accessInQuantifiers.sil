@@ -1,0 +1,42 @@
+domain GlobalKPermission {
+  
+  unique function globalK$(): Perm
+  
+  axiom globalKReadOnly {
+    (globalK$() > none) && (write > globalK$())
+  }
+}
+
+var old$methodPermission: Perm
+
+var joinable$: Bool
+
+var Ax$: Int
+
+var par$Am$this$_2: Ref
+
+var par$Am$k$: Perm
+
+predicate A$MonitorInvariant(this$: Ref) {
+  true
+}
+
+predicate Ap$(this$_1: Ref) {
+  acc(this$_1.Ax$, write)
+}
+
+method Am$(this$_2: Ref, k$: Perm)
+  requires this$_2 != null
+  requires k$ > none
+  requires write > k$
+  requires (forall o: Ref :: true ==> acc(this$_2.Ax$, write))
+  requires 0 == 0
+  requires 0 == 0
+  ensures (forall o: Ref :: true ==> acc(this$_2.Ap$(), write))
+{
+  var n$: Ref
+  assert (forall a: Int :: true ==> (forall b: Ref :: true ==> (a > 0) ==> acc(b.Ax$, write)))
+  assert (forall a: Int :: true ==> (forall b: Ref :: true ==> (a > 0) ==> acc(b.Ap$(), write)))
+  inhale (forall o: Ref :: true ==> acc(this$_2.Ax$, write))
+  inhale (forall a: Int :: true ==> (forall b: Ref :: true ==> (a > 0) ==> acc(b.Ap$(), write)))
+}
