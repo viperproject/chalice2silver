@@ -1,0 +1,9 @@
+[Chalice2SIL] arbitraryDeclarationOrder.chalice,0:0: Unsupported Feature: Deadlock Avoidance. The feature is presently ignored.
+[Chalice2SIL] arbitraryDeclarationOrder.chalice,0:0: Deprecated Feature: Old Lock Model. The code may be translated incorrectly.
+[Chalice2SIL] arbitraryDeclarationOrder.chalice,0:0: Unsupported Feature: Deadlock Avoidance. The feature is presently ignored.
+[Chalice2SIL] arbitraryDeclarationOrder.chalice,0:0: Deprecated Feature: Old Lock Model. The code may be translated incorrectly.
+[Chalice2SIL] arbitraryDeclarationOrder.chalice,5:5: Unsupported Feature: Deadlock Avoidance. The feature is presently ignored.
+[Chalice2SIL] arbitraryDeclarationOrder.chalice,5:5: Deprecated Feature: Old Lock Model. The code may be translated incorrectly.
+[Chalice2SIL] arbitraryDeclarationOrder.chalice,6:2: Unsupported Feature: Deadlock Avoidance. The feature is presently ignored.
+[Chalice2SIL] arbitraryDeclarationOrder.chalice,6:2: Deprecated Feature: Old Lock Model. The code may be translated incorrectly.
+Chalice2SIL produced 8 messages.

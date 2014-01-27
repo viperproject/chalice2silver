@@ -5,7 +5,7 @@ class A
   predicate p { acc(x) }
   
   method m()
-    requires (forall o:A :: acc(x))
+    requires (forall o:seq<A> :: acc(x))
 	requires (sum o in nil<A> :: o.x) == 0
 	requires (max o : empty<A> :: o.x) == 0
 	ensures (forall o:A :: p)

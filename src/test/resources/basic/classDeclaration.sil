@@ -1,0 +1,16 @@
+domain GlobalKPermission {
+  
+  unique function globalK$(): Perm
+  
+  axiom globalKReadOnly {
+    (globalK$() > none) && (write > globalK$())
+  }
+}
+
+var old$methodPermission: Perm
+
+var joinable$: Bool
+
+predicate C$MonitorInvariant(this$: Ref) {
+  true
+}

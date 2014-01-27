@@ -10,6 +10,7 @@ import mutable.Map
 import semper.chalice2sil.messages._
 import scala.Some
 import chalice.BackPointerMemberAccess
+import java.nio.file.Paths
 
 // todo: resolve compiler warnings
 // todo: Chalice bug: expression {this} throws matching expression!
@@ -18,8 +19,11 @@ import chalice.BackPointerMemberAccess
 // **
 // This is were the magic happens
 // **
-class ProgramTranslator(val programName: String)
+class ProgramTranslator(val name: String)
 {
+  // java.nio.file.Path storing the name of the program (required by SourcePosition)
+  val programName = java.nio.file.Paths.get(name)
+
   // messages generated in the translation
   val messages = scala.collection.mutable.ListBuffer[ReportMessage]()
 
@@ -114,7 +118,7 @@ class ProgramTranslator(val programName: String)
       // field
       case f:chalice.Field =>
         val newField = Field(nameGenerator.createUniqueIdentifier(f.FullName+"$"), Util.translateType(f.typ))(
-          SourcePosition(null, f.pos.line, f.pos.column)
+          SourcePosition(programName, f.pos.line, f.pos.column)
         )
         symbolMap(f) = newField
         silEnvironment.silFields += (newField.name -> newField)
@@ -122,7 +126,7 @@ class ProgramTranslator(val programName: String)
           // this is a tracked reference: create backpointer field
           val newBackPointerField =
             Field(nameGenerator.createUniqueIdentifier("BP$" + f.FullName+"$"), SetType(Ref))(
-              SourcePosition(null, f.pos.line, f.pos.column)
+              SourcePosition(programName, f.pos.line, f.pos.column)
             )
           silEnvironment.silFields += (newBackPointerField.name -> newBackPointerField)
           backpointerSymbolMap += ((f.typ.id, classNode.classId, f.id) -> newBackPointerField)
@@ -133,7 +137,7 @@ class ProgramTranslator(val programName: String)
         val ths = nameGenerator.createUniqueIdentifier("this$")
         val newPredicate =
           Predicate(nameGenerator.createUniqueIdentifier(p.FullName+"$"), List(LocalVarDecl(ths, Ref)()), null)(
-            SourcePosition(null, p.pos.line, p.pos.column)
+            SourcePosition(programName, p.pos.line, p.pos.column)
           )
           // a predicate has a single reference parameter that refers to the receiver
           // the body is to be filled later
@@ -151,7 +155,7 @@ class ProgramTranslator(val programName: String)
         val myN = LocalVarDecl(n, Ref)()
         val ins = myThis :: myK :: translateVars(m.ins)
         val newMethod = Method(nameGenerator.createUniqueIdentifier(m.FullName+"$"), ins, translateVars(m.outs),
-          null, null, Seq(myN), null)(SourcePosition(null, m.pos.line, m.pos.column))
+          null, null, Seq(myN), null)(SourcePosition(programName, m.pos.line, m.pos.column))
           // a method in SIL has a reference parameter that refers to the receiver and a permission parameter that
           // refers to all unspecified read permissions in its precondition
           // the body and the specs are to be filled in later
@@ -164,7 +168,7 @@ class ProgramTranslator(val programName: String)
         val myThis = LocalVarDecl(ths, Ref)()
         val ins = myThis :: translateVars(f.ins)
         val newFunction = Function(nameGenerator.createUniqueIdentifier(f.FullName+"$"), ins, Util.translateType(f.out),
-          null, null, null)(SourcePosition(null, f.pos.line, f.pos.column))
+          null, null, null)(SourcePosition(programName, f.pos.line, f.pos.column))
           // a function has a reference parameter that refers to the receiver
           // the body and the precondition are to be filled later
         symbolMap(f) = newFunction
@@ -208,7 +212,7 @@ class ProgramTranslator(val programName: String)
         // translate the found invariant expression and conjoin it to the already translated invariants
           // all invariants refer to the same receiver object and their read permission is given by globalK
         val currentInv = translateExp(i.e, ths, PredicatePermissionTranslator(globalK))
-        monitorInvariantBody = And(currentInv, monitorInvariantBody)()
+        monitorInvariantBody = And(monitorInvariantBody, currentInv)()
       case _ => // fields: nothing to do here
     })
 
@@ -223,7 +227,7 @@ class ProgramTranslator(val programName: String)
   protected def translateVars(cVars: Seq[chalice.Variable]) = {
     val result = scala.collection.mutable.ListBuffer[LocalVarDecl]()
     cVars.foreach((x: chalice.Variable) =>
-      result += LocalVarDecl(x.id, Util.translateType(x.t))(SourcePosition(null, x.pos.line, x.pos.column))
+      result += LocalVarDecl(x.id, Util.translateType(x.t))(SourcePosition(programName, x.pos.line, x.pos.column))
     )
     result.toList
   }
@@ -330,7 +334,7 @@ class ProgramTranslator(val programName: String)
   protected def translateExp(cExp: chalice.Expression, myThis: LocalVarDecl, pTrans: PermissionTranslator,
                              accessMemberSubexpression: Boolean = false) : Exp = {
     // obtain the Chalice source code position
-    val position = SourcePosition(null, cExp.pos.line, cExp.pos.column)
+    val position = SourcePosition(programName, cExp.pos.line, cExp.pos.column)
 
     cExp match {
       // old expression
@@ -654,7 +658,7 @@ class ProgramTranslator(val programName: String)
   // **
   protected def translateStm(cStm: chalice.Statement, myThis: LocalVarDecl,
                              pTrans: PermissionTranslator, silMethod: Method) : Stmt = {
-    val position = new SourcePosition(null, cStm.pos.line, cStm.pos.column)
+    val position = new SourcePosition(programName, cStm.pos.line, cStm.pos.column)
     cStm match {
       // assert and assume
       case chalice.Assert(e) => Assert(translateExp(e, myThis, pTrans))(position)
