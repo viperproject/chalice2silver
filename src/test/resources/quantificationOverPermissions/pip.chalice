@@ -1,3 +1,7 @@
+// there should be no deadlock avoidance control when this code is verified
+// in the absence of deadlock avoidance, an object is always "shared" and starts off
+// being held by the thread that creates it
+
 class Node
 {
   var initValue: int
@@ -10,28 +14,36 @@ class Node
   }
   
   invariant   rd*(initValue) && rd*(parent) && acc(value, 50) && acc(~(Node.parent)) && (forall n:~(Node.parent) :: acc(n.value, 50))
-           && (parent==null ==> /*shared(parent) &&*/ acc(value, 50)) && value == mx(initValue, (max n:~(Node.parent) :: n.value))
-		   // todo: fix the missing "shared" conjunct
+           && (parent==null ==> acc(value, 50)) && value == mx(initValue, (max n:~(Node.parent) :: n.value))
+  
+  method initSingle(newInitValue: int)
+    requires acc(initValue) && acc(parent) && parent==null && acc(value) && acc(~(Node.parent)) && ~(Node.parent)==empty<Node>
+    requires holds(this)
+	ensures rd*(initValue) && rd*(parent) && initValue==newInitValue && parent==null
+  {
+    initValue := newInitValue
+	value := newInitValue
+	parent := null
+	release this
+  }
   
   method init(newInitValue:int, newParent:Node)
-    requires acc(initValue) && acc(parent) && parent==null && acc(value) && acc(~(Node.parent)) && ~(Node.parent)==empty<Node> /*&& !shared(this)*/
-	requires newParent!=null /*&& shared(newParent)*/ && (forall n:Node :: !holds(n))
-	ensures rd*(initValue) && rd*(parent) && initValue==newInitValue && parent==newParent /*&& shared(this)*/
-	ensures (forall n:Node :: !holds(n))
+    requires acc(initValue) && acc(parent) && parent==null && acc(value) && acc(~(Node.parent)) && ~(Node.parent)==empty<Node> && newParent!=null
+    requires holds(this)
+	ensures rd*(initValue) && rd*(parent) && initValue==newInitValue && parent==newParent
   {
     acquire newParent
     initValue := newInitValue
 	value := newInitValue
 	parent := newParent
-	share this
+	release this
 	call parent.update(value)
   }
   
   method update(newValue: int)
-    requires /*shared(this) &&*/ holds(this) && newValue==(max n:~(Node.parent) :: n.value)
+    requires holds(this) && newValue == (max n:~(Node.parent) :: n.value)
 	requires rd*(initValue) && rd*(parent) && acc(value, 50) && acc(~(Node.parent)) && (forall n:~(Node.parent) :: acc(n.value, 50))
-	requires (parent==null ==> /*shared(parent) &&*/ acc(value, 50)) && value>=initValue
-	lockchange this
+	requires (parent==null ==> acc(value, 50)) && value>=initValue
   {
     if(value < newValue)
 	{
@@ -40,5 +52,16 @@ class Node
 	  if(parent!=null) { call parent.update(value) }
 	}
 	release this
+  }
+}
+
+class Client
+{
+  method main() {
+    Node n0 = new Node  // starts off as "held" in the no-deadlock-avoidance mode
+    n0.initSingle(10)
+    Node n1 = new Node
+    n1.init(20, n0)
+    assert n0.value == 20
   }
 }

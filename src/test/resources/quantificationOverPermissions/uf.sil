@@ -1,0 +1,210 @@
+domain GlobalKPermission {
+  
+  unique function globalK$(): Perm
+  
+  axiom globalKReadOnly {
+    (globalK$() > none) && (write > globalK$())
+  }
+}
+
+var old$methodPermission: Perm
+
+var joinable$: Bool
+
+var Nodeparent$: Ref
+
+var Nodecollection$: Ref
+
+var NodeCollectionallNodes$: Set[Ref]
+
+var old$Nodeinit$0: Set[Ref]
+
+var old$Nodeinit$1: Set[Ref]
+
+var old$Nodeinit$2: Set[Ref]
+
+var old$Nodeinit$3: Ref
+
+var old$Nodeinit$4: Ref
+
+var par$Nodeinit$this$_1: Ref
+
+var par$Nodeinit$k$: Perm
+
+var par$Nodeinit$col: Ref
+
+var par$NodefindLemma$this$_3: Ref
+
+var par$NodefindLemma$k$_1: Perm
+
+var old$Nodeunion$0: Set[Ref]
+
+var old$Nodeunion$1: Ref
+
+var old$Nodeunion$2: Ref
+
+var old$Nodeunion$3: Ref
+
+var old$Nodeunion$4: Ref
+
+var old$Nodeunion$5: Ref
+
+var old$Nodeunion$6: Ref
+
+var old$Nodeunion$7: Ref
+
+var old$Nodeunion$8: Ref
+
+var old$Nodeunion$9: Ref
+
+var old$Nodeunion$10: Ref
+
+var old$Nodeunion$11: Ref
+
+var old$Nodeunion$12: Ref
+
+var par$Nodeunion$this$_4: Ref
+
+var par$Nodeunion$k$_2: Perm
+
+var par$Nodeunion$other: Ref
+
+var par$NodeCollectioninit$this$_8: Ref
+
+var par$NodeCollectioninit$k$_3: Perm
+
+var par$Clientmain$this$_10: Ref
+
+var par$Clientmain$k$_4: Perm
+
+function Nodefind$(this$_2: Ref): Ref
+  requires this$_2 != null
+  requires acc(this$_2.Nodecollection$, wildcard) && (this$_2.Nodecollection$ != null) && acc(NodeCollectioninv$(this$_2.Nodecollection$), wildcard) && this$_2 in NodeCollectiongetAllNodes$(this$_2.Nodecollection$)
+  ensures Nodefind$(this$_2) in NodeCollectiongetAllNodes$(this$_2.Nodecollection$)
+{
+  ((unfolding acc(NodeCollectioninv$(this$_2.Nodecollection$), wildcard) in this$_2 == this$_2.Nodeparent$) ? this$_2 : Nodefind$(this$_2.Nodeparent$))
+}
+
+function NodeCollectiongetAllNodes$(this$_7: Ref): Set[Ref]
+  requires this$_7 != null
+  requires acc(NodeCollectioninv$(this$_7), wildcard)
+  ensures !null in NodeCollectiongetAllNodes$(this$_7)
+{
+  (unfolding acc(NodeCollectioninv$(this$_7), wildcard) in this$_7.NodeCollectionallNodes$)
+}
+
+predicate Node$MonitorInvariant(this$: Ref) {
+  true
+}
+
+predicate NodeCollection$MonitorInvariant(this$_5: Ref) {
+  true
+}
+
+predicate NodeCollectioninv$(this$_6: Ref) {
+  acc(this$_6.NodeCollectionallNodes$, write) && (forall n: Ref :: true && n in this$_6.NodeCollectionallNodes$ ==> (n != null) && acc(n.Nodecollection$, wildcard) && acc(n.Nodeparent$, write) && (n.Nodecollection$ == this$_6) && (n.Nodeparent$ != null) && n.Nodeparent$ in this$_6.NodeCollectionallNodes$)
+}
+
+predicate Client$MonitorInvariant(this$_9: Ref) {
+  true
+}
+
+method Nodeinit$(this$_1: Ref, k$: Perm, col: Ref)
+  requires this$_1 != null
+  requires k$ > none
+  requires write > k$
+  requires (col != null) && acc(NodeCollectioninv$(col), write)
+  requires acc(this$_1.Nodecollection$, write) && acc(this$_1.Nodeparent$, write) && (this$_1.Nodecollection$ == null) && (this$_1.Nodeparent$ == null)
+  requires !this$_1 in NodeCollectiongetAllNodes$(col)
+  ensures acc(this$_1.Nodecollection$, wildcard) && (this$_1.Nodecollection$ == col)
+  ensures acc(NodeCollectioninv$(col), write)
+  ensures NodeCollectiongetAllNodes$(col) == old(NodeCollectiongetAllNodes$(col)) union Set(this$_1)
+  ensures (forall n: Ref, m: Ref :: true && n in old(NodeCollectiongetAllNodes$(col)) && m in old(NodeCollectiongetAllNodes$(col)) ==> ((Nodefind$(n) == Nodefind$(m)) == (old(Nodefind$(n)) == old(Nodefind$(m)))) && (Nodefind$(n) != Nodefind$(this$_1)))
+{
+  var n$: Ref
+  this$_1.Nodecollection$ := col
+  this$_1.Nodeparent$ := this$_1
+  unfold acc(NodeCollectioninv$(col), write)
+  col.NodeCollectionallNodes$ := col.NodeCollectionallNodes$ union Set(this$_1)
+  fold acc(NodeCollectioninv$(col), write)
+}
+
+method NodefindLemma$(this$_3: Ref, k$_1: Perm)
+  requires this$_3 != null
+  requires k$_1 > none
+  requires write > k$_1
+  requires acc(this$_3.Nodecollection$, wildcard) && (this$_3.Nodecollection$ != null) && acc(NodeCollectioninv$(this$_3.Nodecollection$), write) && this$_3 in NodeCollectiongetAllNodes$(this$_3.Nodecollection$)
+  ensures Nodefind$(Nodefind$(this$_3)) == Nodefind$(this$_3)
+{
+  var n$_1: Ref
+  
+}
+
+method Nodeunion$(this$_4: Ref, k$_2: Perm, other: Ref)
+  requires this$_4 != null
+  requires k$_2 > none
+  requires write > k$_2
+  requires acc(this$_4.Nodecollection$, wildcard) && (this$_4.Nodecollection$ != null) && acc(NodeCollectioninv$(this$_4.Nodecollection$), write) && this$_4 in NodeCollectiongetAllNodes$(this$_4.Nodecollection$)
+  requires (other != null) && acc(other.Nodecollection$, wildcard) && (other.Nodecollection$ == this$_4.Nodecollection$) && other in NodeCollectiongetAllNodes$(this$_4.Nodecollection$)
+  ensures acc(NodeCollectioninv$(this$_4.Nodecollection$), write)
+  ensures NodeCollectiongetAllNodes$(this$_4.Nodecollection$) == old(NodeCollectiongetAllNodes$(this$_4.Nodecollection$))
+  ensures (forall n: Ref, m: Ref :: true && n in NodeCollectiongetAllNodes$(this$_4.Nodecollection$) && m in NodeCollectiongetAllNodes$(this$_4.Nodecollection$) ==> (!old(Nodefind$(n)) in Set(old(Nodefind$(this$_4)), old(Nodefind$(other))) || !old(Nodefind$(m)) in Set(old(Nodefind$(this$_4)), old(Nodefind$(other))) ==> ((Nodefind$(n) == Nodefind$(m)) == (old(Nodefind$(n)) == old(Nodefind$(m))))) && (Set(old(Nodefind$(n)), old(Nodefind$(m))) subset Set(old(Nodefind$(this$_4)), old(Nodefind$(other))) ==> (Nodefind$(n) == Nodefind$(m))))
+{
+  var n$_2: Ref
+  var this1: Ref
+  var other1: Ref
+  this1 := Nodefind$(this$_4)
+  other1 := Nodefind$(other)
+  if (other1 != this1) {
+    this1.Nodeparent$ := other1
+  }
+}
+
+method NodeCollectioninit$(this$_8: Ref, k$_3: Perm)
+  requires this$_8 != null
+  requires k$_3 > none
+  requires write > k$_3
+  requires acc(this$_8.NodeCollectionallNodes$, write)
+  ensures acc(NodeCollectioninv$(this$_8), write) && (NodeCollectiongetAllNodes$(this$_8) == Set())
+{
+  var n$_3: Ref
+  this$_8.NodeCollectionallNodes$ := Set()
+}
+
+method Clientmain$(this$_10: Ref, k$_4: Perm)
+  requires this$_10 != null
+  requires k$_4 > none
+  requires write > k$_4
+{
+  var n$_4: Ref
+  var nc: Ref
+  var n1: Ref
+  var n2: Ref
+  var n3: Ref
+  n$_4 := new()
+  nc := n$_4
+  fresh(newK$) {
+    NodeCollectioninit$(nc, newK$)
+  }
+  n$_4 := new()
+  n1 := n$_4
+  fresh(newK$_1) {
+    Nodeinit$(n1, newK$_1, nc)
+  }
+  n$_4 := new()
+  n2 := n$_4
+  fresh(newK$_2) {
+    Nodeinit$(n2, newK$_2, nc)
+  }
+  n$_4 := new()
+  n3 := n$_4
+  fresh(newK$_3) {
+    Nodeinit$(n3, newK$_3, nc)
+  }
+  fresh(newK$_4) {
+    Nodeunion$(n1, newK$_4, n2)
+  }
+  assert Nodefind$(n1) == Nodefind$(n2)
+  assert Nodefind$(n1) != Nodefind$(n3)
+  assert Nodefind$(n2) != Nodefind$(n3)
+}

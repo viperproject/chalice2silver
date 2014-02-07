@@ -27,7 +27,7 @@ class ParMethods
 	if(end-start > 1)
 	{
 	  middle := start + (end-start)/2
-	  fork tLeft := parallel_mergesort(a, b, start, middle)
+	  fork tLeft := parallel_mergesort(a, b, start, middle) // check whether these forks/joins get translated correctly; then the other 2 methods
 	  fork tRight := parallel_mergesort(a, b, middle, end)
 	  join tLeft
 	  join tRight

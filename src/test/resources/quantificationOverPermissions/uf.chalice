@@ -76,6 +76,36 @@ class NodeCollection
   {
     unfolding inv in allNodes
   }
+  
+  method init()
+    requires acc(allNodes)
+    ensures inv && getAllNodes() == empty<Node>  
+  {
+    allNodes := empty<Node>
+  }
+}
+
+class Client {
+  method main() {
+    var nc: NodeCollection
+    var n1: Node
+    var n2: Node
+    var n3: Node
+    
+    nc := new NodeCollection
+    call nc.init()
+    n1 := new Node
+    call n1.init(nc)
+    n2 := new Node
+    call n2.init(nc)
+    n3 := new Node
+    call n3.init(nc)
+    call n1.union(n2)
+    
+    assert n1.find() == n2.find()
+    assert n1.find() != n3.find()
+    assert n2.find() != n3.find()
+  }
 }
 
 
