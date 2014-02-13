@@ -1,0 +1,6 @@
+class C {
+  method m()
+    requires {this} == {this}
+  {
+  }
+}

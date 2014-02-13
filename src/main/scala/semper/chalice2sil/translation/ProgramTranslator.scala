@@ -13,7 +13,6 @@ import chalice.BackPointerMemberAccess
 import java.nio.file.Paths
 
 // todo: resolve compiler warnings
-// todo: Chalice bug: expression {this} throws matching expression!
 // todo: positions do not contain the file name in the reports: fix!
 
 // **
@@ -150,12 +149,21 @@ class ProgramTranslator(val name: String)
         val k = nameGenerator.createUniqueIdentifier("k$")
         val n = nameGenerator.createUniqueIdentifier("n$")
           // this local variable is used always as a temporary variable for storing newly created objects
+
+        // the following local variables are used as temporary variables in assignments that use backpointers
+        val a = nameGenerator.createUniqueIdentifier("a$")
+        val b = nameGenerator.createUniqueIdentifier("b$")
+        val c = nameGenerator.createUniqueIdentifier("c$")
+
         val myThis = LocalVarDecl(ths, Ref)()
         val myK = LocalVarDecl(k, Perm)()
         val myN = LocalVarDecl(n, Ref)()
+        val myA = LocalVarDecl(a, Ref)()
+        val myB = LocalVarDecl(b, SetType(Ref))()
+        val myC = LocalVarDecl(c, SetType(Ref))()
         val ins = myThis :: myK :: translateVars(m.ins)
         val newMethod = Method(nameGenerator.createUniqueIdentifier(m.FullName+"$"), ins, translateVars(m.outs),
-          null, null, Seq(myN), null)(SourcePosition(programName, m.pos.line, m.pos.column))
+          null, null, Seq(myN, myA, myB, myC), null)(SourcePosition(programName, m.pos.line, m.pos.column))
           // a method in SIL has a reference parameter that refers to the receiver and a permission parameter that
           // refers to all unspecified read permissions in its precondition
           // the body and the specs are to be filled in later
@@ -689,10 +697,31 @@ class ProgramTranslator(val name: String)
 
       // field update
       case chalice.FieldUpdate(ma, rhs) if rhs.isInstanceOf[chalice.Expression] =>
-        val silma = translateExp(ma, myThis, pTrans)
-        FieldAssign(silma.asInstanceOf[FieldAccess],
-          translateExp(rhs.asInstanceOf[chalice.Expression], myThis, pTrans))(position)
-          // todo: add code for backpointers
+        val silma = translateExp(ma, myThis, pTrans).asInstanceOf[FieldAccess]
+        val isTracked = ma.f.isTracked
+        if (!isTracked) FieldAssign(silma, translateExp(rhs.asInstanceOf[chalice.Expression], myThis, pTrans))(position)
+        else {
+          // backpointers must be updated   // todo: fix
+          val Avar = silMethod.locals(1).localVar
+          val Bvar = silMethod.locals(2).localVar
+          val Cvar = silMethod.locals(3).localVar
+          val bpf = backpointerSymbolMap((ma.e.typ.id, ma.typ.id, ma.f.id))
+          Seqn(Seq(
+            LocalVarAssign(Avar, translateExp(ma.e, myThis, pTrans))(position),  // A := e1
+            /*LocalVarAssign(Bvar,
+              FieldAccess(Avar, symbolMap(ma.f).asInstanceOf[Field], translateExp(ma, myThis, pTrans))(position)
+            )(position),
+              // B := A.f*/
+            LocalVarAssign(Cvar, translateExp(rhs.asInstanceOf[chalice.Expression], myThis, pTrans))(position) //,
+              // C := e2
+
+            /*FieldAssign(FieldAccess(silma, bpf)(position),
+              AnySetMinus(FieldAccess(silma, bpf)(position), silReceiver))(position),
+            silAssignment,
+            FieldAssign(FieldAccess(silma, bpf)(position),
+              AnySetUnion(FieldAccess(silma, bpf)(position), silReceiver))(position)*/
+          ))(position)
+        }
 
       // local variable declaration with possible initialization
       case chalice.LocalVar(v, rhs) if (rhs match {

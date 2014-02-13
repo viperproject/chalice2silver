@@ -24,7 +24,7 @@ case class Aggregates(p: Position)
   extends UnsupportedFeature("Aggregates. The code may be translated incorrectly.", p)
 
 case class Signals(p: Position)
-  extends UnsupportedFeature("Signals. The code may be translated incorrectly.", p) // todo
+  extends UnsupportedFeature("Signals. The code may be translated incorrectly.", p)
 
 case class SpecStatement(p: Position)
   extends DeprecatedFeature("Specification Statement. The code may be translated incorrectly.", p)
