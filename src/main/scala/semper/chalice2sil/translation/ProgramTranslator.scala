@@ -776,7 +776,8 @@ class ProgramTranslator(val name: String)
         val silMethod = symbolMap(chaliceMethod).asInstanceOf[Method]
 
         // create fresh read permission
-        val newK = LocalVarDecl(nameGenerator.createUniqueIdentifier("newK$"), Perm)()
+        val newK = LocalVarDecl(nameGenerator.createUniqueIdentifier("newK$"), Perm)(position)
+        silMethod.locals = silMethod.locals :+ newK
 
         // create a method call inside a fresh permission block
         FreshReadPerm(Seq(newK.localVar),
@@ -906,7 +907,8 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
         val forkedSilMethod = symbolMap(forkedChaliceMethod).asInstanceOf[Method]
 
         // create fresh read permission
-        val newK = LocalVarDecl(nameGenerator.createUniqueIdentifier("newK$"), Perm)()
+        val newK = LocalVarDecl(nameGenerator.createUniqueIdentifier("newK$"), Perm)(position)
+        silMethod.locals = silMethod.locals :+ newK
 
         // calculate target
         val targetObject = translateExp(target, myThis, pTrans)
