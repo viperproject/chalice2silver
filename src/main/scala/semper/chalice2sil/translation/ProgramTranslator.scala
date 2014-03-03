@@ -766,11 +766,7 @@ class ProgramTranslator(val name: String)
         Util.newObject(localVar.localVar, position)
 
       // call
-      case chalice.Call(_, lhs, target, methodName, args) =>
-        // todo: implicit locals declaration (same issue in forks/joins)
-          // the first argument of Call is a mask that defines which variables of the lhs are implicitly defined
-          // the feature is not yet implemented
-
+      case chalice.Call(implicitLocals, lhs, target, methodName, args) =>
         // spot Chalice and SIL method object
         val chaliceMethod = target.typ.LookupMember(methodName).get
         val silMethod = symbolMap(chaliceMethod).asInstanceOf[Method]
@@ -778,6 +774,13 @@ class ProgramTranslator(val name: String)
         // create fresh read permission
         val newK = LocalVarDecl(nameGenerator.createUniqueIdentifier("newK$"), Perm)(position)
         silMethod.locals = silMethod.locals :+ newK
+
+        // implicit local declarations
+        for (i <- 0 until implicitLocals.size) {
+          if (implicitLocals(i)) {
+            silMethod.locals = silMethod.locals :+ LocalVarDecl(lhs(i).id, Util.translateType(lhs(i).typ))(position)
+          }
+        }
 
         // create a method call inside a fresh permission block
         FreshReadPerm(Seq(newK.localVar),
