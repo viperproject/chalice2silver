@@ -1,43 +1,80 @@
 package semper.chalice2sil
 
-import messages.ReportMessage
-import org.scalatest._
-import org.scalatest.matchers.ShouldMatchers
-import java.nio.file._
-import collection.JavaConversions._
-import java.util._
-import java.io.File
-import translation.ProgramTranslator
-import chalice.Chalice
+/**
+Author: Yannis Kassios
+*/
 
-/*
 import semper.sil.testing.DefaultSilSuite
-import semper.sil.verifier.Verifier
+import semper.sil.verifier._
 import semper.silicon.Silicon
 import semper.sil.frontend._
-import java.io.File
-import io.Source
+import translation._
 import java.nio.file.Path
 
-class Chalice2SILFrontEnd extends FrontEnd {
-  val phases = List(
-    Phase("parse and resolve", parseNResolve),
-    Phase("translate", translate),
-    Phase("verify", verify))
-
+class Chalice2SILFrontEnd extends DefaultPhases {
   var verf: Verifier = null
-
   var file: Path = null
+  var chaliceAST: List[chalice.TopLevelDecl] = null
+  var silAST: semper.sil.ast.Program = null
+  var failed: Seq[AbstractError] = Seq()
 
   override def init(verifier: Verifier) { verf = verifier }
 
-  override def reset(files: Seq[Path]) { file = files(0) }
+  override def reset(files: Seq[Path]) {
+    chaliceAST = null
+    silAST = null
+    file = files(0)
+    failed = Seq()
+  }
 
-  override def parseNResolve() ...
+  override def parse() {
+    try {
+      chaliceAST =
+        chalice.Chalice.parsePrograms(
+          chalice.Chalice.parseCommandLine(Array("-noVerify", file.toString)).get
+        ).get
+      Success
+      } catch {
+    case e =>
+      // todo: enter message and position here
+      val f = Seq(ParseError(e.toString, null))
+      failed ++= f
+      Failure(f)
+     }
+  }
 
-  override def translate() ...
+  override def typecheck() {
+    if(!failed.isEmpty && !chalice.Chalice.typecheckProgram(null, chaliceAST)) {
+      // todo: enter message and position here
+      val f = Seq(TypecheckerError("", null))
+      failed ++= f
+      Failure(f)
+    }
+    else Success
+  }
 
-  override def verify() ...
+  override def translate() {
+    try { // note: warning messages from the translator are ignored!
+      if (!failed.isEmpty) {
+        val (s: semper.sil.ast.Program, _) = new ProgramTranslator(file.toString).translate(chaliceAST)
+        silAST = s
+      }
+      Success
+    } catch {
+      case e =>
+        val f = Seq(TranslationError(e.toString))
+        failed ++= f
+        Failure(f)
+    }
+  }
+
+  override def verify() {
+    val res = if (!failed.isEmpty) verf.verify(silAST) else Success
+    if (res != Success) failed = res
+    res
+  }
+
+  override def result() = if (!failed.isEmpty) Failure(failed) else Success
 }
 
 class AllTests extends DefaultSilSuite {
@@ -57,88 +94,14 @@ class AllTests extends DefaultSilSuite {
   override def frontend(verifier: Verifier, files: Seq[Path]): Frontend = {
     val fe = new Chalice2SILFrontEnd()
     fe.init(verifier)
-    fe.reset(files.head)
+    fe.reset(files)
     fe
   }
 
   override def verifiers: Seq[Verifier] = Seq(new Silicon())
 }
-*/
 
-/**
-    Author: Yannis Kassios
- */
-class C2STestSuite extends FunSuite with ShouldMatchers {
-  val allTestDirectories = Seq(
-    "basic",
-    "oldC2SCases",
-    "chaliceSuite/examples",
-    "chaliceSuite/general-tests",
-    "chaliceSuite/permission-model",
-    "chaliceSuite/predicates",
-    "chaliceSuite/regressions",
-    "chaliceSuite/substantial-examples",
-    "quantificationOverPermissions"
-  ).map("src/test/resources/" + _)
-
-  allTestDirectories foreach { name =>
-    val ds = Files.newDirectoryStream(Paths.get(name), "*.chalice")
-    ds foreach { p => testFile(p) }
-  }
-
-  def testFile(p: Path) {
-    val chaliceFileName = p.toString
-    var s: Scanner = null
-    val fileName = chaliceFileName.substring(0, chaliceFileName.lastIndexOf('.'))
-
-    val silFileContents = try {
-      val f = fileName + ".sil"
-      s = new Scanner(new File(f))
-      s.useDelimiter("\\Z").next
-    } catch {
-       case e =>
-         println("Cannot open expected SIL output for " + chaliceFileName)
-         println("  " + e)
-         return
-    } finally { if(s!=null) s.close() }
-
-    val expectedWarnings = try {
-      val f = fileName + ".report"
-      s = new Scanner(new File(f))
-      s.useDelimiter("\\Z").next
-    } catch {
-       case e =>
-        println("Cannot open expected warnings for " + chaliceFileName)
-        println("  " + e)
-        return
-    } finally { if(s!=null) s.close() }
-
-    val chaliceProgram = try {
-      chalice.Chalice.parsePrograms(chalice.Chalice.parseCommandLine(Array("-noVerify", chaliceFileName)).get).get
-    } catch {
-       case e =>
-         println("Cannot parse " + chaliceFileName)
-         println("  " + e)
-         return
-    }
-
-    if (!Chalice.typecheckProgram(null, chaliceProgram)) {
-      Console.out.println(chaliceFileName + " contained type errors")
-      return
-    }
-
-    val (silProgram, messages) = try {
-      new ProgramTranslator(ProgramOptions(), chaliceFileName).translate(chaliceProgram)
-    } catch {
-       case e =>
-         println("Translation for " + chaliceFileName + " failed")
-         println("  " + e)
-         return
-    }
-
-    test(chaliceFileName) { assert(silFileContents === silProgram.toString) }
-    test(chaliceFileName + " warnings") {
-      assert(expectedWarnings === messages.fold("", ((x: String, y: ReportMessage) => x + "\n" + y.toString)))
-    }
-  }
-}
+ case class TranslationError(message: String) extends AbstractError {
+   def fullId = "chalice2sil.error"
+   def readableMessage = s"$message"
+ }

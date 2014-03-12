@@ -51,7 +51,7 @@ object Chalice2SilBuild extends Build {
 
   // On the build-server, we cannot have all project in the same directory, and thus we use the publish-local mechanism for dependencies.
   def isBuildServer = sys.env.contains("BUILD_TAG") // should only be defined on the build server
-  def internalDep = if (isBuildServer) Nil else Seq(libs.chaliceDir, libs.silDir)
+  def internalDep = if (isBuildServer) Nil else Seq(libs.chaliceDir, libs.silDir, libs.siliconDir)
   def externalDep = {
     Seq(libs.scopt, libs.scalatest, libs.junit) ++
     (if (isBuildServer) Seq(libs.chalice, libs.sil) else Nil)
@@ -62,6 +62,7 @@ object Chalice2SilBuild extends Build {
     lazy val chalice = "chalice" %% "chalice" %  "1.0"
     lazy val silDir = RootProject(new java.io.File("../Sil"))
     lazy val chaliceDir = RootProject(new java.io.File("../Chalice"))
+    lazy val siliconDir = RootProject(new java.io.File("../Silicon"))
 
     lazy val scalatest = "org.scalatest" %% "scalatest" % "1.8" % "test" withJavadoc() withSources()
     lazy val scopt = "com.github.scopt" %% "scopt" % "3.1.0"
