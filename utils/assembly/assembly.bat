@@ -1,4 +1,4 @@
-@echo on
+@echo off
 SetLocal EnableDelayedExpansion
 
 set THIS_DIR=%~dp0
