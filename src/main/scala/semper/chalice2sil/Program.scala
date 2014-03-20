@@ -14,8 +14,9 @@ import java.io.File
 // This translation parameter is currently not used, except to pass the -noVerify flag.
 // It may be removed in the future, unless a need to pass options to Chalice shows up.
 // **
-case class ProgramOptions(chaliceOptions : Map[String, String] = new scala.collection.immutable.HashMap[String, String],
-                          chaliceFile : java.io.File = null)
+case class ProgramOptions(chaliceOptions : Map[String, String] = Map[String, String](),
+                          chaliceFile : java.io.File = null,
+                          showVersion: Boolean = false)
 
 // **
 // Translate one file from command line
@@ -68,7 +69,7 @@ object Program {
     // Option parser
     val cmdParser = new OptionParser[ProgramOptions]("chalice2sil") {
       // Chalice file
-      arg[File]("<chalice-file>") action {
+      arg[File]("<chalice-file>") optional() action {
         (source, c) => chaliceFileName = source.toString ; c.copy(chaliceFile = source)
       } text ("The chalice source file.")
 
@@ -77,13 +78,30 @@ object Program {
         case ((opt, value), c) => c.copy(chaliceOptions = c.chaliceOptions + (opt -> value ))
       } text("Passes options to Chalice.")
 
+      opt[Unit]('v', "version")
+        .action{(_, c) => c.copy(showVersion = true)}
+        .text("verbose is a flag")
+
+      checkConfig{c =>
+        if (!c.showVersion && c.chaliceFile == null)
+          failure("Missing argument <chalice-file>")
+        else success
+      }
+
       // Help
       help("?") text ("Displays this help message.")
     }
-    var progOptions : ProgramOptions = cmdParser.parse(args, ProgramOptions()) map { opts => opts } getOrElse {
+    var progOptions = cmdParser.parse(args, ProgramOptions()) map { opts => opts } getOrElse {
       Console.out.println("Option parsing failed.  Run with -? for more details.")
       return
-    }.asInstanceOf[ProgramOptions]
+    }
+
+    if (progOptions.showVersion) {
+      import brandingData._
+      println(s"$sbtProjectName $sbtProjectVersion (${hgid.version} $buildDate)")
+      return
+    }
+
     progOptions = progOptions.copy(chaliceOptions = progOptions.chaliceOptions + ("noVerify" -> ""))
       // we don't want Chalice to call Boogie
 
