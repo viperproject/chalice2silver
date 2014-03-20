@@ -2,6 +2,8 @@ import sbt._
 import Keys._
 import sbtassembly.Plugin._
 import AssemblyKeys._
+import de.oakgrove.SbtBrand.{BrandKeys, brandSettings, Val, BrandObject}
+import de.oakgrove.SbtHgId.{HgIdKeys, hgIdSettings}
 
 object Chalice2SilBuild extends Build {
 
@@ -9,11 +11,13 @@ object Chalice2SilBuild extends Build {
 	
   lazy val baseSettings = (
        Defaults.defaultSettings
+    ++ hgIdSettings
+    ++ brandSettings
     ++ Seq(
           organization := "ch.ethz.inf.pm",
           version := "0.1-SNAPSHOT",
           // publishArtifact in packageDoc := false,
-          scalaVersion := "2.10.0",
+          scalaVersion := "2.10.3",
           // publishMavenStyle := false,
           // componentID := None,
           // crossPaths := false,
@@ -41,7 +45,24 @@ object Chalice2SilBuild extends Build {
               traceLevel := 10,
               maxErrors := 6,
               classDirectory in Test <<= classDirectory in Compile,
-              libraryDependencies ++= externalDep))
+              libraryDependencies ++= externalDep,
+              BrandKeys.dataPackage := "semper.chalice2sil",
+              BrandKeys.dataObject := "brandingData",
+              BrandKeys.data += Val("buildDate", new java.text.SimpleDateFormat("yyyy/MM/dd HH:mm:ss").format(new java.util.Date)),
+              BrandKeys.data <+= scalaVersion(Val("scalaVersion", _)),
+              BrandKeys.data <+= sbtBinaryVersion(Val("sbtBinaryVersion", _)),
+              BrandKeys.data <+= sbtVersion(Val("sbtVersion", _)),
+              BrandKeys.data <+= name(Val("sbtProjectName", _)),
+              BrandKeys.data <+= version(Val("sbtProjectVersion", _)),
+              BrandKeys.data <+= HgIdKeys.projectId { hgid =>
+                BrandObject("hgid",
+                            """val version = "%s"
+                               val id = "%s"
+                               val branch = "%s"
+                               val tags = "%s"
+                            """.format(hgid.version, hgid.id, hgid.branch, hgid.tags))
+              },
+              sourceGenerators in Compile <+= BrandKeys.generateDataFile))
     )
     for (dep <- internalDep) {
       p = p.dependsOn(dep)
@@ -64,7 +85,7 @@ object Chalice2SilBuild extends Build {
     lazy val chaliceDir = RootProject(new java.io.File("../Chalice"))
 
     lazy val scalatest = "org.scalatest" %% "scalatest" % "1.8" % "test" withJavadoc() withSources()
-    lazy val scopt = "com.github.scopt" %% "scopt" % "3.1.0"
+    lazy val scopt = "com.github.scopt" %% "scopt" % "3.2.0"
     lazy val junit = "junit" % "junit" % "4.8.1" % "test"
       /* JUnit seems to only be required by semper.chalice2sil.util.UnicodeManglerTests. */
   }
