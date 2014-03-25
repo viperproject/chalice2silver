@@ -4,10 +4,11 @@ package semper.chalice2sil
 Author: Yannis Kassios
 */
 
-import semper.sil.testing.DefaultSilSuite
+import semper.sil.testing._
 import semper.sil.verifier._
 import semper.silicon.Silicon
 import semper.sil.frontend._
+import semper.sil.ast.Position
 import translation._
 import java.nio.file.Path
 
@@ -62,7 +63,8 @@ class Chalice2SILFrontEnd extends DefaultPhases {
       Success
     } catch {
       case e =>
-        val f = Seq(TranslationError(e.toString))
+        // todo: enter message and position here
+        val f = Seq(TranslationError(e.toString, null))
         failed ++= f
         Failure(f)
     }
@@ -70,7 +72,10 @@ class Chalice2SILFrontEnd extends DefaultPhases {
 
   override def verify() {
     val res = if (!failed.isEmpty) verf.verify(silAST) else Success
-    if (res != Success) failed = res
+    res match {
+      case Failure(f) => failed ++= f
+      case Success =>
+    }
     res
   }
 
@@ -78,6 +83,8 @@ class Chalice2SILFrontEnd extends DefaultPhases {
 }
 
 class AllTests extends DefaultSilSuite {
+
+  configMap = Map("includeFiles" -> ".*\\.chalice")
 
   override lazy val testDirectories: Seq[String] = Seq(
     "basic",
@@ -89,7 +96,7 @@ class AllTests extends DefaultSilSuite {
     "chaliceSuite/regressions",
     "chaliceSuite/substantial-examples",
     "quantificationOverPermissions"
-  ).map("src/test/resources/" + _)
+  )
 
   override def frontend(verifier: Verifier, files: Seq[Path]): Frontend = {
     val fe = new Chalice2SILFrontEnd()
@@ -101,7 +108,7 @@ class AllTests extends DefaultSilSuite {
   override def verifiers: Seq[Verifier] = Seq(new Silicon())
 }
 
- case class TranslationError(message: String) extends AbstractError {
+ case class TranslationError(message: String, pos: Position) extends AbstractError {
    def fullId = "chalice2sil.error"
    def readableMessage = s"$message"
  }
