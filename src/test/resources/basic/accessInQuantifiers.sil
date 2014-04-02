@@ -1,5 +1,0 @@
-The program did not typecheck.
-13.22: Quantification / aggregation over non-primitive type is illegal.
-14.19: Quantification / aggregation over non-primitive type is illegal.
-16.19: Quantification / aggregation over non-primitive type is illegal.
-Chalice program contained type errors. Chalice2SIL terminates.
