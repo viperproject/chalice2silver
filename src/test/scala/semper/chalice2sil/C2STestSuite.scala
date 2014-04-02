@@ -82,10 +82,7 @@ class Chalice2SILFrontEnd extends DefaultPhases {
   override def result() = if (!failed.isEmpty) Failure(failed) else Success
 }
 
-class AllTests extends DefaultSilSuite {
-
-  configMap = Map("includeFiles" -> ".*\\.chalice")
-
+class AllTests extends SilSuite {
   override lazy val testDirectories: Seq[String] = Seq(
     "basic",
     "oldC2SCases",
@@ -99,6 +96,7 @@ class AllTests extends DefaultSilSuite {
   )
 
   override def frontend(verifier: Verifier, files: Seq[Path]): Frontend = {
+    configMap = Map("includeFiles" -> ".*\\.chalice")
     val fe = new Chalice2SILFrontEnd()
     fe.init(verifier)
     fe.reset(files)

@@ -23,7 +23,7 @@ supported and/or adequately tested.
 
   0.0  Prerequisites: Make sure you have the following installed
         - Java 7 JDK
-		- Scala 2.10
+        - Scala 2.10
         - SBT
         
   0.1.  Clone the repository under a parent folder, from now on referred to as
@@ -80,13 +80,13 @@ supported and/or adequately tested.
 	
     Should the parsing and resolution phase of Chalice be successful, the
     resulting SIL program will be pretty-printed and output at the standard
-    output stream.  Otherwise, an error will be reported at the standard error
+    output stream.  Errors and warnings are reported at the standard error
     stream.
 	
   2.1 Running as a library:  To trigger a translation, use the following call:
 	
     val (silProgram, messages) = new semper.chalice2sil.translation.
-       ProgramTranslator(programOptions, chaliceFileName).translate(chaliceAST)
+       new ProgramTranslator(chaliceFilename).translate(chaliceAST)
 	  
     where:
       - silProgram: semper.sil.ast.Program
@@ -94,11 +94,7 @@ supported and/or adequately tested.
       - messages: Seq[semper.chalice2sil.ReportMessage]
           is a sequence of warnings and errors produced during the translation
           process
-      - programOptions: semper.chalice2sil.ProgramOptions
-          contains a map of options for the translation
-          (this feature is currently NOT USED -- use code ProgramOptions() to
-          produce an empty options map)
-      - chaliceFileName: String
+      - chaliceFilename: String
           (optional) the file name of the Chalice program
       - chaliceAST: Seq[chalice.TopLevelDecl]
           is a Chalice AST produced by the Chalice parser and type checker
@@ -108,13 +104,4 @@ supported and/or adequately tested.
 3. Testing
 
   3.0  The testing infrastructure and the unit test suite are currently under
-    construction.  To test the whole test suite use command:
-	
-    sbt test
-	
-    The test suite consists of Chalice files and their corresponding
-    pretty-printed SIL translations.  A test failure is reported if the output
-    of Chalice2SIL does not match the corresponding translation.  If the
-    Chalice program cannot be parsed or type-checked, or if there is no
-    corresponding SIL program, the fact is reported, but not counted as a
-    testing failure.
+    construction.
