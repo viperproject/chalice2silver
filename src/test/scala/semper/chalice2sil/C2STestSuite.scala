@@ -45,18 +45,26 @@ class Chalice2SILFrontEnd extends DefaultPhases {
   }
 
   override def typecheck() {
-    if(!failed.isEmpty && !chalice.Chalice.typecheckProgram(null, chaliceAST)) {
-      // todo: enter message and position here
-      val f = Seq(TypecheckerError("", null))
-      failed ++= f
-      Failure(f)
+    try{
+      if(failed.isEmpty && !chalice.Chalice.typecheckProgram(null, chaliceAST)) {
+        // todo: enter message and position here
+        val f = Seq(TypecheckerError("", null))
+        failed ++= f
+        Failure(f)
+      }
+      else Success
+    } catch {
+      case e =>
+        val f = Seq(TypecheckerError(e.toString, null))
+        failed ++= f
+        Failure(f)
     }
-    else Success
   }
 
   override def translate() {
-    try { // note: warning messages from the translator are ignored!
-      if (!failed.isEmpty) {
+    try {
+      // note: warning messages from the translator are ignored!
+      if (failed.isEmpty) {
         val (s: semper.sil.ast.Program, _) = new ProgramTranslator(file.toString).translate(chaliceAST)
         silAST = s
       }
@@ -71,12 +79,20 @@ class Chalice2SILFrontEnd extends DefaultPhases {
   }
 
   override def verify() {
-    val res = if (!failed.isEmpty) verf.verify(silAST) else Success
-    res match {
-      case Failure(f) => failed ++= f
-      case Success =>
+    try
+    {
+      val res = if (failed.isEmpty) verf.verify(silAST) else Success
+      res match {
+        case Failure(f) => failed ++= f
+        case Success =>
+      }
+      res
+    } catch {
+      case e =>
+        val f = Seq(VerifierThrowsException(e.toString))
+        failed ++= f
+        Failure(f)
     }
-    res
   }
 
   override def result() = if (!failed.isEmpty) Failure(failed) else Success
@@ -96,7 +112,6 @@ class AllTests extends SilSuite {
   )
 
   override def frontend(verifier: Verifier, files: Seq[Path]): Frontend = {
-    configMap = Map("includeFiles" -> ".*\\.chalice")
     val fe = new Chalice2SILFrontEnd()
     fe.init(verifier)
     fe.reset(files)
@@ -104,9 +119,17 @@ class AllTests extends SilSuite {
   }
 
   override def verifiers: Seq[Verifier] = Seq(new Silicon())
+
+  override val defaultTestPattern: String = ".*\\.chalice"
 }
 
  case class TranslationError(message: String, pos: Position) extends AbstractError {
    def fullId = "chalice2sil.error"
    def readableMessage = s"$message"
  }
+
+case class VerifierThrowsException(message: String) extends AbstractError {
+  def fullId = "verifier.exception"
+  def readableMessage = s"$message"
+  val pos = null
+}

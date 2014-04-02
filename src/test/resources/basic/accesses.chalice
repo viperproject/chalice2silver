@@ -15,10 +15,12 @@ class A
   }
   
   method o()
+    requires acc(x, rd(10))
+    ensures acc(x, rd(9))
   {
-    fork t:= n([this]);
-	assert acc(t.joinable) && acc(this.mu);
-	assert acc(t.*);
+    fork t:= n([this])
+	assert acc(t.joinable) && acc(this.mu)
+	assert acc(t.*)
   }
 	
   predicate p { true }
