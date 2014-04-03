@@ -12,7 +12,7 @@ popd
 
 copy %BASE_DIR%\target\scala-2.10\chalice2sil.jar %THIS_DIR%\.
 
-%THIS_DIR%\chalice2sil.bat -v
+call %THIS_DIR%\chalice2sil.bat -v
 
 popd
 exit /B 0
