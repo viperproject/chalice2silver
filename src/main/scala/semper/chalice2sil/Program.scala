@@ -75,7 +75,7 @@ object Program {
       arg[File]("<sil-file>")
         .optional()
         .action{(dest, c) => c.copy(silFile = dest)}
-        .text("The SIL output file. If ommitted, results will be sent to stdio.")
+        .text("The SIL output file. If omitted, results will be sent to stdio.")
 
       // Options for Chalice
       opt[(String, String)]("chop") action {

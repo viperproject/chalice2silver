@@ -769,7 +769,7 @@ class ProgramTranslator(val name: String)
       case chalice.Call(implicitLocals, lhs, target, methodName, args) =>
         // spot Chalice and SIL method object
         val chaliceMethod = target.typ.LookupMember(methodName).get
-        val silMethod = symbolMap(chaliceMethod).asInstanceOf[Method]
+        val targetMethod = symbolMap(chaliceMethod).asInstanceOf[Method]
 
         // create fresh read permission
         val newK = LocalVarDecl(nameGenerator.createUniqueIdentifier("newK$"), Perm)(position)
@@ -784,7 +784,7 @@ class ProgramTranslator(val name: String)
 
         // create a method call inside a fresh permission block
         FreshReadPerm(Seq(newK.localVar),
-          MethodCall(silMethod,
+          MethodCall(targetMethod,
                translateExp(target, myThis, pTrans) /*this*/
             :: newK.localVar /*permission*/
             :: args.map(translateExp(_, myThis, pTrans)) /*arguments*/,
