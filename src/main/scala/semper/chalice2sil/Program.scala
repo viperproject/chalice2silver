@@ -31,9 +31,9 @@ object Program {
     opts.chaliceOptions.foreach((entry) => {
       val (option, value) = entry
       if (value.isEmpty)
-        chOptsBuilder += "/" + option
+        chOptsBuilder += "-" + option
       else
-        chOptsBuilder += "/" + option + ":" + value
+        chOptsBuilder += "-" + option + ":" + value
     })
     chOptsBuilder += opts.chaliceFile.getAbsolutePath
     val chOpts = chOptsBuilder.result()
