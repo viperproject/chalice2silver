@@ -75,12 +75,14 @@ object Chalice2SilBuild extends Build {
   def internalDep = if (isBuildServer) Nil else Seq(libs.chaliceDir, libs.silDir, libs.siliconDir)
   def externalDep = {
     Seq(libs.scopt, libs.scalatest, libs.junit) ++
-    (if (isBuildServer) Seq(libs.chalice, libs.sil) else Nil)
+    (if (isBuildServer) Seq(libs.chalice, libs.sil, libs.silicon) else Nil)
   }
 
   object libs {
     lazy val sil = "semper" %% "sil" %  "0.1-SNAPSHOT"
     lazy val chalice = "chalice" %% "chalice" %  "1.0"
+    lazy val silicon = "semper" %% "silicon" %  "0.1-SNAPSHOT"
+    
     lazy val silDir = RootProject(new java.io.File("../Sil"))
     lazy val chaliceDir = RootProject(new java.io.File("../Chalice"))
     lazy val siliconDir = RootProject(new java.io.File("../Silicon"))
