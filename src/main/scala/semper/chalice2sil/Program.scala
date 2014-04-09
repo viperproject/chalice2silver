@@ -27,16 +27,15 @@ object Program {
   // Invokes Chalice and, if parsing and resolution are successful, returns a Chalice AST
   // **
   def invokeChalice(opts: ProgramOptions): Option[scala.List[chalice.TopLevelDecl]] = {
-    val chOptsBuilder = scala.collection.mutable.ArrayBuilder.make[String]()
+    var chOpts = new Array[String](0)
     opts.chaliceOptions.foreach((entry) => {
       val (option, value) = entry
       if (value.isEmpty)
-        chOptsBuilder += "-" + option
+        chOpts = chOpts :+ ("-" + option)
       else
-        chOptsBuilder += "-" + option + ":" + value
+        chOpts = chOpts :+ (option + ":" + value + " ")
     })
-    chOptsBuilder += opts.chaliceFile.getAbsolutePath
-    val chOpts = chOptsBuilder.result()
+    chOpts = chOpts :+ opts.chaliceFile.getAbsolutePath
     val chaliceOptions = Chalice.parseCommandLine(chOpts)
 
     val chaliceOptions1 = chaliceOptions match {
