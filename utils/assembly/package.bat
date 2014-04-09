@@ -20,7 +20,7 @@ REM rmdir /S /Q examples\chaliceSuite\substantial-examples
 unzip examples.zip -d examples\.
 
 REM http://www.info-zip.org/Zip.html
-zip -r chalice2sil.zip chalice2sil.jar chalice2sil.bat examples
+zip -r chalice2sil.zip chalice2sil.jar chalice2sil.bat chalice2sil.sh examples
 
 del chalice2sil.jar
 rmdir /S /Q examples
