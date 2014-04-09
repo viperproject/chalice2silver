@@ -16,6 +16,9 @@ case class Channels(p: Position = null)
 case class DeadlockAvoidance(p: Position)
   extends UnsupportedFeature("Deadlock Avoidance. The feature is presently ignored.", p) // todo
 
+case class TokenPermissions(p: Position)
+  extends UnsupportedFeature("Token Permission. The code may be translated incorrectly.", p) // todo
+
 case class Backpointers(p: Position)
   extends UnsupportedFeature("Backpointers are under construction. The code may be translated incorrectly.", p)
     // todo: need to fix object construction and field updates only

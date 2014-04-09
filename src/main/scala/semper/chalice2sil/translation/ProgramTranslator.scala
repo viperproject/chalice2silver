@@ -627,7 +627,11 @@ class ProgramTranslator(val name: String)
           case _ => messages += Aggregates(position) ; IntLit(0)(position)
         }
 
-      case p:chalice.Permission => pTrans(p, myThis)
+      case p:chalice.Permission =>
+        if (p.isInstanceOf[chalice.ForkEpsilon] || p.isInstanceOf[chalice.ChannelEpsilon]) {
+          messages += TokenPermissions(position) ; NoPerm()(position)
+        }
+        else pTrans(p, myThis)
 
       // literals
       case chalice.BoolLiteral(b) => if(b) TrueLit()(position) else FalseLit()(position)
@@ -1094,7 +1098,9 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
         // the following two cases should only appear in the corresponding contexts
         case chalice.PredicateEpsilon(_) => getK
         case chalice.MonitorEpsilon(_) => getK
-        // todo: deal with: case class ForkEpsilon(token: Expression) extends Write
+
+        // token permissions (not implemented)
+        case chalice.ForkEpsilon(_) | chalice.ChannelEpsilon(_) => NoPerm()()
 
         // counting permissions
         case chalice.Epsilons(n) => IntPermMul(translateExp(n, myThis, this), EpsilonPerm()())() // n*ε permissions
