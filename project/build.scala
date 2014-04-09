@@ -8,7 +8,7 @@ import de.oakgrove.SbtHgId.{HgIdKeys, hgIdSettings}
 object Chalice2SilBuild extends Build {
 
   /* Base settings */
-	
+  
   lazy val baseSettings = (
        Defaults.defaultSettings
     ++ hgIdSettings
@@ -34,7 +34,7 @@ object Chalice2SilBuild extends Build {
       base = file("."),
       settings = (
            baseSettings
-			  ++ assemblySettings
+        ++ assemblySettings
         ++ Seq(
               name := "Chalice2Sil",
               mainClass in (Compile, run) := Some("semper.chalice2sil.Program"),
@@ -54,7 +54,10 @@ object Chalice2SilBuild extends Build {
               BrandKeys.data <+= sbtVersion(Val("sbtVersion", _)),
               BrandKeys.data <+= name(Val("sbtProjectName", _)),
               BrandKeys.data <+= version(Val("sbtProjectVersion", _)),
-              BrandKeys.data <+= HgIdKeys.projectId { hgid =>
+              BrandKeys.data <+= HgIdKeys.projectId { idOrException =>
+                val hgid =
+                  idOrException.fold(Predef.identity,
+                  _ => de.oakgrove.SbtHgId.Id("<unknown", "<unknown", "<unknown", "<unknown"))
                 BrandObject("hgid",
                             """val version = "%s"
                                val id = "%s"
