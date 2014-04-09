@@ -74,9 +74,8 @@ supported and/or adequately tested.
 
     sbt run <args...>
 
-    Currently the only supported option is: --chop:<chalice-options> which
-    passes options to the underlying Chalice parser.  The command also takes
-    a single Chalice file.
+    Currently the only supported option is: -v which returns the version of
+    the tool.
 	
     Should the parsing and resolution phase of Chalice be successful, the
     resulting SIL program will be pretty-printed and output at the standard

@@ -76,11 +76,6 @@ object Program {
         .action{(dest, c) => c.copy(silFile = dest)}
         .text("The SIL output file. If omitted, results will be sent to stdio.")
 
-      // Options for Chalice
-      opt[(String, String)]("chop") action {
-        case ((opt, value), c) => c.copy(chaliceOptions = c.chaliceOptions + (opt -> value ))
-      } text("Passes options to Chalice.")
-
       opt[Unit]('v', "version")
         .action{(_, c) => c.copy(showVersion = true)}
         .text("verbose is a flag")
@@ -94,10 +89,7 @@ object Program {
       // Help
       help("?") text ("Displays this help message.")
     }
-    var progOptions = cmdParser.parse(args, ProgramOptions()) map { opts => opts } getOrElse {
-      Console.out.println("Option parsing failed.  Run with -? for more details.")
-      return
-    }
+    var progOptions = cmdParser.parse(args, ProgramOptions()) map { opts => opts } getOrElse { return }
 
     if (progOptions.showVersion) {
       import brandingData._
