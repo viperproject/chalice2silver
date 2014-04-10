@@ -460,19 +460,17 @@ class ProgramTranslator(val name: String)
       // member access
       case _: chalice.ThisExpr => myThis.localVar
       case ma@chalice.MemberAccess(e, id) =>
-        // special field "mu" is ignored
-        if(id == "mu") { messages += DeadlockAvoidance(position) ; return null }
-
         // translate the receiver expression
         val silexp = translateExp(e, myThis, pTrans)
 
-        // special Chalice field "joinable" is always mapped to the SIL field "joinable$"
-        if(id == "joinable") { return FieldAccess(silexp, silEnvironment.silFields("joinable$"))(position) }
-
         // from the field or predicate name that is being accessed, obtain the relevant SIL object
-        val sf = symbolMap(e.typ.LookupMember(id).get)
+        val cf = e.typ.LookupMember(id).get.asInstanceOf[chalice.Member]
+        val sf =
+          if (cf.isInstanceOf[chalice.Field]) findField(cf.asInstanceOf[chalice.Field])
+          else symbolMap(cf)
+        if (sf == null) return null
 
-        if(sf.isInstanceOf[Field]) FieldAccess(silexp, sf.asInstanceOf[Field])(position)
+        if (sf.isInstanceOf[Field]) FieldAccess(silexp, sf.asInstanceOf[Field])(position)
         else{
           val predAccess = PredicateAccess(List(silexp), sf.asInstanceOf[Predicate])(position)
           if(accessMemberSubexpression)
@@ -550,7 +548,7 @@ class ProgramTranslator(val name: String)
                 PredicateAccessPredicate(PredicateAccess(Seq(silo), silm)(position), silpe)(position)
             }
             else {
-              val silm = symbolMap(m.f).asInstanceOf[Field]
+              val silm = findField(m.f)
               permissionPerObject = (silo: Exp) =>
                 FieldAccessPredicate(FieldAccess(silo, silm)(position), silpe)(position)
             }
@@ -653,6 +651,18 @@ class ProgramTranslator(val name: String)
       // result
       case chalice.Result() => Result()(workingOn.asInstanceOf[Function].typ)
     }
+  }
+
+  // **
+  // find a SIL field corresponding to a Chalice field, taking account of special fields
+  // **
+  protected def findField(cNode: chalice.Field) : Field = {
+    val id = cNode.FullName
+    (id match {
+      case "joinable" => silEnvironment.silFields("joinable$")
+      case "mu" => messages += DeadlockAvoidance(null) ; null
+      case x => symbolMap(cNode)
+    }).asInstanceOf[Field]
   }
 
   // **
