@@ -357,6 +357,9 @@ class ProgramTranslator(val name: String)
       // predicate 'holds' is ignored, because it is deprecated
       case chalice.Holds(_) | chalice.RdHolds(_) => messages += OldLockModel(position) ; TrueLit()(position)
 
+      // predicate 'assigned' is ignored, because it is deprecated
+      case chalice.Assigned(_) => messages += OldLockModel(position) ; TrueLit()(position)
+
       // logical operators
       case chalice.And(lhs, rhs) =>
         And(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
@@ -379,8 +382,6 @@ class ProgramTranslator(val name: String)
         CondExp(
           translateExp(cond, myThis, pTrans), translateExp(thn, myThis, pTrans), translateExp(els, myThis, pTrans)
         )(position)
-      case chalice.Neq(lhs, rhs) =>
-        NeCmp(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
 
       // arithmetic operators and set union, difference, intersection
       case chalice.Plus(lhs, rhs) =>
@@ -426,11 +427,10 @@ class ProgramTranslator(val name: String)
         else And(AnySetSubset(r, l)(position), NeCmp(l, r)(position))(position) // strict superset
 
       // sequence operators
-      case chalice.EmptySeq(t) => EmptySeq(Util.translateType(t))(position)
+      case chalice.EmptySeq(t) =>  EmptySeq(Util.translateType(t))(position)
       case s @ chalice.ExplicitSeq(elems) =>
-        if (elems.length > 0)
-          ExplicitSeq(elems.map(translateExp(_, myThis, pTrans)))(position)
-        else EmptySeq(Util.translateType(s.typ))(position)
+        if (elems.length > 0) ExplicitSeq(elems.map(translateExp(_, myThis, pTrans)))(position)
+        else EmptySeq(Int)(position)
       case chalice.Range(lhs, rhs) =>
         new RangeSeq(translateExp(lhs, myThis, pTrans), translateExp(rhs, myThis, pTrans))(position)
       case chalice.At(lhs, rhs) =>
@@ -444,8 +444,9 @@ class ProgramTranslator(val name: String)
 
       // set operators
       case chalice.EmptySet(t) => EmptySet(Util.translateType(t))(position)
-      case chalice.ExplicitSet(elems) => ExplicitSet(elems.map(translateExp(_, myThis, pTrans)))(position)
-        // todo: what happens with explicitly empty sets?
+      case s @ chalice.ExplicitSet(elems) =>
+        if (elems.length > 0) ExplicitSet(elems.map(translateExp(_, myThis, pTrans)))(position)
+        else EmptySet(Int)(position)
 
       // operators common to sets and sequences
       case chalice.Length(e) =>
