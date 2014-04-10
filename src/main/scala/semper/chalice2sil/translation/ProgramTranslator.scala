@@ -13,7 +13,6 @@ import chalice.BackPointerMemberAccess
 import java.nio.file.Paths
 
 // todo: resolve compiler warnings
-// todo: positions do not contain the file name in the reports: fix!
 
 // **
 // This is were the magic happens
@@ -350,9 +349,9 @@ class ProgramTranslator(val name: String)
       case chalice.Old(inner) => Old(translateExp(inner, myThis, pTrans))(position)
 
       // chalice2sil ignores all deadlock prevention specs in the present version
-      case chalice.LockBelow(_,_) =>  messages += DeadlockAvoidance(position) ; TrueLit()(position)
-      case chalice.Eq(chalice.MaxLockLiteral(),_) => messages += DeadlockAvoidance(position) ; TrueLit()(position)
-      case chalice.Eq(_,chalice.MaxLockLiteral()) => messages += DeadlockAvoidance(position) ; TrueLit()(position)
+      case chalice.LockBelow(_,_) | chalice.Eq(chalice.MaxLockLiteral(),_) | chalice.Eq(_,chalice.MaxLockLiteral())
+           | chalice.Neq(chalice.MaxLockLiteral(),_) | chalice.Neq(_,chalice.MaxLockLiteral())
+        =>  messages += DeadlockAvoidance(position) ; TrueLit()(position)
 
       // predicate 'holds' is ignored, because it is deprecated
       case chalice.Holds(_) | chalice.RdHolds(_) => messages += OldLockModel(position) ; TrueLit()(position)
