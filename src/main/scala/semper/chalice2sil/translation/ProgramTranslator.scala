@@ -95,7 +95,8 @@ class ProgramTranslator(val name: String)
   protected def collectSymbols(decl : chalice.TopLevelDecl) {
     decl match {
       case c:chalice.Class if c.IsNormalClass => collectSymbols(c)
-      case node =>
+
+      case _ => // currently only classes are handled as top level symbols (channels are not supported)
     }
   }
 
@@ -195,7 +196,7 @@ class ProgramTranslator(val name: String)
       case c:chalice.Class if c.IsNormalClass => translate(c)
 
       // only classes are supported as top-level declarations in the present version
-      case node => messages += new Channels()
+      case c:chalice.Channel => messages += new Channels()
     }
   }
 
@@ -632,6 +633,9 @@ class ProgramTranslator(val name: String)
           messages += TokenPermissions(position) ; NoPerm()(position)
         }
         else pTrans(p, myThis)
+
+      // credits
+      case chalice.Credit(_,_) => TrueLit()(position) // channels are not supported
 
       // literals
       case chalice.BoolLiteral(b) => if(b) TrueLit()(position) else FalseLit()(position)
