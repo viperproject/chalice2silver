@@ -578,8 +578,7 @@ class ProgramTranslator(val name: String)
         Unfolding(silpa.asInstanceOf[PredicateAccessPredicate], silbody)(position)
 
       // eval is not supported
-      case e: chalice.Eval => messages += Eval(position) ; TrueLit()(position)
-        // todo: the above code assumes that the eval expression is always of type bool. check if this is the case
+      case e: chalice.Eval => messages += Eval(position) ; Util.representative(Util.translateType(e.typ))
 
       // function application
       case fa@chalice.FunctionApplication(receiver, funName, args) =>
@@ -1193,6 +1192,21 @@ object Util {
       case "$Permission" => Perm
       case _ => Ref
       // todo: add other Chalice-internal classes
+    }
+  }
+
+  // **
+  // returns a representative value of the given type
+  // **
+  def representative(tp: Type) = {
+    tp match {
+      case SeqType(t) => EmptySeq(t)()
+      case SetType(t) => EmptySet(t)()
+      case Int => IntLit(0)()
+      case Bool => FalseLit()()
+      case Perm => NoPerm()()
+      case Ref => NullLit()()
+      case DomainType(_, _) | MultisetType(_) | Pred | TypeVar(_) => NullLit()() // should never happen
     }
   }
 }
