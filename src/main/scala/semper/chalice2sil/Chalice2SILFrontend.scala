@@ -8,6 +8,10 @@ import chalice.Chalice
 import translation._
 import semper.chalice2sil.messages.ReportMessage
 
+/* TODO: Extend SilFrontend, which provides goodies such as error reporting and
+ *       help printing, which is currently done outside of Chalice2SILFrontEnd,
+ *       i.e., in chalice2sil.Program.
+ */
 class Chalice2SILFrontEnd extends DefaultPhases {
   type ChaliceProgram = List[chalice.TopLevelDecl]
 
@@ -17,6 +21,7 @@ class Chalice2SILFrontEnd extends DefaultPhases {
   var silAST: semper.sil.ast.Program = null
   var failed: Seq[AbstractError] = Seq()
   var messages = Seq[ReportMessage]()
+  var verifierResult: VerificationResult = null
 
   override def init(verifier: Verifier) { verf = verifier }
 
@@ -101,12 +106,9 @@ class Chalice2SILFrontEnd extends DefaultPhases {
 
   override def verify() {
     try {
-      val res = if (failed.isEmpty && verf != null) verf.verify(silAST) else Success
-
-      res match {
-        case Failure(f) => failed ++= f
-        case Success =>
-      }
+      verifierResult =
+        if (failed.isEmpty && verf != null) verf.verify(silAST)
+        else Success
     } catch {
         case e: Throwable =>
           val f = Seq(VerifierThrowsException(e.toString))
