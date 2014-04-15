@@ -8,7 +8,7 @@ import de.oakgrove.SbtHgId.{HgIdKeys, hgIdSettings}
 object Chalice2SilBuild extends Build {
 
   /* Base settings */
-  
+
   lazy val baseSettings = (
        Defaults.defaultSettings
     ++ hgIdSettings
@@ -27,7 +27,7 @@ object Chalice2SilBuild extends Build {
           resolvers += "Sonatype OSS Snapshots" at "http://oss.sonatype.org/content/repositories/snapshots/"))
 
 /* Projects */
-          
+
   lazy val chalice2sil = {
     var p = Project(
       id = "chalice2sil",
@@ -57,7 +57,7 @@ object Chalice2SilBuild extends Build {
               BrandKeys.data <+= HgIdKeys.projectId { idOrException =>
                 val hgid =
                   idOrException.fold(Predef.identity,
-                  _ => de.oakgrove.SbtHgId.Id("<unknown", "<unknown", "<unknown", "<unknown"))
+                                     _ => de.oakgrove.SbtHgId.Id("<unknown", "<unknown", "<unknown", "<unknown"))
                 BrandObject("hgid",
                             """val version = "%s"
                                val id = "%s"
@@ -77,7 +77,7 @@ object Chalice2SilBuild extends Build {
   def isBuildServer = sys.env.contains("BUILD_TAG") // should only be defined on the build server
   def internalDep = if (isBuildServer) Nil else Seq(libs.chaliceDir, libs.silDir, libs.siliconDir)
   def externalDep = {
-    Seq(libs.scopt, libs.scalatest, libs.junit) ++
+    Seq(libs.scopt/*, libs.scalatest, libs.junit*/) ++
     (if (isBuildServer) Seq(libs.chalice, libs.sil, libs.silicon) else Nil)
   }
 
@@ -85,14 +85,11 @@ object Chalice2SilBuild extends Build {
     lazy val sil = "semper" %% "sil" %  "0.1-SNAPSHOT"
     lazy val chalice = "chalice" %% "chalice" %  "1.0"
     lazy val silicon = "semper" %% "silicon" %  "0.1-SNAPSHOT"
-    
+
     lazy val silDir = RootProject(new java.io.File("../Sil"))
     lazy val chaliceDir = RootProject(new java.io.File("../Chalice"))
     lazy val siliconDir = RootProject(new java.io.File("../Silicon"))
 
-    lazy val scalatest = "org.scalatest" %% "scalatest" % "1.8" % "test" withJavadoc() withSources()
     lazy val scopt = "com.github.scopt" %% "scopt" % "3.2.0"
-    lazy val junit = "junit" % "junit" % "4.8.1" % "test"
-      /* JUnit seems to only be required by semper.chalice2sil.util.UnicodeManglerTests. */
   }
 }

@@ -8,6 +8,7 @@ import scopt._
 import chalice.Chalice
 import translation.ProgramTranslator
 import java.io.{FileWriter, PrintWriter, File}
+import semper.sil.verifier.{Failure, Success, Verifier}
 
 // **
 // Options to pass to the Chalice library; together with an optional filename
@@ -17,52 +18,13 @@ import java.io.{FileWriter, PrintWriter, File}
 case class ProgramOptions(chaliceOptions: Map[String, String] = Map[String, String](),
                           chaliceFile: File = null,
                           silFile: File = null,
-                          showVersion: Boolean = false)
+                          showVersion: Boolean = false,
+                          backendClass: Option[String] = None)
 
 // **
 // Translate one file from command line
 // **
 object Program {
-  // **
-  // Invokes Chalice and, if parsing and resolution are successful, returns a Chalice AST
-  // **
-  def invokeChalice(opts: ProgramOptions): Option[scala.List[chalice.TopLevelDecl]] = {
-    var chOpts = new Array[String](0)
-    opts.chaliceOptions.foreach((entry) => {
-      val (option, value) = entry
-      if (value.isEmpty)
-        chOpts = chOpts :+ ("-" + option)
-      else
-        chOpts = chOpts :+ (option + ":" + value + " ")
-    })
-    chOpts = chOpts :+ opts.chaliceFile.getAbsolutePath
-    val chaliceOptions = Chalice.parseCommandLine(chOpts)
-
-    val chaliceOptions1 = chaliceOptions match {
-      case Some(c) => c
-      case None =>
-        Console.out.println("Chalice could not parse its options.  Chalice2SIL terminates")
-        return None
-    }
-
-    val program = Chalice.parsePrograms(chaliceOptions1) match {
-      case Some(p) => p
-      case None =>
-        Console.out.println("Chalice program contained syntax errors. Chalice2SIL terminates.")
-        return None
-    }
-
-    if (!Chalice.typecheckProgram(chaliceOptions1, program)) {
-      Console.out.println("Chalice program contained type errors. Chalice2SIL terminates.")
-      return None
-    }
-
-    Some(program)
-  }
-
-  // **
-  // Main
-  // **
   def main(args: Array[String]) {
     // Option parser
     val cmdParser = new OptionParser[ProgramOptions]("chalice2sil") {
@@ -76,9 +38,15 @@ object Program {
         .action{(dest, c) => c.copy(silFile = dest)}
         .text("The SIL output file. If omitted, results will be sent to stdio.")
 
-      opt[Unit]('v', "version")
+      opt[Unit]("version")
         .action{(_, c) => c.copy(showVersion = true)}
-        .text("verbose is a flag")
+        .text("Display version information")
+
+      opt[String]("backend")
+        .action{(className, c) => c.copy(backendClass = Some(className))}
+        .text(  "Forward SIL AST to specified backend. The full-qualified name of a class "
+              + s"extending ${classOf[semper.sil.verifier.Verifier].getName} is expected. "
+              + "The class must be on the classpath.")
 
       checkConfig{c =>
         if (!c.showVersion && c.chaliceFile == null)
@@ -97,43 +65,65 @@ object Program {
       return
     }
 
-    progOptions = progOptions.copy(chaliceOptions = progOptions.chaliceOptions + ("noVerify" -> ""))
-      // we don't want Chalice to call Boogie
+    val chalice2SIL = new Chalice2SILFrontEnd()
 
-    // Translate
-    val chaliceProg = invokeChalice(progOptions) match {
-      case Some(c) => c
-      case None => return
+    val verifierOrNull = progOptions.backendClass match {
+      case Some(className) =>
+        val verifier = Class.forName(className).newInstance.asInstanceOf[Verifier]
+        verifier.parseCommandLine(Nil)
+
+        verifier
+
+      case None => null
     }
 
-    val (silProgram, messages) =
-      new ProgramTranslator(progOptions.chaliceFile.toString).translate(chaliceProg)
+    chalice2SIL.init(verifierOrNull)
+    chalice2SIL.reset(Seq(progOptions.chaliceFile.toPath))
+    chalice2SIL.run()
 
-    def pluralize(noun: String, count: Int) = count match {
-      case 0 => "no " + noun + "s"
-      case 1 => "1 " + noun
-      case n => n.toString + " " + noun + "s"
+    if (chalice2SIL.failed.nonEmpty) {
+      chalice2SIL.failed.foreach(f => Console.err.println("[Chalice2SIL] " + f))
+      Console.err.println("Chalice2SIL produced %s.".format(pluralize("error", chalice2SIL.failed.length)))
+      return
     }
 
     /* Report translation messages */
+
+    val messages = chalice2SIL.messages
 
     if (messages.nonEmpty) {
       messages.foreach(m => Console.err.println("[Chalice2SIL] " + m))
       Console.err.println("Chalice2SIL produced %s.".format(pluralize("message", messages.length)))
     }
 
-    /* Write generated SIL program */
+    /* Print generated SIL program */
 
-    val sink = progOptions.silFile match {
-      case null => new PrintWriter(Console.out, true)
-      case file => new PrintWriter(new FileWriter(file))
+    progOptions.silFile match {
+      case null =>
+        if (progOptions.backendClass.isEmpty) println(chalice2SIL.silAST)
+
+      case file =>
+        val sink = new PrintWriter(new FileWriter(file))
+        sink.println(chalice2SIL.silAST)
+        sink.close()
+
+        println(s"Wrote generated SIL program to ${progOptions.silFile}")
     }
 
-    sink.println(silProgram)
+    /* Report verification result */
 
-    if (progOptions.silFile != null) {
-      sink.close()
-      println(s"Wrote generated SIL program to ${progOptions.silFile}")
+    if (verifierOrNull != null) chalice2SIL.verifierResult match {
+      case Success => println("Verification succeeded")
+
+      case Failure(errors) =>
+        errors foreach (e => println(e.readableMessage))
+        println(s"Verification failed with ${pluralize("error", errors.length)}")
     }
+  }
+
+  def pluralize(noun: String, count: Int) = count match {
+    case 0 => "no " + noun + "s"
+    case 1 => "1 " + noun
+    case n => n.toString + " " + noun + "s"
   }
 }
