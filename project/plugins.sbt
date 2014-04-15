@@ -9,3 +9,5 @@ addSbtPlugin("com.typesafe.sbteclipse" % "sbteclipse-plugin" % "2.2.0")
 addSbtPlugin("de.oakgrove" % "sbt-hgid" % "0.3")
 
 addSbtPlugin("de.oakgrove" % "sbt-brand" % "0.1")
+
+addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.7.4")
