@@ -5,8 +5,6 @@
 package semper.chalice2sil
 
 import scopt._
-import chalice.Chalice
-import translation.ProgramTranslator
 import java.io.{FileWriter, PrintWriter, File}
 import semper.sil.verifier.{Failure, Success, Verifier}
 
@@ -19,7 +17,8 @@ case class ProgramOptions(chaliceOptions: Map[String, String] = Map[String, Stri
                           chaliceFile: File = null,
                           silFile: File = null,
                           showVersion: Boolean = false,
-                          backendClass: Option[String] = None)
+                          backendClass: Option[String] = None,
+                          xmlOutputFile: Option[File] = None)
 
 // **
 // Translate one file from command line
@@ -47,6 +46,13 @@ object Program {
         .text(  "Forward SIL AST to specified backend. The full-qualified name of a class "
               + s"extending ${classOf[semper.sil.verifier.Verifier].getName} is expected. "
               + "The class must be on the classpath.")
+
+      opt[File]("xml")
+        .action{(xmlOutputFile, c) => c.copy(xmlOutputFile = Some(xmlOutputFile))}
+        .text(  "Write the verification results to the specified XML file. "
+              + "The structure of the generated XML document is similar to that of "
+              + "Boogie when run with -xml."
+              + "Requires --backend, there otherwise won't be any verification results.")
 
       checkConfig{c =>
         if (!c.showVersion && c.chaliceFile == null)
@@ -112,12 +118,20 @@ object Program {
 
     /* Report verification result */
 
-    if (verifierOrNull != null) chalice2SIL.verifierResult match {
-      case Success => println("Verification succeeded")
+    if (verifierOrNull != null) {
+      chalice2SIL.verifierResult match {
+        case Success => println("Verification succeeded")
 
-      case Failure(errors) =>
-        errors foreach (e => println(e.readableMessage))
-        println(s"Verification failed with ${pluralize("error", errors.length)}")
+        case Failure(errors) =>
+          errors foreach (e => println(e.readableMessage))
+          println(s"Verification failed with ${pluralize("error", errors.length)}")
+      }
+
+      progOptions.xmlOutputFile.map { xmlFile =>
+        val reporter = new XmlReporter()
+        reporter.addSection(progOptions.chaliceFile.toString, chalice2SIL.verifierResult)
+        reporter.writeToFile(xmlFile)
+      }
     }
   }
 
