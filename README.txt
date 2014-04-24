@@ -1,13 +1,10 @@
 Chalice2SIL - README
 Ioannis Kassios <ioannis.kassios@inf.ethz.ch>
 
-The present version of Chalice2SIL is a translator from front-end verification
-language Chalice to the intermediate representation language SIL, which is used
-by static analysis tools, such as the symbolic execution engine Silicon.
-
-Chalice2SIL is based on the MSc thesis of Christian Klauser.  Klauser's version
-would also invoke Silicon on the produced program.  The present version is a
-pure translator that does not depend on Silicon or any other SIL-related tool.
+Chalice2SIL is a translator from front-end verification language Chalice to the
+intermediate representation language SIL, which is used by static analysis
+tools, such as the symbolic execution engine Silicon.  Chalice2SIL is based on
+the MSc thesis of Christian Klauser.
 
 In comparison with the previous version, Chalice2SIL now supports the new SIL
 AST library, as well as extensions to the Chalice language that are not
@@ -68,19 +65,33 @@ supported and/or adequately tested.
   2.0  Running as an independent program: You can run Chalice2SIL via the
     assembled *.jar file using
 
-    java -jar %PROJECT_ROOT%/target/chalice2sil.jar <args...>
+    java -jar %PROJECT_ROOT%/target/chalice2sil.jar [options] [<chalice-file>] [<sil-file>]
 
     or via SBT using
 
-    sbt run <args...>
-
-    Currently the only supported option is: -v which returns the version of
-    the tool.
+    sbt run [options] [<chalice-file>] [<sil-file>]
 	
-    Should the parsing and resolution phase of Chalice be successful, the
-    resulting SIL program will be pretty-printed and output at the standard
-    output stream.  Errors and warnings are reported at the standard error
-    stream.
+	The command line arguments are explained below:
+	
+	<chalice-file>
+  	    The chalice source file.
+    <sil-file>
+        The SIL output file. If omitted, results will be sent to stdio.
+    --version
+        Display version information.
+    --backend <value>
+        Forward SIL AST to specified backend.  The full-qualified name of a
+		class extending semper.sil.verifier.Verifier is expected. The class
+		must be on the classpath.
+    --xml <value>
+        Write the verification results to the specified XML file. The
+		structure of the generated XML document is similar to that of Boogie
+		when run with -xml.Requires --backend, there otherwise won't be any
+		verification results.
+    --?
+        Displays help.
+
+    Errors and warnings are reported at the standard error stream.
 	
   2.1 Running as a library:  To trigger a translation, use the following call:
 	
