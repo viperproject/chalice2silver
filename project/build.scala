@@ -66,7 +66,7 @@ object Chalice2SilBuild extends Build {
                             """.format(hgid.version, hgid.id, hgid.branch, hgid.tags))
               },
               sourceGenerators in Compile <+= BrandKeys.generateDataFile))
-    )
+    ).settings(net.virtualvoid.sbt.graph.Plugin.graphSettings: _*)
     for (dep <- internalDep) {
       p = p.dependsOn(dep)
     }
