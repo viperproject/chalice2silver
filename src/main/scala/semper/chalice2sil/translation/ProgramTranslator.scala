@@ -351,6 +351,8 @@ class ProgramTranslator(val name: String)
       // chalice2sil ignores all deadlock prevention specs in the present version
       case chalice.LockBelow(_,_) | chalice.Eq(chalice.MaxLockLiteral(),_) | chalice.Eq(_,chalice.MaxLockLiteral())
            | chalice.Neq(chalice.MaxLockLiteral(),_) | chalice.Neq(_,chalice.MaxLockLiteral())
+           | chalice.Eq(chalice.LockBottomLiteral(),_) | chalice.Eq(_,chalice.LockBottomLiteral())
+           | chalice.Neq(chalice.LockBottomLiteral(),_) | chalice.Neq(_,chalice.LockBottomLiteral())
         =>  messages += DeadlockAvoidance(position) ; TrueLit()(position)
 
       // predicate 'holds' is ignored, because it is deprecated
