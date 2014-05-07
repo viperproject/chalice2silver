@@ -9,7 +9,7 @@ import scala.collection._
 import mutable.Map
 import semper.chalice2sil.messages._
 import scala.Some
-import chalice.BackPointerMemberAccess
+import chalice.{BlockStmt, BackPointerMemberAccess}
 import java.nio.file.Paths
 
 // todo: resolve compiler warnings
@@ -768,21 +768,21 @@ class ProgramTranslator(val name: String)
       case chalice.Assign(v@chalice.VariableExpr(name), _) =>
         val newVariable = silMethod.locals(0)
         Seqn(Seq(
-          Util.newObject(newVariable.localVar, position),
+          Util.newObject(newVariable.localVar, silEnvironment.silFields.values.toSeq, position),
           LocalVarAssign(LocalVar(name)(Ref), newVariable.localVar)(position)
         ))(position)
       case chalice.FieldUpdate(ma, _) =>
         val newVariable = silMethod.locals(0)
         val silma = translateExp(ma, myThis, pTrans)
         Seqn(Seq(
-          Util.newObject(newVariable.localVar, position),
+          Util.newObject(newVariable.localVar, silEnvironment.silFields.values.toSeq, position),
           FieldAssign(silma.asInstanceOf[FieldAccess], newVariable.localVar)(position)
         ))(position)
       case chalice.LocalVar(v, _) =>
         val localVar = LocalVarDecl(v.id, Ref)(position)
         // declare the variable only if it is not declared
         if(!silMethod.locals.contains(localVar)) silMethod.locals = silMethod.locals :+ localVar
-        Util.newObject(localVar.localVar, position)
+        Util.newObject(localVar.localVar, silEnvironment.silFields.values.toSeq, position)
 
       // call
       case chalice.Call(implicitLocals, lhs, target, methodName, args) =>
@@ -801,15 +801,21 @@ class ProgramTranslator(val name: String)
           }
         }
 
-        // create a method call inside a fresh permission block
-        FreshReadPerm(Seq(newK.localVar),
-          MethodCall(targetMethod,
-               translateExp(target, myThis, pTrans) /*this*/
-            :: newK.localVar /*permission*/
-            :: args.map(translateExp(_, myThis, pTrans)) /*arguments*/,
-            lhs.map(x => LocalVar(x.id)(Util.translateType(x.typ)))/*targets*/
-          )(position)
+        // create a method call inside a fresh-permission block
+        Seqn(
+          Seq(
+            Fresh(Seq(newK.localVar))(position),
+            Constraining(Seq(newK.localVar),
+              MethodCall(targetMethod,
+                translateExp(target, myThis, pTrans) /*this*/
+                  :: newK.localVar /*permission*/
+                  :: args.map(translateExp(_, myThis, pTrans)) /*arguments*/,
+                lhs.map(x => LocalVar(x.id)(Util.translateType(x.typ)))/*targets*/
+              )(position)
+            )(position)
+          )
         )(position)
+
 
       // locks
         // mu ordering and deadlock avoidance not supported yet
@@ -1001,7 +1007,12 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
         val exhalePrecondition = Exhale(preconditionToExhale)(position)
 
         // put everything inside a fresh permission block
-        FreshReadPerm(Seq(newK.localVar), Seqn(joinTokenAssignments ++ Seq(exhalePrecondition))(position))(position)
+        Seqn(
+          Seq(
+            Fresh(Seq(newK.localVar))(position),
+            Constraining(Seq(newK.localVar), Seqn(joinTokenAssignments ++ Seq(exhalePrecondition))(position))(position)
+          )
+        )(position)
 
       // joining
       case chalice.JoinAsync(lhs, token) =>
@@ -1180,12 +1191,9 @@ object Util {
   // **
   // generates a SIL 'new' statement
   // **
-  def newObject(n: LocalVar, p: Position) = NewStmt(n)(p)
+  def newObject(n: LocalVar, f: Seq[Field], p: Position) = NewStmt(n, f)(p)
     // todo: semantics of new in SIL and Silicon
-    // what access permissions do we have on the fields of the new object?
-    // is there any policy regarding initial values?
-    // is the new statement SIL AST changing any time soon?
-    // also: concerns the implementation of backpointers
+    // currently this returns a new(*) command
 
   // **
   // translates a Chalice class into a SIL type
