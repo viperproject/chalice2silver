@@ -15,17 +15,15 @@ class Test {
 	{ a + n }
 	
 	method implTest(y: int)
-		// requires acc(n) || acc(m)
-			/* 2x ERR: acc only in positive predicate context */
-		// requires y == 0 ==> f(y) == m
-			/* ERR: Insufficient fraction */
+	    //::ExpectedOutput(typechecker.error)
+		//::ExpectedOutput(typechecker.error)
+		requires acc(n) || acc(m)
+		requires y == 0 ==> f(y) == m
+	    //::ExpectedOutput(typechecker.error)
 		// requires y == 0 && acc(m) ==> f(y) == m
-			/* ERR: acc only in positive predicate context */
 		requires y == 0 ==> acc(m) && f(y) == m
-			/* OK */
 	{
 		// var i: int := f(y)
-			/* ERR: pre of f(y) might not hold, insufficient fraction */
 		if (y == 0) {
 			var i: int := f(y)
 				/* OK */
@@ -33,35 +31,31 @@ class Test {
 	}
 	
 	method implTest1(y: int)
-		// requires (y > 0 ==> acc(m)) ==> acc(n)
-			/* ERR: acc only in positive predicate context */
+	    //::ExpectedOutput(typechecker.error)
+		requires (y > 0 ==> acc(m)) ==> acc(n)
 	{}
 	
 	method implTest2(y: int)
 		requires acc(m)
 		requires f(y) == 0 ==> acc(n) && h(n) == 2*n
-			/* OK */
 	{}
 	
 	method implTest3(y: int)
 		requires acc(m)
 		requires y < 0
 		requires g(-y) > 0 ==> f(y) == 0 ==> acc(n) && h(n) == 2*n
-			/* OK */
 	{}
 	
 	method implTest4(b1: bool, b2: bool, b3: bool, x: int)
     requires ((b1 && b2) ==> x > 0) && b3 && (b1)
-			/* OK */
     requires ((b1 && b2) ==> x > 0 && acc(n)) && b3 && (x > 0 ==> ((b2 || b3) && acc(m) && f(x) == 0))
-			/* OK */
 	{}
 	
 	method equivTest1(b1: bool, b2: bool, b3: bool)
 		requires b1 <==> (b2 || b3)
-		// requires b1 <==> acc(m)
-			/* ERR: acc only in positive predicate context */
-		// requires acc(n) <==> acc(m)
-			/* x ERR: acc only in positive predicate context */
+		//::ExpectedOutput(typechecker.error)
+		requires b1 <==> acc(m)
+		//::ExpectedOutput(typechecker.error)
+		requires acc(n) <==> acc(m)
 	{}
 }

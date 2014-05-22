@@ -30,7 +30,17 @@ class AllTests extends SilSuite {
     fe
   }
 
-  override def verifiers: Seq[Verifier] = Seq(new Silicon())
+  override val verifiers = Seq(SiliconVerifierFactory)
 
   override val defaultTestPattern: String = ".*\\.chalice"
+
+  // this class serves as an adaptor for Silicon, to bypass the fact that a Silicon instance may only run once
+  object SiliconVerifierFactory extends Silicon {
+    override def verify(program: semper.sil.ast.Program) = {
+      val silicon = new Silicon()
+      silicon.parseCommandLine(Seq())
+      silicon.config
+      silicon.verify(program)
+    }
+  }
 }

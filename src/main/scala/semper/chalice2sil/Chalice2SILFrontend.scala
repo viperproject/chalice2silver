@@ -23,7 +23,9 @@ class Chalice2SILFrontEnd extends DefaultPhases {
   var messages = Seq[ReportMessage]()
   var verifierResult: VerificationResult = null
 
-  override def init(verifier: Verifier) { verf = verifier }
+  override def init(verifier: Verifier) {
+    verf = verifier
+  }
 
   override def reset(files: Seq[Path]) {
     chaliceAST = null
@@ -44,11 +46,12 @@ class Chalice2SILFrontEnd extends DefaultPhases {
   protected def parseChaliceProgram(options: Chalice.CommandLineParameters): Either[ChaliceProgram, AbstractError] = {
     Chalice.parsePrograms(options) match {
       case Some(p) => Left(p)
-      case None => Right(ParseError("Chalice program contained syntax errors.", NoPosition)) /* TODO: Add message and position */
+      case None => Right(ParseError("Chalice program contained syntax errors.", NoPosition))
+        /* TODO: Add message and position */
     }
   }
 
-  override def parse() {
+  override def parse() = {
     try {
       parseChaliceCommandLine().left.map(options => parseChaliceProgram(options)).joinLeft match {
         case Left(program) =>
@@ -69,11 +72,11 @@ class Chalice2SILFrontEnd extends DefaultPhases {
     }
   }
 
-  override def typecheck() {
+  override def typecheck() = {
     try {
       if(failed.isEmpty && !chalice.Chalice.typecheckProgram(null, chaliceAST)) {
         // todo: enter message and position here
-        val f = Seq(TypecheckerError("", NoPosition))
+        val f = Seq(TypecheckerError("Chalice program contained resolution errors.", NoPosition))
         failed ++= f
         Failure(f)
       }
@@ -86,9 +89,9 @@ class Chalice2SILFrontEnd extends DefaultPhases {
     }
   }
 
-  override def translate() {
+  override def translate() = {
     try {
-      // note: warning messages from the translator are ignored!
+      // note: warning messages from the translator are ignored! todo: add translation failures
       if (failed.isEmpty) {
         val (s: semper.sil.ast.Program, messages) = new ProgramTranslator(file.toString).translate(chaliceAST)
         silAST = s
@@ -104,10 +107,16 @@ class Chalice2SILFrontEnd extends DefaultPhases {
     }
   }
 
-  override def verify() {
+  override def verify() = {
     try {
-      verifierResult =
-        if (failed.isEmpty && verf != null) verf.verify(silAST)
+        if (failed.isEmpty && verf != null) {
+          verifierResult = verf.verify(silAST)
+          verifierResult match {
+            case Failure(f) => failed ++= f
+            case Success =>
+          }
+          verifierResult  // todo: translate the Silicon messages back to meaningful Chalice messages
+        }
         else Success
     } catch {
         case e: Throwable =>
