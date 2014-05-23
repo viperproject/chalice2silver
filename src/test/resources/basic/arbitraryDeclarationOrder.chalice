@@ -27,6 +27,7 @@ class C {
 	  unfold p
 	  x:=2
 	  call n()
+	  //:: ExpectedOutput(fold.failed:assertion.false)
 	  fold p
 	]]
   }

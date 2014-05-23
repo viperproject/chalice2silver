@@ -1,3 +1,4 @@
+//:: UnexpectedOutput(internal:feature.unsupported, /Chalice2SIL/issue/22/)
 class A
 {
   var x:A
@@ -9,7 +10,9 @@ class A
   }
 
   method n(other: seq<A>)
+    //:: UnexpectedOutput(internal:feature.unsupported, /Chalice2SIL/issue/27/)
     requires acc(other[*].p) && acc(other[*].x)
+	//:: UnexpectedOutput(internal:feature.unsupported, /Chalice2SIL/issue/27/)
 	ensures rd(other[*].*) && rd(this.*)
   {
   }
