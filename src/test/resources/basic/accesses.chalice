@@ -1,4 +1,3 @@
-// :: UnexpectedOutput(internal:feature.unsupported, /Chalice2SIL/issue/22/)
 class A
 {
   var x:A
@@ -10,7 +9,6 @@ class A
   }
 
   method n(other: seq<A>)
-    // , /Chalice2SIL/issue/27/)
     //:: ExpectedOutput(internal:feature.unsupported)
     requires acc(other[*].p) //&& acc(other[*].x)
 	// :: UnexpectedOutput(internal:feature.unsupported, /Chalice2SIL/issue/27/)
@@ -18,14 +16,16 @@ class A
   {
   }
   
-/*  method o()
+  method o()
+    //:: ExpectedOutput(internal:feature.unsupported)
     requires acc(x, rd(10))
+	//:: ExpectedOutput(internal:feature.unsupported)
     ensures acc(x, rd(9))
   {
     fork t:= n([this])
 	assert acc(t.joinable) && acc(this.mu)
 	assert acc(t.*)
-  } */
+  }
 	
   predicate p { true }
 }
