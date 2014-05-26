@@ -520,7 +520,9 @@ class ProgramTranslator(val name: String)
         val silpe = pTrans(perm, myThis, position)
 
         // return the complete permission expression
-        grantPermissionToAllFields(obj.typ, silo, silpe, position)
+        allFieldsOf(obj.typ).foldLeft(TrueLit()(position).asInstanceOf[Exp])(
+          (y: Exp, x: Field) => Add(FieldAccessPredicate(FieldAccess(silo, x)(position), silpe)(position), y)(position)
+        )
 
       // access to a specific member (or all members) of all objects in a sequence
       case chalice.AccessSeq(seq, member, perm) =>
@@ -528,47 +530,44 @@ class ProgramTranslator(val name: String)
         val silseq = translateExp(seq, myThis, pTrans)
         val silpe = pTrans(perm, myThis, position)
 
-        // the following closure takes a SIL object expression and returns a SIL expression that grants appropriate
-        // access to member "member" of the corresponding SIL object
-        // if "member" is None, this means access to all fields of the object
-        // NOTE: acc(x[*].*) silently succeeds and produces "true" when x[i] is not a reference. This is allowed here,
-        // since it is allowed in Chalice (either as a bug or as a feature)
-        var permissionPerObject : Exp => Exp = null
         member match {
           case None =>
-            // permissionPerObject must return permission to all the fields of silo
-            permissionPerObject = (silo:Exp) => {
-              // return permission to all the fields of silo
-              grantPermissionToAllFields(seq.typ.parameters(0), silo, silpe, position)
-            }
+            // case acc(x[*].*, p)
+            allFieldsOf(seq.typ.parameters(0)).foldLeft(TrueLit()(position).asInstanceOf[Exp])(
+              {(y: Exp, x: Field) => Add(
+                {
+                  val boundedId = LocalVarDecl(nameGenerator.createUniqueIdentifier("i$"), Int)(position)
+                  val boundedIdDomain = SeqContains(
+                    boundedId.localVar, RangeSeq(IntLit(0)(position), SeqLength(silseq)(position))(position)
+                  )(position)
+                  val qBody = FieldAccessPredicate(
+                    FieldAccess(SeqIndex(silseq, boundedId.localVar)(position), x)(position), silpe
+                  )(position)
+                  Forall(List(boundedId), List(), Implies(boundedIdDomain, qBody)(position))(position)
+                },
+                y)(position)
+              }
+            )
+
           case Some(m) =>
-            // permissionPerObject must return permission to member m
-            if(m.isPredicate) {
-               val silm = symbolMap(m.predicate).asInstanceOf[Predicate]
-               permissionPerObject = (silo: Exp) =>
-                PredicateAccessPredicate(PredicateAccess(Seq(silo), silm)(position), silpe)(position)
+            // case acc(x[*].m, p)
+            val silm = symbolMap(m)
+            val boundedId = LocalVarDecl(nameGenerator.createUniqueIdentifier("i$"), Int)(position)
+            val boundedIdDomain = SeqContains(
+              boundedId.localVar, RangeSeq(IntLit(0)(position), SeqLength(silseq)(position))(position)
+            )(position)
+            val qBody = if (silm.isInstanceOf[Predicate]) {
+              PredicateAccessPredicate(
+                PredicateAccess(
+                  Seq(SeqIndex(silseq, boundedId.localVar)(position)), silm.asInstanceOf[Predicate])(position), silpe
+              )(position)
+            } else {
+              FieldAccessPredicate(
+                FieldAccess(SeqIndex(silseq, boundedId.localVar)(position), silm.asInstanceOf[Field])(position), silpe
+              )(position)
             }
-            else {
-              val silm = findField(m.f)
-              permissionPerObject = (silo: Exp) =>
-                FieldAccessPredicate(FieldAccess(silo, silm)(position), silpe)(position)
-            }
+            Forall(List(boundedId), List(), Implies(boundedIdDomain, qBody)(position))(position)
         }
-
-        // return a universal quantification on all sequence elements
-        // bounded identifier
-        val boundedId = LocalVarDecl(nameGenerator.createUniqueIdentifier("i$"), Int)(position)
-
-        // restrain identifier to sequence indices
-        val boundedIdDomain = SeqContains(
-          boundedId.localVar, RangeSeq(IntLit(0)(position), SeqLength(silseq)(position))(position)
-        )(position)
-
-        // grant permissions for any object i in the sequence
-        val quantBody = permissionPerObject(SeqIndex(silseq, boundedId.localVar)())
-
-        // return the full quantification
-        Forall(List(boundedId), List(), Implies(boundedIdDomain, quantBody)())(position)
 
       // unfolding
       case unfolding@chalice.Unfolding(predicateAccess, body) =>
@@ -1078,23 +1077,15 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
   // creates a SIL expression that grants permission to all fields of an object
   // Note: no special fields (such as joinable and mu) and no backpointers are included
   // **
-  protected def grantPermissionToAllFields(cls: chalice.Class, silo: Exp, silpe: Exp, position: Position) : Exp = {
-    var silexp : Exp = TrueLit()(position)
-    cls.members.foreach{ f =>
-      val sf = symbolMap.getOrElse(f, null)
-      if (sf != null) {
-        val newConjunct =
-          if(sf.isInstanceOf[Field])
-            FieldAccessPredicate(FieldAccess(silo, sf.asInstanceOf[Field])(position), silpe)(position)
-          else if(sf.isInstanceOf[Predicate])
-            PredicateAccessPredicate(PredicateAccess(List(silo), sf.asInstanceOf[Predicate])(position), silpe)(position)
-          else null
-        if(newConjunct != null) silexp = And(silexp, newConjunct)(position)
-      }
-    }
-    silexp
-  }
 
+  // **
+  // returns a sequence of all fields of a class
+  // Note: no special fields (such as joinable and mu) and no backpointers are included
+  // **
+  protected def allFieldsOf(cls: chalice.Class) : Seq[Field] = {
+    for (c <- cls.members; silMember = symbolMap.getOrElse(c, null);
+         if (silMember != null && silMember.isInstanceOf[Field])) yield silMember.asInstanceOf[Field]
+  }
 
   // **
   // superclass of all permission translators

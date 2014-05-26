@@ -1,6 +1,7 @@
 class A
 {
-  var x:A
+  var x: A
+  var y: int
   
   method m(other:A)
     requires acc(x) && acc(mu) && acc(other.x) && acc(other.x.mu) && other.x == this.x
@@ -10,19 +11,19 @@ class A
 
   method n(other: seq<A>)
     //:: ExpectedOutput(internal:feature.unsupported)
-    requires acc(other[*].p)
+    requires acc(other[*].p) // Chalice2sil issue 27
 	requires acc(other[*].x)
 	//:: ExpectedOutput(internal:feature.unsupported)
 	ensures rd(other[*].*) // Chalice2sil issue 27
-	ensures rd(this.*) // Chalice2sil issue 41
+	ensures rd(this.*)
   {
   }
   
   method o()
     //:: ExpectedOutput(internal:feature.unsupported)
-    requires acc(x, rd(10))
+    requires acc(x, rd(10)) // Chalice2sil issue 22
 	//:: ExpectedOutput(internal:feature.unsupported)
-    ensures acc(x, rd(9))
+    ensures acc(x, rd(9)) // Chalice2sil issue 22
   {
     fork t:= n([this])
 	assert acc(t.joinable) && acc(this.mu)
