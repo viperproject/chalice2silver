@@ -10,9 +10,11 @@ class A
 
   method n(other: seq<A>)
     //:: ExpectedOutput(internal:feature.unsupported)
-    requires acc(other[*].p) //&& acc(other[*].x)
-	// :: UnexpectedOutput(internal:feature.unsupported, /Chalice2SIL/issue/27/)
-	//ensures rd(other[*].*) && rd(this.*)
+    requires acc(other[*].p)
+	requires acc(other[*].x)
+	//:: ExpectedOutput(internal:feature.unsupported)
+	ensures rd(other[*].*) // Chalice2sil issue 27
+	ensures rd(this.*) // Chalice2sil issue 41
   {
   }
   

@@ -557,13 +557,12 @@ class ProgramTranslator(val name: String)
 
         // return a universal quantification on all sequence elements
         // bounded identifier
-        val boundedId = LocalVarDecl(nameGenerator.createUniqueIdentifier("i$"), Int)()
+        val boundedId = LocalVarDecl(nameGenerator.createUniqueIdentifier("i$"), Int)(position)
 
         // restrain identifier to sequence indices
-        val boundedIdDomain = And(
-          LeCmp(IntLit(0)(), boundedId.localVar)(),
-          LtCmp(boundedId.localVar, SeqLength(silseq)())()
-        )()
+        val boundedIdDomain = SeqContains(
+          boundedId.localVar, RangeSeq(IntLit(0)(position), SeqLength(silseq)(position))(position)
+        )(position)
 
         // grant permissions for any object i in the sequence
         val quantBody = permissionPerObject(SeqIndex(silseq, boundedId.localVar)())
