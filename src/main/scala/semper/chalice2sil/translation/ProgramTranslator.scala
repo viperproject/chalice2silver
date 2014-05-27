@@ -1072,11 +1072,6 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
   }
 
   // **
-  // creates a SIL expression that grants permission to all fields of an object
-  // Note: no special fields (such as joinable and mu) and no backpointers are included
-  // **
-
-  // **
   // returns a sequence of all fields of a class
   // Note: no special fields (such as joinable and mu) and no backpointers are included
   // **

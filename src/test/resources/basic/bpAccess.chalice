@@ -1,3 +1,7 @@
+//:: IgnoreFile(/Chalice2SIL/issue/37/)
+  // backpointers are under construction (issue 42) and this should count as a fatal Chalice2SIL error (issue 37)
+  // note that this file checks syntax and resolution and is not meant to verify
+
 class A
 {
   tracked ghost var p: A
