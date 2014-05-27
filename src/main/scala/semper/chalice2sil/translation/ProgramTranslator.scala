@@ -317,7 +317,7 @@ class ProgramTranslator(val name: String)
       _ match {
         case chalice.Precondition(e) => silPreconditions += translateExp(e, sThis, permTranslator)
         case chalice.Postcondition(e) => silPostConditions += translateExp(e, sThis, permTranslator)
-        case chalice.LockChange(_) => messages += OldLockModel()
+        case chalice.LockChange(_) => // messages += OldLockModel()
       }
     }
     sMethod.pres = silPreconditions.toSeq
@@ -826,7 +826,6 @@ class ProgramTranslator(val name: String)
       // sharing
       case chalice.Share(obj, _, _) =>
         messages += DeadlockAvoidance(position)
-        messages += OldLockModel(position)
 
         // exhale the monitor invariant
         val monitorPredicate = silTranslatedInvariants(obj.typ)
@@ -843,7 +842,6 @@ class ProgramTranslator(val name: String)
       // acquiring
       case chalice.Acquire(obj) =>
         messages += DeadlockAvoidance(position)
-        messages += OldLockModel(position)
 
         // inhale the monitor invariant
         val monitorPredicate = silTranslatedInvariants(obj.typ)
@@ -860,7 +858,6 @@ class ProgramTranslator(val name: String)
       // release
       case chalice.Release(obj) =>
         messages += DeadlockAvoidance(position)
-        messages += OldLockModel(position)
 
         // exhale the monitor invariant
         val monitorPredicate = silTranslatedInvariants(obj.typ)

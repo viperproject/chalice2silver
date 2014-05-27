@@ -44,7 +44,7 @@ object Chalice2SilBuild extends Build {
               testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD"),
               traceLevel := 10,
               maxErrors := 6,
-              classDirectory in Test <<= classDirectory in Compile,
+              //classDirectory in Test <<= classDirectory in Compile,
               libraryDependencies ++= externalDep,
               BrandKeys.dataPackage := "semper.chalice2sil",
               BrandKeys.dataObject := "brandingData",
