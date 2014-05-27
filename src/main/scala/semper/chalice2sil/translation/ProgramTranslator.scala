@@ -521,7 +521,7 @@ class ProgramTranslator(val name: String)
 
         // return the complete permission expression
         allFieldsOf(obj.typ).foldLeft(TrueLit()(position).asInstanceOf[Exp])(
-          (y: Exp, x: Field) => Add(FieldAccessPredicate(FieldAccess(silo, x)(position), silpe)(position), y)(position)
+          (y: Exp, x: Field) => And(FieldAccessPredicate(FieldAccess(silo, x)(position), silpe)(position), y)(position)
         )
 
       // access to a specific member (or all members) of all objects in a sequence
@@ -534,7 +534,7 @@ class ProgramTranslator(val name: String)
           case None =>
             // case acc(x[*].*, p)
             allFieldsOf(seq.typ.parameters(0)).foldLeft(TrueLit()(position).asInstanceOf[Exp])(
-              {(y: Exp, x: Field) => Add(
+              {(y: Exp, x: Field) => And(
                 {
                   val boundedId = LocalVarDecl(nameGenerator.createUniqueIdentifier("i$"), Int)(position)
                   val boundedIdDomain = SeqContains(
@@ -551,7 +551,8 @@ class ProgramTranslator(val name: String)
 
           case Some(m) =>
             // case acc(x[*].m, p)
-            val silm = symbolMap(m)
+            val chalicem = seq.typ.parameters(0).LookupMember(m.id).get.asInstanceOf[chalice.Member]
+            val silm = symbolMap(chalicem)
             val boundedId = LocalVarDecl(nameGenerator.createUniqueIdentifier("i$"), Int)(position)
             val boundedIdDomain = SeqContains(
               boundedId.localVar, RangeSeq(IntLit(0)(position), SeqLength(silseq)(position))(position)
