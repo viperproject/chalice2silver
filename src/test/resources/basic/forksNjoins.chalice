@@ -20,12 +20,13 @@ class D
 	ensures rd(this.x) && s == [r, r] && old(this.x) == this
 	ensures old(this.x.x) == this && r == 10
   {
-    //:: ExpectedOutput(assignment.failed:insufficient.permission)
+    //:: ExpectedOutput(assignment.failed:receiver.null)
     fork t := this.x.foo(15+x, {this.x}, [this.x, this.x])   // see Chalice2sil issue 38 on why this erroneous statement triggers an "assignment failed" error message by Silicon
   }
   
   method hoo(e: E)
   {
+    //:: ExpectedOutput(exhale.failed:assertion.false)
     fork t := e.hoo(this)
   }
 }
@@ -34,6 +35,7 @@ class E
 {
   method hoo(d: D)
   {
+    //:: ExpectedOutput(exhale.failed:assertion.false)
     fork t := d.goo()
 	join t
   }

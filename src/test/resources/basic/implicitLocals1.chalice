@@ -1,7 +1,6 @@
-//:: IgnoreFile(/Chalice2SIL/issue/43/)
+//:: ExpectedOutput(typechecker.error)
 class C {  
   method m() returns (a: int, b: seq<seq<C>>, c: C, d: C) {
-    var x: seq<seq<C>>
 	var z: C
 	
 	call y, x, z, w := m()

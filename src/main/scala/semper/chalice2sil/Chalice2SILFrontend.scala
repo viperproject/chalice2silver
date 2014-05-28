@@ -3,7 +3,7 @@ package semper.chalice2sil
 import java.nio.file.Path
 import semper.sil.verifier._
 import semper.sil.frontend._
-import semper.sil.ast.{NoPosition, Position}
+import semper.sil.ast.{SourcePosition, NoPosition, Position}
 import chalice.Chalice
 import translation._
 import semper.chalice2sil.messages.ReportMessage
@@ -22,6 +22,9 @@ class Chalice2SILFrontEnd extends DefaultPhases {
   var failed: Seq[AbstractError] = Seq()
   var messages = Seq[ReportMessage]()
   var verifierResult: VerificationResult = null
+
+  def TopAnnotationPosition = new SourcePosition(file, 2, 1)
+    // position 2, 1 helps with the error annotations.  the annotation appears in the first line
 
   override def init(verifier: Verifier) {
     verf = verifier
@@ -46,8 +49,7 @@ class Chalice2SILFrontEnd extends DefaultPhases {
   protected def parseChaliceProgram(options: Chalice.CommandLineParameters): Either[ChaliceProgram, AbstractError] = {
     Chalice.parsePrograms(options) match {
       case Some(p) => Left(p)
-      case None => Right(ParseError("Chalice program contained syntax errors.", NoPosition))
-        /* TODO: Add message and position */
+      case None => Right(ParseError("Chalice program contained syntax errors.", TopAnnotationPosition))
     }
   }
 
@@ -65,8 +67,7 @@ class Chalice2SILFrontEnd extends DefaultPhases {
       }
     } catch {
       case e: Throwable =>
-        // todo: enter message and position here
-        val f = Seq(ParseError(e.toString, NoPosition))
+        val f = Seq(ParseError(e.toString, TopAnnotationPosition))
         failed ++= f
         Failure(f)
     }
@@ -75,15 +76,14 @@ class Chalice2SILFrontEnd extends DefaultPhases {
   override def typecheck() = {
     try {
       if(failed.isEmpty && !chalice.Chalice.typecheckProgram(null, chaliceAST)) {
-        // todo: enter message and position here
-        val f = Seq(TypecheckerError("Chalice program contained resolution errors.", NoPosition))
+        val f = Seq(TypecheckerError("Chalice program contained resolution errors.", TopAnnotationPosition))
         failed ++= f
         Failure(f)
       }
       else Success
     } catch {
         case e: Throwable =>
-          val f = Seq(TypecheckerError(e.toString, NoPosition))
+          val f = Seq(TypecheckerError(e.toString, TopAnnotationPosition))
           failed ++= f
           Failure(f)
     }
@@ -100,8 +100,7 @@ class Chalice2SILFrontEnd extends DefaultPhases {
       Success
     } catch {
         case e: Throwable =>
-          // todo: enter message and position here
-          val f = Seq(TranslationError(e.toString, NoPosition))
+          val f = Seq(TranslationError(e.toString, TopAnnotationPosition))
           failed ++= f
           Failure(f)
     }
