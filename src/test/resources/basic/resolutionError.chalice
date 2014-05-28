@@ -1,3 +1,4 @@
+//:: ExpectedOutput(parser.error)
 class D
 {
   var x: int
