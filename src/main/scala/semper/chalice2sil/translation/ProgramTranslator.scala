@@ -959,11 +959,15 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
 
         val joinTokenAssignments =
           if(lhs != null) {
+            // the following command generates a new token, if needed
+            var newTokenCommand : Stmt = Seqn(Seq())(position)
+
             // find or create local variable that corresponds to the join token
             val tokenVar =
               silMethod.locals.find((lvd) => lvd.name == lhs.id).getOrElse {
               val newTokenVar = LocalVarDecl(lhs.id, Ref)(position)
               silMethod.locals = silMethod.locals ++ Seq(newTokenVar)
+              newTokenCommand =  Util.newObject(newTokenVar.localVar, silEnvironment.silFields.values.toSeq, position)
               newTokenVar
             }
 
@@ -995,7 +999,7 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
               )(position)
 
             // put all join-token-related assignments together
-            Seq(makeJoinable, assignPermission) ++ oldAssignments ++ parAssignments
+            Seq(newTokenCommand, makeJoinable, assignPermission) ++ oldAssignments ++ parAssignments
           }
           else Seq()
 
@@ -1182,7 +1186,6 @@ object Util {
   // **
   def newObject(n: LocalVar, f: Seq[Field], p: Position) = NewStmt(n, f)(p)
     // todo: semantics of new in SIL and Silicon
-    // currently this returns a new(*) command
 
   // **
   // translates a Chalice class into a SIL type

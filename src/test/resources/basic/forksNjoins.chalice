@@ -6,7 +6,8 @@ class D
     var a: int
 	var b: seq<int>
 	
-    fork t := x.x.foo(15, empty<D>, nil<D>)
+	//:: ExpectedOutput(assignment.failed:insufficient.permission)
+    fork t := x.x.foo(15, empty<D>, nil<D>)   // see Chalice2sil issue 38 on why this erroneous statement triggers an "assignment failed" error message by Silicon
 	fork u := goo()
 	fork t := x.foo(1, {this}, nil<D>)
 	join a, b:= t
@@ -14,12 +15,13 @@ class D
   }
   
   method foo(x: int, y: set<D>, z: seq<D>) returns (r:int, s: seq<int>)
-    requires rd(this.x) && x > 0 && |y|==|z|
-	requires x > 2 && z[1] in y && acc(this.x.x.x)
+    requires rd(this.x) && x > 0 && |y|==|z| && this.x != null
+	requires x > 2 && z[1] in y && acc(this.x.x)
 	ensures rd(this.x) && s == [r, r] && old(this.x) == this
-	ensures old(this.x.x.x.x) == this && r == 10
+	ensures old(this.x.x) == this && r == 10
   {
-    fork t := this.x.x.foo(15+x, {this.x}, [this.x, this.x.x])
+    //:: ExpectedOutput(assignment.failed:insufficient.permission)
+    fork t := this.x.foo(15+x, {this.x}, [this.x, this.x])   // see Chalice2sil issue 38 on why this erroneous statement triggers an "assignment failed" error message by Silicon
   }
   
   method hoo(e: E)
