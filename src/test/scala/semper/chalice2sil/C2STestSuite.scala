@@ -10,7 +10,7 @@ import semper.sil.verifier._
 import semper.silicon.Silicon
 import semper.sil.frontend._
 
-class AllTests extends DefaultSilSuite {
+class AllTests extends SilSuite {
   override lazy val testDirectories: Seq[String] = Seq(
     "basic"/*,
     "oldC2SCases",
@@ -31,28 +31,22 @@ class AllTests extends DefaultSilSuite {
     fe
   }
 
-  override val verifiers = Seq(
-    new SiliconVerifierFactory(optionsFromScalaTestConfigMap(configMap))
-  )
+  override val verifiers = {
+    val silicon = new Silicon()
+    silicon.parseCommandLine(optionsFromScalaTestConfigMap())
+    Seq(silicon)
+  }
 
   override val defaultTestPattern: String = ".*\\.chalice"
 
-  private def optionsFromScalaTestConfigMap(configMap: Predef.Map[String, Any]): Seq[String] = {
+  private def optionsFromScalaTestConfigMap(): Seq[String] = {
     val prefix = "silicon:"
 
-    configMap.flatMap {
-      case (k, v) if k.startsWith(prefix) => Seq("--" + k.substring(prefix.length), v.toString)
-      case _ => Seq()
-    }.toSeq
-  }
-
-  // this class serves as an adaptor for Silicon, to bypass the fact that a Silicon instance may only run once
-  class SiliconVerifierFactory(args:Seq[String]) extends Silicon {
-    override def verify(program: semper.sil.ast.Program) = {
-      val silicon = new Silicon()
-      silicon.parseCommandLine(args)
-      silicon.config
-      silicon.verify(program)
+    prefixSpecificConfigMap.get(prefix) match {
+      case None => Seq()
+      case Some(optionMap) => optionMap.flatMap{
+        case (k, v) => Seq(s"--$k", v.toString)
+      }.toSeq
     }
   }
 }

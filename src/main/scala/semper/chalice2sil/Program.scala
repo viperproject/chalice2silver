@@ -77,6 +77,7 @@ object Program {
       case Some(className) =>
         val verifier = Class.forName(className).newInstance.asInstanceOf[Verifier]
         verifier.parseCommandLine(Nil)
+        verifier.start()
 
         verifier
 
