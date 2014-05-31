@@ -1,8 +1,0 @@
-class C {  
-  method m() returns (a: int, b: seq<seq<C>>, c: C, d: C) {
-    var x: seq<seq<C>>   // currently if this is commented out, Chalice fails to type-check the program.  Implicit declaration with set/seq types fails.  This must be investigated.
-	var z: C
-	
-	call y, x, z, w := m()
-  }
-}

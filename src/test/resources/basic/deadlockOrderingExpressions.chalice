@@ -5,3 +5,6 @@ class C
   {
   }
 }
+
+// this test case checks that deadlock ordering expressions are translated correctly **when deadlock ordering is ignored**
+// deadlock avoidance is going to be implemented soon; however, this example should be tested with the -noDeadlockAvoidance flag

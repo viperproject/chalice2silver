@@ -3,6 +3,6 @@ class C {
 
   method m()
     requires true && !false && 1==1 && "ABC" == "ABC" && 'a' == 'a'
-	requires acc(mu) && mu << waitlevel && lockbottom << mu && this.x == 1
+	requires acc(mu) && mu << waitlevel && lockbottom << mu && acc(x) && this.x == 1
   {}
 }

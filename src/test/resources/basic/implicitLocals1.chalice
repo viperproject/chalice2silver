@@ -1,0 +1,8 @@
+//:: ExpectedOutput(typechecker.error)
+class C {  
+  method m() returns (a: int, b: seq<seq<C>>, c: C, d: C) {
+	var z: C
+	
+	call y, x, z, w := m()
+  }
+}

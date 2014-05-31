@@ -3,7 +3,7 @@ package semper.chalice2sil
 import java.nio.file.Path
 import semper.sil.verifier._
 import semper.sil.frontend._
-import semper.sil.ast.{NoPosition, Position}
+import semper.sil.ast.{SourcePosition, NoPosition, Position}
 import chalice.Chalice
 import translation._
 import semper.chalice2sil.messages.ReportMessage
@@ -23,7 +23,12 @@ class Chalice2SILFrontEnd extends DefaultPhases {
   var messages = Seq[ReportMessage]()
   var verifierResult: VerificationResult = null
 
-  override def init(verifier: Verifier) { verf = verifier }
+  def TopAnnotationPosition = new SourcePosition(file, 2, 1)
+    // position 2, 1 helps with the error annotations.  the annotation appears in the first line
+
+  override def init(verifier: Verifier) {
+    verf = verifier
+  }
 
   override def reset(files: Seq[Path]) {
     chaliceAST = null
@@ -44,11 +49,11 @@ class Chalice2SILFrontEnd extends DefaultPhases {
   protected def parseChaliceProgram(options: Chalice.CommandLineParameters): Either[ChaliceProgram, AbstractError] = {
     Chalice.parsePrograms(options) match {
       case Some(p) => Left(p)
-      case None => Right(ParseError("Chalice program contained syntax errors.", NoPosition)) /* TODO: Add message and position */
+      case None => Right(ParseError("Chalice program contained syntax errors.", TopAnnotationPosition))
     }
   }
 
-  override def parse() {
+  override def parse() = {
     try {
       parseChaliceCommandLine().left.map(options => parseChaliceProgram(options)).joinLeft match {
         case Left(program) =>
@@ -62,33 +67,31 @@ class Chalice2SILFrontEnd extends DefaultPhases {
       }
     } catch {
       case e: Throwable =>
-        // todo: enter message and position here
-        val f = Seq(ParseError(e.toString, NoPosition))
+        val f = Seq(ParseError(e.toString, TopAnnotationPosition))
         failed ++= f
         Failure(f)
     }
   }
 
-  override def typecheck() {
+  override def typecheck() = {
     try {
       if(failed.isEmpty && !chalice.Chalice.typecheckProgram(null, chaliceAST)) {
-        // todo: enter message and position here
-        val f = Seq(TypecheckerError("", NoPosition))
+        val f = Seq(TypecheckerError("Chalice program contained resolution errors.", TopAnnotationPosition))
         failed ++= f
         Failure(f)
       }
       else Success
     } catch {
         case e: Throwable =>
-          val f = Seq(TypecheckerError(e.toString, NoPosition))
+          val f = Seq(TypecheckerError(e.toString, TopAnnotationPosition))
           failed ++= f
           Failure(f)
     }
   }
 
-  override def translate() {
+  override def translate() = {
     try {
-      // note: warning messages from the translator are ignored!
+      // note: warning messages from the translator are ignored! todo: add translation failures
       if (failed.isEmpty) {
         val (s: semper.sil.ast.Program, messages) = new ProgramTranslator(file.toString).translate(chaliceAST)
         silAST = s
@@ -97,17 +100,22 @@ class Chalice2SILFrontEnd extends DefaultPhases {
       Success
     } catch {
         case e: Throwable =>
-          // todo: enter message and position here
-          val f = Seq(TranslationError(e.toString, NoPosition))
+          val f = Seq(TranslationError(e.toString, TopAnnotationPosition))
           failed ++= f
           Failure(f)
     }
   }
 
-  override def verify() {
+  override def verify() = {
     try {
-      verifierResult =
-        if (failed.isEmpty && verf != null) verf.verify(silAST)
+        if (failed.isEmpty && verf != null) {
+          verifierResult = verf.verify(silAST)
+          verifierResult match {
+            case Failure(f) => failed ++= f
+            case Success =>
+          }
+          verifierResult  // todo: translate the Silicon messages back to meaningful Chalice messages
+        }
         else Success
     } catch {
         case e: Throwable =>

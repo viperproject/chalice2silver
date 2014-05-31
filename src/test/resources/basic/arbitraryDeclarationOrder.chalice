@@ -22,16 +22,18 @@ class C {
   { x>10 }
   
   method m()
+    requires p
   {
     [[
 	  unfold p
-	  x:=2
-	  call n()
+	  x:=20
+	  call n(false)
 	  fold p
 	]]
   }
   
-  method n() { call m () }
+  method n(b: bool) requires b ==> p
+  { if (b) { call m() } }
   
   invariant acc(x, 50)
   

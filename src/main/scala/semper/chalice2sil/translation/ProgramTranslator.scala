@@ -317,7 +317,7 @@ class ProgramTranslator(val name: String)
       _ match {
         case chalice.Precondition(e) => silPreconditions += translateExp(e, sThis, permTranslator)
         case chalice.Postcondition(e) => silPostConditions += translateExp(e, sThis, permTranslator)
-        case chalice.LockChange(_) => messages += OldLockModel()
+        case chalice.LockChange(_) => // messages += OldLockModel()
       }
     }
     sMethod.pres = silPreconditions.toSeq
@@ -480,7 +480,7 @@ class ProgramTranslator(val name: String)
           else
             // this is the case where e.p (where p is a predicate name) appears ``naked'' in a specification
             // what is meant is acc(e.p, write).  the conversion happens here
-            PredicateAccessPredicate(predAccess, pTrans(chalice.Full, myThis))(position)
+            PredicateAccessPredicate(predAccess, pTrans(chalice.Full, myThis, position))(position)
         }
 
       // backpointer member access
@@ -504,72 +504,71 @@ class ProgramTranslator(val name: String)
         if(silma == null) { messages += DeadlockAvoidance(position) ; return TrueLit()(position) }
           // in this case we are accessing special field "mu"
 
-        val silpe = pTrans(perm, myThis)
+        val silpe = pTrans(perm, myThis, position)
         if (ma.isPredicate) PredicateAccessPredicate(silma.asInstanceOf[PredicateAccess], silpe)(position)
         else FieldAccessPredicate(silma.asInstanceOf[FieldAccess], silpe)(position)
 
       case chalice.BackPointerAccess(ma, perm) =>
         val silma = translateExp(ma, myThis, pTrans)
-        val silpe = pTrans(perm, myThis)
+        val silpe = pTrans(perm, myThis, position)
         FieldAccessPredicate(silma.asInstanceOf[FieldAccess], silpe)(position)
 
       // acc(x.*): access permissions to all fields of an object
       case chalice.AccessAll(obj, perm) =>
         // obtain SIL receiver and permission
         val silo = translateExp(obj, myThis, pTrans)
-        val silpe = pTrans(perm, myThis)
+        val silpe = pTrans(perm, myThis, position)
 
         // return the complete permission expression
-        grantPermissionToAllFields(obj.typ, silo, silpe, position)
+        allFieldsOf(obj.typ).foldLeft(TrueLit()(position).asInstanceOf[Exp])(
+          (y: Exp, x: Field) => And(FieldAccessPredicate(FieldAccess(silo, x)(position), silpe)(position), y)(position)
+        )
 
       // access to a specific member (or all members) of all objects in a sequence
       case chalice.AccessSeq(seq, member, perm) =>
         // obtain the SIL sequence expression and the permission
         val silseq = translateExp(seq, myThis, pTrans)
-        val silpe = pTrans(perm, myThis)
+        val silpe = pTrans(perm, myThis, position)
 
-        // the following closure takes a SIL object expression and returns a SIL expression that grants appropriate
-        // access to member "member" of the corresponding SIL object
-        // if "member" is None, this means access to all fields of the object
-        // NOTE: acc(x[*].*) silently succeeds and produces "true" when x[i] is not a reference. This is allowed here,
-        // since it is allowed in Chalice (either as a bug or as a feature)
-        var permissionPerObject : Exp => Exp = null
         member match {
           case None =>
-            // permissionPerObject must return permission to all the fields of silo
-            permissionPerObject = (silo:Exp) => {
-              // return permission to all the fields of silo
-              grantPermissionToAllFields(seq.typ.parameters(0), silo, silpe, position)
-            }
+            // case acc(x[*].*, p)
+            allFieldsOf(seq.typ.parameters(0)).foldLeft(TrueLit()(position).asInstanceOf[Exp])(
+              {(y: Exp, x: Field) => And(
+                {
+                  val boundedId = LocalVarDecl(nameGenerator.createUniqueIdentifier("i$"), Int)(position)
+                  val boundedIdDomain = SeqContains(
+                    boundedId.localVar, RangeSeq(IntLit(0)(position), SeqLength(silseq)(position))(position)
+                  )(position)
+                  val qBody = FieldAccessPredicate(
+                    FieldAccess(SeqIndex(silseq, boundedId.localVar)(position), x)(position), silpe
+                  )(position)
+                  Forall(List(boundedId), List(), Implies(boundedIdDomain, qBody)(position))(position)
+                },
+                y)(position)
+              }
+            )
+
           case Some(m) =>
-            // permissionPerObject must return permission to member m
-            if(m.isPredicate) {
-               val silm = symbolMap(m.predicate).asInstanceOf[Predicate]
-               permissionPerObject = (silo: Exp) =>
-                PredicateAccessPredicate(PredicateAccess(Seq(silo), silm)(position), silpe)(position)
+            // case acc(x[*].m, p)
+            val chalicem = seq.typ.parameters(0).LookupMember(m.id).get.asInstanceOf[chalice.Member]
+            val silm = symbolMap(chalicem)
+            val boundedId = LocalVarDecl(nameGenerator.createUniqueIdentifier("i$"), Int)(position)
+            val boundedIdDomain = SeqContains(
+              boundedId.localVar, RangeSeq(IntLit(0)(position), SeqLength(silseq)(position))(position)
+            )(position)
+            val qBody = if (silm.isInstanceOf[Predicate]) {
+              PredicateAccessPredicate(
+                PredicateAccess(
+                  Seq(SeqIndex(silseq, boundedId.localVar)(position)), silm.asInstanceOf[Predicate])(position), silpe
+              )(position)
+            } else {
+              FieldAccessPredicate(
+                FieldAccess(SeqIndex(silseq, boundedId.localVar)(position), silm.asInstanceOf[Field])(position), silpe
+              )(position)
             }
-            else {
-              val silm = findField(m.f)
-              permissionPerObject = (silo: Exp) =>
-                FieldAccessPredicate(FieldAccess(silo, silm)(position), silpe)(position)
-            }
+            Forall(List(boundedId), List(), Implies(boundedIdDomain, qBody)(position))(position)
         }
-
-        // return a universal quantification on all sequence elements
-        // bounded identifier
-        val boundedId = LocalVarDecl(nameGenerator.createUniqueIdentifier("i$"), Int)()
-
-        // restrain identifier to sequence indices
-        val boundedIdDomain = And(
-          LeCmp(IntLit(0)(), boundedId.localVar)(),
-          LtCmp(boundedId.localVar, SeqLength(silseq)())()
-        )()
-
-        // grant permissions for any object i in the sequence
-        val quantBody = permissionPerObject(SeqIndex(silseq, boundedId.localVar)())
-
-        // return the full quantification
-        Forall(List(boundedId), List(), Implies(boundedIdDomain, quantBody)())(position)
 
       // unfolding
       case unfolding@chalice.Unfolding(predicateAccess, body) =>
@@ -631,7 +630,7 @@ class ProgramTranslator(val name: String)
         if (p.isInstanceOf[chalice.ForkEpsilon] || p.isInstanceOf[chalice.ChannelEpsilon]) {
           messages += TokenPermissions(position) ; NoPerm()(position)
         }
-        else pTrans(p, myThis)
+        else pTrans(p, myThis, position)
 
       // credits
       case chalice.Credit(_,_) => TrueLit()(position) // channels are not supported
@@ -827,7 +826,6 @@ class ProgramTranslator(val name: String)
       // sharing
       case chalice.Share(obj, _, _) =>
         messages += DeadlockAvoidance(position)
-        messages += OldLockModel(position)
 
         // exhale the monitor invariant
         val monitorPredicate = silTranslatedInvariants(obj.typ)
@@ -844,7 +842,6 @@ class ProgramTranslator(val name: String)
       // acquiring
       case chalice.Acquire(obj) =>
         messages += DeadlockAvoidance(position)
-        messages += OldLockModel(position)
 
         // inhale the monitor invariant
         val monitorPredicate = silTranslatedInvariants(obj.typ)
@@ -861,7 +858,6 @@ class ProgramTranslator(val name: String)
       // release
       case chalice.Release(obj) =>
         messages += DeadlockAvoidance(position)
-        messages += OldLockModel(position)
 
         // exhale the monitor invariant
         val monitorPredicate = silTranslatedInvariants(obj.typ)
@@ -886,14 +882,14 @@ class ProgramTranslator(val name: String)
         Fold(
           PredicateAccessPredicate(
             translateExp(access.ma, myThis, pTrans, true).asInstanceOf[PredicateAccess],
-            pTrans(access.perm, myThis)
+            pTrans(access.perm, myThis, position)
           )(position)
         )(position)
       case chalice.Unfold(access) =>
         Unfold(
           PredicateAccessPredicate(
             translateExp(access.ma, myThis, pTrans, true).asInstanceOf[PredicateAccess],
-            pTrans(access.perm, myThis)
+            pTrans(access.perm, myThis, position)
           )(position)
         )(position)
 
@@ -963,11 +959,15 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
 
         val joinTokenAssignments =
           if(lhs != null) {
+            // the following command generates a new token, if needed
+            var newTokenCommand : Stmt = Seqn(Seq())(position)
+
             // find or create local variable that corresponds to the join token
             val tokenVar =
               silMethod.locals.find((lvd) => lvd.name == lhs.id).getOrElse {
               val newTokenVar = LocalVarDecl(lhs.id, Ref)(position)
               silMethod.locals = silMethod.locals ++ Seq(newTokenVar)
+              newTokenCommand =  Util.newObject(newTokenVar.localVar, silEnvironment.silFields.values.toSeq, position)
               newTokenVar
             }
 
@@ -999,7 +999,7 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
               )(position)
 
             // put all join-token-related assignments together
-            Seq(makeJoinable, assignPermission) ++ oldAssignments ++ parAssignments
+            Seq(newTokenCommand, makeJoinable, assignPermission) ++ oldAssignments ++ parAssignments
           }
           else Seq()
 
@@ -1076,26 +1076,13 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
   }
 
   // **
-  // creates a SIL expression that grants permission to all fields of an object
+  // returns a sequence of all fields of a class
   // Note: no special fields (such as joinable and mu) and no backpointers are included
   // **
-  protected def grantPermissionToAllFields(cls: chalice.Class, silo: Exp, silpe: Exp, position: Position) : Exp = {
-    var silexp : Exp = TrueLit()(position)
-    cls.members.foreach{ f =>
-      val sf = symbolMap.getOrElse(f, null)
-      if (sf != null) {
-        val newConjunct =
-          if(sf.isInstanceOf[Field])
-            FieldAccessPredicate(FieldAccess(silo, sf.asInstanceOf[Field])(position), silpe)(position)
-          else if(sf.isInstanceOf[Predicate])
-            PredicateAccessPredicate(PredicateAccess(List(silo), sf.asInstanceOf[Predicate])(position), silpe)(position)
-          else null
-        if(newConjunct != null) silexp = And(silexp, newConjunct)(position)
-      }
-    }
-    silexp
+  protected def allFieldsOf(cls: chalice.Class) : Seq[Field] = {
+    for (c <- cls.members; silMember = symbolMap.getOrElse(c, null);
+         if (silMember != null && silMember.isInstanceOf[Field])) yield silMember.asInstanceOf[Field]
   }
-
 
   // **
   // superclass of all permission translators
@@ -1103,7 +1090,7 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
   // expresssion
   // **
   abstract class PermissionTranslator {
-    def getK : Exp
+    def getK(p: Position): Exp
       // this is the permission expression that corresponds to rd(o.f)
       // getK is different depending on whether we are in a method, predicate or invariant context
       // in function contexts there is no such value
@@ -1111,54 +1098,60 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
     // **
     // default translation
     // **
-    def apply(perm: chalice.Permission, myThis: LocalVarDecl) = {
+    def apply(perm: chalice.Permission, myThis: LocalVarDecl, pos: Position) = {
       perm match {
-        case chalice.Full => FullPerm()() // 100% permission
-        case chalice.Frac(n) => FractionalPerm(translateExp(n, myThis, this), new IntLit(100)())() // n% permission
-        case chalice.Star => WildcardPerm()() // rd* permission
-        case chalice.Epsilon => getK // represents the permission given by the Chalice expression rd(o.f)
+        case chalice.Full => FullPerm()(pos) // 100% permission
+        case chalice.Frac(n) =>
+          FractionalPerm(translateExp(n, myThis, this), new IntLit(100)(pos))(pos) // n% permission
+        case chalice.Star => WildcardPerm()(pos) // rd* permission
+        case chalice.Epsilon => getK(pos)
+          // represents the permission given by the Chalice expression rd(o.f)
           // attention: chalice.Epsilon is a misnomer!!
-        case chalice.MethodEpsilon => getK
+        case chalice.MethodEpsilon => getK(pos)
 
         // for predicate and monitor k permissions, we use the global k value
         // the following two cases should only appear in the corresponding contexts
-        case chalice.PredicateEpsilon(_) => getK
-        case chalice.MonitorEpsilon(_) => getK
+        case chalice.PredicateEpsilon(_) => getK(pos)
+        case chalice.MonitorEpsilon(_) => getK(pos)
 
-        // token permissions (not implemented)
-        case chalice.ForkEpsilon(_) | chalice.ChannelEpsilon(_) => NoPerm()()
+        // token permissions (not implemented) todo
+        case chalice.ForkEpsilon(_) | chalice.ChannelEpsilon(_) => NoPerm()(pos)
 
         // counting permissions
-        case chalice.Epsilons(n) => IntPermMul(translateExp(n, myThis, this), EpsilonPerm()())() // n*ε permissions
+        case chalice.Epsilons(n) =>
+          IntPermMul(translateExp(n, myThis, this), EpsilonPerm()(pos))(pos) // n*ε permissions
 
         // operations on permissions
-        case chalice.PermTimes(lhs, rhs) => PermMul(translateExp(lhs, myThis, this), translateExp(rhs, myThis, this))()
+        case chalice.PermTimes(lhs, rhs) =>
+          PermMul(translateExp(lhs, myThis, this), translateExp(rhs, myThis, this))(pos)
           // multiplication of two fractional permissions
-        case chalice.IntPermTimes(n, p) => IntPermMul(translateExp(n, myThis, this), translateExp(p, myThis, this))()
+        case chalice.IntPermTimes(n, p) =>
+          IntPermMul(translateExp(n, myThis, this), translateExp(p, myThis, this))(pos)
           // multiplication of an integer and a permission
         case chalice.PermPlus(lhs, rhs) =>
-          new PermAdd(translateExp(lhs, myThis, this), translateExp(rhs, myThis, this))() // p1+p2
+          new PermAdd(translateExp(lhs, myThis, this), translateExp(rhs, myThis, this))(pos) // p1+p2
         case chalice.PermMinus(lhs, rhs) =>
-          new PermSub(translateExp(lhs, myThis, this), translateExp(rhs, myThis, this))() // p1-p2
+          new PermSub(translateExp(lhs, myThis, this), translateExp(rhs, myThis, this))(pos) // p1-p2
       }
     }
   }
 
   // permission translation in method contexts: getK is a formal parameter of the method
   case class MethodPermissionTranslator(val KVar: LocalVarDecl) extends PermissionTranslator {
-    override def getK = KVar.localVar
+    override def getK(pos: Position) = LocalVar(KVar.name)(Perm, pos)
   }
 
   // permission translation in predicate and invariant contexts: getK is the global K defined for these contexts
   case class PredicatePermissionTranslator(val globalK: DomainFunc) extends PermissionTranslator {
-    override def getK = DomainFuncApp(globalK, Seq(), new scala.collection.immutable.HashMap[TypeVar,Type]())()
+    override def getK(pos: Position) =
+      DomainFuncApp(globalK, Seq(), new scala.collection.immutable.HashMap[TypeVar,Type]())(pos)
   }
 
   // in functions, all permissions must be translated to starred read permission
   case class FunctionPermissionTranslator() extends PermissionTranslator {
-    override val getK = null
+    override def getK(pos: Position) = null
 
-    override def apply(perm: chalice.Permission, myThis: LocalVarDecl) = WildcardPerm()()
+    override def apply(perm: chalice.Permission, myThis: LocalVarDecl, pos: Position) = WildcardPerm()(pos)
   }
 }
 
@@ -1193,7 +1186,6 @@ object Util {
   // **
   def newObject(n: LocalVar, f: Seq[Field], p: Position) = NewStmt(n, f)(p)
     // todo: semantics of new in SIL and Silicon
-    // currently this returns a new(*) command
 
   // **
   // translates a Chalice class into a SIL type

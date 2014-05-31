@@ -77,6 +77,7 @@ object Program {
       case Some(className) =>
         val verifier = Class.forName(className).newInstance.asInstanceOf[Verifier]
         verifier.parseCommandLine(Nil)
+        verifier.start()
 
         verifier
 
@@ -113,7 +114,7 @@ object Program {
         sink.println(chalice2SIL.silAST)
         sink.close()
 
-        println(s"Wrote generated SIL program to ${progOptions.silFile}")
+        println(s"Wrote generated Silver program to ${progOptions.silFile}")
     }
 
     /* Report verification result */
@@ -125,6 +126,7 @@ object Program {
         case Failure(errors) =>
           errors foreach (e => println(e.readableMessage))
           println(s"Verification failed with ${pluralize("error", errors.length)}")
+            // todo: report errors in a Chalice-meaningful way
       }
 
       progOptions.xmlOutputFile.map { xmlFile =>

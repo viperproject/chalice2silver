@@ -8,6 +8,7 @@ class C
   {
     var c: C
 	
+	c := new C
 	c.x := 1
 	share c
 	
