@@ -1,3 +1,4 @@
+//:: ExpectedOutput(typechecker.error)
 class A
 {
   tracked ghost var p: B

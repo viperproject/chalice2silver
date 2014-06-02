@@ -1,4 +1,4 @@
-//:: IgnoreFile(/Chalice2SIL/issue/37/)
+//:: IgnoreFile(/Silicon/issue/37/)
   // aggregates are not supported (issue 15) and this should count as a fatal Chalice2SIL error (issue 37)
   // note that resolution currently does not work on this file
 class A

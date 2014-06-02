@@ -70,6 +70,7 @@ class Chalice2SILFrontEnd extends DefaultPhases {
         val f = Seq(ParseError(e.toString, TopAnnotationPosition))
         failed ++= f
         Failure(f)
+        throw e
     }
   }
 
@@ -86,6 +87,7 @@ class Chalice2SILFrontEnd extends DefaultPhases {
           val f = Seq(TypecheckerError(e.toString, TopAnnotationPosition))
           failed ++= f
           Failure(f)
+          throw e
     }
   }
 

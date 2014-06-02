@@ -6,6 +6,7 @@ class A
   var s: int
   
   method m()
+    //:: ExpectedOutput(not.wellformed:insufficient.permission)
     requires q.~(A.p) == r && s==34
   {}
 }

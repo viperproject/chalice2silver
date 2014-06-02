@@ -742,7 +742,7 @@ class ProgramTranslator(val name: String)
         }
 
       // local variable declaration with possible initialization
-      case chalice.LocalVar(v, rhs) if (rhs match {
+      case l @chalice.LocalVar(v, rhs) if (rhs match {
           // the purpose of this ugly check is to ensure that the rhs is not a Chalice "new" expression
           // this patch is a workaround through JVM type erasure
           case None => true
@@ -756,7 +756,7 @@ class ProgramTranslator(val name: String)
         if(!silMethod.locals.contains(localVar)) silMethod.locals = silMethod.locals :+ localVar
 
         rhs match {
-          case None => Seqn(Seq())()
+          case None => Seqn(Seq())(position)
           case Some(e) =>
             LocalVarAssign(
               localVar.localVar, translateExp(e.asInstanceOf[chalice.Expression], myThis, pTrans)

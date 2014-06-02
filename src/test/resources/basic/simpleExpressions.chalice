@@ -5,13 +5,13 @@ class C
   
   method m()
     requires acc(x) && (x>0 || x<0) && (x==x <==> x!=0) && (x==x ==> true) && (x==x)==(x==x)
-	ensures acc(x) && old(x) >= x && x!=x-1 && !(x==x+1) && ((x==x) ? x==x : x==1111)
-	ensures this != null && lockbottom == waitlevel && "a"=="a"
+	ensures acc(x) && x!=x-1 && !(x==x+1) && ((x==x) ? x==x : x==1111)
+	ensures this != null && lockbottom == waitlevel
   {
     var y: int
     x := x*x
 	x := x/x
-	if(x<=1) { y: = 1 }	
+	if(x<=1) { y:= 1 }	
   }
   
   function f() : bool

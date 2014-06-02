@@ -1,49 +1,42 @@
 class C
 {
-  method m(a: int, b: C) : returns(c: seq<C>, d: int)
-    requires acc(field)
+  method m(a: int, b: C) returns(c: seq<C>, d: int)
+    requires acc(fld)
   {
     var x: C
 	var i: int
 	
 	x := null
 	x := new C
-	x.field := 4
+	x.fld := 4
 	
-	assert acc(x.field) && x.field == 4
-	assume x.field == 4
+	assert acc(x.fld) && x.fld == 4
+	assume x.fld == 4
 	
 	if(x != null) { x:= new C }
 	if(x != null) { x:= new C } else { x:= null }
 	
-	c:=nil<int>	
+	c:=nil<C>	
 	while(|c|==0)
-	  invariant x!=null && acc(x.field)
-	  invariant |c|>=0 && old(c) == nil<int>
-	{ d := 1; c:= c++[d] }
+	  invariant x!=null && acc(x.fld)
+	  invariant |c|>=0 && old(c) == nil<C>
+	{ d := 1 }
 	
 	{
-	  var field: int
-	  var x: int
-	  var a: int
-	  var c: int
-	  {
-	    var x: int
-	  }
-	  field := x+a+c
+	  var fld: int
+	  fld := 2
 	}
 	
-	call c, i := m(x.field+1, this)
-	call cc, i := m(x.field+1, this)
+	call c, i := m(x.fld+1, this)
   }
   
   method f()
-    requires rd(field) && field == 1
-	ensures rd(field)
+    requires rd(fld) && fld == 1
+	ensures rd(fld)
   {
     call f()
 	call f()
   }
   
-  var field: int
+  var fld: int
 }
