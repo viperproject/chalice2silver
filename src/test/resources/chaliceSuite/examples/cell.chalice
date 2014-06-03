@@ -27,14 +27,6 @@ class Cell module Library {
     fold valid;
   }
 
-  method dispose()
-    requires valid && acc(mu);
-    ensures true;
-  {
-    unfold valid;
-    free this;
-  }
-
   function get(): int
     requires valid;
     ensures 0<=result;
@@ -130,16 +122,6 @@ class Program module Main {
     call c2._set(11);
 
     assert c1.get() == 6;
-  }
-
-  method main2(){
-    var c: Cell;
-
-    c := new Cell;
-    call c.init(0);
-    call c.dispose();
-
-    assert c.valid; // should fail
   }
 
   method main3() returns (rt: Cell)

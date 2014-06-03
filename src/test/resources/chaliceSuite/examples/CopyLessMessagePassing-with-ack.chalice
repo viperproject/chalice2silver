@@ -1,3 +1,6 @@
+//:: IgnoreFile(/Silicon/issue/3/)
+  // Channels are not supported yet.  When they are, the specific example should be rewritten in the new obligations model
+
 // program inspired by "Proving Copyless Message Passing" (Villard, Lozes and Calcagno, APLAS 2009)
 
 // msg tag indicates what the type of the message

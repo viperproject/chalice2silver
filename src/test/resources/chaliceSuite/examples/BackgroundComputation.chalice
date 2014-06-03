@@ -1,3 +1,6 @@
+//:: IgnoreFile(/Silicon/issue/37/)
+  // eval expressions are not supported and this should count as a fatal error (Chalice2sil issue 37)
+  
 class C {
   var x: int;
   

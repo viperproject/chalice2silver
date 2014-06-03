@@ -12,16 +12,16 @@ import semper.sil.frontend._
 
 class AllTests extends SilSuite {
   override lazy val testDirectories: Seq[String] = Seq(
-    "basic"/*,
-    "oldC2SCases",
-    "chaliceSuite/examples",
+    "basic",
+    //"oldC2SCases",
+    "chaliceSuite/examples"/*,
     "chaliceSuite/general-tests",
     "chaliceSuite/permission-model",
     "chaliceSuite/predicates",
     "chaliceSuite/regressions",
     "chaliceSuite/substantial-examples",
     "quantificationOverPermissions"*/
-    // these test cases are removed from the test suite until they are annotated
+    // these test cases are removed from the test suite until they are annotated (todo)
   )
 
   override def frontend(verifier: Verifier, files: Seq[Path]): Frontend = {
