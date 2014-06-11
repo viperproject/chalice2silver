@@ -140,6 +140,6 @@ class Program module Main {
 
     acquire c;
     call c._set(1);
-    release c;
+    release c; 
   }
 }

@@ -21,7 +21,7 @@ class List module Collections {
 
   function get(index: int, f: int): int 
     requires 0<f && f<=100 && acc(valid, f) && (0<=index && index<size(f));
-    ensures forall i in [1..f] :: get(index, f) == get(index, i);
+    //ensures forall i in [1..f] :: get(index, f) == get(index, i);
   {
     unfolding acc(valid, f) in contents[index]
   }
@@ -29,7 +29,7 @@ class List module Collections {
   function size(f: int): int 
     requires 0<f && f<=100 && acc(valid, f);
     ensures 0<=result;
-    ensures forall i in [1..f] :: size(f) == size(i);
+    //ensures forall i in [1..f] :: size(f) == size(i);
   {
     unfolding acc(valid, f) in |contents|
   }
@@ -93,7 +93,7 @@ class Iterator module Collections {
 
   function getList(): List
     requires valid;
-    ensures getList()!=null;
+    ensures result!=null;
   {
     unfolding valid in list
   }
@@ -115,14 +115,12 @@ class Program module Main {
  
     // create a new iterator
     var iter1 := new Iterator;
-    assert list!=null; // needed here: triggering problem?
     assert list.size(100)==2;
     assert list.size(50)==2;
     call iter1.init(list, 10);
 
     // create a second iterator
     var iter2 := new Iterator;
-    assert list!=null; // needed here: triggering problem?
     call iter2.init(list, 10);
     
     // iterate over the list

@@ -1,3 +1,6 @@
+//:: IgnoreFile(/Silicon/issue/22/)
+  // epsilon permissions not supported by Silicon: Chalice2sil must encode them differently
+
 class Cell
 {
     var inner: InnerCell;

@@ -1,3 +1,6 @@
+//:: IgnoreFile(/Silicon/issue/21/)
+  // this example should be rewritten when obligations are implemented
+
 class List {
   ghost var sum_: int
   var head: Node

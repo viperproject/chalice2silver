@@ -23,7 +23,7 @@ class Chalice2SILFrontEnd extends DefaultPhases {
   var messages = Seq[ReportMessage]()
   var verifierResult: VerificationResult = null
 
-  def TopAnnotationPosition = new SourcePosition(file, 2, 1)
+  val TopAnnotationPosition = new SourcePosition(file, 2, 1)
     // position 2, 1 helps with the error annotations.  the annotation appears in the first line
 
   override def init(verifier: Verifier) {
@@ -112,6 +112,7 @@ class Chalice2SILFrontEnd extends DefaultPhases {
     try {
         if (failed.isEmpty && verf != null) {
           verifierResult = verf.verify(silAST)
+          //Console.println(s"verifierResult = $verifierResult")
           verifierResult match {
             case Failure(f) => failed ++= f
             case Success =>
@@ -121,7 +122,7 @@ class Chalice2SILFrontEnd extends DefaultPhases {
         else Success
     } catch {
         case e: Throwable =>
-          val f = Seq(VerifierThrowsException(e.toString))
+          val f = Seq(VerifierThrowsException(e.getStackTrace.mkString("\n"), TopAnnotationPosition))
           failed ++= f
           Failure(f)
     }
@@ -135,8 +136,7 @@ case class TranslationError(message: String, pos: Position) extends AbstractErro
   def readableMessage = s"$message"
 }
 
-case class VerifierThrowsException(message: String) extends AbstractError {
+case class VerifierThrowsException(message: String, pos: Position) extends AbstractError {
   def fullId = "verifier.exception"
   def readableMessage = s"$message"
-  val pos = NoPosition
 }

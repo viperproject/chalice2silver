@@ -752,11 +752,17 @@ class ProgramTranslator(val name: String)
         val silType = Util.translateType(v.t)
         val localVar = LocalVarDecl(v.id, silType)(position)
 
+        // if this is a token, provide access to special field joinable (todo: with deadlock avoidance add mu)
+        val specialAccess =
+          if (v.t.id == "token")
+            Util.newObject(localVar.localVar, silEnvironment.silFields.values.toSeq, position)
+          else Seqn(Seq())(position)
+
         // declare the variable only if it is not declared
         if(!silMethod.locals.contains(localVar)) silMethod.locals = silMethod.locals :+ localVar
 
         rhs match {
-          case None => Seqn(Seq())(position)
+          case None => specialAccess
           case Some(e) =>
             LocalVarAssign(
               localVar.localVar, translateExp(e.asInstanceOf[chalice.Expression], myThis, pTrans)
@@ -1185,7 +1191,6 @@ object Util {
   // generates a SIL 'new' statement
   // **
   def newObject(n: LocalVar, f: Seq[Field], p: Position) = NewStmt(n, f)(p)
-    // todo: semantics of new in SIL and Silicon
 
   // **
   // translates a Chalice class into a SIL type
