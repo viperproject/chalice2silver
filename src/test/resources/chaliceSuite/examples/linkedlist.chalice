@@ -25,7 +25,6 @@ class Node {
       n := new Node;
       call n.init(x);
       next := n;
-      // unfold next.valid; fold next.valid; // makes it work
     } else {
 
       call next.add(x);
@@ -43,11 +42,12 @@ class Node {
         call next.addother(i)
       }
       else
-      {  
+      { 	  
         next:=new Node
         next.value:=i
         next.next:=null
         fold next.valid
+		assert (forall x:int :: next.contains(x)==(x==i))  // lemma
       }
       fold valid
   }

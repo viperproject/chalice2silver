@@ -5,14 +5,17 @@ class OwickiGries {
   invariant acc(counter) && acc(c0,50) && acc(c1,50) && counter == c0 + c1
 
   method Main() {
-    var og := new OwickiGries{ counter := 0, c0 := 0, c1 := 0 }
+    var og := new OwickiGries
+	og.counter := 0
+	og.c0 := 0
+	og.c1 := 0
     share og
 
     fork tk0 := og.Worker(false)
     fork tk1 := og.Worker(true)
     join tk0; join tk1
 
-    acquire og; unshare og
+    acquire og;
     assert og.counter == 2
   }
 

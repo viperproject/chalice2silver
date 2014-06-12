@@ -752,7 +752,7 @@ class ProgramTranslator(val name: String)
         val silType = Util.translateType(v.t)
         val localVar = LocalVarDecl(v.id, silType)(position)
 
-        // if this is a token, provide access to special field joinable (todo: with deadlock avoidance add mu)
+        // if this is a token, provide access to special field joinable
         val specialAccess =
           if (v.t.id == "token")
             Util.newObject(localVar.localVar, silEnvironment.silFields.values.toSeq, position)

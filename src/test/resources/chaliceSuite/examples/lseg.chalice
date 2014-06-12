@@ -37,6 +37,8 @@ class Node {
         this.next := n
         n.length := 1
         fold n.lseg
+		assert n.elems() == [old(n.val)] // lemma
+		assert n.end() == old(n.next) // lemma
 	  } else {
         call this.next.addAtEndRec(n)
       }
@@ -56,7 +58,8 @@ class Node {
 			invariant acc(cur.*)
 			invariant this != cur ==> this.lseg && this.end() == cur
 			invariant cur.length > 0 && (cur.length > 1 ==> cur.next != null && cur.next.lseg) && (cur.length == 1 ? cur.next : cur.next.end()) == null
-			invariant ((this == cur ? [] : this.elems())
+			//:: UnexpectedOutput(invariant.not.preserved:assertion.false, /silicon/issue/93/)
+			invariant ((this == cur ? [] : this.elems())  // the issue number is a conjecture!
 						++ [cur.val]
 						++ (cur.next == null ? [] : cur.next.elems())) == old(this.elems())
 		{
@@ -64,6 +67,7 @@ class Node {
 			cur := cur.next 
 			if (this == temp) {
 				this.length := 1
+				var V:int := val
 				fold lseg
 			} else {
 				call addAtEndRec(temp)
