@@ -13,9 +13,15 @@ class Peterson {
   invariant cs1 ==> x1 && !b1 && (!x0 || turn || b0);
 
   method Main() {
-    var p := new Peterson{ x0 := false, x1 := false,
-                           cs0 := false, cs1 := false, b0 := false, b1 := false };
-    share p;
+    var p := new Peterson
+	p.x0 := false
+	p.x1 := false
+	p.cs0 := false
+	p.cs1 := false
+	p.b0 := false
+	p.b1 := false
+    
+	share p;
     fork p.Process0();
     fork p.Process1();
     // The purpose of the following loop is simply to prove mutual exclusion, that is,

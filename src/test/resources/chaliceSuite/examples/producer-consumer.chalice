@@ -1,3 +1,6 @@
+//:: IgnoreFile(/Silicon/issue/48/)
+  // real issue: Chalice2Sil 48
+  
 class Program {
   method main(){
     var buffer := new Queue;
@@ -16,7 +19,6 @@ class Program {
     join tkC;
   
     acquire buffer;
-    unshare buffer;
 
     var tmp := buffer.size();
   }

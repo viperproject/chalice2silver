@@ -12,7 +12,8 @@ class OwickiGries {
     share og
 
     fork tk0 := og.Worker(false)
-    fork tk1 := og.Worker(true)
+	//:: UnexpectedOutput(assignment.failed:insufficient.permission, /silicon/issue/00/)
+    fork tk1 := og.Worker(true)  // actual error is /chalice2sil/issue/47
     join tk0; join tk1
 
     acquire og;
