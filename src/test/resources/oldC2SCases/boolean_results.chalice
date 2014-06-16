@@ -30,18 +30,21 @@ class BooleanResults {
 	}
 	
 	method failNeg(x: bool) returns (r: bool)
-		ensures x != r /* @Error 310 */
+	    //:: ExpectedOutput(postcondition.violated:assertion.false)
+		ensures x != r
 	{ r := x }
 	
 	method failUnd(x: bool, y: bool) returns (r1: bool)
 		requires x == true
 		requires y == false
-		ensures r1 == true /* @Error 310 */
+		//:: ExpectedOutput(postcondition.violated:assertion.false)
+		ensures r1 == true
 	{ r1 := x && y }
 	
 	method failOder(x: bool, y: bool) returns (r1: bool)
 		requires x == true
 		requires y == false
-		ensures r1 == false /* @Error 310 */
+		//:: ExpectedOutput(postcondition.violated:assertion.false)
+		ensures r1 == false
 	{ r1 := x || y }
 }

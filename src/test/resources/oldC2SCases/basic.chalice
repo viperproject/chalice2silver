@@ -27,7 +27,8 @@ class Cell {
   // call to method that destroys rd(x) really removes permission
   method a2()
     requires rd(x);
-    ensures rd(x); /* @Error 330 */
+	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
+    ensures rd(x);
   {
     call dispose_rd();
   }
@@ -46,9 +47,10 @@ class Cell {
   // forking and method calls of dispose_rd
   method a4()
     requires rd(x);
-    ensures rd(x); /* @Silicon(Error 330) */
+    ensures rd(x);
   {
     fork dispose_rd();
+	//:: ExpectedOutput(assert.failed:insufficient.permission)
     assert rd(x); /* @Error 410 */
   }
   
@@ -86,11 +88,12 @@ class Cell {
   // joining to regain permission
   method a9(a: int)
     requires rd(x);
-    ensures rd(x) /* @Syxc(Error 330) */
+    ensures rd(x)
   {
     fork tk := dispose_rd();
     join tk;
-    assert rd(x);  /* @Error 410 */
+	//:: ExpectedOutput(assert.failed:insufficient.permission)
+    assert rd(x);
   }
   
   // joining to regain permission
@@ -137,7 +140,7 @@ class Cell {
   // forking dispose_rd in a loop (using rd*(x) to denote unknown read permission)
   method a13()
     requires rd(x);
-    ensures rd(x); /* @Syxc(Error 330) */
+    ensures rd(x);
   {
     var a: int
     while (a == 0)
@@ -146,8 +149,8 @@ class Cell {
       fork dispose_rd();
       a := 1
     }
-
-    assert rd(x); /* @Error 410 */
+    //:: ExpectedOutput(assert.failed:insufficient.permission)
+    assert rd(x);
   }
   
   // calling dispose_rd in a loop (using rd*(x) to denote unknown read permission)
@@ -185,6 +188,7 @@ class Cell {
     var i: int;
     i := 0;
     while (i < 1000)
+	  //:: ExpectedOutput(invariant.not.established:insufficient.permission)
       invariant acc(x, rd);
     {
       call void();

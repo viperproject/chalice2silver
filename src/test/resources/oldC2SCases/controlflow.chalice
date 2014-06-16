@@ -36,7 +36,8 @@ class IfStmt {
     }
     
     if (b) {
-      assert x == 2 /* @Error 410 */
+	  //:: ExpectedOutput(assert.failed:assertion.false)
+      assert x == 2
     }
   }
   
@@ -80,7 +81,8 @@ class Calls {
   
   method test01() {
     call m01(1)
-    call m01(0) /* @Error 210 */
+	//:: ExpectedOutput(call.precondition:assertion.false)
+    call m01(0)
   }
   
   method test02() {
@@ -95,13 +97,15 @@ class Calls {
     ensures rd(x)
   {
     call disposex()
+	//:: ExpectedOutput(assert.failed:insufficient.permission)
     assert rd(x)
     call disposex()
   }
   
   method test04()
     requires acc(x)
-    ensures acc(x) /* @Error 330 */
+	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
+    ensures acc(x)
   {
     call disposex()
   }
@@ -113,7 +117,8 @@ class Calls {
     call reqx(1)
     assert x == 1
     assert acc(x)
-    call reqx(1) /* @Error 210 */
+	//:: ExpectedOutput(call.precondition:assertion.false)
+    call reqx(1)
   }
 }
 
@@ -122,7 +127,8 @@ class Loops {
     var b: bool
 
     while (true)
-      invariant b == true /* @Error 1910 */
+	  //:: ExpectedOutput(invariant.not.preserved:assertion.false)
+      invariant b == true
     { b := false }
   }
   
@@ -130,7 +136,8 @@ class Loops {
     var b: bool
 
     while (true)
-      invariant b == true /* @Error 2010 */
+	  //:: ExpectedOutput(invariant.not.established:assertion.false)
+      invariant b == true
     {}
   }
   
@@ -155,8 +162,9 @@ class Loops {
       y := 99
     }
     
-    assert x == 1 /* Should hold */
-    assert y == 1 /* @Error 410 */
+    assert x == 1
+	//:: ExpectedOutput(assert.failed:assertion.false)
+    assert y == 1
   }
   
   method test10(x: int) returns (y: int)
@@ -166,12 +174,14 @@ class Loops {
     y := x
 
     while (y != 0)
-      invariant y > 0 /* @Error 1910 */
+	  //:: ExpectedOutput(invariant.not.preserved:assertion.false)
+      invariant y > 0
     { y := y - 1 }
   }
   
   method test11(x: int) returns (y: int)
     requires x > 0
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
     ensures x == 0
   {
     y := x

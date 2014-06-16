@@ -1,7 +1,7 @@
 class RawCell {
 	var x: int
 	
-	method set(v: int)
+	method set_(v: int)
 		requires acc(x)
 		ensures acc(x) && get() == v
 	{ x := v }
@@ -21,7 +21,8 @@ class CellContainer {
 		requires acc(d1.x) && acc(d2.x)
 		ensures acc(c1) && acc(c2)
 		ensures acc(d1.x) && acc(d2.x)
-		ensures get(true) == d1.get() /* @Error 210 TODO: Improve error msg. */
+		//:: ExpectedOutput(application.precondition:assertion.false)
+		ensures get(true) == d1.get()
 		ensures get(false) == d2.get()
 	{
 		this.c1 := d1

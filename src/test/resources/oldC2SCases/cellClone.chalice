@@ -15,6 +15,7 @@ class Program {
     c.f := 5;
     var d : Cell;
     call d := clone(c);
-    assert d.f == 5;  // @Error 410
+	//:: ExpectedOutput(assert.failed:assertion.false)
+    assert d.f == 5;
   }
 }

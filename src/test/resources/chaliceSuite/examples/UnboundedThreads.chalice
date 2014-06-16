@@ -1,3 +1,6 @@
+//:: IgnoreFile(/Silicon/issue/37/)
+  // Since the eval statement is not supported, this file should produce a fatal Chalice2Silver error
+  
 class C {
   
   var f: int;

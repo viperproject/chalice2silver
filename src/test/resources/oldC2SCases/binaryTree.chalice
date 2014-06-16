@@ -6,6 +6,7 @@ class Node {
         requires valid;
         requires rd(data.f);
         ensures rd(data.f);
+		//:: ExpectedOutput(postcondition.violated:assertion.false)
         ensures data.f <= y;
         ensures valid;
     {

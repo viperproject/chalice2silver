@@ -1,8 +1,3 @@
-// @Ignore (unknown cause, but possibly related to other issues which should be fixed first, see issue 13 of chalice2sil)
-/* Ensure that heap-dependent operations also work with boolean fields,
- * which involves the boolToInt and intToBool wrapper terms (symb. ex.) and
- * functions (Z3 encoding).
- */
 class BooleanHeapChunks {
 	var b: bool
 	var x: bool

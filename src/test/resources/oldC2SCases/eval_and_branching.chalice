@@ -40,7 +40,8 @@ class Implies {
 	}
 	
 	method fails1()	{
-		assert forall i: int :: 0 <= i ==> false /* @Error 410 */
+	    //:: ExpectedOutput(assert.failed:assertion.false)
+		assert forall i: int :: 0 <= i ==> false
 	}
 }
 
@@ -178,7 +179,8 @@ class Test4 {
 		assume f(1)
 		assume f(2)
 		assert forall i in [0..3] :: f(i)
-		assert forall i in [0..4] :: f(i) /* @Error 410 */
+		//:: ExpectedOutput(assert.failed:assertion.false)
+		assert forall i in [0..4] :: f(i)
 	}	
 }
 

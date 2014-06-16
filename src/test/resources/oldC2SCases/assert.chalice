@@ -28,14 +28,16 @@ class Assert {
 	}
 	
 	method failBoolean() {
-		assert(true == false) /* @Error 410 */
+	    //:: ExpectedOutput(assert.failed:assertion.false)
+		assert(true == false)
 	}
 	
 	method failMod(x: int)	returns (r: int)
 		ensures r % 2 == 1
 	{
 		var y: int := 3 * x		
-		assert(y % 2 == 0) /* @Error 410 */
+		//:: ExpectedOutput(assert.failed:assertion.false)
+		assert(y % 2 == 0)
 		r := y + 1
 	}
 	
@@ -47,7 +49,8 @@ class Assert {
 			assert(x - r == -y)
 		} else {
 			r := 2 * y
-			assert(x == y) /* @Error 410 */
+			//:: ExpectedOutput(assert.failed:assertion.false)
+			assert(x == y)
 		}
 		
 		assert(r % 2 == 0)

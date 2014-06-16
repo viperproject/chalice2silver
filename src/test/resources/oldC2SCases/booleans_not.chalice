@@ -5,6 +5,7 @@ class BooleansNot {
 	{ }
 	
 	method failNotTrue()
-		ensures !true; /* @Error 310 */
+	    //:: ExpectedOutput(postcondition.violated:assertion.false)
+		ensures !true;
 	{ }
 }

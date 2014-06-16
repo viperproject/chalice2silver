@@ -22,6 +22,8 @@ class Main{
         // cannot express that tk.thisPtr == this
     {
         var y : int;
+		//:: ExpectedOutput(inhale.failed:insufficient.permission)
         join y := tk;
+		  // cross-method fork/joins are very restricted in the present version of Chalice2Silver
     }
 }

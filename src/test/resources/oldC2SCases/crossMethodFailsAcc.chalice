@@ -17,8 +17,10 @@ class Main{
 
     method client(tk : token<Main.work>)
         requires acc(tk.joinable) && tk.joinable
-        ensures acc(f) // @Error 330 // Postcondition might not hold, because we don't know that tk.thisPtr == obj
+        ensures acc(f)
     {
+	    //:: ExpectedOutput(inhale.failed:insufficient.permission)
         join tk;
+		  // cross-method fork/joins are very restricted in the present version of Chalice2Silver
     }
 }

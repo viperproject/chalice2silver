@@ -20,14 +20,17 @@ class BooleansComparison {
 	{ }
 	
 	method failEqLiterals()
-		ensures true == false; /* @Error 310 */
+	    //:: ExpectedOutput(postcondition.violated:assertion.false)
+		ensures true == false;
 	{ }
 	
 	method failNeqTrue()
-		ensures true != true; /* @Error 310 */
+	    //:: ExpectedOutput(postcondition.violated:assertion.false)
+		ensures true != true;
 	{ }
 	
 	method failNeqFalse()
-		ensures false != false; /* @Error 310 */
+	    //:: ExpectedOutput(postcondition.violated:assertion.false)
+		ensures false != false;
 	{ }
 }

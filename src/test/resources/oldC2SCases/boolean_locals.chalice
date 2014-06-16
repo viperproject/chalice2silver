@@ -33,7 +33,8 @@ class LocalVars {
 	method failDecl(x: bool, y: bool, z: bool) returns (r: bool)
 		requires x == y
 		requires z != x
-		ensures r == false /* @Error 310 */
+		//:: ExpectedOutput(postcondition.violated:assertion.false)
+		ensures r == false
 	{
 		var b1: bool := x && y
 		r := b1 || z
@@ -42,7 +43,8 @@ class LocalVars {
 	method failMultiple(x: bool, y: bool, z: bool) returns (r: bool)
 		requires x == y
 		requires z != x
-		ensures r == false /* @Error 310 */
+		//:: ExpectedOutput(postcondition.violated:assertion.false)
+		ensures r == false
 	{
 		var b1: bool := x && y
 		var b2: bool := x || y

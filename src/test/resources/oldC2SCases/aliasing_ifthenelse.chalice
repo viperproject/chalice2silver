@@ -7,7 +7,8 @@ class Test {
 		requires t1.x == 1 && t2.x == 2
 	{
 		if (t1 == t2) {
-			assert false /* @Error 410 */
+		    //:: UnexpectedOutput(assert.failed:assertion.false, /Silicon/issue/48/)
+			assert false
 		}
 	}
 	
@@ -17,7 +18,7 @@ class Test {
 	{
 		assert acc(t1.x, 50)
 		if (t1 == t2) {
-			assert acc(t1.x, 100) /* @Error 430 */
+			assert acc(t1.x, 100)
 		}
 	}
 }

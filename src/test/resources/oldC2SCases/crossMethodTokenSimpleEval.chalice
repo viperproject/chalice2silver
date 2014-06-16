@@ -1,3 +1,6 @@
+//:: IgnoreFile(/Silicon/issue/37/)
+  // Since the eval expression is not supported, this file should produce a fatal Chalice2Silver error
+
 class Main{
     var f : int;
     method work(x : int) returns (y : int)

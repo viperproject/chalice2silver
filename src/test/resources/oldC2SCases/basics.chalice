@@ -10,7 +10,8 @@ class Foo {
     assert a < 2
     
     a := 2
-    assert false /* @Error 410 */
+	//:: ExpectedOutput(assert.failed:assertion.false)
+    assert false
     assert a > 2
   }
   
@@ -25,7 +26,8 @@ class Foo {
     requires x > 0 && y > 0
     ensures x * y > 0
     ensures x + y > 0
-    ensures x - y > 0 /* @Error 310 */
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
+    ensures x - y > 0
   {}
 
 	var x: int
@@ -42,7 +44,8 @@ class Foo {
   
   method m5(n: int)
     requires rd(x)
-    ensures acc(x) /* @Error 330 */
+	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
+    ensures acc(x)
   {}
   
   method m6()
@@ -54,6 +57,7 @@ class Foo {
   method m7()
     requires rd(x)
   {
+     //:: ExpectedOutput(assignment.failed:insufficient.permission)
     x := 1 /* @Error 630 */
   }
   
@@ -65,7 +69,8 @@ class Foo {
   
   method m9()
   {
-    var y := x /* @Error 100 */
+    //:: ExpectedOutput(assignment.failed:insufficient.permission)
+    var y := x
   }
   
   method m11()

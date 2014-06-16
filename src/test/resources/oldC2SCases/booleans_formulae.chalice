@@ -48,20 +48,23 @@ class BooleansAndOr {
 	}
 	
 	method failAbsorb(x: bool, y: bool) returns (a: bool, b: bool)
-		ensures b == y /* @Error 310 */
+		//:: ExpectedOutput(postcondition.violated:assertion.false)
+		ensures b == y
 	{
 		a := x || (x && y)
 		b := x && (x || y)
 	}
 	
 	method failGolden(x: bool, y: bool) returns (a: bool)
-		ensures a == true /* @Error 310 */
+	    //:: ExpectedOutput(postcondition.violated:assertion.false)
+		ensures a == true
 	{
 		a := ((x && y) == x) == (y == (x || x))
 	}
 	
 	method failEquiv1(x: bool, y: bool) returns (a: bool, b: bool)
-		ensures a <==> (x && y) /* @Error 310 */
+	    //:: ExpectedOutput(postcondition.violated:assertion.false)
+		ensures a <==> (x && y)
 	{
 		a := x || (x <==> y)
 	}

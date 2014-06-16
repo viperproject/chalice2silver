@@ -16,15 +16,18 @@ class BooleanArguments {
 	{}
 	
 	method failBoolCompareLiterals1(a: bool)
-		ensures a == true /* @Error 310 */
+	    //:: ExpectedOutput(postcondition.violated:assertion.false)
+		ensures a == true
 	{}
 	
 	method failBoolCompareLiterals2(a: bool)
-		ensures a != true /* @Error 310 */
+	    //:: ExpectedOutput(postcondition.violated:assertion.false)
+		ensures a != true
 	{}
 	
 	method failBoolCompareLiterals3(a: bool)
 		requires a == true
+		//:: ExpectedOutput(postcondition.violated:assertion.false)
 		ensures a == false /* @Error 310 */
 	{}
 }

@@ -13,11 +13,10 @@ class Test {
 		ensures rd(c) && rd(d) && rd(b)
 		ensures c != null && d != null
 		ensures b ==> acc(d.x, 100)
-		// ensures b <==> acc(d.x, 100) /* Rejected by the Chalice's typechecker */
 		ensures r == true
 	{
 		if (b) {
-			assert acc(c.x, 100) // @IgnoreError 410 (see issue 11)  // fails in Chalice2SIL+Silicon, succeeds in Syxc
+			assert acc(c.x, 100)
 		}
 
 		r := b ? c == d : true
@@ -31,7 +30,7 @@ class Test {
 		ensures rd(c) && rd(d) && rd(b)
 		ensures c != null && d != null
 		ensures rd(c.x) && rd(d.x)
-		ensures b ==> c.x == d.x  // @IgnoreError 310 (see issue 11)  // fails in Chalice2SIL+Silicon, succeeds in Syxc
+		ensures b ==> c.x == d.x
 	{}
 	
 	method fails1() returns (r: bool)
@@ -42,11 +41,12 @@ class Test {
 		ensures rd(c) && rd(d) && rd(b)
 		ensures c != null && d != null
 		ensures b ==> acc(d.x, 100)
-		ensures b ==> acc(c.x, 100) /* @   Error 330: this error is missing at the moment, because Silicon stops at the first error. */
+		//:: ExpectedOutput(postcondition.violated:insufficient.permission)
+		ensures b ==> acc(c.x, 100)
 		ensures r == true
 	{
 		if (b) {
-			assert acc(c.x, 100) // @IgnoreError 410 (see issue 11)
+			assert acc(c.x, 100)
 		}
 
 		r := b ? c == d : true
@@ -60,7 +60,8 @@ class Test {
 		ensures rd(c) && rd(d) && rd(b)
 		ensures c != null && d != null
 		ensures rd(c.x) && rd(d.x)
-		ensures b <==> c.x == d.x /* @Error 310 */
+		//:: ExpectedOutput(postcondition.violated:assertion.false)
+		ensures b <==> c.x == d.x
 			/* c.x and d.x might be equal although c != d and hence !b */
 	{}
 }
