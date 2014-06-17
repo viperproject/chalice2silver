@@ -8,11 +8,7 @@ import chalice.Chalice
 import translation._
 import semper.chalice2sil.messages.ReportMessage
 
-/* TODO: Extend SilFrontend, which provides goodies such as error reporting and
- *       help printing, which is currently done outside of Chalice2SILFrontEnd,
- *       i.e., in chalice2sil.Program.
- */
-class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases with SilFrontend {
+class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases {
   type ChaliceProgram = List[chalice.TopLevelDecl]
   var file: Path = null
   var chaliceAST: List[chalice.TopLevelDecl] = null
@@ -23,10 +19,6 @@ class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases with
 
   val TopAnnotationPosition = new SourcePosition(file, 2, 1)
     // position 2, 1 helps with the error annotations.  the annotation appears in the first line
-
-  // the following two methods are not used
-  override def configureVerifier(args: Seq[String]) = null
-  override def createVerifier(fullCmd: String) = verf
 
   override def init(verifier: Verifier) {
     verf = verifier
@@ -60,19 +52,15 @@ class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases with
       parseChaliceCommandLine().left.map(options => parseChaliceProgram(options)).joinLeft match {
         case Left(program) =>
           chaliceAST = program
-          Success
 
         case Right(error) =>
           val failures = Seq(error)
           failed ++= failures
-          Failure(failures)
       }
     } catch {
       case e: Throwable =>
         val f = Seq(ParseError(e.toString, TopAnnotationPosition))
         failed ++= f
-        Failure(f)
-        throw e
     }
   }
 
@@ -81,32 +69,27 @@ class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases with
       if(failed.isEmpty && !chalice.Chalice.typecheckProgram(null, chaliceAST)) {
         val f = Seq(TypecheckerError("Chalice program contained resolution errors.", TopAnnotationPosition))
         failed ++= f
-        Failure(f)
       }
       else Success
     } catch {
         case e: Throwable =>
           val f = Seq(TypecheckerError(e.toString, TopAnnotationPosition))
           failed ++= f
-          Failure(f)
-          throw e
     }
   }
 
   override def translate() = {
     try {
-      // note: warning messages from the translator are ignored! todo: add translation failures
       if (failed.isEmpty) {
         val (s: semper.sil.ast.Program, messages) = new ProgramTranslator(file.toString).translate(chaliceAST)
         silAST = s
         this.messages = messages
+        failed ++= messages.filter(_.fatal).map(_.translationError)
       }
-      Success
     } catch {
         case e: Throwable =>
           val f = Seq(TranslationError(e.toString, TopAnnotationPosition))
           failed ++= f
-          Failure(f)
     }
   }
 
@@ -118,14 +101,12 @@ class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases with
             case Failure(f) => failed ++= f
             case Success =>
           }
-          verifierResult  // todo: translate the Silicon messages back to meaningful Chalice messages
+          // todo: translate the Silicon messages back to meaningful Chalice messages
         }
-        else Success
     } catch {
         case e: Throwable =>
           val f = Seq(VerifierThrowsException(e.getStackTrace.mkString("\n"), TopAnnotationPosition))
           failed ++= f
-          Failure(f)
     }
   }
 

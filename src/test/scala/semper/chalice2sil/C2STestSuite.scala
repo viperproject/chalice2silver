@@ -13,7 +13,7 @@ import semper.sil.frontend._
 class AllTests extends SilSuite {
   override lazy val testDirectories: Seq[String] = Seq(
     "basic",
-    "oldC2SCases",
+    //"oldC2SCases",
     "chaliceSuite/examples"/*,
     "chaliceSuite/general-tests",
     "chaliceSuite/permission-model",

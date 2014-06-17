@@ -2,6 +2,7 @@ class C {
   var x: int
 
   method m()
+    //:: ExpectedOutput(chalice2sil.error)
     requires true && !false && 1==1 && "ABC" == "ABC" && 'a' == 'a'
 	requires acc(mu) && mu << waitlevel && lockbottom << mu && acc(x) && this.x == 1
   {}
