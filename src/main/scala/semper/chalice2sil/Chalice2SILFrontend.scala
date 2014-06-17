@@ -12,10 +12,8 @@ import semper.chalice2sil.messages.ReportMessage
  *       help printing, which is currently done outside of Chalice2SILFrontEnd,
  *       i.e., in chalice2sil.Program.
  */
-class Chalice2SILFrontEnd extends DefaultPhases {
+class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases with SilFrontend {
   type ChaliceProgram = List[chalice.TopLevelDecl]
-
-  var verf: Verifier = null
   var file: Path = null
   var chaliceAST: List[chalice.TopLevelDecl] = null
   var silAST: semper.sil.ast.Program = null
@@ -25,6 +23,10 @@ class Chalice2SILFrontEnd extends DefaultPhases {
 
   val TopAnnotationPosition = new SourcePosition(file, 2, 1)
     // position 2, 1 helps with the error annotations.  the annotation appears in the first line
+
+  // the following two methods are not used
+  override def configureVerifier(args: Seq[String]) = null
+  override def createVerifier(fullCmd: String) = verf
 
   override def init(verifier: Verifier) {
     verf = verifier
@@ -112,7 +114,6 @@ class Chalice2SILFrontEnd extends DefaultPhases {
     try {
         if (failed.isEmpty && verf != null) {
           verifierResult = verf.verify(silAST)
-          //Console.println(s"verifierResult = $verifierResult")
           verifierResult match {
             case Failure(f) => failed ++= f
             case Success =>
