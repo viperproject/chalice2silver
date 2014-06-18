@@ -1,6 +1,4 @@
-//:: IgnoreFile(/Silicon/issue/37/)
-  // backpointers are under construction (Chalice2sil issue 42) and this should count as a fatal Chalice2SIL error (Chalice2sil issue 37)
-  // note that this file checks syntax and resolution and is not meant to verify
+// note that this file checks syntax and resolution and is not meant to verify
 
 class A
 {
@@ -11,11 +9,14 @@ class A
 class B
 {
   method m(x:A)
-    //requires acc(~(C.f)) && ~(C.f) == ~(C.f)
+	//:: UnexpectedOutput(chalice2sil.error, /silicon/issue/42/)
 	requires acc((x.p).~(A.p), 50) && rd*(x.~(A.p))
+	//:: UnexpectedOutput(chalice2sil.error, /silicon/issue/42/)
 	requires (x.p).~(A.p) == x.~(A.p)
   {
+    //:: UnexpectedOutput(chalice2sil.error, /silicon/issue/42/)
     assert ~(C.f) == ~(C.f)
+	//:: UnexpectedOutput(chalice2sil.error, /silicon/issue/42/)
 	assert (x.p).~(A.p) == x.~(A.p)
   }
 }

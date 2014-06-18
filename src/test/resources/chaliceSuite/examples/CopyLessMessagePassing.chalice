@@ -1,5 +1,5 @@
-//:: IgnoreFile(/Silicon/issue/3/)
-  // Channels are not supported yet.  When they are, the specific example should be rewritten in the new obligations model
+// Channels are not supported yet.  When they are, the specific example should be rewritten in the new obligations model
+// The example uses the "free" statement, which is not supported.  It should be rewritten accordingly
 
 // program inspired by "Proving Copyless Message Passing" (Villard, Lozes and Calcagno, APLAS 2009)
 
@@ -37,8 +37,10 @@ class Program {
       unfold x.list;
       t := x.next;
       if(t != null) {
+	     //:: UnexpectedOutput(chalice2sil.error, /silicon/issue/3/)
         send e(true, x);
       } else {
+	     //:: UnexpectedOutput(chalice2sil.error, /silicon/issue/3/)
         send e(false, x);
       }
       x := t;
@@ -53,11 +55,14 @@ class Program {
     while(msg)
       invariant acc(f.mu, 50) && waitlevel << f.mu && (msg ==> credit(f, 1)) && (!msg ==> acc(f.mu, 50));
     {
+	  //:: UnexpectedOutput(chalice2sil.error, /silicon/issue/3/)
       receive msg, x := f;
       if(msg) {
+	    //:: ExpectedOutput(chalice2sil.error)
         free x;
       }
     }
+	//:: ExpectedOutput(chalice2sil.error)
     free f; // close the channel
   } 
 

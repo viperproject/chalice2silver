@@ -1,6 +1,4 @@
-//:: IgnoreFile(/Silicon/issue/37/)
-  // aggregates are not supported (issue 15) and this should count as a fatal Chalice2SIL error (issue 37)
-  // note that resolution currently does not work on this file
+//:: IgnoreFile(/Silicon/issue/49/)
 class A
 {
   var x:int
@@ -16,9 +14,13 @@ class A
 	ensures (exists y in {1, 2, 3} :: 4+y)
 	ensures (forall y:int :: 4) && (exists y in {1, 2, 3} :: 4+y) && (forall y:empty<int> :: y)
   {
+    //:: UnexpectedError(chalice2sil.error, /silicon/issue/15/)
     assert x == (sum y: int :: y!=y+1) + (max y in [1, 2, 3] :: y<4) + (sum y: {1, 2, 3} :: y<4)
+	//:: UnexpectedError(chalice2sil.error, /silicon/issue/15/)
 	assert (sum y:int :: 4) + (max y in {1, 2, 3} :: 4+y) + (sum y:empty<int> :: y+x)
+	//:: UnexpectedError(chalice2sil.error, /silicon/issue/15/)
 	assert (sum y:int :: 4) + (max y in [1, 2, 3] :: 4+y) + (sum y:empty<int> :: y+x)
+	//:: UnexpectedError(chalice2sil.error, /silicon/issue/15/)
 	assert (sum z:{1} :: (max y in [2, 3] :: z+y)+z) == 5
 	assert (forall y: seq<int> :: (forall z in (y) :: z==z))
   }

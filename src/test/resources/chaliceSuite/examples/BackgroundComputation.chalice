@@ -1,6 +1,3 @@
-//:: IgnoreFile(/Silicon/issue/37/)
-  // eval expressions are not supported and this should count as a fatal error (Chalice2sil issue 37)
-  
 class C {
   var x: int;
   
@@ -18,8 +15,10 @@ class C {
   }
   
   method finish(tk: token<C.processing>)
-    requires acc(x,100-rd(tk));
+    //:: UnexpectedOutput(chalice2sil.error, /silicon/issue/2/)
+	requires acc(x,100-rd(tk));
     requires acc(tk.joinable) && tk.joinable && tk != null;
+	//:: ExpectedOutput(chalice2sil.error)
     requires eval(tk.fork this.processing(), true);
     ensures acc(x);
   {

@@ -1,15 +1,6 @@
-//:: IgnoreFile(/Silicon/issue/21/)
-  // the Get method uses "lockchange" which is not supported anymore
-  // the example must be rewritten when the new obligations model is supported (Chalice2sil issue 21)
-
-/*
-  Note: This example seems to be completely broken. The failing assertion
-  about locking/unlocking too much causes an inconsistency and all following
-  assertions pass by default.
-  It seems that the specification, in particular the loop invariant in method
-  Add, is wrong. (see also http://boogie.codeplex.com/workitem/10207)
-  -- August 2011, Stefan Heule
-*/
+// the Get method uses "lockchange" which is not supported anymore
+// the example must be rewritten when the new obligations model is supported (Chalice2sil issue 21)
+// if possible without mu reordering, which is not supported at all
 
 class Client {
   method Main(d: Data)
@@ -74,13 +65,15 @@ class AssociationList {
         d := p.next.value
       } else {
         var done := false
-        while (!done)
+		//:: UnexpectedOutput(chalice2sil.error, /silicon/issue/21/)
+        while (!done)  // unwanted output because of "lockchange"
           // invariant:  holds p and p.next
           invariant p != null && rd(p.key) && rd(p.value) && acc(p.next) && acc(p.mu,50) && p.next != null
           invariant acc(p.next.mu) && p << p.next
           invariant rd(p.next.key) && rd(p.next.value) && acc(p.next.next)
           invariant p.next.next != null ==>
               acc(p.next.next.mu,50) && p.next << p.next.next
+	      //:: UnexpectedOutput(chalice2sil.error, /silicon/issue/21/)
           invariant holds(p) && holds(p.next) && waitlevel == p.next.mu
           invariant p.next.next != null ==> waitlevel << p.next.next
           lockchange p, p.next.next
@@ -98,6 +91,7 @@ class AssociationList {
               p.next := t.next
               t.next := p.next.next
               p.next.next := t
+			  //:: ExpectedOutput(chalice2sil.error)
               reorder t between p.next and t.next
               release t
             } else {

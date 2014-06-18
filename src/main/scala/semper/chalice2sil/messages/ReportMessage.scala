@@ -13,8 +13,8 @@ class DeprecatedFeature(m: String, p: Position) extends ReportMessage("Deprecate
 class UnsupportedFeature(m: String, p: Position, f: Boolean = false)
   extends ReportMessage("Unsupported Feature: " + m, p, f)
 
-case class Channels(p: Position = null)
-  extends UnsupportedFeature("Channels." + (if(p==null) "" else " The code may be translated incorrectly."), p, true)
+case class Channels(p: Position = null) // a null position corresponds to a channel declaration, which is non-fatal
+  extends UnsupportedFeature("Channels." + (if(p==null) "" else " The code may be translated incorrectly."), p, p!=null)
   // todo
 
 case class DeadlockAvoidance(p: Position)
