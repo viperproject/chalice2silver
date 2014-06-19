@@ -86,7 +86,7 @@ object Chalice2SilBuild extends Build {
 
   object libs {
     lazy val sil = "semper" %% "sil" %  "0.1-SNAPSHOT"
-    lazy val chalice = "chalice" %% "chalice" %  "1.0"
+    lazy val chalice = "chalice.codeplex.com/SourceControl/network/forks/ykass/PuQBP" %% "chalice" %  "1.0"
     lazy val silicon = "semper" %% "silicon" %  "0.1-SNAPSHOT"
 
     lazy val silDir = RootProject(new java.io.File("../Sil"))
