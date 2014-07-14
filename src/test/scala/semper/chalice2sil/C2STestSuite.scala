@@ -33,7 +33,7 @@ class AllTests extends SilSuite {
   override def frontend(verifier: Verifier, files: Seq[Path]): Frontend = {
     val fe = new Chalice2SILFrontEnd()
     fe.init(verifier)
-    fe.reset(files.head)
+    fe.reset(files)
     fe
   }
 
