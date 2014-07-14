@@ -33,13 +33,22 @@ class AllTests extends SilSuite {
   override def frontend(verifier: Verifier, files: Seq[Path]): Frontend = {
     val fe = new Chalice2SILFrontEnd()
     fe.init(verifier)
-    fe.reset(files)
+    fe.reset(files.head)
     fe
   }
 
   override val verifiers = {
     val silicon = new Silicon()
     silicon.parseCommandLine(optionsFromScalaTestConfigMap())
+    silicon.config.initialize {
+      case _ =>
+        /* Ignore command-line errors, --help, --version and other non-positive
+         * results from Scallop.
+         * After initialized has been set to true, Silicon itself will not call
+         * config.initialize again.
+         */
+        silicon.config.initialized = true
+    }
     Seq(silicon)
   }
 
