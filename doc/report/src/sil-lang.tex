@@ -2,9 +2,9 @@
 % !TEX encoding = UTF-8
 % !TEX root = ../chalice2sil_report_klauserc.tex
 
-\subsection{Semper Intermediate Language (SIL)}\label{sct:sil}
-The Semper Intermediate Language is a verification language aimed at the verification of concurrent programs using a methodology based on Chalice.
-As its name suggests, SIL is the intermediate language to be used by the various tools that are part of the semper project.  
+\subsection{viper Intermediate Language (SIL)}\label{sct:sil}
+The viper Intermediate Language is a verification language aimed at the verification of concurrent programs using a methodology based on Chalice.
+As its name suggests, SIL is the intermediate language to be used by the various tools that are part of the viper project.
 
 Much of SIL's design is oriented around Chalice's core elements: methods, permissions and accessibility predicates. 
 This also means that SIL programs are encoded on a much higher level of abstraction than the same programs in less focused verification languages, such as Boogie.
@@ -78,7 +78,7 @@ For source languages with virtual methods, the to-SIL-translator would create a 
 \end{grammar}
 
 Method bodies in SIL are represented as a control-flow graph. 
-This is mostly because SIL is intended as a format for exchanging programs between the tools that make up Semper as opposed to an actual computer languages used by humans.
+This is mostly because SIL is intended as a format for exchanging programs between the tools that make up viper as opposed to an actual computer languages used by humans.
 Whether an eventual textual representation would retain this form, is not clear at this point.
 
 Unusual about SIL's control-flow graph is that loops are not flattened into basic blocks but retained as a sort of composite block.

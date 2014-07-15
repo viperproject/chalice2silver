@@ -4,7 +4,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-package semper.chalice2sil.utils
+package viper.chalice2sil.utils
 
 import java.io.{
   File => JFile,
@@ -12,7 +12,7 @@ import java.io.{
   BufferedWriter => JBufferedWriter,
   FileWriter => JFileWriter}
 
-/* TODO: This is a copy of silicon/common/io. We should create Semper-wide
+/* TODO: This is a copy of silicon/common/io. We should create viper-wide
  *       "common"-packages that bundle such generally useful functions.
  */
 

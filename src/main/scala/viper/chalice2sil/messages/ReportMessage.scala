@@ -4,10 +4,10 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-package semper.chalice2sil.messages
+package viper.chalice2sil.messages
 
-import semper.sil.ast._
-import semper.chalice2sil.TranslationError
+import viper.silver.ast._
+import viper.chalice2sil.TranslationError
 
 class ReportMessage(val message: String, val position: Position, val fatal: Boolean = false) {
   val translationError = if (fatal) TranslationError(message, position) else null

@@ -8,11 +8,11 @@
  * Author: Yannis Kassios (based on an older version by Christian Klauser)
  */
 
-package semper.chalice2sil
+package viper.chalice2sil
 
 import scopt._
 import java.io.{FileWriter, PrintWriter, File}
-import semper.sil.verifier.{Failure, Success, Verifier}
+import viper.silver.verifier.{Failure, Success, Verifier}
 
 // **
 // Options to pass to the Chalice library; together with an optional filename
@@ -38,7 +38,7 @@ object Program {
         (source, c) => c.copy(chaliceFile = source)
       } text ("The chalice source file.")
 
-      arg[File]("<sil-file>")
+      arg[File]("<silver-file>")
         .optional()
         .action{(dest, c) => c.copy(silFile = dest)}
         .text("The SIL output file. If omitted, results will be sent to stdio.")
@@ -50,7 +50,7 @@ object Program {
       opt[String]("backend")
         .action{(className, c) => c.copy(backendClass = Some(className))}
         .text(  "Forward SIL AST to specified backend. The full-qualified name of a class "
-              + s"extending ${classOf[semper.sil.verifier.Verifier].getName} is expected. "
+              + s"extending ${classOf[viper.silver.verifier.Verifier].getName} is expected. "
               + "The class must be on the classpath.")
 
       opt[File]("xml")

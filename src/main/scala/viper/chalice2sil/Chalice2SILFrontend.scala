@@ -4,21 +4,21 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-package semper.chalice2sil
+package viper.chalice2sil
 
 import java.nio.file.Path
-import semper.sil.verifier._
-import semper.sil.frontend._
-import semper.sil.ast.{SourcePosition, NoPosition, Position}
+import viper.silver.verifier._
+import viper.silver.frontend._
+import viper.silver.ast.{SourcePosition, NoPosition, Position}
 import chalice.Chalice
 import translation._
-import semper.chalice2sil.messages.ReportMessage
+import viper.chalice2sil.messages.ReportMessage
 
 class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases {
   type ChaliceProgram = List[chalice.TopLevelDecl]
   var file: Path = null
   var chaliceAST: List[chalice.TopLevelDecl] = null
-  var silAST: semper.sil.ast.Program = null
+  var silAST: viper.silver.ast.Program = null
   var failed: Seq[AbstractError] = Seq()
   var messages = Seq[ReportMessage]()
   var verifierResult: VerificationResult = null
@@ -87,7 +87,7 @@ class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases {
   override def translate() = {
     try {
       if (failed.isEmpty) {
-        val (s: semper.sil.ast.Program, messages) = new ProgramTranslator(file.toString).translate(chaliceAST)
+        val (s: viper.silver.ast.Program, messages) = new ProgramTranslator(file.toString).translate(chaliceAST)
         silAST = s
         this.messages = messages
         failed ++= messages.filter(_.fatal).map(_.translationError)

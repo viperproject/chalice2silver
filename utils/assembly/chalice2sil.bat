@@ -5,7 +5,7 @@ REM ======== Basic configuration ========
 
 set BASE_DIR=%~dp0
 set FWD_ARGS=%*
-set MAIN=semper.chalice2sil.Program
+set MAIN=viper.chalice2sil.Program
 
 REM ======== Path-dependent configuration ========
 

@@ -4,17 +4,17 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-package semper.chalice2sil
+package viper.chalice2sil
 
 /**
 Author: Yannis Kassios
 */
 
 import java.nio.file.Path
-import semper.sil.testing._
-import semper.sil.verifier._
-import semper.silicon.Silicon
-import semper.sil.frontend._
+import viper.silver.testing._
+import viper.silver.verifier._
+import viper.silicon.Silicon
+import viper.silver.frontend._
 
 class AllTests extends SilSuite {
   override lazy val testDirectories: Seq[String] = Seq(

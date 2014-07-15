@@ -14,7 +14,7 @@ object Chalice2SilBuild extends Build {
     ++ hgIdSettings
     ++ brandSettings
     ++ Seq(
-          organization := "semper",
+          organization := "viper",
           version := "0.1-SNAPSHOT",
           // publishArtifact in packageDoc := false,
           scalaVersion := "2.10.3",
@@ -37,8 +37,8 @@ object Chalice2SilBuild extends Build {
         ++ assemblySettings
         ++ Seq(
               name := "Chalice2Sil",
-              mainClass in (Compile, run) := Some("semper.chalice2sil.Program"),
-              mainClass in assembly := Some("semper.chalice2sil.Program"),
+              mainClass in (Compile, run) := Some("viper.chalice2sil.Program"),
+              mainClass in assembly := Some("viper.chalice2sil.Program"),
               jarName in assembly := "chalice2sil.jar",
               test in assembly := {},
               testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD"),
@@ -49,7 +49,7 @@ object Chalice2SilBuild extends Build {
               fork := true,
               //classDirectory in Test <<= classDirectory in Compile,
               libraryDependencies ++= externalDep,
-              BrandKeys.dataPackage := "semper.chalice2sil",
+              BrandKeys.dataPackage := "viper.chalice2sil",
               BrandKeys.dataObject := "brandingData",
               BrandKeys.data += Val("buildDate", new java.text.SimpleDateFormat("yyyy/MM/dd HH:mm:ss").format(new java.util.Date)),
               BrandKeys.data <+= scalaVersion(Val("scalaVersion", _)),
@@ -87,9 +87,9 @@ object Chalice2SilBuild extends Build {
 
 
   object libs {
-    lazy val sil = "semper" % "sil_2.10" %  "0.1-SNAPSHOT"
+    lazy val sil = "viper" % "sil_2.10" %  "0.1-SNAPSHOT"
     lazy val chalice = "ychalice" %% "ychalice" % "1.0"
-    lazy val silicon = "semper" % "silicon_2.10" %  "0.1-SNAPSHOT"
+    lazy val silicon = "viper" % "silicon_2.10" %  "0.1-SNAPSHOT"
 
     lazy val silDir = RootProject(new java.io.File("../Sil"))
     lazy val chaliceDir = RootProject(new java.io.File("../Chalice"))

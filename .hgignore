@@ -4,7 +4,7 @@ project/target/**
 target/**
 .cache
 bin/**
-src/test/resources/semper/chalice2sil/**.chalice.ref
+src/test/resources/viper/chalice2sil/**.chalice.ref
 .idea/
 .idea_modules/
 utils/assembly/chalice2sil.jar

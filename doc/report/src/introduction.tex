@@ -9,10 +9,10 @@ One approach to making sure programs do not contain errors is (automatic) \emph{
 An example of such a system is \emph{Chalice} \cite{LMS09} (section~\ref{sct:chalice}), a research programming language and matching automatic static verification tool.
 However, targeting a specialized research language dedicated to the verification of concurrent programs, means that one cannot directly apply the tool to code that is used out in the world.
 
-This is where \emph{Semper}, a project at ETH Zürich, comes into play. 
+This is where \emph{viper}, a project at ETH Zürich, comes into play.
 Its goal is to develop an automatic program verifier for concurrent \emph{Scala} \cite{Scala} programs.
-Central to the Semper project is an intermediate program representation for verification called \emph{SIL} (section~\ref{sct:sil}).
-Programmers are not intended to use SIL directly, but instead write their programs in an existing programming  language and then use a translator to get an intermediate representation that the Semper tools understand.
+Central to the viper project is an intermediate program representation for verification called \emph{SIL} (section~\ref{sct:sil}).
+Programmers are not intended to use SIL directly, but instead write their programs in an existing programming  language and then use a translator to get an intermediate representation that the viper tools understand.
 
-The goal of this Bachelor's thesis is to build \emph{Chalice2SIL}, the first such translator, translating from Chalice to SIL (section~\ref{sct:trans}), in order to gain experience with working with SIL (section~\ref{sct:eval}) and the tools involved in Semper.
-As the verification methodology used in Semper is based on the methodology underlying Chalice, Chalice is a good fit for the first ``source language'' to be targeted by Semper.
+The goal of this Bachelor's thesis is to build \emph{Chalice2SIL}, the first such translator, translating from Chalice to SIL (section~\ref{sct:trans}), in order to gain experience with working with SIL (section~\ref{sct:eval}) and the tools involved in viper.
+As the verification methodology used in viper is based on the methodology underlying Chalice, Chalice is a good fit for the first ``source language'' to be targeted by viper.
