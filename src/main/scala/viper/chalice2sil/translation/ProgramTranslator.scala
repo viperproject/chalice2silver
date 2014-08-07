@@ -15,8 +15,9 @@ import scala.collection._
 import mutable.Map
 import viper.chalice2sil.messages._
 import scala.Some
-import chalice.{BlockStmt, BackPointerMemberAccess}
+import chalice.{NewRhs, BlockStmt, BackPointerMemberAccess}
 import java.nio.file.Paths
+import util.parsing.input
 
 // todo: resolve compiler warnings
 
@@ -775,25 +776,67 @@ class ProgramTranslator(val name: String)
             )(position)
         }
 
-      // creation of new objects
-      case chalice.Assign(v@chalice.VariableExpr(name), _) =>
+      // creation of new objects: assignment to local variable
+      case chalice.Assign(v@chalice.VariableExpr(name), n) =>
         val newVariable = silMethod.locals(0)
-        Seqn(Seq(
+
+        // create new object
+        val newStatement = Seq(
           Util.newObject(newVariable.localVar, silEnvironment.silFields.values.toSeq, position),
           LocalVarAssign(LocalVar(name)(Ref), newVariable.localVar)(position)
-        ))(position)
-      case chalice.FieldUpdate(ma, _) =>
+        )
+
+        // initialize fields
+        val initialization = n.asInstanceOf[chalice.NewRhs].initialization
+        val initializationStatement = initialization.map(
+          init => translateStm(Util.makeInitializationAssignment(init, v, position), myThis, pTrans, silMethod)
+        ).toSeq
+
+        Seqn(newStatement ++ initializationStatement)(position)
+
+      // creation of new objects: assignment to field
+      case chalice.FieldUpdate(ma, n) =>
         val newVariable = silMethod.locals(0)
         val silma = translateExp(ma, myThis, pTrans)
-        Seqn(Seq(
+
+        // create new object
+        val newStatement = Seq(
           Util.newObject(newVariable.localVar, silEnvironment.silFields.values.toSeq, position),
           FieldAssign(silma.asInstanceOf[FieldAccess], newVariable.localVar)(position)
-        ))(position)
-      case chalice.LocalVar(v, _) =>
+        )
+
+        // initialize fields
+        val initialization = n.asInstanceOf[chalice.NewRhs].initialization
+        val initializationStatement = initialization.map(
+          init => translateStm(Util.makeInitializationAssignment(init, ma, position), myThis, pTrans, silMethod)
+        ).toSeq
+
+        Seqn(newStatement ++ initializationStatement)(position)
+
+      // creation of new objects: variable declaration
+      case chalice.LocalVar(v, n) =>
         val localVar = LocalVarDecl(v.id, Ref)(position)
+
         // declare the variable only if it is not declared
         if(!silMethod.locals.contains(localVar)) silMethod.locals = silMethod.locals :+ localVar
-        Util.newObject(localVar.localVar, silEnvironment.silFields.values.toSeq, position)
+
+        // create new object
+        val newStatement = Util.newObject(localVar.localVar, silEnvironment.silFields.values.toSeq, position)
+
+        // initialize fields
+        val initialization = n match {
+          case Some(nn) => nn.asInstanceOf[chalice.NewRhs].initialization
+          case None => List()
+        }
+        val initializationStatement = initialization.map(
+          init =>  {
+            val chaliceVariableExp = chalice.VariableExpr(v.id)
+            chaliceVariableExp.typ = v.t.typ
+            translateStm(Util.makeInitializationAssignment(init, chaliceVariableExp, position), myThis,
+              pTrans, silMethod)
+          } ).toSeq
+
+        Seqn(newStatement +: initializationStatement)(position)
 
       // call
       case chalice.Call(implicitLocals, lhs, target, methodName, args) =>
@@ -1231,6 +1274,27 @@ object Util {
       case Ref => NullLit()()
       case DomainType(_, _) | MultisetType(_) | Pred | TypeVar(_) => NullLit()() // should never happen
     }
+  }
+
+  // **
+  // takes a chalice.Init object (initialization pair) and constructs the corresponding Chalice assignment
+  // used for Chalice initialization expressions of the form new C { f := e }
+  // init: the initialization object (f, e)
+  // v: a Chalice expression where the result of new C { f := e } should be stored
+    // (local variable or field access)
+  // pos: a position to be copied to the Chalice assignment
+  // **
+  def makeInitializationAssignment(init: chalice.Init, v: chalice.Expression, pos: SourcePosition) = {
+    val chaliceField = v.typ.LookupMember(init.id)
+    val chaliceMA = chalice.MemberAccess(v, init.id)
+    chaliceMA.f = chaliceField.get.asInstanceOf[chalice.Field]
+    val chaliceInit = new chalice.FieldUpdate(chaliceMA, init.e)
+    chaliceInit.pos = new input.Position() {
+      def column: Int = pos.column
+      def line: Int = pos.line
+      protected def lineContents: String = ""
+    }
+    chaliceInit
   }
 }
 

@@ -1,0 +1,19 @@
+class C {
+  var f: C
+  var g: int
+  
+  predicate p { true }
+  
+  method m()
+    requires acc(f)
+  {
+    var v: C
+	v := new C { f := this, g := 2 }
+	
+	f.f := new C { f := f }
+	
+	var z := new C
+	var xx := new C {}
+	var w := new C { g := 2 }
+  }
+}
