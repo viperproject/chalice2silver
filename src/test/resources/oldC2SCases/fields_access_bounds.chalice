@@ -6,11 +6,7 @@
 
 class Test {
 	var x: int
-	
-	/*
-	 * Constant fractions
-	 */
-	 
+		 
 	method reqSucceedLowerBound()
 		requires acc(x, 0) 
 		requires acc(x, 1)
@@ -23,10 +19,8 @@ class Test {
 	
 	method ensSucceedLowerBound()
 		requires acc(x)
+		//:: ExpectedOutput(postcondition.violated:non.positive.permission)
 		ensures acc(x, 0)
-      /* TODO: Chalice reports "permission might not be positive".
-       *       Should Syxc do the same?
-       */
 		ensures acc(x, 1)
 	{}
 	
@@ -43,10 +37,8 @@ class Test {
 	method assSucceedLowerBound()
 		requires acc(x)
 	{
+	    //:: ExpectedOutput(assert.failed:non.positive.permission)
 		assert(acc(x, 0))
-      /* TODO: Chalice reports "permission might not be positive".
-       *       Should Syxc do the same?
-       */
 	  assert(acc(x, 1))
 	}
 	
@@ -58,25 +50,18 @@ class Test {
 	}
 	
 	method reqFailLowerBound()
+	    //:: ExpectedOutput(assert.failed:non.positive.permission)
 		requires acc(x, -1) /* @Error 130 */
 	{}
-
-  /* @deprecated: <=100 Check is no longer done by Chalice or Syxc. */
-	// method reqFailUpperBound()
-		// requires acc(x, 101) /* @Error 140 */
-	// {}
 	
 	method ensFailLowerBound()
+	    //:: ExpectedOutput(postcondition.violated:non.positive.permission)
 		ensures acc(x, -1) /* @Error 130 */
 	{}
 	
-  /* @deprecated: <=100 Check is no longer done by Chalice or Syxc. */
-	// method ensFailUpperBound()
-		// ensures acc(x, 101) /* @Error 140 */
-	// {}
-	
 	method assFailLowerBound()
 		requires acc(x)
+		//:: ExpectedOutput(assert.failed:non.positive.permission)
 	{ assert(acc(x, -1)) /* @Error 130 */ }
 	
 	/*
@@ -93,6 +78,7 @@ class Test {
 		requires acc(x)
 		requires a >= 0
 		requires a <= 100
+		//:: ExpectedOutput(postcondition.violated:non.positive.permission)
 		ensures acc(x, a)
 	{}
 	
@@ -100,6 +86,7 @@ class Test {
 		requires acc(x)
 		requires a >= 0
 		requires a <= 100
+		//:: ExpectedOutput(assert.failed:non.positive.permission)
 	{ assert(acc(x, a)) }
 	 
 	method reqVarFailLowerBound(a: int)
@@ -119,11 +106,13 @@ class Test {
 	
 	method ensVarFailUpperBound(a: int)
 		requires a >= 0
+		//:: ExpectedOutput(postcondition.violated:non.positive.permission)
 		ensures acc(x, a) /* @Error 140 */
 	{}
 	
 	method assVarFailLowerBound(a: int)
 		requires a <= 100
 		requires acc(x)
+		//:: ExpectedOutput(assert.failed:non.positive.permission)
 	{ assert(acc(x, a)) /* @Error 130 */ }
 }

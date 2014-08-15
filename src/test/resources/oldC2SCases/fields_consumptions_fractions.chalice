@@ -52,6 +52,7 @@ class Test {
 		ensures acc(x)
 	{
 		call greedyXRd()
+		//:: ExpectedOutput(assert.failed:insufficient.permission)
 		assert(acc(x, 100))
 		call reqX100()
 		// call greedyXRd()
@@ -62,6 +63,7 @@ class Test {
 		requires acc(x)
 	{
 		call greedyX50()
+		//:: ExpectedOutput(call.precondition:insufficient.permission)
 		call reqX100() /* @Error 230 */
 	}
 	
@@ -71,6 +73,7 @@ class Test {
 		call greedyX50()
 		call greedyX50()
 		call greedyX50()
+		//:: ExpectedOutput(call.precondition:insufficient.permission)
 		call greedyX50() /* @Error 230 */
 	}
 	
@@ -78,6 +81,7 @@ class Test {
 		requires acc(x)
 	{
 		call greedyXRd()
+		//:: ExpectedOutput(call.precondition:insufficient.permission)
 		call reqX100() /* @Error 230 */
 	}
 }

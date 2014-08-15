@@ -20,6 +20,7 @@ class Test {
 	
 	method failMaybeWriteToM(b: bool, y: int)
 		requires b ==> acc(m)
+		//:: ExpectedOutput(postcondition.violated:assertion.false)
 		ensures b ==> acc(m) && m == y
 	{
 		/* This is a fragile test case in the sense that the reported error message
@@ -37,6 +38,7 @@ class Test {
 	
 	method failTooGenerous(b: bool)
 		requires b ==> acc(m)
+		//:: ExpectedOutput(postcondition.violated:insufficient.permission)
 		ensures !b ==> acc(m) /* @Error 330 */
 	{}
 }

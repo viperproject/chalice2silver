@@ -36,11 +36,13 @@ class Consumptions {
 	
 	method callUnfairWriter(a: int)
 		requires acc(x)
+		//:: ExpectedOutput(postcondition.violated:insufficient.permission)
 		ensures rd(x) && x == a /* @Error 330*/
 	{ call unfairWriter(a) }
 	
 	method failCallUnfairWriter(a: int)
 		requires acc(x)
+		//:: ExpectedOutput(postcondition.violated:insufficient.permission)
 		ensures acc(x) && x == a /* @Error 330 */
 	{ call unfairWriter(a) }
 	
@@ -48,6 +50,7 @@ class Consumptions {
 		requires acc(x)
 	{
 		call unfairWriter(1)
+		//:: ExpectedOutput(call.precondition:insufficient.permission)
 		call unfairWriter(2) /* @Error 230 */
 	}
 	
@@ -59,11 +62,13 @@ class Consumptions {
 	
 	method failCallCloakedWriter1(a: int)
 		requires acc(x)
+		//:: ExpectedOutput(postcondition.violated:insufficient.permission)
 		ensures acc(x) /* @Error 330 */
 	{ call cloakedWriter(a) }
 	
 	method failCallCloakedWriter2(a: int)
 		requires acc(x)
+		//:: ExpectedOutput(postcondition.violated:insufficient.permission)
 		ensures rd(x) /* @Error 330 */
 	{ call cloakedWriter(a) }
 	
@@ -71,6 +76,7 @@ class Consumptions {
 		requires acc(x)
 	{
 		call cloakedWriter(1)
+		//:: ExpectedOutput(call.precondition:insufficient.permission)
 		call cloakedWriter(2) /* @Error 230 */
 	}
 	
@@ -78,10 +84,12 @@ class Consumptions {
 
 	method greedyWriter(z: int)
 		requires acc(x)
+		//:: ExpectedOutput(not.wellformed:insufficient.permission)
 		ensures x == z /* @Error 330 */
 	{ x := z }
 	
 	method failCallGreedyWriter(z: int)
 		requires acc(x)
+		//:: ExpectedOutput(call.precondition:insufficient.permission)
 	{ call greedyWriter(0) /* @Error 230 */ }
 }

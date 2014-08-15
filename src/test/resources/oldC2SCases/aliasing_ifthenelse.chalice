@@ -7,7 +7,6 @@ class Test {
 		requires t1.x == 1 && t2.x == 2
 	{
 		if (t1 == t2) {
-		    //:: UnexpectedOutput(assert.failed:assertion.false, /Silicon/issue/48/)
 			assert false
 		}
 	}

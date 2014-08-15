@@ -17,21 +17,26 @@ class Fields {
 	{ r := x }
 	
 	method failWriteNoPermissions()
+	//:: ExpectedOutput(assignment.failed:insufficient.permission)
 	{ x := 0 /* @Error 630 */ }
 	
 	method failReadNoPermissions()
+	//:: ExpectedOutput(assignment.failed:insufficient.permission)
 	{ var y: int := x /* @Error 530 */ }
 	
 	method failWriteInsufficientPermissions()
 		requires rd(x)
+	//:: ExpectedOutput(assignment.failed:insufficient.permission)
 	{ x := 1 /* @Error 630 */ }
 	
 	method failTooGenerous() returns (r: int)
 		requires rd(x)
+		//:: ExpectedOutput(postcondition.violated:insufficient.permission)
 		ensures acc(x) && r == x /* @Error 330 */
 	{ r := x }
 	
 	method failWrongOrder() returns (r: int)
+	    //:: ExpectedOutput(not.wellformed:insufficient.permission)
 		requires x != 0 && acc(x) /* @Error 1030 */
 	{}
 }

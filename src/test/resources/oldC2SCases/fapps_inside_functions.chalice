@@ -35,11 +35,13 @@ class Functions {
 	{
 		assert(ff(3) == 3)
 		assert(ff(a) == a)
+		//:: ExpectedOutput(assert.failed:assertion.false)
 		assert(ff(b) > 0) /* @Fails Requires inductive proof */
 	}
 	
 	method useG1_1() {
 		assert(g1(3) == 3)
+		//:: ExpectedOutput(assert.failed:assertion.false)
 		assert(g1(-1) == 1) /* @Fails But holds with --unrollFunctions 2 */
 	}	
 	
@@ -48,6 +50,7 @@ class Functions {
 	{
 		assert(g1(a) > 0)
 		assert(g1(a) == a)
+		//:: ExpectedOutput(assert.failed:assertion.false)
 		assert(g1(b) > 0) /* @Fails Requires inductive proof */
 	}
 }

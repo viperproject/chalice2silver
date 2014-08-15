@@ -62,7 +62,7 @@ class Async {
 class Cell {
 	var x: int
 	
-	method set(a: int)
+	method set_(a: int)
 		requires acc(x)
 		ensures acc(x)
 		ensures x == a
@@ -120,8 +120,8 @@ class ReuseTokens {
 	method reuse() {
 		var c1: Cell := new Cell
 		var c2: Cell := new Cell
-		fork tk := c1.set(5)
-		fork tk := c2.set(7)
+		fork tk := c1.set_(5)
+		fork tk := c2.set_(7)
 		join tk
 		assert(c2.x == 7)
 		// assert(c1.x == 5) /* Fails - c1.x might not be readable */
@@ -129,63 +129,3 @@ class ReuseTokens {
 }
 
 
-class IfThenElse {
-	var tk1: token<Cell.set>
-	var tk2: token<Cell.set>
-	
-	function get(b: bool): token<Cell.set>
-		requires b ==> acc(tk1)
-		requires !b ==> acc(tk2)
-	{ b ? tk1 : tk2 }
-	
-	/* TODO: Fails in Chalice due to Boogie type errors. Bug? */
-	method succeed(a: int)
-		requires acc(tk1) && acc(tk2)
-		ensures acc(tk1) && acc(tk2)
-	{
-		var c1: Cell := new Cell
-		var c2: Cell := new Cell
-		call c1.set(0)
-		call c2.set(0)
-		fork tk1 := c1.set(1)
-		this.tk1 := tk1
-		fork tk2 := c2.set(2)
-		this.tk2 := tk2
-		join get(a > 0)
-		assert(a > 0 ? c1.x == 1 : c2.x == 2)
-	}
-}
-
-
-class TokenCell {
-	var tk: token<Cell.double>
-	
-	method set(tk: token<Cell.double>)
-		requires acc(this.tk)
-		ensures acc(this.tk)
-		ensures get() == tk
-	{ this.tk := tk }
-	
-	/* TODO: Failes with implicit this-reference due to type error. Probably
-	 *       a bug in the Chalice parser.
-	 */
-	function get(): token<Cell.double>
-		requires rd(this.tk)
-	{ this.tk }
-	
-	function getget(b: bool): token<Cell.double>
-		requires rd(this.tk)
-	{ b ? get() : get() }
-}
-
-class TokenCellTest {
-	method useTokenCell(a: int) returns (r: int) {
-		var tc: TokenCell := new TokenCell
-		var c: Cell := new Cell
-		call c.set(2)
-		fork tk := c.double()
-		call tc.set(tk)
-		join tc.get()
-		assert(c.x == 4)
-	}
-}

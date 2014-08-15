@@ -17,6 +17,7 @@ class Main{
 
     method client(tk : token<Main.work>)
         requires acc(tk.joinable) && tk.joinable
+		//:: ExpectedOutput(chalice2sil.error)
         requires eval(tk.fork this.work(), true)
         ensures acc(f)
     {
