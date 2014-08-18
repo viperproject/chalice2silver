@@ -19,8 +19,6 @@ import chalice.{NewRhs, BlockStmt, BackPointerMemberAccess}
 import java.nio.file.Paths
 import util.parsing.input
 
-// todo: resolve compiler warnings
-
 // **
 // This is were the magic happens
 // **
@@ -191,6 +189,11 @@ class ProgramTranslator(val name: String)
 
       // monitor invariant: ignore in this phase
       case i:chalice.MonitorInvariant =>
+
+      // conditions, coupling invariants, and method transforms are class members that are not supported in this version
+      case x =>
+        messages += new UnsupportedFeature("Unknown class member. The code may be translated incorrectly.",
+          SourcePosition(programName, x.pos.line, x.pos.column), true)
     }
   }
 
@@ -287,6 +290,8 @@ class ProgramTranslator(val name: String)
           translateExp(e, sThis, FunctionPermissionTranslator())
         case chalice.Postcondition(e) => silPostConditions +=
           translateExp(e, sThis, FunctionPermissionTranslator())
+        case x@chalice.LockChange(_) =>
+          messages += OldLockModel(SourcePosition(programName, x.pos.line, x.pos.column))
       }
     }
     sFunction.pres = silPreconditions.toSeq
@@ -296,6 +301,7 @@ class ProgramTranslator(val name: String)
       // all permissions in the body are rendered to a read permission
     cFunction.definition match {
       case Some(body) => sFunction.exp = translateExp(body, sThis, FunctionPermissionTranslator())
+      case None => messages += BodylessFunctions(SourcePosition(programName, cFunction.pos.line, cFunction.pos.column))
     }
   }
 
@@ -657,6 +663,12 @@ class ProgramTranslator(val name: String)
 
       // result
       case chalice.Result() => Result()(workingOn.asInstanceOf[Function].typ)
+
+      // unknown expressions
+      case _ =>
+        messages +=
+          new UnsupportedFeature("Unknown Expression.  The code may be translated incorrectly.", position, true)
+        null
     }
   }
 
@@ -709,8 +721,6 @@ class ProgramTranslator(val name: String)
       case w@chalice.WhileStmt(guard, _, _, lockchange, body) =>
         // lockchange is not supported anymore
         if(lockchange!=null && !lockchange.isEmpty) messages += OldLockModel(position)
-
-        // todo: what is the difference between newInvs and oldInvs?
         While(translateExp(guard, myThis, pTrans), w.Invs.map(translateExp(_, myThis, pTrans)), Seq(),
           translateStm(body, myThis, pTrans, silMethod)
         )(position)
@@ -753,7 +763,7 @@ class ProgramTranslator(val name: String)
           // the purpose of this ugly check is to ensure that the rhs is not a Chalice "new" expression
           // this patch is a workaround through JVM type erasure
           case None => true
-          case Some(e) => try { e.asInstanceOf[chalice.Expression]; true } catch { case _ => false }
+          case Some(e) => try { e.asInstanceOf[chalice.Expression]; true } catch { case _: Throwable => false }
         })
           =>
         val silType = Util.translateType(v.t)
