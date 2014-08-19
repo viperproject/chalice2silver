@@ -734,27 +734,49 @@ class ProgramTranslator(val name: String)
       case chalice.FieldUpdate(ma, rhs) if rhs.isInstanceOf[chalice.Expression] =>
         val silma = translateExp(ma, myThis, pTrans).asInstanceOf[FieldAccess]
         val isTracked = ma.f.isTracked
-        if (!isTracked) FieldAssign(silma, translateExp(rhs.asInstanceOf[chalice.Expression], myThis, pTrans))(position)
+        val theAssignment =
+          FieldAssign(silma, translateExp(rhs.asInstanceOf[chalice.Expression], myThis, pTrans))(position)
+        if (!isTracked) theAssignment
         else {
-          // backpointers must be updated   // todo: fix
+          // backpointers must be updated   // todo: under construction
           val Avar = silMethod.locals(1).localVar
           val Bvar = silMethod.locals(2).localVar
           val Cvar = silMethod.locals(3).localVar
           val bpf = backpointerSymbolMap((ma.e.typ.id, ma.typ.id, ma.f.id))
           Seqn(Seq(
             LocalVarAssign(Avar, translateExp(ma.e, myThis, pTrans))(position),  // A := e1
-            /*LocalVarAssign(Bvar,
-              FieldAccess(Avar, symbolMap(ma.f).asInstanceOf[Field], translateExp(ma, myThis, pTrans))(position)
-            )(position),
-              // B := A.f*/
-            LocalVarAssign(Cvar, translateExp(rhs.asInstanceOf[chalice.Expression], myThis, pTrans))(position) //,
+            LocalVarAssign(Bvar, FieldAccess(Avar, symbolMap(ma.f).asInstanceOf[Field])(position))(position),
+              // B := A.f
+            LocalVarAssign(Cvar, translateExp(rhs.asInstanceOf[chalice.Expression], myThis, pTrans))(position),
               // C := e2
 
-            /*FieldAssign(FieldAccess(silma, bpf)(position),
-              AnySetMinus(FieldAccess(silma, bpf)(position), silReceiver))(position),
-            silAssignment,
-            FieldAssign(FieldAccess(silma, bpf)(position),
-              AnySetUnion(FieldAccess(silma, bpf)(position), silReceiver))(position)*/
+            // if B!=null
+            If(NeCmp(LocalVar(Bvar.name)(Bvar.typ), NullLit()(position))(position),
+              // B.backpointer := B.backpointer - {A}
+              FieldAssign(
+                FieldAccess(Bvar, bpf)(position),
+                AnySetMinus(
+                  FieldAccess(Bvar, bpf)(position),
+                  ExplicitSet(Seq(Avar))(position)
+                )(position)
+              )(position),
+              Seqn(Seq())(position)
+            )(position),
+
+            // if C!=null
+            If(NeCmp(LocalVar(Bvar.name)(Bvar.typ), NullLit()(position))(position),
+              // C.backpointer := C.backpointer + {A}
+              FieldAssign(
+                FieldAccess(Cvar, bpf)(position),
+                AnySetUnion(
+                  FieldAccess(Cvar, bpf)(position),
+                  ExplicitSet(Seq(Avar))(position)
+                )(position)
+              )(position),
+              Seqn(Seq())(position)
+            )(position),
+
+            theAssignment
           ))(position)
         }
 
@@ -1249,7 +1271,18 @@ object Util {
   // **
   // generates a SIL 'new' statement
   // **
-  def newObject(n: LocalVar, f: Seq[Field], p: Position) = NewStmt(n, f)(p)
+  def newObject(n: LocalVar, f: Seq[Field], p: Position) = {
+    // initialization statement (needed for backpointers)
+    val init = f.map({
+      fld => fld.typ match {
+        case Ref => FieldAssign(FieldAccess(n, fld)(p), NullLit()(p))(p)
+        case SetType(Ref) => FieldAssign(FieldAccess(n, fld)(p), EmptySet(Ref)(p))(p)
+        case _ => Seqn(Seq())(p)
+      }
+    })
+
+    Seqn(Seq(NewStmt(n, f)(p)) ++ init)(p)
+  }
 
   // **
   // translates a Chalice class into a SIL type

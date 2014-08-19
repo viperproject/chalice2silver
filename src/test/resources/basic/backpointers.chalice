@@ -1,0 +1,32 @@
+//:: IgnoreFile(/silicon/issue/42/)
+
+class A {
+  tracked var b: B
+  
+  method m() {
+    var a := new A
+	assert a.b == null
+	var b := new B
+	assert b.~(A.b) == empty<A>
+	
+	a.b := b
+	assert b.~(A.b) == {a}
+	a.b := b
+	assert b.~(A.b) == {a}
+	
+	a.b := null
+	assert b.~(A.b) == empty<A>
+	
+	var c := new B
+	
+	a.b := c
+	assert c.~(A.b) == {a}
+	assert b.~(A.b) == empty<A>
+	
+	a.b := b
+	assert c.~(A.b) == empty<A>
+	assert b.~(A.b) == {a}
+  }
+}
+
+class B {}
