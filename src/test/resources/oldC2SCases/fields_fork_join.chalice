@@ -38,6 +38,7 @@ class Async {
 		requires acc(x)
 	{
 		fork tk1 := negX()
+		//:: ExpectedOutput(assignment.failed:insufficient.permission)
 		fork tk2 := negX() /* @Error 230 */
 	}
 
@@ -55,6 +56,7 @@ class Async {
 		requires acc(x)
 	{
 		fork tk1 := greedyNegX()
+		//:: ExpectedOutput(assignment.failed:insufficient.permission)
 		fork tk2 := greedyNegX() /* @Error 230 */
 	}
 }

@@ -6,6 +6,7 @@ class Test01 {
     method test01()
     {
         assert zero() == 0
+		//:: ExpectedOutput(assert.failed:assertion.false)
         assert zero() != 0 /* @Error 410 */
     }
 
@@ -14,6 +15,7 @@ class Test01 {
     { f > a }
 
     function wrongZero(): int
+	    //:: ExpectedOutput(postcondition.violated:assertion.false)
         ensures result > 0
     { 0 }
 }

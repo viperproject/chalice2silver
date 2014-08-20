@@ -1,4 +1,3 @@
-// @Ignore free is not supported, see chalice2sil issue 18
 class Pair {
   var x: int
   var y: int
@@ -13,6 +12,7 @@ class Test {
     requires acc(p.mu)
   {
     p.x := a
+	//:: ExpectedOutput(chalice2sil.error)
     free p
     assert p.x == a /* @Error 430 */
   }
@@ -21,6 +21,7 @@ class Test {
     requires acc(p) && p != null
     requires acc(p.x) && acc(p.y)
   {
+    //:: ExpectedOutput(chalice2sil.error)
     free p /* @Error 630 */
   }
 
@@ -28,5 +29,8 @@ class Test {
     requires acc(p) && p != null
     requires acc(p.x) && acc(p.y)
     requires acc(p.mu)
-  { free p }
+  { 
+    //:: ExpectedOutput(chalice2sil.error)
+    free p 
+  }
 }

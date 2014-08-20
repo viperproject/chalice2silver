@@ -27,6 +27,7 @@ class Test {
 	{
 		x := a
 		call accX()
+		//:: ExpectedOutput(assert.failed:assertion.false)
 		assert x == a /* @Error 410 */
 	}
 }

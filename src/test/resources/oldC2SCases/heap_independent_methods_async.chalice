@@ -14,6 +14,7 @@ class Async {
 		ensures s == 2 * b /* -Error 310 */
 	{
 	    fork tk := double(b)
+		//:: ExpectedOutput(assert.failed:assertion.false)
 	    assert s == 2*b /* @Error 410 */
 	}
 	
@@ -22,6 +23,7 @@ class Async {
 	{
 		fork tk := double(b)
 		join s := tk
+		//:: ExpectedOutput(assert.failed:assertion.false)
 		join s := tk /* @Error 410 */ // @Syxc(Error 920)
 	}	
 	

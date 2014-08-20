@@ -119,9 +119,10 @@ class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases {
   override def result = if (!failed.isEmpty) Failure(failed) else Success
 }
 
-case class TranslationError(message: String, pos: Position) extends AbstractError {
+case class TranslationError(message: String, position: Position) extends AbstractError {
   def fullId = "chalice2sil.error"
   def readableMessage = s"$message"
+  def pos = if (position == null) new SourcePosition(null, 2, 1) else position
 }
 
 case class VerifierThrowsException(message: String, pos: Position) extends AbstractError {

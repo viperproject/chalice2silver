@@ -1,4 +1,5 @@
-// @Ignore support for monitors is insufficient, see issue 16 of chalice2sil
+//:: ExpectedOutput(chalice2sil.error)
+
 class Cell { var x: int }
 
 class Test1 {
@@ -6,10 +7,12 @@ class Test1 {
 	
 	method uncertainty1()
 		requires rd(c) && c != null
+		//:: ExpectedOutput(chalice2sil.error)
 	{ assert holds(c) } /* @Error 410 */
 
 	method uncertainty2()
 		requires rd(c) && c != null
+		//:: ExpectedOutput(chalice2sil.error)
 	{ assert !holds(c) } /* @Error 410 */
 	
 	method succeed()
@@ -17,8 +20,10 @@ class Test1 {
 		requires waitlevel << c.mu
 	{
 		acquire c
+		//:: ExpectedOutput(chalice2sil.error)
 		assert holds(c)
 		release c
+		//:: ExpectedOutput(chalice2sil.error)
 		assert !holds(c)
 	}
 	
@@ -26,9 +31,13 @@ class Test1 {
 		requires acc(c) && c != null && acc(c.mu)
 		requires waitlevel << c.mu
 	{
+	    //:: ExpectedOutput(chalice2sil.error)
 		rd acquire c
+		//:: ExpectedOutput(chalice2sil.error)
 		assert rd holds(c)
+		//:: ExpectedOutput(chalice2sil.error)
 		rd release c
+		//:: ExpectedOutput(chalice2sil.error)
 		assert !rd holds(c)
 	}
 	
@@ -38,6 +47,7 @@ class Test1 {
 	{
 		acquire c
 		release c
+		//:: ExpectedOutput(chalice2sil.error)
 		assert holds(c) /* @Error 410 */
 	}
 	
@@ -46,6 +56,7 @@ class Test1 {
 		requires waitlevel << c.mu
 	{
 		acquire c
+		//:: ExpectedOutput(chalice2sil.error)
 		assert rd holds(c) /* @Error 410 */
 	}	
 	
@@ -53,8 +64,11 @@ class Test1 {
 		requires acc(c) && c != null && acc(c.mu)
 		requires waitlevel << c.mu
 	{
+	    //:: ExpectedOutput(chalice2sil.error)
 		rd acquire c
+		//:: ExpectedOutput(chalice2sil.error)
 		rd release c
+		//:: ExpectedOutput(chalice2sil.error)
 		assert rd holds(c) /* @Error 410 */
 	}
 
@@ -62,13 +76,16 @@ class Test1 {
 		requires acc(c) && c != null && acc(c.mu)
 		requires waitlevel << c.mu
 	{
+	//:: ExpectedOutput(chalice2sil.error)
 		rd acquire c
+		//:: ExpectedOutput(chalice2sil.error)
 		assert holds(c) /* @Error 410 */
 	}
 	
 	method fails3(c1: Cell, c2: Cell)
 		requires c1 != null && c2 != null
 		requires rd(c1.mu) && rd(c2.mu)
+		//:: ExpectedOutput(chalice2sil.error)
 		requires holds(c1) && holds(c2)
 	{
 		assert waitlevel == c1.mu /* @Error 410 */
@@ -79,13 +96,16 @@ class Test1 {
 	}
 	
 	method succeedHolds1(c1: Cell)
+	    //:: ExpectedOutput(chalice2sil.error)
 		requires c1 != null && rd(c1.mu) && holds(c1)
 		lockchange c1
 	{ release c1 }
 	
 	method succeedHolds2(c1: Cell)
+	    //:: ExpectedOutput(chalice2sil.error)
 		requires c1 != null && rd(c1.mu) && rd holds(c1)
 		lockchange c1
+		//:: ExpectedOutput(chalice2sil.error)
 	{ rd release c1 }
 	
 	method failsHolds1(c1: Cell)
@@ -93,6 +113,7 @@ class Test1 {
 	{ release c1 } /* @Error 1346 */
 	
 	method failsHolds2(c1: Cell)
+	    //:: ExpectedOutput(chalice2sil.error)
 		requires c1 != null && rd(c1.mu) && holds(c1)
 	{
 		release c1
@@ -100,12 +121,15 @@ class Test1 {
 	}	
 	
 	method failsHolds4(c1: Cell)
+	    //:: ExpectedOutput(chalice2sil.error)
 		requires c1 != null && rd(c1.mu) && holds(c1)
+		//:: ExpectedOutput(chalice2sil.error)
 	{ rd release c1 } /* @Error 1346 */
 	
 	method failsHolds3(c1: Cell, c2: Cell)
 		requires c1 != null && c2 != null
 		requires acc(c1.mu) && acc(c2.mu)
+		//:: ExpectedOutput(chalice2sil.error)
 		requires holds(c1) && holds(c2)
 	{
 		release c1
@@ -116,6 +140,7 @@ class Test1 {
 	method failsHolds5(c1: Cell, c2: Cell)
 		requires c1 != null && c2 != null
 		requires rd(c1.mu) && rd(c2.mu)
+		//:: ExpectedOutput(chalice2sil.error)
 		requires holds(c1) && holds(c2)
 	{
 		release c1
@@ -127,9 +152,11 @@ class Test1 {
 		requires waitlevel << c1.mu
 		ensures c1 != null && rd(c1.mu)
 	{
+	    //:: ExpectedOutput(chalice2sil.error)
 		assert !holds(c1)
 		acquire c1
 		release c1
+		//:: ExpectedOutput(chalice2sil.error)
 		assert !holds(c1)
 	}
 }
@@ -141,6 +168,7 @@ class Test2 {
 		var t: Test2 := new Test2
 		share t
 		acquire t
+		//:: ExpectedOutput(chalice2sil.error)
 		unshare t
 	}
 	
@@ -161,6 +189,7 @@ class Test2 {
 		call localVar()
 		acquire t
 		call localVar()
+		//:: ExpectedOutput(chalice2sil.error)
 		unshare t
 	}
 
@@ -188,28 +217,35 @@ class Test2 {
 
 class Test3 {
 	method reqHoldsThenRelease(c: Cell)
+	    //:: ExpectedOutput(chalice2sil.error)
 		requires c != null && holds(c)
+		//:: ExpectedOutput(chalice2sil.error)
 		ensures !holds(c)
 		lockchange c
 	{ release c }
 	
 	method failsReqHoldsThenRelease(c: Cell) /* @Error 340 */
+	//:: ExpectedOutput(chalice2sil.error)
 		requires c != null && holds(c)
+		//:: ExpectedOutput(chalice2sil.error)
 		ensures !holds(c)
 	{ release c }	
 	
 	method acquireThenEnsHolds(c: Cell)
 		requires c != null && rd(c.mu) && waitlevel << c.mu
+		//:: ExpectedOutput(chalice2sil.error)
 		ensures holds(c)
 		lockchange c
 	{ acquire c }
 	
 	method failsAcquireThenEnsHolds(c: Cell) /* @Error 340 */
 		requires c != null && rd(c.mu) && waitlevel << c.mu
+		//:: ExpectedOutput(chalice2sil.error)
 		ensures holds(c)
 	{ acquire c }
 	
 	method lockchange1(c: Cell)
+	    //:: ExpectedOutput(chalice2sil.error)
 		requires c != null && rd(c.mu) && holds(c) && c.mu == waitlevel
 		lockchange c
 	{
@@ -220,19 +256,23 @@ class Test3 {
 	}
 	
 	method lockchange2(c: Cell)
+	    //:: ExpectedOutput(chalice2sil.error)
 		requires c != null && rd(c.mu) && holds(c) && c.mu == waitlevel
 		lockchange c
 	{}
 	
 	method produceLockchange(c: Cell)
+	    //:: ExpectedOutput(chalice2sil.error)
 		requires c != null && holds(c)
 		lockchange c
 	{ call reqHoldsThenRelease(c)	}
 	
 	method failsProduceLockchange(c: Cell) /* @Error 340 */
+	    //:: ExpectedOutput(chalice2sil.error)
 		requires c != null && holds(c)
 	{
 		call reqHoldsThenRelease(c)
+		//:: ExpectedOutput(chalice2sil.error)
 		assert !holds(c)
 	}
 }

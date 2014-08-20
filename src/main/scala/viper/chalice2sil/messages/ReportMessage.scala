@@ -10,7 +10,7 @@ import viper.silver.ast._
 import viper.chalice2sil.TranslationError
 
 class ReportMessage(val message: String, val position: Position, val fatal: Boolean = false) {
-  val translationError = if (fatal) TranslationError(message, position) else null
+  def translationError = if (fatal) TranslationError(message, position) else null
   override def toString = (if(position!=null) position.toString + ": " else "") + message
 }
 

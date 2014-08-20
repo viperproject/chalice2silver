@@ -17,7 +17,8 @@ class Node {
     requires valid;
     ensures valid;
     ensures size() == old(size())+1;
-    ensures (forall y:int :: contains(y)==(old(contains(y)) || x==y));
+	//:: UnexpectedOutput(postcondition.violated:assertion.false, /silicon/issue/113/)
+    ensures (forall y:int :: contains(y)==(old(contains(y)) || x==y));  // Silicon issue 113
   {
     unfold this.valid;
     if(next==null) {
@@ -26,7 +27,6 @@ class Node {
       call n.init(x);
       next := n;
     } else {
-
       call next.add(x);
     }
     fold this.valid;
@@ -39,7 +39,10 @@ class Node {
       unfold valid
       if(next!=null)
       { 
+	    assert acc(next) && next!=null && next.valid // lemma
         call next.addother(i)
+		//:: UnexpectedOutput(assert.failed:insufficient.permission, /silicon/issue/113/)
+		assert acc(next) && next!=null && next.valid && (forall x:int :: next.contains(x)==(old(next.contains(x)) || x==i)) // Silicon issue 113
       }
       else
       { 	  
@@ -49,7 +52,7 @@ class Node {
         fold next.valid
 		assert (forall x:int :: next.contains(x)==(x==i))  // lemma
       }
-      fold valid
+	  fold valid
   }
 
   method addFirst(x: int) returns (rt: Node)

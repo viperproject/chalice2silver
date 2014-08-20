@@ -330,7 +330,7 @@ class ProgramTranslator(val name: String)
       _ match {
         case chalice.Precondition(e) => silPreconditions += translateExp(e, sThis, permTranslator)
         case chalice.Postcondition(e) => silPostConditions += translateExp(e, sThis, permTranslator)
-        case chalice.LockChange(_) => // messages += OldLockModel()
+        case chalice.LockChange(_) => messages += OldLockModel()
       }
     }
     sMethod.pres = silPreconditions.toSeq

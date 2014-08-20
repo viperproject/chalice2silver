@@ -41,6 +41,7 @@ class Test01 {
     fork tk := add(2)
     join a := tk
 
+	//:: ExpectedOutput(assert.failed:assertion.false)
     assert a == 2 /* @Error 410 */
   }
   
