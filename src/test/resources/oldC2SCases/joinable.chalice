@@ -25,18 +25,21 @@ class Test {
 	
 	method failJoinable1() {
 		var tk: token<Test.f>
+		//:: ExpectedOutput(assert.failed:assertion.false)
 		assert tk.joinable /* @Error 405 */
 	}
 	
 	method failJoinable2() {
 		fork tk := f()
 		join tk
+		//:: ExpectedOutput(assert.failed:assertion.false)
 		assert tk.joinable /* @Error 410 */
 	}
 	
 	method failJoin() {
 		fork tk := f()
 		join tk
+	    //:: ExpectedOutput(assert.failed:assertion.false)
 		join tk /* @Error 410 */ // @Silicon(Error 920)
 	}
 }

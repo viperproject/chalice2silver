@@ -33,6 +33,7 @@ class Main {
         requires d != null ==> acc(d.cell) && d.cell != null && acc(d.cell.f) && d.cell.f == 5
     {
         var r : bool;
+		//:: UnexpectedOutput(assignment.failed:receiver.null, /silicon/issue/47/)
         fork tk := parallel(d);
         assert d != null ==> d.cell.f == 5;
         join r := tk;
@@ -45,6 +46,7 @@ class Main {
     method main3()
     {
         var r : bool;
+		//:: UnexpectedOutput(assignment.failed:receiver.null, /silicon/issue/47/)
         fork tk := parallel(null);
         r := true;
         join r := tk;

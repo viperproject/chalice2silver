@@ -5,6 +5,7 @@ class Test01 {
     ensures c > 1
     ensures d >= 2
     ensures e < 5
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
     ensures f <= 2 /* @Error 310 */
   {
     a := 0
@@ -25,6 +26,7 @@ class Test01 {
     assert a == 1
     
     a := 2
+	//:: ExpectedOutput(assert.failed:assertion.false)
     assert a > 2 /* @Error 410 */
   }
   
@@ -34,6 +36,7 @@ class Test01 {
     ensures c == 0 - b
     ensures c == f
     ensures d == a
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
     ensures e != 0 /* @Error 310 */
   {
     a := 1 + 2
@@ -50,6 +53,7 @@ class Test01 {
     ensures b ==> a
     ensures (a && b) <==> false
     ensures (a || b) <==> true
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
     ensures a ==> b /* @Error 310 */
   {
     a := true
@@ -60,6 +64,7 @@ class Test01 {
 	
 	method mm()
 		requires acc(x)
+		//:: ExpectedOutput(not.wellformed:insufficient.permission)
 		ensures x == 1 /* @Error 330 */
 	{
 		x := 0

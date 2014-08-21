@@ -16,6 +16,7 @@ class LocalInts {
 	}
 	
 	method failAdd(x: int, y: int) returns (r: int)
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
 		ensures r == x + y /* @Error 310 */
 	{	r := x - y }
 }

@@ -18,6 +18,7 @@ class Test {
 		requires c != null && rd(c.mu) && waitlevel << c.mu		
 	{
 		acquire c
+		//:: ExpectedOutput(assert.failed:assertion.false)
 		assert acc(c.x) && c.x < 0 /* @Error 410 */
 	}
 	
@@ -26,6 +27,7 @@ class Test {
 	{
 		acquire c
 		c.x := -1
+		//:: ExpectedOutput(fold.failed:assertion.false)
 		release c /* @Error 1610 */
 	}	
 	
@@ -34,6 +36,7 @@ class Test {
 	{
 		acquire c
 		release c
+		//:: ExpectedOutput(assert.failed:insufficient.permission)
 		assert acc(c.x) /* @Error 430 */
 	}
 	
@@ -46,6 +49,7 @@ class Test {
 	
 	method failShareInv() {
 		var c: Cell := new Cell
+		//:: ExpectedOutput(fold.failed:assertion.false)
 		share c /* @Error 1610 */
 		c.y := 2
 	}	
@@ -54,6 +58,7 @@ class Test {
 		var c: Cell := new Cell
 		c.x := 1
 		share c
+		//:: ExpectedOutput(assignment.failed:insufficient.permission)
 		c.x := 2 /* @Error 630 */
 	}
 }

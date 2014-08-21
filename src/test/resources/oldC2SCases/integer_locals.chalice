@@ -24,6 +24,7 @@ class LocalVars {
 	method failDecl(x: int, y: int, z: int) returns (r: int)
 		requires x == y
 		requires z != x
+		//:: ExpectedOutput(postcondition.violated:assertion.false)
 		ensures r == 2 * x + z /* @Error 310 */
 	{
 		var b1: int := x + y

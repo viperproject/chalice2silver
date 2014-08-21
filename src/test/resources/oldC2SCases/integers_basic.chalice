@@ -55,22 +55,27 @@ class Test {
 	{}
 	
 	method failPlusLiterals()
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
 		ensures 1 + 2 == 4 /* @Error 310 */
 	{ }
 	
 	method failMinusLiterals()
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
 		ensures 1 - -1 == 0 /* @Error 310 */
 	{ }
 	
 	method failTimesLiterals()
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
 		ensures 2 * 2 == 2 /* @Error 310 */
 	{ }
 	
 	method failDivLiterals()
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
 		ensures 6 / 2 == 2 /* @Error 310 */
 	{ }	
 	
 	method failModLiterals()
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
 		ensures 10 % 4 == 0 /* @Error 310 */
 	{ }
 }

@@ -1,5 +1,6 @@
 class Impl {
 	method impl1(x: int, z: int) returns (r: int)
+	    //:: ExpectedOutput(postcondition.violated:assertion.false)
 		ensures r == 0 ==> x == 0 /* @Error 310 */
 	{}
 	

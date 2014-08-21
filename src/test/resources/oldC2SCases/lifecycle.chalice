@@ -8,7 +8,9 @@ class C {
         c.f := 5;
         share c;
         acquire c; c.f := 7; release c;
-        acquire c; c.f := 6; unshare c;
+        acquire c; c.f := 6
+		//:: ExpectedOutput(chalice2sil.error)
+		unshare c;
         assert c.f == 6;
     }
 }

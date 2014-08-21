@@ -1,7 +1,5 @@
 // syxc-parameters --unrollFunctions 2
 
-// @Ignore currently sequences are not supported, see chalice2sil issue 4
-
 class List {
   var value:int;
   var next:List;
@@ -47,7 +45,7 @@ class List {
   { unfolding rd(inv) in (index==0) ? value : next.get(index - 1) }
   // { unfolding rd(inv) in (next == null) ? value : next.get(index - 1) }
   
-  method set(index: int, newval: int)
+  method set_(index: int, newval: int)
     requires inv && 0 <= index && index < len()
     ensures /* N1 */ inv
 		ensures /* N2 */ len() == old(len())
@@ -59,7 +57,7 @@ class List {
 		if(index == 0) {
 			value := newval
 		} else {
-			call next.set(index - 1, newval)
+			call next.set_(index - 1, newval)
 		}
 		
 		fold inv;
@@ -127,8 +125,8 @@ class Test {
 		var n1: List := new List
     n1.next := null
 		fold n1.inv
-		call n1.set(0, 21)
-		
+		call n1.set_(0, 21)
+		//:: ExpectedOutput(assert.failed:assertion.false)
 		assert 1234 == 0 /* @Error 410 Simple smoke test */
 	}
 
@@ -168,6 +166,7 @@ class Test {
 		// assert n3.get(1) == 2
 		// assert n3.get(2) == 1
 		
+		//:: ExpectedOutput(assert.failed:assertion.false)
 		assert 1234 == 0 /* @Error 410 Simple smoke test */
 
 		// // var n4: List := new List

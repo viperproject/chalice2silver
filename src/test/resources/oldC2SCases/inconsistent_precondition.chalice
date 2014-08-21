@@ -1,8 +1,8 @@
-// @Ignore (currently fails with an exception in chalice2sil, see issue 14)
 class Test {
 	var r: Test
 	
 	method fail()
+	//:: ExpectedOutput(assert.failed:assertion.false)
 	{ assert 1 == 2 } /* @Error 410 */
 	
 	method success(b: bool, x: int, y: int, z: int)

@@ -39,26 +39,32 @@ class Test {
 	{}
 	
 	method failEqLiterals()
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
 		ensures 0 == 1 /* @Error 310 */
 	{ }
 	
 	method failNeqLiterals()
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
 		ensures -1 != -1 /* @Error 310 */
 	{ }
 	
 	method failGtLiterals()
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
 		ensures 1 > 2 /* @Error 310 */
 	{ }
 	
 	method failGteLiterals()
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
 		ensures 1 >= 2 /* @Error 310 */
 	{ }	
 	
 	method failLtLiterals()
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
 		ensures 0 < -2 /* @Error 310 */
 	{ }
 	
 	method failLteLiterals()
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
 		ensures -1 <= -2 /* @Error 310 */
 	{ }	
 }

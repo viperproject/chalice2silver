@@ -22,15 +22,18 @@ class IntegerArguments {
 	{}
 	
 	method failIntCompareLiterals1(a: int)
+//:: ExpectedOutput(postcondition.violated:assertion.false)
 		ensures a != 1 /* @Error 310 */
 	{}
 	
 	method failIntCompareLiterals2(a: int)
+//:: ExpectedOutput(postcondition.violated:assertion.false)
 		ensures a == 1 /* @Error 310 */
 	{}
 	
 	method failIntCompareLiterals3(a: int)
 		requires a == 1
+//:: ExpectedOutput(postcondition.violated:assertion.false)
 		ensures a != 1 /* @Error 310 */
 	{}
 }
