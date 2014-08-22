@@ -42,7 +42,7 @@ class Indentation {
     method increase(amount : int)
         requires valid && 0 <= amount;
         ensures valid;
-        ensures old(getCount()) <= getCount(); // @IgnoreError 310: Currently not supported by Silicon, see issue #7.
+        ensures old(getCount()) <= getCount(); 
     {
         unfold valid;
         count := count + amount;

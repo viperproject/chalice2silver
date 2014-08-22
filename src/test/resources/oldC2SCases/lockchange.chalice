@@ -1,4 +1,4 @@
-// @Ignore support for monitors is insufficient, see issue 16 of chalice2sil
+//:: ExpectedOutput(chalice2sil.error)
 /* There has been an incompleteness due to the previous handling of mu-fields
  * and waitlevel-assertions. This incompleteness has been removed by also 
  * versioning mu-fields.
@@ -13,31 +13,8 @@ class Cell { var x: int}
 class ProblemA {
 	method acqThis()
 		requires rd(mu) && waitlevel << mu
+		//:: ExpectedOutput(chalice2sil.error)
 		ensures holds(this)
-		/* Syxc currently (2011-02-25) needs the following two assertions in
-		 * order to verify method test, which otherwise requires
-		 * "lockchange this".
-		 */
-		/* The assumptions are needed so that in the test's post-state
-		 *  - heap h contains this.mu |-> m'
-		 *  - path conditions p contain m' = m, where m is this.mu's value in the 
-		 *    pre-state
-		 *
-		 *  p also contains "waitlevel << mu" and together with "mu(this) = m'",
-		 *  "m' = m"  and some axioms Syxc is able to infer that
-		 *  forall r :: holds(r, pre-state) = holds(r, post-state).
-		 */
-		/* Solution candidate:
-		 *  - give Z3 $Locks.mu terms an additional version argument
-		 *  - have one mu-version counter for all mu-fields
-		 *  - increment the counter each time a mu-field is written and add the
-		 *    corresponding function update term to p
-		 *  - create mu-terms from both heaps h, g
-		 *
-		 * The additional assumptions are not required by Chalice.
-		 */
-
-		// ensures rd(mu) && mu == old(mu) /* Was required by Syxc */
 		lockchange this
 	{ acquire this }
 	
@@ -69,6 +46,7 @@ class ProblemB {
     ensures rd(mu)
   {
     acquire this
+	//:: ExpectedOutput(chalice2sil.error)
 		assert !holds(c)
 		assert this.mu == waitlevel
     acquire c

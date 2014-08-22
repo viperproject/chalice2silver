@@ -16,7 +16,6 @@ class Main {
     method shareObj() returns (m: Main)
         ensures m != null && acc(m.mu)
         ensures waitlevel << m.mu
-        ensures !holds(m)
     {
         m := new Main;
         share m;

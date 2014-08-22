@@ -1,4 +1,3 @@
-// @Ignore support for monitors is insufficient, see issue 16 of chalice2sil
 class Main {
     var f : int;
     method main(){
@@ -25,18 +24,15 @@ class Main {
         assert m2.f == 13;
 
         release m1;
-        //call dispose(m2); // Method might lock/unlock more than allowed
-        //assert !holds(m2);
-        release m2;       // works
+        call dispose(m2);
+		//:: ExpectedOutput(fold.failed:insufficient.permission)
+        release m2;
     }
 
     method dispose(m : Main)
-        requires rd(m.mu)   //acc doesn't work either
-        requires holds(m)
+        requires rd(m.mu)
         requires acc(m.f)
         ensures rd(m.mu)
-        ensures !holds(m)
-        lockchange(m)
     {
         release m;
     }
@@ -48,11 +44,9 @@ class Main {
         requires acc(x.mu)
         requires acc(m.mu)
         requires waitlevel << m.mu
-        ensures holds(m)
         ensures acc(m.f)
         ensures m.f == n
         ensures acc(x.mu)
-        lockchange(m)
     {
         acquire m;
         m.f := n;

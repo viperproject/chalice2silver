@@ -13,11 +13,13 @@ class Predicate {
 	{ fold V }
 	
 	method failFoldV1()
+	//:: ExpectedOutput(fold.failed:insufficient.permission)
 	{ fold V /* @Error 730 */ }
 	
 	method failFoldV2()
 		requires acc(x)
 		ensures V
+		//:: ExpectedOutput(postcondition.violated:insufficient.permission)
 		ensures acc(x) /* @Error 330 */
 	{ fold V }
 	
@@ -29,11 +31,13 @@ class Predicate {
 	{ unfold V }
 	
 	method failUnfoldV1()
+	//:: ExpectedOutput(unfold.failed:insufficient.permission)
 	{ unfold V /* @Error 830 */}
 	
 	method failUnfoldV2()
 		requires V
 		ensures acc(x)
+		//:: ExpectedOutput(postcondition.violated:insufficient.permission)
 		ensures V /* @Error 330 */
 	{ unfold V }
 	
@@ -43,8 +47,9 @@ class Predicate {
 		requires V
 	{ unfolding V in x }
 	
+	//:: ExpectedOutput(function.not.wellformed:insufficient.permission)
 	function failUnfoldingV(): int
-	{ unfolding V in x /* @MissingError 830 */ }   // UNSOUND succeeds in Chalice2SIL+Silicon
+	{ unfolding V in x }
 	
 	
 	
@@ -60,5 +65,6 @@ class Predicate {
 	method failUseUnfoldingV() returns (r: int)
 		requires acc(x)
 		ensures acc(x) && r == x
+		//:: ExpectedOutput(application.precondition:insufficient.permission)
 	{ r := unfoldingV()	/* @Error 230 */ }
 }

@@ -50,7 +50,6 @@ class Test {
 	}
 	
 	method reqFailLowerBound()
-	    //:: ExpectedOutput(assert.failed:non.positive.permission)
 		requires acc(x, -1) /* @Error 130 */
 	{}
 	

@@ -12,6 +12,6 @@ class C {
 		 release b; release a;
 
          acquire b;
-         acquire a; // @Error 410
+         acquire a; // This should be reported as an error.  It is not, because lock order is not yet implemented
      }
  }

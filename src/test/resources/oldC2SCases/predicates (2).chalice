@@ -34,6 +34,7 @@ class Cell {
     fold read2;
     // fold read3;
     fold read2;
+	//:: ExpectedOutput(fold.failed:insufficient.permission)
     fold write1; /* @Error 730 */
   }
   
@@ -52,6 +53,7 @@ class Cell {
   {
     unfold read1;
     call dispose();
+	//:: ExpectedOutput(fold.failed:insufficient.permission)
     fold read1; /* @Error 730 */
   }
   
@@ -65,6 +67,7 @@ class Cell {
   
   method b7()
     requires acc(x);
+	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
     ensures acc(x); /* @Error 330 */
   {
     fold read2;
@@ -111,11 +114,13 @@ class Test2 {
   method test01()
     requires rd(f)
   {
+    //:: ExpectedOutput(fold.failed:insufficient.permission)
     fold R /* @Error 730 */
   }
   
   method test02()
     requires R
+	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
     ensures rd(f) /* @Error 330 */
   {
     unfold R

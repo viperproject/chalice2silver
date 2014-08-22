@@ -18,25 +18,6 @@ class Test {
 		var a: bool := true
 
 		while (a && x > 0)
-			/* 2011-10-05 MHS:
-			 *   Used to fail in Syxc. Overcame incompleteness by introducing
-			 *   Overcame incompleteness by introducing non-strict conjunction
-			 *   evaluation.
-			 *
-			 *   The comment below is left for historical reasons.
-			 */
-			/* Incompleteness in Syxc:
-			 *  - producing I && G before executing the loop body
-			 *    I may contain access assertions, thus must be produced first
-			 *  - I branches, first branch with a in π and this.x in h verifies
-			 *  - second branch with ¬a in π and no chunk in h fails when producing G
-			 *  - however, we then have a && ¬a in π, i.e. assert false holds
-			 */
-			/* Possible solution:
-			 * Instead of producing I && G we pull out all heap-independent
-			 * expressions from G and produce these first, then I, then G's rest,
-			 * e.g. here a && a ==> acc(x) && x > 0.
-			 */
 			invariant a ==> acc(x)
 		{ a := false }
 	}
@@ -54,7 +35,6 @@ class Test {
       b := false
 			
       assert current != null && rd(current.mu)
-				/* Used to fail in Syxc up to r7111 (introducing smoke checks) */
       assert b ==> rd(p.mu)
     }
 	}	
@@ -63,26 +43,11 @@ class Test {
 		requires acc(x)
 		ensures acc(x) && x >= a
 	{
+	    //:: ExpectedOutput(while.failed:insufficient.permission)
 		while(x < a) { /* @Error 1030 */
 			x := x + 1
 		}
 	}
-	
-  /* @deprecated: Chalice's type checker complaints:
-   *              local variable name d collides with parameter or other
-   *              local variable
-   */
-	// method shadowVar() {
-		// var t: int := 1
-		// var d: int := 1
-
-		// while(t < 5) {
-			// var d: int := 0
-			// t := t + 1
-		// }
-
-		// assert d == 1
-	// }	
 	
 	method preserveOuterVar() {
 		var t: int := 1
@@ -102,6 +67,7 @@ class Test {
 			t := t + 1
 		}
 
+		//:: ExpectedOutput(assert.failed:assertion.false)
 		assert t == 0 /* @Error 410 */
 	}
 	
@@ -117,7 +83,7 @@ class Test {
 				d := t
 			}
 		}
-
+        //:: ExpectedOutput(assert.failed:assertion.false)
 		assert t == 0 /* @Error 410 */
 	}
 	
@@ -142,6 +108,7 @@ class Test {
 		var n: int := b
 		r := 1
 		while(n > 0)
+		    //:: ExpectedOutput(invariant.not.established:assertion.false)
 			invariant r == a * (b - n) && n >= 0 /* @Error 2010 */
 		{
 			r := r + a
@@ -156,6 +123,7 @@ class Test {
 		var n: int := b
 		r := 0
 		while(n > 0)
+		    //:: ExpectedOutput(invariant.not.preserved:assertion.false)
 			invariant r == a * (b - n) && n >= 0 /* @Error 1910 */
 		{
 			r := r + b
@@ -165,7 +133,7 @@ class Test {
 	
 	method failMultiplyWeakInv(a: int, b: int) returns (r: int)
 		requires b >= 0
-		ensures r == a*b /* @Syxc(Error 310) */
+		ensures r == a*b
 	{
 		var n: int := b
 		r := 0
@@ -175,7 +143,7 @@ class Test {
 			r := r + a
 			n := n - 1
 		}
-
+        //:: ExpectedOutput(assert.failed:assertion.false)
 		assert r == a*b; /* @Error 310 */
 	}
 	

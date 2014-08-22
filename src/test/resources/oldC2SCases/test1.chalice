@@ -23,7 +23,7 @@ class List
 	unfold next.inv;
 	next.value:=1;
 	fold next.inv;
-	assert next.get()==1; // @IgnoreError 410: See issue #9 for Silicon
+	assert next.get()==1;
 	assert value==0;
 	fold inv;
 	assert get()==0;
@@ -42,7 +42,7 @@ class List
 	b.value:=1;
 	if(c) { z:=a } else { z:=b }
 	fold z.inv;
-	assert c ==> a.inv && a.get()==0; // @IgnoreError 410: See issue #9 for Silicon
+	assert c ==> a.inv && a.get()==0;
 	assert !c ==> b.inv && b.get()==1;
 	unfold z.inv;
 	assert a.value==0;

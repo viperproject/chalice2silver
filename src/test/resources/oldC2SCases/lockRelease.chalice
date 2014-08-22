@@ -13,7 +13,7 @@ class C {
         acquire c;
         c.f := 6;
         release c;
-
+        //:: ExpectedOutput(assignment.failed:insufficient.permission)
         c.f := 7;   // @Error 630
     }
 }

@@ -1,4 +1,3 @@
-// @Ignore support for monitors is insufficient, see issue 16 of chalice2sil
 class Test {
 	method test() {
 		var t1: Test := new Test
@@ -44,7 +43,6 @@ class Test {
 		share t2 above t1
 		acquire t2
 
-		assert t1.mu << waitlevel /* @Fails */
-		unshare t2
+		assert t1.mu << waitlevel
 	}
 }

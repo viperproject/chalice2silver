@@ -1,4 +1,3 @@
-// @Ignore (unknown cause, but possibly related to other issues which should be fixed first, see issue 13 of chalice2sil)
 class Node {
   var next: Node
   invariant acc(next)
@@ -20,20 +19,16 @@ class List {
     acquire p
     release this
 
-    while (p.next != null) /* @Fails but holds in Chalice */
+	//:: ExpectedOutput(chalice2sil.error)
+    while (p.next != null) 
       invariant p != null && acc(p.next) && acc(p.mu,50)
+	  //:: ExpectedOutput(chalice2sil.error)
       invariant holds(p)
       invariant waitlevel == p.mu
+	  //:: ExpectedOutput(chalice2sil.error)
       invariant !old(holds(p)) && !old(rd holds(p))
-				/* Comment the above line and Chalice complaints about lockchange clause.
-				 * How are the above two lines to be interpreted anyway? At the end of
-				 * the loop,
-				 *  - holds(p) is true since p == nx and nx has been acquired
-				 *  - but old(p) must have been held since it was released inside the
-				 *    loop, hence, how can !old(holds(p)) hold?
-				 */
       invariant p.next != null ==> acc(p.next.mu,50) && p << p.next
-      lockchange p //, this
+	  lockchange p //, this
     {
       assert p.mu == waitlevel
       var nx: Node := p.next

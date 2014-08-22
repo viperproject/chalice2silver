@@ -6,6 +6,7 @@ class Test {
 	method fail10()
 		requires P
 		ensures P
+		//:: ExpectedOutput(not.wellformed:insufficient.permission)
 		ensures unfolding P in x == old(x) /* @Error 830 */
 	{}
 	
@@ -13,10 +14,6 @@ class Test {
 		requires P
 		ensures P
 		ensures unfolding P in x == old(unfolding P in x)
-			/* old(unfolding P in x) fails in Chalice because the outer unfolding has
-			 * already unfolded P in the old state, which is problematic as
-			 * illustrated by class Unsoundness below.
-			 */
 	{}
 	
 	method success2()
@@ -24,14 +21,13 @@ class Test {
 		ensures P
 		ensures unfolding P in x == old(x)
 	{
-	    // translation to SIL is straightforward, predicates and old are retained as-is
-	    // Should succeed in Chalice2SIL+Silicon, but fails
 		fold P
 	}
 	
 	method fail5()
 		requires P
 		ensures P
+		//:: ExpectedOutput(not.wellformed:insufficient.permission)
 		ensures unfolding P in x == old(x) + 1 /* @Error 830 */
 	{
 		unfold P
@@ -61,55 +57,17 @@ class Test {
 	method fail1()
 		requires acc(x)
 		ensures P
+		//:: ExpectedOutput(not.wellformed:insufficient.permission)
 		ensures unfolding P in x == old(unfolding P in x) /* @Error 830 */
 	{ fold P }
 	
 	method fail2()
 		requires acc(x)
 		ensures P
+		//:: ExpectedOutput(postcondition.violated:assertion.false)
 		ensures unfolding P in x == old(x) /* @Error 310 */
 	{
 		x := 0
 		fold P
 	}
 }
-
-/* eval(...) is not yet supported by Syxc */
-// class Unsoundness {
-	// var x: int
-	// var tk: token<Unsoundness.incX>
-	
-	// predicate V { acc(x) }
-	
-	// method incX()
-		// requires V
-		// ensures V && unfolding V in x == old(x) + 1
-	// {
-		// unfold V
-		// x := x + 1
-		// fold V
-	// }
-	
-	// method joinTk()
-		// requires acc(tk) && tk != null && acc(tk.joinable) && tk.joinable
-		// requires eval(tk.fork this.incX(), true)
-		// ensures V
-		// ensures unfolding V in x == old(x)
-		// // ensures unfolding V in x == old(x) + 1
-	// {
-		// join tk
-		// assert V
-	// }
-
-	// method test()
-		// requires acc(x) && x == 0
-		// requires acc(tk)
-	// {
-		// fold V
-		// fork tklocal := incX()
-		// tk := tklocal
-		// call joinTk()
-		// unfold V
-		// assert x == old(x) // Oh oh ...
-	// }
-// }

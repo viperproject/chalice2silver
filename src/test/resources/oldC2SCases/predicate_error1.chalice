@@ -1,5 +1,4 @@
-// @Ignore Silicon does not support Epsilon permissions
-// @Ignore Silicon does not support epsilons
+//:: IgnoreFile(/silicon/issue/22/)
 
 class Cell {
   var x: int;

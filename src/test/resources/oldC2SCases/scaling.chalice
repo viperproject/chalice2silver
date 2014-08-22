@@ -1,20 +1,3 @@
-// @Ignore (currently fails with an exception in chalice2sil, see issue 14)
-/*
-
-Note: At the moment, there is a performance problem if permissions are scaled.
-If a predicate (such as read1 below) contains a read permission, and one takes
-read access to that predicate (as in method s1; rd(read1)), then this
-effectively means that the fractions corresponding to the two read permissions
-are multiplied. This introduces non-linear arithmetic in Boogie, which can be
-very hard and unpredicable for the theorem prover. For this reason, this test is
-taking a very long time to complete.
-
-Note 2: For the moment, this test is (mostly) disabled.
-
--- Stefan Heule, June 2011
-
-*/
-
 class Cell {
   var x: int;
   
@@ -31,6 +14,7 @@ class Cell {
   {
     unfold rd(read1);
     assert(rd*(x));
+	//:: ExpectedOutput(assert.failed:insufficient.permission)
     assert(rd(x)); /* @Error 430 */
   }
   
@@ -48,11 +32,13 @@ class Cell {
   {
     fold rd(read1);
     assert(rd*(x));
+	//:: ExpectedOutput(assert.failed:insufficient.permission)
     assert(acc(x)); /* @Error 430 */
   }
   
   method s4()
     requires acc(x);
+	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
     ensures read1; /* @Error 330 */
   {
     fold rd(read1);
@@ -63,6 +49,7 @@ class Cell {
   {
     unfold rd(read2);
     assert(rd*(x));
+	//:: ExpectedOutput(assert.failed:insufficient.permission)
     assert(rd(x)); /* @Error 430 */
   }
 
@@ -72,11 +59,13 @@ class Cell {
   {
     fold rd(read2);
     assert(rd*(x));
+	//:: ExpectedOutput(assert.failed:insufficient.permission)
     assert(acc(x)); /* @Error 430 */
   }
   
   method s7()
     requires acc(x);
+	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
     ensures read2; /* @Error 330 */
   {
     fold rd(read2);
@@ -97,6 +86,7 @@ class Test02 {
     requires rd(V)
   {
     unfold rd(V)
+	//:: ExpectedOutput(assert.failed:insufficient.permission)
     assert rd*(V) /* @Error 430 */
   }
   
@@ -112,6 +102,7 @@ class Test02 {
     ensures acc(V)
   {
     unfold rd(V)
+	//:: UnexpectedOutput(unfold.failed:insufficient.permission, /silicon/issue/55/)
     unfold rd(V)
     fold rd(V)
     fold rd(V)
@@ -120,6 +111,7 @@ class Test02 {
   method test04()
     requires acc(V)
     ensures acc(V)
+	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
     ensures rd*(f) /* @Error 330 */
   {
     unfold acc(V, 20)

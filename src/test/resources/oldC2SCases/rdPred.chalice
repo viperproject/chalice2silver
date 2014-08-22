@@ -23,6 +23,7 @@ class C {
         requires acc(c.f,rd(c.valid))
         ensures c.valid
     {
+	    //:: UnexpectedOutput(fold.failed:insufficient.permission, /silicon/issue/56/)
         fold c.valid;
     }
 }

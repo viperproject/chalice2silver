@@ -37,6 +37,7 @@ class Main {
         {
             g := 3;
             call this.goal();
+			//:: ExpectedOutput(assert.failed:assertion.false)
             assert f == g;  // @Error 410
         }
 }

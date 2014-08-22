@@ -1,4 +1,4 @@
-//@Ignore rd(predicate) not supported by silicon
+//:: IgnoreFile(/silicon/issue/52/)
 
 /* When evaluating a conditional such as e0 ==> e1 or e0 ? e1 : e2, it seems
  * natural to proceed as done in consume/produce, that is, to branch, once
@@ -40,7 +40,7 @@ class Implies {
 	}
 	
 	method fails1()	{
-	    //:: ExpectedOutput(assert.failed:assertion.false)
+	    // :: ExpectedOutput(assert.failed:assertion.false)
 		assert forall i: int :: 0 <= i ==> false
 	}
 }
@@ -108,8 +108,6 @@ class PseudoList {
   function get(index: int): bool
     requires rd(inv)
   { unfolding rd(inv) in (index == 0) ? true : next.get(index - 1) }
-	
-	/* Workarounds are not longer necessary */
 	
 	method static_range_workaround()
 		requires inv
@@ -179,7 +177,7 @@ class Test4 {
 		assume f(1)
 		assume f(2)
 		assert forall i in [0..3] :: f(i)
-		//:: ExpectedOutput(assert.failed:assertion.false)
+		// :: ExpectedOutput(assert.failed:assertion.false)
 		assert forall i in [0..4] :: f(i)
 	}	
 }
@@ -230,14 +228,5 @@ class Test10 {
 		
 		assume forall i in [1..g()] :: f(i)
 		assert forall i in [1..g()] :: f(i)		
-		// assert false
-		
-		/* TODO: Z3 won't terminate in a reasonable amount of time. Might be due to
-		 * nested quantifiers or just due to poor triggers.
-		 */
-		// assert forall i in [0..len()] ::
-			// i == 0 ? get(0) : (forall j in [1..len()] :: get(j))
-
-		// assert forall i in [0..len()] :: get(i) /* @Fails still :-( */
 	}
 }

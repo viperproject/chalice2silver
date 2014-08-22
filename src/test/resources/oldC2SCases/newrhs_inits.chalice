@@ -22,11 +22,13 @@ class NewRhsInits {
 	
 	method fail1(b: NewRhsInits) {
 		var n: NewRhsInits := new NewRhsInits { n := b }
+		//:: ExpectedOutput(assert.failed:assertion.false)
 		assert n.n != null /* @Error 410 */
 	}
 	
 	method fail2() {
 		var n: NewRhsInits := new NewRhsInits
+		//:: ExpectedOutput(assert.failed:assertion.false)
 		assert n.x != 0 /* @Error 410 */
 	}
 }

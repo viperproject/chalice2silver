@@ -41,8 +41,7 @@ class Functions {
 	
 	method useG1_1() {
 		assert(g1(3) == 3)
-		//:: ExpectedOutput(assert.failed:assertion.false)
-		assert(g1(-1) == 1) /* @Fails But holds with --unrollFunctions 2 */
+		assert(g1(-1) == 1)
 	}	
 	
 	method useG1_2(a: int, b: int)

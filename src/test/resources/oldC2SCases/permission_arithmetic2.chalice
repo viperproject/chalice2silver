@@ -72,11 +72,12 @@ class Test01 {
        * from exhaling rd && 100-rd.
        */
   {
-    call dispose2k()   // fails in Chalice2SIL, succeeds in Syxc
+    call dispose2k()
   }
   
   method test03()
     requires acc(h)
+	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
     ensures rd*(h) /* @Error 330 */
   {
     call dispose2bh()

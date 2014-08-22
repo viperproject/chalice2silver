@@ -1,3 +1,5 @@
+//:: IgnoreFile(/silicon/issue/21/)
+
 class Cell { var x: int }
 
 class Test {
@@ -8,18 +10,16 @@ class Test {
 		lockchange c
 	{ if (holds(c)) { release c } else { acquire c } }
 	
-	/* TODO: Syxc currently neither supports 'waitlevel == waitlevel'
-	 *       nor 'old(waitlevel)'.
-	 */
-	// method waitlevelOld3()
-		// ensures waitlevel == old(waitlevel)
-	// {}
+
+	method waitlevelOld3()
+		ensures waitlevel == old(waitlevel)
+	{}
 	
 	method waitlevelOld1() returns (c: Cell)
 		lockchange c
 		ensures c != null && holds(c)
-		// ensures old(waitlevel) == waitlevel /* FAILS */
-		// ensures old(waitlevel) << waitlevel /* Chalice: Boogie errors */
+		ensures old(waitlevel) == waitlevel 
+		ensures old(waitlevel) << waitlevel 
 	{
 		c := new Cell
 		share c

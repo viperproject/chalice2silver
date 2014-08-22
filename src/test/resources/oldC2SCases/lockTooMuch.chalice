@@ -3,8 +3,7 @@ class C {
 
     invariant acc(f);
 
-    method main(){  // @Error 310 // postcondition won't hold since we unlock too much.
-                                  // Ideally we'd have a more accurate error message.
+    method main(){  
         var c : C;
         c := new C;
         c.f := 5;
@@ -14,6 +13,7 @@ class C {
         acquire c;
         c.f := 6;
 
-        // should give an error about locking/unlocking more than allowed
+        // the obligations model might give an error for this code
+		
     }
 }

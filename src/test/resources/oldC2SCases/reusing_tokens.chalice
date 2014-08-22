@@ -19,6 +19,7 @@ class Test {
 		fork tk := m()
 		
 		join tk
+		//:: ExpectedOutput(assert.failed:assertion.false)
 		join tk /* @Error 920 */
 	}	
 	
@@ -46,6 +47,7 @@ class Test {
 		fork tk := m()
 		
 		join tk
+		//:: ExpectedOutput(assert.failed:assertion.false)
 		join tk /* @Error 920 */
 	}	
 	

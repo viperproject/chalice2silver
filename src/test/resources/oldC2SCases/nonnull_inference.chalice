@@ -1,4 +1,5 @@
-// @Ignore channels are not supported, see chalice2sil issue 3
+//:: IgnoreFile(/silicon/issue/21/)
+  // chalice2silver issue 21 includes the fact that channels are not supported
 class Cell {
 	var c: Cell
 	var v: int
