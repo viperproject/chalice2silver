@@ -20,6 +20,7 @@ class C
 	var j: int := y.itemAt(0);
     call y._set(0,10);
     assert i==x.itemAt(0); // succeeds
+	//:: ExpectedOutput(assert.failed:assertion.false)
     assert j==y.itemAt(0); // correctly fails to verify
  }
 }

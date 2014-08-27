@@ -51,6 +51,7 @@ class Cell
 	fold P;
 	fork t:=skip();
 	call skip ();
+	//:: ExpectedOutput(assert.failed:assertion.false)
 	assert unfolding P in value==old(value); // ERROR: should fail
   }
 }

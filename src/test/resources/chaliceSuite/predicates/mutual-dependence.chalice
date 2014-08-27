@@ -13,6 +13,7 @@ class Cell {
     fold q
     fold p
     call void()
+	//:: ExpectedOutput(assert.failed:assertion.false)
     assert unfolding p in unfolding q in value == 1 // ERROR: should not verify
   }
   

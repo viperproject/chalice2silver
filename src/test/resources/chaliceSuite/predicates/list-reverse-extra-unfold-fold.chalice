@@ -29,7 +29,8 @@ class Node {
     while (l != null) 
       invariant l!=null ==> l.list;
       invariant r!=null ==> r.list;
-      invariant old(this.reverse_vals()) == (l==null ? nil<int> : l.reverse_vals()) ++ (r==null ? nil<int> : r.vals());
+	  //:: UnexpectedOutput(invariant.not.preserved:assertion.false, /silicon/issue/113/)
+      invariant old(this.reverse_vals()) == (l==null ? nil<int> : l.reverse_vals()) ++ (r==null ? nil<int> : r.vals());  //silicon issue 113 (conjectured)
     { 
       var y: Node;
       if (r != null) {

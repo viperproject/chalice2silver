@@ -52,6 +52,7 @@ class Node {
     call x._set(4)
     
     assert y.get() == 3
+	//:: ExpectedOutput(assert.failed:assertion.false)
     assert x.get() == 3 // error: should fail
   }
 }

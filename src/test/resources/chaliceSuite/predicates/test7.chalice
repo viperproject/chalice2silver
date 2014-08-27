@@ -28,6 +28,7 @@ class C
   
   method callmethod1()
   {
+    //:: ExpectedOutput(call.precondition:insufficient.permission)
     call _set(3); // ERROR: should fail
   }
   
@@ -64,6 +65,7 @@ class C
   {
     assert acc(value);
     fold inv;
+	//:: ExpectedOutput(assert.failed:insufficient.permission)
     assert acc(value); // ERROR: should fail
   }
   
@@ -88,22 +90,27 @@ class C
   {
     assert inv;
     unfold inv;
+	//:: ExpectedOutput(assert.failed:insufficient.permission)
     assert acc(inv); // ERROR: should fail
   }
   
   method badframing0()
+    //:: ExpectedOutput(application.precondition:insufficient.permission)
     requires get()==2;  // ERROR: should fail
   {}
   
   method badframing1()
+    //:: ExpectedOutput(not.wellformed:insufficient.permission)
     requires value==2; // ERROR: should fail
   {}
   
   method badframing2()
+    //:: ExpectedOutput(application.precondition:insufficient.permission)
     requires acc(value) && get()==2;  // ERROR: should fail
   {}
   
   method badframing3()
+    //:: ExpectedOutput(not.wellformed:insufficient.permission)
     requires inv && value==2; // ERROR: should fail
   {}
 }
