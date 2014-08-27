@@ -1,4 +1,7 @@
-
+//:: IgnoreFile(/silicon/issue/22/)
+  // but since rd-folds are not possible in chalice2silver,
+  // we should consider removing this test case altogether
+  
 class Cell {
   var x: int;
   

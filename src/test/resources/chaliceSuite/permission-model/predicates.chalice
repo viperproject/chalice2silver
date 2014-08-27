@@ -7,13 +7,13 @@ class Cell {
   predicate write2 { acc(x,10) } // 10%
   predicate read1 { rd(x) } // fractional read permission
   predicate read2 { rd*(x) } // starred fractional read permission
-  predicate read3 { rd(x,1) } // counting permission (1 epsilon)
+  // predicate read3 { rd(x,1) } // counting permission (1 epsilon)  //chalice2silver /issue/22/
   
   // --- basic tests ---
   
   method b1()
-    requires write1 && write2 && read1 && read2 && read3;
-    ensures write1 && write2 && read1 && read2 && read3;
+    requires write1 && write2 && read1 && read2 // && read3;
+    ensures write1 && write2 && read1 && read2 // && read3;
   {
   }
   
@@ -27,13 +27,14 @@ class Cell {
   
   method b3()
     requires read1;
-    ensures read3;
+    //ensures read3;
   {
     unfold read1;
-    fold read3;
+    // fold read3;
     fold read2;
-    fold read3;
+    //fold read3;
     fold read2;
+	//:: ExpectedOutput(fold.failed:insufficient.permission)
     fold write1; // ERROR: should fail
   }
   
@@ -52,6 +53,7 @@ class Cell {
   {
     unfold read1;
     call dispose();
+	//:: ExpectedOutput(fold.failed:insufficient.permission)
     fold read1; // ERROR: should fail
   }
   
@@ -63,21 +65,22 @@ class Cell {
     unfold read1;
   }
   
-  method b7() // ERROR: precondition does not hold
+  method b7() // ERROR: postcondition does not hold
     requires acc(x);
+	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
     ensures acc(x);
   {
     fold read2;
     unfold read2;
   }
   
-  method b8()
+  /*method b8()
     requires acc(x);
     ensures acc(x);
   {
     fold read3;
     unfold read3;
-  }
+  }*/
   
   method b9()
     requires acc(x);
