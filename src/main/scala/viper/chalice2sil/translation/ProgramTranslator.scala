@@ -18,6 +18,7 @@ import scala.Some
 import chalice.{NewRhs, BlockStmt, BackPointerMemberAccess}
 import java.nio.file.Paths
 import util.parsing.input
+import input.Positional
 
 // **
 // This is were the magic happens
@@ -961,7 +962,18 @@ class ProgramTranslator(val name: String)
       // the lock statement [[...]]
       case chalice.Lock(obj, block, false) => // this flag indicates normal "write" locks
         // craft a Chalice equivalent and translate it
-        val chalEquivalent = chalice.BlockStmt((chalice.Acquire(obj) :: block.ss) :+ chalice.Release(obj))
+        val cPosition = new input.Position {
+          val column = position.column
+          val line: Int = position.line
+          protected def lineContents: String = ""
+        }
+        val cAcquire = new chalice.Acquire(obj)
+        cAcquire.pos = cPosition
+        val cRelease = new chalice.Release(obj)
+        cRelease.pos = cPosition
+        val chalEquivalent = new chalice.BlockStmt(
+          List(cAcquire) ++ block.ss ++ List(cRelease)
+        )
         translateStm(chalEquivalent, myThis, pTrans, silMethod)
 
       // folding and unfolding

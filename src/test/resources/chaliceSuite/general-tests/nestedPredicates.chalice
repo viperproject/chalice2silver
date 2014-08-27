@@ -1,4 +1,5 @@
 /* Recursive implementation and specification of a linked list. */
+// Several proof failures here indicate that Silicon does not exploit the fact that a predicate cannot be infinitely deep
 
 class Node {
   var next: Node;
@@ -12,6 +13,7 @@ class Node {
     requires acc(this.valid)
     {
       unfold this.valid;
+	  //:: ExpectedOutput(assert.failed:assertion.false)
       assert this != this.next;
       if(this.next != null) {
         unfold this.next.valid;
@@ -25,6 +27,7 @@ class Node {
     
     {
       fold this.next.valid;
+	  //:: ExpectedOutput(assert.failed:assertion.false)
       assert this.next != this.next.next; // definition of valid "proves" that this.next and this.next.next cannot be aliases
       fold this.valid;
       assert this != this.next;
@@ -34,6 +37,7 @@ class Node {
   method testNestingUnfolding()
     requires acc(this.valid)
     {
+	  //:: ExpectedOutput(assert.failed:assertion.false)
       assert this != (unfolding this.valid in this.next);
       if((unfolding this.valid in this.next) != null) {
         assert (unfolding this.valid in this.next) != (unfolding this.valid in (unfolding this.next.valid in this.next.next));
@@ -53,6 +57,7 @@ class Node {
     requires acc(this.p)
     {
       unfold this.p;
+	  //:: ExpectedOutput(assert.failed:assertion.false)
       assert this != this.next; // should fail
       if(this.next != null) {
         unfold this.next.q;
@@ -66,6 +71,7 @@ class Node {
     
     {
       fold this.next.q;
+	  //:: ExpectedOutput(assert.failed:assertion.false)
       assert this != this.next; // should fail
       assert this.next != this.next.next; // should fail
       assert this != this.next.next; // should fail
@@ -77,6 +83,7 @@ class Node {
     {
       fold this.next.q;
       fold this.p;
+	  //:: ExpectedOutput(assert.failed:assertion.false)
       assert this != this.next; // should succeed, since this == this.next ==> this == this.next.next
       assert this.next != this.next.next; // should fail - we haven't seen a cycle which would follow from this fact
       assert this != this.next.next; // should succeed
@@ -85,6 +92,7 @@ class Node {
   method testNestingUnfoldingTwo()
     requires acc(this.p)
     {
+	  //:: ExpectedOutput(assert.failed:assertion.false)
       assert this != (unfolding this.p in this.next); // should fail
       if((unfolding this.p in this.next) != null) {
         assert (unfolding this.p in this.next) != (unfolding this.p in (unfolding this.next.q in this.next.next)); // should fail
@@ -95,6 +103,7 @@ class Node {
   method testNestingUnfoldingPrecondition(x: Node)
     requires acc(this.valid) && (unfolding this.valid in this.next == x);
     {
+	  //:: ExpectedOutput(assert.failed:assertion.false)
       assert this != x;
     }
 
@@ -106,6 +115,7 @@ class Node {
   
   method testNestingUnfoldingPostcondition(x: Node)
     requires acc(this.valid);
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
     ensures acc(this.valid) && (unfolding this.valid in true) && this != this.getNext()
     {
       // nothing

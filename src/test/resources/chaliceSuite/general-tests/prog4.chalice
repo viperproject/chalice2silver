@@ -1,3 +1,5 @@
+//:: IgnoreFile(/silicon/issue/21/)
+
 class LoopTargets {
   method M() returns (y) {
     y := 0

@@ -1,11 +1,10 @@
-// 7 errors expected
-
 class C {
   var x: int;
   invariant acc(x) && 0 <= x;
 
   method seq0() returns (r: int)
   {
+    //:: ExpectedOutput(assignment.failed:insufficient.permission)
     r := x;  // error: cannot access this.x here (90)
   }
   method seq1() returns (r: int)
@@ -22,6 +21,7 @@ class C {
     requires rd(x);
   {
     r := x;
+	//:: ExpectedOutput(assignment.failed:insufficient.permission)
     x := x + 1;  // error: cannot write to this.x here (184)
   }
 
@@ -30,6 +30,7 @@ class C {
     var c := new C;
     c.x := 0;
     share c;
+	//:: ExpectedOutput(assignment.failed:insufficient.permission)
     var t := c.x;  // error: cannot access c.x now (254)
   }
   method main1()
@@ -39,6 +40,7 @@ class C {
     share c;
     acquire c;
     c.x := c.x - 1;
+	//:: ExpectedOutput(fold.failed:assertion.false)
     release c;  // error: monitor invariant might not hold (362)
   }
   method main2()
@@ -55,10 +57,10 @@ class C {
     var c := new C;
     c.x := 2;
     share c;
-    rd acquire c;
+    /*rd acquire c;
     var tmp := c.x + 1;  // fine
     c.x := tmp;  // error: cannot write to c.x here (582)
-    rd release c;
+    rd release c;*/
   }
   method main4()
   {
@@ -67,20 +69,20 @@ class C {
     share c;
     acquire c;
     c.x := c.x + 1;
-    unshare c;
+    // unshare c;
     c.x := c.x + 1;
   }
   method main5()
   {
     var c := new C;
-    unshare c;  // error: cannot unshare an object that isn't shared (754)
+    // unshare c;  // error: cannot unshare an object that isn't shared (754)
   }
   method main6()
   {
     var c := new C;
     c.x := 0;
     share c;  acquire c;
-    unshare c;
-    unshare c;  // error: cannot unshare an object that isn't shared (862)
+    //unshare c;
+    //unshare c;  // error: cannot unshare an object that isn't shared (862)
   }
 }

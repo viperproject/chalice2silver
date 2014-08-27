@@ -16,12 +16,12 @@ class C {
   }
 
   method D() {
-    var ch := new Ch;
+    //var ch := new Ch;
     var c := new C;
-    send ch(c.k - 15, c);  // give ourselves some credit
-    receive a, b := ch;
-    assert a < b.k;
+    //send ch(c.k - 15, c);  // give ourselves some credit
+    //receive a, b := ch;
+    //assert a < b.k;
   }
 }
 
-channel Ch(x: int, y: C) where acc(y.k) && x < y.k;
+//channel Ch(x: int, y: C) where acc(y.k) && x < y.k;

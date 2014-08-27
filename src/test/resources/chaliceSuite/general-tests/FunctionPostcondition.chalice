@@ -1,10 +1,9 @@
-// this test is for function postconditions
-
+//:: ExpectedOutput(typechecker.error)
 class FunctionPostconditions
 {
   predicate valid { true }
   
   function t1(): int
-    ensures unfolding valid in true;
+    ensures unfolding valid in true; // unfolding may not appear in function postconditions
   { 1 }
 }

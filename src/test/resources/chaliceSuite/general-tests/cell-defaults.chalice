@@ -1,6 +1,3 @@
-// chalice-parameter=-defaults -autoFold -autoMagic
-// verify this program with -defaults -autoFold -autoMagic
-
 class Cell module Library {
   var x: int;
 
@@ -9,34 +6,39 @@ class Cell module Library {
     ensures valid && this.get() == v;
   {
     x := v;
+	fold valid
   }
 
   method _set(v: int)
     requires valid && 0<=v;
     ensures valid && get()==v;
   {
+    unfold valid
     x := v;
+	fold valid
   }
   
   method increment()
     requires valid;
     ensures valid && get() == old(get()) + 1;
   {
+    unfold valid
     x := x + 1;
+	fold valid
   }
 
   method dispose()
     requires valid && acc(mu);
     ensures true;
   {
-    free this;
+    // free this;
   }
 
   function get(): int
     requires valid;
     ensures 0<=result;
   {
-    x
+    unfolding valid in x
   }
 
   predicate valid {
@@ -61,6 +63,7 @@ class Interval module Library2 {
     call left.init(l);
     right := new Cell;
     call right.init(r);
+	fold valid
   }
 
   method setLeft(l: int)
@@ -69,7 +72,9 @@ class Interval module Library2 {
     ensures valid;
     ensures getLeft()==l && getRight()==old(getRight());
   {
+    unfold valid
     call left._set(l);
+	fold valid
   }
 
   method setRight(r: int)
@@ -78,7 +83,9 @@ class Interval module Library2 {
     ensures valid;
     ensures getLeft()==old(getLeft()) && getRight()==r;
   {
+    unfold valid
     call right._set(r);
+	fold valid
   }
 
   method shift(v: int)
@@ -87,25 +94,27 @@ class Interval module Library2 {
     ensures valid;
     ensures getLeft()==old(getLeft())+v && getRight()==old(getRight())+v;
   {
+    unfold valid
     call left._set(left.get()+v);
     call right._set(right.get()+v);
+	fold valid
   }
 
   function getLeft() : int
     requires valid;
   {
-    left.get() 
+    unfolding valid in left.get() 
   }
 
   function getRight() : int
     requires valid;
   {
-    right.get() 
+    unfolding valid in right.get() 
   }
   
   predicate valid
   {
-    left.valid && right.valid && left.get() <= right.get()
+    acc(left) && acc(right) && left!=null && right!=null && left.valid && right.valid && left.get() <= right.get()
   }
 }
 
@@ -129,6 +138,7 @@ class Program module Main {
     call c.init(0);
     call c.dispose();
 
+	//:: ExpectedOutput(assert.failed:insufficient.permission)
     assert c.valid; // should fail
   }
 

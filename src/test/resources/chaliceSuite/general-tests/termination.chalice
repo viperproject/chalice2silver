@@ -1,3 +1,8 @@
+//:: IgnoreFile(/silicon/issue/117/)
+  // silicon issue/117/
+  // the last predicate definition p { p } is making Silicon non-responsive
+  // combined with functions it makes it throw an exception
+
 class Node
 {
   var val: int

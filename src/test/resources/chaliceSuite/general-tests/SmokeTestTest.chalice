@@ -104,6 +104,7 @@ class Cell {
   }
   
   method a13()
+    //:: ExpectedOutput(postcondition.violated:assertion.false)
     ensures false // ERROR: cannot prove false
   {
   }

@@ -1,7 +1,7 @@
 class Counter {
   var value: int;
 
-  invariant acc(value) && old(value)<=value;
+  invariant acc(value) /*&& old(value)<=value*/;  // rely-guarantee is not supported in Chalice2Silver /issue/57
 }
 
 class Program {
@@ -19,7 +19,7 @@ class Program {
     var tmp2 := counter.value;
     release counter;
 
-    assert tmp1 <= tmp2;
+    // assert tmp1 <= tmp2;  // rely-guarantee is not supported in Chalice2Silver /issue/57
   }
 
   method main2(){
@@ -29,35 +29,6 @@ class Program {
 
     acquire counter;
     release counter;
-
-    call bar(counter);
-  }
-
-  method bar(c: Counter)
-    requires c!=null && acc(c.mu) && waitlevel << c.mu;
-    requires eval(c.release, acc(c.value) && 0<=c.value);
-  {
-    lock (c) {
-      assert 0 <= c.value; // ok, because of the lastSeen conjunct in the precondition
-    }
-  }
-
-  method main3() returns (counter: Counter)
-    lockchange counter;
-  {
-    counter := new Counter;
-    counter.value := 0;
-    share counter;
-    acquire counter;
-    call doRelease(counter, counter.value);
-  }
-
-  method doRelease(c: Counter, i: int)
-    requires c!=null && holds(c) && acc(c.value) && eval(c.acquire, acc(c.value) && c.value <= i);
-    lockchange c;
-  {
-    c.value := i+1
-    release c; // ok, because of atAcquire conjunct in the precondition
   }
 
   method main4(){
@@ -68,29 +39,6 @@ class Program {
     acquire counter;
     counter.value := counter.value - 1;
     release counter;  // error: should fail
-  }
-
-  method main5(){
-    var counter := new Counter;
-    counter.value := 10;
-    share counter;
-
-    call foo(counter);
-
-    unshare counter;
-    assert 10<=counter.value; // error: should fail
-  }
-
-  method foo(c: Counter)
-    requires c!=null && acc(c.mu) && waitlevel << c.mu && eval(c.release, acc(c.value) && 10<=c.value);
-    ensures c!=null && holds(c) && acc(c.mu) && acc(c.value);
-    lockchange c;
-  {
-    acquire c;
-    unshare c;
-    c.value := 5;
-    share c;
-    acquire c;
   }
 
   method nestedGood0(c: Counter)
@@ -110,13 +58,16 @@ class Program {
       t := new Counter
       share t
       acquire t
-    }  // this line releases the original value for t
+    }
+	
+	//:: UnexpectedOutput(fold.failed:insufficient.permission, /silicon/issue/58/)
     release t
   }
 
   method nestedBad0(c: Counter)
     requires c != null && acc(c.mu) && waitlevel << c.mu;
   {
+    //:: ExpectedOutput(fold.failed:insufficient.permission)
     lock (c) {
       release c
     }  // error: no longer holds c

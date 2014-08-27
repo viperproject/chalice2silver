@@ -1,3 +1,5 @@
+//:: IgnoreFile(/silicon/issue/21/)
+
 // 4 errors expected
 
 class Main {

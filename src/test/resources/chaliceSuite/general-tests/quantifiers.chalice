@@ -1,3 +1,6 @@
+//:: IgnoreFile(/silicon/issue/116/)
+  //silicon issue 116
+
 class A {
   var f: int;
 }

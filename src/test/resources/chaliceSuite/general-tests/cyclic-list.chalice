@@ -20,6 +20,7 @@ class List {
     x := new List
     x.next := x
     // this fold FAILS, because x.valid requires x.next.valid, which is not available
+	//:: ExpectedOutput(fold.failed:insufficient.permission)
     fold x.valid
   }
   
@@ -29,6 +30,7 @@ class List {
     x := new List
     x.next := x
     // without folding the predicate, the functions cannot be used (precondition not satisfied)
+	//:: ExpectedOutput(application.precondition:insufficient.permission)
     assert x.length() == x.next.length() + 1;
   }
 }

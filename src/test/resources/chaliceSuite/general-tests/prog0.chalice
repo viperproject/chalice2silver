@@ -1,3 +1,5 @@
+//:: IgnoreFile(/silicon/issue/21/)
+
 class C {
   method m() {
     assert 4 + (a * 5) + (2 + 3) * (a + a);

@@ -1,5 +1,4 @@
-// chalice-parameter=-checkLeaks -defaults -autoFold -autoMagic
-// verify this program with -checkLeaks -defaults -autoFold -autoMagic
+//:: IgnoreFile(/silicon/issue/52/)
 
 class Client {
   method Main() {
@@ -17,11 +16,11 @@ class RockBand module M {
   var doowops: seq<Vocalist>
   var b3: Organ
   predicate Valid {
-    /*acc(gigs) &&*/ 0 <= gigs &&
-    /*acc(gt) && gt != null &&*/ gt.Valid &&
+    acc(gigs) && 0 <= gigs &&
+    acc(gt) && gt != null && gt.Valid &&
     acc(gt.mu) &&
     acc(doowops) &&
-    /*acc(b3) && b3 != null &&*/ b3.Valid &&
+    acc(b3) && b3 != null && b3.Valid &&
     acc(b3.mu)
   }
 
@@ -41,7 +40,7 @@ class RockBand module M {
   {
     call gt.Dispose()
     call b3.Dispose()
-    free this
+    // free this
   }
 
   method Play()
@@ -64,7 +63,7 @@ class Guitar module Musicians {
   method Dispose()
     requires Valid && acc(mu)
   {
-    free this
+    // free this
   }
   method Strum()
     requires Valid
@@ -83,7 +82,7 @@ class Vocalist module Musicians {
   method Dispose()
     requires Valid && acc(mu)
   {
-    free this
+    // free this
   }
   method Strum()
     requires Valid
@@ -102,7 +101,7 @@ class Organ module Musicians {
   method Dispose()
     requires Valid && acc(mu)
   {
-    free this
+    // free this
   }
   method Grind()
     requires Valid

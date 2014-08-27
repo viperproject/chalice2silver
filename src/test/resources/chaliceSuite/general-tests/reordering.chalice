@@ -1,10 +1,12 @@
 class C {
  
  method reordering(x : C, y:C, z:C)
+ //:: ExpectedOutput(chalice2sil.error)
  requires x != null && acc(x.mu) && acc(y.mu,rd) && acc(z.mu,rd) && holds(x) && y.mu << z.mu
  ensures acc(x.mu) && acc(y.mu,rd) && y.mu << x.mu
  { 
    assume waitlevel << z.mu
+   //:: ExpectedOutput(chalice2sil.error)
    unshare x; 
    share x above z;
    acquire x;
@@ -30,6 +32,7 @@ class C {
  { 
    assume waitlevel << x.mu // needed because we cannot initialise waitlevel correctly
    acquire x;
+   //:: ExpectedOutput(chalice2sil.error)
    unshare x; 
    share x above z;
  }

@@ -43,6 +43,7 @@ class Triggers
     requires (forall a,b,c : int :: ( g(a) && f(a,b,c)))
     ensures valid
     ensures (forall x,y,z : int :: f(x,y,z))
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
     ensures (forall w : int :: (g(w))) // fails because there isn't a good enough trigger for finding g(w)
     { }
     
@@ -50,6 +51,7 @@ class Triggers
     requires valid
     requires (forall a : int :: ( g(a) && (forall b,c : int :: f(a,b,c))))
     ensures valid
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
     ensures (forall x,y,z : int :: f(x,y,z)) // fails because of the trigger chosen for a (g(a)).
     ensures (forall w : int :: (g(w)))
     { }
@@ -58,6 +60,7 @@ class Triggers
     requires valid
     requires (forall a,b,c,d,e:int :: f(a,b,c) && h(b,c,d) && f(c,d,e))
     ensures valid
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
     ensures (forall x,y,z : int :: f(x,y,z)) // fails - not enough triggers
     ensures (forall x,y,z : int :: f(x,y,z) && f(z,y,x)) // succeeds - {f(a,b,c),f(c,d,e)} is one of the trigger sets which should be found
     { }      
@@ -75,6 +78,7 @@ class Triggers
     requires valid
     requires (forall x : int :: i(x, (c > d))) // check that logical operators are suitably avoided in triggers
     ensures valid
+	//:: ExpectedOutput(postcondition.violated:assertion.false)
     ensures i(4,true)
     { }
     
