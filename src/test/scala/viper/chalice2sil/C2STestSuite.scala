@@ -22,10 +22,10 @@ class AllTests extends SilSuite {
     "oldC2SCases",
     "chaliceSuite/examples",
     "chaliceSuite/general-tests",
-    "chaliceSuite/permission-model"/*,
+    "chaliceSuite/permission-model",/*
     "chaliceSuite/predicates",
-    "chaliceSuite/regressions",
-    "chaliceSuite/substantial-examples",
+    "chaliceSuite/regressions",*/
+    "chaliceSuite/substantial-examples"/*,
     "quantificationOverPermissions"*/
     // these test cases are removed from the test suite until they are annotated (todo)
   )
