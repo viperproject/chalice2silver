@@ -27,6 +27,7 @@ class Cell {
   // call to method that destroys rd(x) really removes permission
   method a2()
     requires rd(x);
+	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
     ensures rd(x);
   {
     call dispose_rd();
@@ -47,20 +48,21 @@ class Cell {
   // forking and method calls of dispose_rd
   method a4()
     requires rd(x);
+	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
     ensures rd(x);
   {
     fork dispose_rd();
     // ERROR: should fail to verify postcondition
   }
   
-  // forking and method calls of dispose_rd
-  method a5()
+  // forking and method calls of dispose_rd  -- commented away because of chalice2silver/issue/22/
+/*  method a5()
     requires rd(x);
     ensures rd(x,1);
   {
     fork dispose_rd();
     // OK: giving away an epsilon permission however should work
-  }
+  } */
   
   // forking and method calls of dispose_rd
   method a6()
@@ -96,6 +98,7 @@ class Cell {
   // joining to regain permission
   method a9(a: int)
     requires rd(x);
+	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
     ensures rd(x)
   {
     fork tk := dispose_rd();
@@ -147,6 +150,7 @@ class Cell {
   // forking dispose_rd in a loop (using rd(x,*) to denote unknown read permission)
   method a13(a: int)
     requires rd(x);
+	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
     ensures rd(x);
   {
     var i: int;
@@ -169,6 +173,7 @@ class Cell {
     
     var i: int;
     i := 0;
+	
     while (i < 1000)
       invariant rd*(x);
     {
@@ -195,6 +200,7 @@ class Cell {
     var i: int;
     i := 0;
     while (i < 1000)
+	  //:: UnexpectedOutput(invariant.not.established:insufficient.permission, /silicon/issue/55/)
       invariant acc(x,rd);
     {
       call void();

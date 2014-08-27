@@ -1,3 +1,5 @@
+//:: IgnoreFile(/silicon/issue/22/)
+
 class Cell {
   var x: int;
   var i: int;
@@ -48,7 +50,7 @@ class Cell {
     ensures acc(c.x);
   {
     acquire(c);
-    unshare(c);
+   // unshare(c);
   }
   
   method a8()
@@ -96,7 +98,7 @@ class Cell {
     requires acc(x,100-rd(y));
     requires y != null && acc(this.mu) && waitlevel << this;
     ensures acc(x);
-    lockchange this;
+    //lockchange this;
   {
     acquire this;
   }
@@ -114,8 +116,8 @@ class Cell {
   }
   
   method a17(tk: token<Cell.void>)
-    requires acc(x,100-rd(tk)) && acc(tk.joinable) && tk.joinable;
-    requires eval(tk.fork this.void(),true);
+    requires /*acc(x,100-rd(tk)) &&*/ acc(tk.joinable) && tk.joinable;  // commented out, because of chalice2silver /issue/60/
+    //requires eval(tk.fork this.void(),true);
     ensures acc(x);
   {
     join tk;
@@ -132,17 +134,17 @@ class Cell {
     requires acc(x)
     requires acc(this.mu) && lockbottom == this.mu
     ensures acc(x)
-    lockchange this;
+    //lockchange this;
   {
     share this;
     acquire this;
-    unshare this;
+    //unshare this;
   }
   
   method a20()
     requires rd(x)
     requires acc(this.mu) && lockbottom == this.mu
-    lockchange this;
+    //lockchange this;
   {
     share this; // ERROR: not enough permission
   }
@@ -184,7 +186,7 @@ class Cell {
     requires acc(x,rd(this))
     requires acc(mu) && lockbottom == this.mu
     ensures valid
-    lockchange this
+    //lockchange this
   {
     share this
     acquire this

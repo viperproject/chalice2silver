@@ -1,3 +1,5 @@
+//:: ExpectedOutput(typechecker.error)
+
 class Cell {
   var x: int;
   var y: Cell;
