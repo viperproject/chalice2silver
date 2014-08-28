@@ -6,7 +6,7 @@ class A
   var s: int
   
   method m()
-    //:: UnexpectedOutput(chalice2sil.error, /silicon/issue/42/)
+    //:: ExpectedOutput(not.wellformed:insufficient.permission)
     requires q.~(A.p) == r && s==34
   {}
 }
