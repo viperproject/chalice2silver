@@ -1,16 +1,13 @@
+//:: ExpectedOutput(typechecker.error)
 class Cell {
   
   var x: int;
   
-  // the declaration of a method with the same name for a parameter
-  // as well as a result alone does not yet cause a problem, but ...
   method problematic_method(c: Cell) returns (c: Cell)
     requires acc(c.x);
   {
   }
   
-  // ... calling it leads to various 'undeclared identifier' errors
-  // in boogie. (previously. now fixed by not allowing c as both in and out parameter)
   method error()
   {
     var a: Cell := new Cell;
@@ -20,3 +17,6 @@ class Cell {
   }
   
 }
+
+// the current version of Chalice does not allow in and out parameters
+  // with the same name

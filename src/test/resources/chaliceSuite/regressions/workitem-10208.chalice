@@ -23,6 +23,7 @@ class Test {
     call test2()
     
     unfold valid
+	//:: ExpectedOutput(assert.failed:assertion.false)
     assert f1 == 2 // BUG: this should not verify (1)
     assert false // BUG: this should not verify (2)
   }

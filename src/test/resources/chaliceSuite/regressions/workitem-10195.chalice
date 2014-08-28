@@ -1,26 +1,32 @@
 class Test { 
     method fails() 
     { 
-      assert forall j in [10..5] :: true // ERROR: min > max
-      assert false // failed previously, now we get a smoke warning
+      assert forall j in [10..5] :: true
+	     // NO ERROR: min > max, BUT DOES NOT FAIL IN CURRENT Chalice2Silver
+		 // see Chalice2Silver /issue/61/
+	  //:: ExpectedOutput(assert.failed:assertion.false)
+      assert false
     }   
    
     method succeeds1() 
     { 
-      assert forall j in [10..5] :: f(j) == 0 // ERROR: min > max
+      assert forall j in [10..5] :: f(j) == 0
+	     // NO ERROR: min > max, BUT DOES NOT FAIL IN CURRENT Chalice2Silver
+		 // see Chalice2Silver /issue/61/
+	  //:: ExpectedOutput(assert.failed:assertion.false)
       assert false // failed previously, now we get a smoke warning
     } 
      
     method fails1() 
     { 
-      assert forall j in [5..10] :: f(j) == 0
+      assert forall j in [5..10] :: f(j) == 0 // does not fail
     }
         
         method succeeds2(a: int, b: int)
             requires 0 <= a && 0 <= b
             requires f(a) < f(b)
         {
-      assert forall j in [f(b)..f(a)] :: f(j) == 0 // ERROR: min > max
+      assert forall j in [f(b)..f(a)] :: f(j) == 0
             assert false // holds
         }
         

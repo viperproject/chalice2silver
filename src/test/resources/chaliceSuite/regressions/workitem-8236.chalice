@@ -1,3 +1,6 @@
+//:: IgnoreFile(/silicon/issue/21/)
+  // without support for obligations, this example makes no sense
+
 class Bug{
 
 	method Main() // expected ERROR: method might lock/unlock more than allowed

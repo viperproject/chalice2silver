@@ -14,7 +14,8 @@ class Cell  {
     var c := (unfolding valid in this.x);
     release this;
     acquire this;
-    assert c == this.x;
+	//:: UnexpectedOutput(assert.failed:assertion.false, /silicon/issue/119/)
+    assert c == this.x;  // silicon issue 119
     call n();
     c := (unfolding valid in this.x);
     release this;

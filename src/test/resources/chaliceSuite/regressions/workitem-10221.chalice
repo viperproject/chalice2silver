@@ -32,16 +32,17 @@ class Node {
     while (l != null) 
       invariant l!=null ==> l.list;
       invariant r!=null ==> r.list;
-      invariant rev == (l==null ? nil<int> : l.reverse_vals()) ++ (r==null ? nil<int> : r.vals());
+	  //:: UnexpectedOutput(invariant.not.preserved:assertion.false, /silicon/issue/120/)
+      invariant rev == (l==null ? nil<int> : l.reverse_vals()) ++ (r==null ? nil<int> : r.vals());  // this is silicon issue 120
     { 
       var y: Node;
-//      if (r != null) {
-//        unfold r.list; fold r.list;
-//      }
+      if (r != null) {
+        unfold r.list; fold r.list;
+      }
       unfold l.list;
-//      if (l.next != null) {
-//        unfold l.next.list; fold l.next.list;
-//      }
+      if (l.next != null) {
+       unfold l.next.list; fold l.next.list;
+      }
     
       y := l.next;
       l.next := r;
@@ -65,12 +66,13 @@ class Node {
     while (l != null) 
       invariant l!=null ==> l.list;
       invariant r!=null ==> r.list;
-      invariant rev == (l==null ? nil<int> : l.reverse_vals()) ++ (r==null ? nil<int> : r.vals());
+	  //:: UnexpectedOutput(invariant.not.preserved:assertion.false, /silicon/issue/120/)
+      invariant rev == (l==null ? nil<int> : l.reverse_vals()) ++ (r==null ? nil<int> : r.vals());  // this is silicon issue 120
     { 
       var y: Node;
-//      if (r != null) {
-//        unfold r.list; fold r.list;
-//      }
+      if (r != null) {
+        unfold r.list; fold r.list;
+      }
       unfold l.list;
       if (l.next != null) {
         unfold l.next.list; fold l.next.list;
@@ -99,16 +101,17 @@ class Node {
     while (l != null) 
       invariant l!=null ==> l.list;
       invariant r!=null ==> r.list;
-      invariant rev == (l==null ? nil<int> : l.reverse_vals()) ++ (r==null ? nil<int> : r.vals());
+	  //:: UnexpectedOutput(invariant.not.preserved:assertion.false, /silicon/issue/120/)
+      invariant rev == (l==null ? nil<int> : l.reverse_vals()) ++ (r==null ? nil<int> : r.vals());  // this is silicon issue 120
     { 
       var y: Node;
       if (r != null) {
         unfold r.list; fold r.list;
       }
       unfold l.list;
-//      if (l.next != null) {
-//        unfold l.next.list; fold l.next.list;
-//      }
+      if (l.next != null) {
+        unfold l.next.list; fold l.next.list;
+      }
     
       y := l.next;
       l.next := r;
@@ -134,7 +137,8 @@ class Node {
     while (l != null) 
       invariant l!=null ==> l.list;
       invariant r!=null ==> r.list;
-      invariant rev == (l==null ? nil<int> : l.reverse_vals()) ++ (r==null ? nil<int> : r.vals());
+	  //:: UnexpectedOutput(invariant.not.preserved:assertion.false, /silicon/issue/120/)
+      invariant rev == (l==null ? nil<int> : l.reverse_vals()) ++ (r==null ? nil<int> : r.vals());  // this is silicon issue 120
     { 
       var y: Node;
       if (r != null) {

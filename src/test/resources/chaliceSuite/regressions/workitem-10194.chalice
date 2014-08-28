@@ -15,8 +15,9 @@ class Test {
 	
 	method joinTk()
 		requires acc(tk) && tk != null && acc(tk.joinable) && tk.joinable
-		requires eval(tk.fork this.incX(), true)
+		// requires eval(tk.fork this.incX(), true)
 		ensures V
+		//:: ExpectedOutput(not.wellformed:insufficient.permission)
 		ensures unfolding V in x == old(x) // ERROR: old(x) is not readable (no error here, previously)
 	{
 		join tk
@@ -30,6 +31,7 @@ class Test {
 		fold V
 		fork tklocal := incX()
 		tk := tklocal
+		//:: ExpectedOutput(call.precondition:insufficient.permission)
 		call joinTk()
 		unfold V
 		assert x == old(x) // this verified previously (without any errors anywhere in the file)

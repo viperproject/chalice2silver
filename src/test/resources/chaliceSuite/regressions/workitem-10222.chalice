@@ -1,3 +1,4 @@
+//:: ExpectedOutput(typechecker.error)
 class Test {
     var t: Test;
     

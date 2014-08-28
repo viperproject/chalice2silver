@@ -24,10 +24,10 @@ class AllTests extends SilSuite {
     "chaliceSuite/general-tests",
     "chaliceSuite/permission-model",
     "chaliceSuite/predicates",
-    // "chaliceSuite/regressions",
-    "chaliceSuite/substantial-examples"/*,
-    "quantificationOverPermissions"*/
-    // these test cases are removed from the test suite until they are annotated (todo)
+    "chaliceSuite/regressions",
+    "chaliceSuite/substantial-examples"
+    /*, "quantificationOverPermissions"*/
+    // quantified permissions are not included in the test cases, until the feature is stable in Silicon
   )
 
   override def frontend(verifier: Verifier, files: Seq[Path]): Frontend = {

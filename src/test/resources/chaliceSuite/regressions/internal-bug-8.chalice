@@ -1,3 +1,6 @@
+//:: IgnoreFile(/silicon/issue/20/)
+  // without deadlock avoidance, this example makes no sense
+
 class C {
   
   method main()
