@@ -12,10 +12,6 @@ import java.io.{
   BufferedWriter => JBufferedWriter,
   FileWriter => JFileWriter}
 
-/* TODO: This is a copy of silicon/common/io. We should create viper-wide
- *       "common"-packages that bundle such generally useful functions.
- */
-
 package object io {
   /**
    * Writes the `contents` to the given `file`. Existing content will be overwritten.

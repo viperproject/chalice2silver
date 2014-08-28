@@ -210,9 +210,6 @@ class LifeCycleTests {
 		share c2 between c1 and c1 /* @Error 1410 */
 	}
 	
-	
-
-	// /* TODO: Sharing below waitlevel isn't yet supported by Syxc */
 	// // // method succeedLockOrders5() {
 		// // // var c1: Cell := new Cell
 		// // // var c2: Cell := new Cell

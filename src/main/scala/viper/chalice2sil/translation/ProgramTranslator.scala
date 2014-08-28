@@ -1208,7 +1208,7 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
         case chalice.PredicateEpsilon(_) => getK(pos)
         case chalice.MonitorEpsilon(_) => getK(pos)
 
-        // token permissions (not implemented) todo
+        // token permissions (not implemented)
         case chalice.ForkEpsilon(_) | chalice.ChannelEpsilon(_) => NoPerm()(pos)
 
         // counting permissions
@@ -1307,7 +1307,6 @@ object Util {
       case "bool" => Bool
       case "$Permission" => Perm
       case _ => Ref
-      // todo: add other Chalice-internal classes
     }
   }
 

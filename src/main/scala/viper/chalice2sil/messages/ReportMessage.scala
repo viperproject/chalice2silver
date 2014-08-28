@@ -21,16 +21,12 @@ class UnsupportedFeature(m: String, p: Position, f: Boolean = false)
 
 case class Channels(p: Position = null) // a null position corresponds to a channel declaration, which is non-fatal
   extends UnsupportedFeature("Channels." + (if(p==null) "" else " The code may be translated incorrectly."), p, p!=null)
-  // todo
 
 case class DeadlockAvoidance(p: Position)
-  extends UnsupportedFeature("Deadlock Avoidance. The feature is presently ignored.", p) // todo
+  extends UnsupportedFeature("Deadlock Avoidance. The feature is presently ignored.", p)
 
 case class TokenPermissions(p: Position)
-  extends UnsupportedFeature("Token Permission. The code may be translated incorrectly.", p, true) // todo
-
-
-    // todo: need to fix object construction and field updates only
+  extends UnsupportedFeature("Token Permission. The code may be translated incorrectly.", p, true)
 
 case class Aggregates(p: Position)
   extends UnsupportedFeature("Aggregates. The code may be translated incorrectly.", p, true)
@@ -51,7 +47,7 @@ case class Eval(p: Position)
   extends DeprecatedFeature("eval. The code may be translated incorrectly.", p)
 
 case class Strings(p: Position)
-  extends UnsupportedFeature("Strings. The code may be translated incorrectly.", p, true) // todo
+  extends UnsupportedFeature("Strings. The code may be translated incorrectly.", p, true)
 
 case class OldLockModel(p: Position = null)
   extends DeprecatedFeature("Old Lock Model. The code may be translated incorrectly.", p)
