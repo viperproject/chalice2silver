@@ -29,8 +29,7 @@ case class DeadlockAvoidance(p: Position)
 case class TokenPermissions(p: Position)
   extends UnsupportedFeature("Token Permission. The code may be translated incorrectly.", p, true) // todo
 
-case class Backpointers(p: Position)
-  extends UnsupportedFeature("Backpointers are under construction. The code may be translated incorrectly.", p, true)
+
     // todo: need to fix object construction and field updates only
 
 case class Aggregates(p: Position)

@@ -1,5 +1,3 @@
-// note that this file checks syntax and resolution and is not meant to verify
-
 class A
 {
   tracked ghost var p: A
@@ -9,15 +7,12 @@ class A
 class B
 {
   method m(x:A)
-	//:: UnexpectedOutput(chalice2sil.error, /silicon/issue/42/)
-	requires acc((x.p).~(A.p), 50) && rd*(x.~(A.p))
-	//:: UnexpectedOutput(chalice2sil.error, /silicon/issue/42/)
+	requires acc(x.p) && acc((x.p).~(A.p), 50) && rd*(x.~(A.p))
 	requires (x.p).~(A.p) == x.~(A.p)
   {
-    //:: UnexpectedOutput(chalice2sil.error, /silicon/issue/42/)
-    assert ~(C.f) == ~(C.f)
-	//:: UnexpectedOutput(chalice2sil.error, /silicon/issue/42/)
 	assert (x.p).~(A.p) == x.~(A.p)
+    //:: ExpectedOutput(assert.failed:insufficient.permission)
+    assert ~(C.f) == ~(C.f)
   }
 }
 

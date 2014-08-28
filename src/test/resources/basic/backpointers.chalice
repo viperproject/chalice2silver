@@ -1,5 +1,3 @@
-//:: IgnoreFile(/silicon/issue/42/)
-
 class A {
   tracked var b: B
   
@@ -26,6 +24,20 @@ class A {
 	a.b := b
 	assert c.~(A.b) == empty<A>
 	assert b.~(A.b) == {a}
+  }
+  
+  method fails(a: A, b: B)
+    requires a != null && acc(a.b)
+  {
+    //:: ExpectedOutput(assignment.failed:insufficient.permission)
+    a.b := b
+  }
+  
+  method fails1(a: A, b: B)
+    requires a != null && acc(a.b) && acc((a.b).~(A.b))
+  {
+    //:: ExpectedOutput(assignment.failed:insufficient.permission)
+    a.b := b
   }
 }
 

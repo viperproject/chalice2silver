@@ -16,9 +16,7 @@ import mutable.Map
 import viper.chalice2sil.messages._
 import scala.Some
 import chalice.{NewRhs, BlockStmt, BackPointerMemberAccess}
-import java.nio.file.Paths
 import util.parsing.input
-import input.Positional
 
 // **
 // This is were the magic happens
@@ -165,8 +163,8 @@ class ProgramTranslator(val name: String)
         val myK = LocalVarDecl(k, Perm)()
         val myN = LocalVarDecl(n, Ref)()
         val myA = LocalVarDecl(a, Ref)()
-        val myB = LocalVarDecl(b, SetType(Ref))()
-        val myC = LocalVarDecl(c, SetType(Ref))()
+        val myB = LocalVarDecl(b, Ref)()
+        val myC = LocalVarDecl(c, Ref)()
         val ins = myThis :: myK :: translateVars(m.ins)
         val newMethod = Method(nameGenerator.createUniqueIdentifier(m.FullName+"$"), ins, translateVars(m.outs),
           null, null, Seq(myN, myA, myB, myC), null)(SourcePosition(programName, m.pos.line, m.pos.column))
@@ -499,9 +497,6 @@ class ProgramTranslator(val name: String)
 
       // backpointer member access
       case chalice.BackPointerMemberAccess(target, typeId, fieldId) =>
-        // backpointers under construction
-        messages += Backpointers(position)
-
         // translate the receiver expression
         val silexp = translateExp(target, myThis, pTrans)
 
@@ -739,11 +734,11 @@ class ProgramTranslator(val name: String)
           FieldAssign(silma, translateExp(rhs.asInstanceOf[chalice.Expression], myThis, pTrans))(position)
         if (!isTracked) theAssignment
         else {
-          // backpointers must be updated   // todo: under construction
+          // update backpointers
           val Avar = silMethod.locals(1).localVar
           val Bvar = silMethod.locals(2).localVar
           val Cvar = silMethod.locals(3).localVar
-          val bpf = backpointerSymbolMap((ma.e.typ.id, ma.typ.id, ma.f.id))
+          val bpf = backpointerSymbolMap((ma.typ.id, ma.e.typ.id, ma.f.id))
           Seqn(Seq(
             LocalVarAssign(Avar, translateExp(ma.e, myThis, pTrans))(position),  // A := e1
             LocalVarAssign(Bvar, FieldAccess(Avar, symbolMap(ma.f).asInstanceOf[Field])(position))(position),
@@ -765,7 +760,7 @@ class ProgramTranslator(val name: String)
             )(position),
 
             // if C!=null
-            If(NeCmp(LocalVar(Bvar.name)(Bvar.typ), NullLit()(position))(position),
+            If(NeCmp(LocalVar(Cvar.name)(Cvar.typ), NullLit()(position))(position),
               // C.backpointer := C.backpointer + {A}
               FieldAssign(
                 FieldAccess(Cvar, bpf)(position),
