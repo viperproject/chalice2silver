@@ -132,7 +132,6 @@ object Program {
         case Failure(errors) =>
           errors foreach (e => println(e.readableMessage))
           println(s"Verification failed with ${pluralize("error", errors.length)}")
-            // todo: report errors in a Chalice-meaningful way
       }
 
       progOptions.xmlOutputFile.map { xmlFile =>

@@ -107,7 +107,6 @@ class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases {
             case Failure(f) => failed ++= f
             case Success =>
           }
-          // todo: translate the Silicon messages back to meaningful Chalice messages
         }
     } catch {
         case e: Throwable =>
