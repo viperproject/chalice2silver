@@ -23,7 +23,7 @@ class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases {
   var messages = Seq[ReportMessage]()
   var verifierResult: VerificationResult = null
 
-  val TopAnnotationPosition = new SourcePosition(file, 2, 1)
+  def TopAnnotationPosition = new SourcePosition(file, 2, 1)
     // position 2, 1 helps with the error annotations.  the annotation appears in the first line
 
   override def init(verifier: Verifier) {
@@ -39,17 +39,15 @@ class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases {
 
   protected def parseChaliceCommandLine(): Either[Chalice.CommandLineParameters, AbstractError] = {
     val commandLine = Array("-noVerify", file.toString)
-
-    Chalice.parseCommandLine(commandLine) match {
-      case Some(c) => Left(c)
-      case None => Right(CliOptionError(commandLine.mkString(" ")))
-    }
+    Right(CliOptionError(commandLine.mkString(" ")))
   }
 
   protected def parseChaliceProgram(options: Chalice.CommandLineParameters): Either[ChaliceProgram, AbstractError] = {
-    Chalice.parsePrograms(options) match {
-      case Some(p) => Left(p)
-      case None => Right(ParseError("Chalice program contained syntax errors.", TopAnnotationPosition))
+    val parser = new chalice.Parser
+
+    parser.parseFile(file.toFile) match {
+      case parser.Success(p, _) => Left(p.asInstanceOf[ChaliceProgram])
+      case _ => Right(ParseError("Chalice program contained syntax errors.", TopAnnotationPosition))
     }
   }
 
@@ -72,7 +70,7 @@ class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases {
 
   override def typecheck() = {
     try {
-      if(failed.isEmpty && !chalice.Chalice.typecheckProgram(null, chaliceAST)) {
+      if(failed.isEmpty && ! chalice.Resolver.Resolve(chaliceAST).isInstanceOf[chalice.Resolver.Success]) {
         val f = Seq(TypecheckerError("Chalice program contained resolution errors.", TopAnnotationPosition))
         failed ++= f
       }
