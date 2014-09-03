@@ -37,12 +37,7 @@ class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases {
     failed = Seq()
   }
 
-  protected def parseChaliceCommandLine(): Either[Chalice.CommandLineParameters, AbstractError] = {
-    val commandLine = Array("-noVerify", file.toString)
-    Right(CliOptionError(commandLine.mkString(" ")))
-  }
-
-  protected def parseChaliceProgram(options: Chalice.CommandLineParameters): Either[ChaliceProgram, AbstractError] = {
+  protected def parseChaliceProgram(): Either[ChaliceProgram, AbstractError] = {
     val parser = new chalice.Parser
 
     parser.parseFile(file.toFile) match {
@@ -53,7 +48,7 @@ class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases {
 
   override def parse() = {
     try {
-      parseChaliceCommandLine().left.map(options => parseChaliceProgram(options)).joinLeft match {
+     parseChaliceProgram() match {
         case Left(program) =>
           chaliceAST = program
 
