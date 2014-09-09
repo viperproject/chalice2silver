@@ -21,8 +21,7 @@ class Test {
 		
 		next := new Test
 		assert forall j: int :: next == null ? true : true     /* Holds */
-		//:: UnexpectedOutput(assert.failed:assertion.false, /silicon/issue/114/)
-		assert forall j: int :: next == null ? true : f(j) > 0 // see silicon issue 114
+		assert forall j: int :: next == null ? true : f(j) > 0
 
 		next := new Test
 		assert forall j: int :: next == null ? true : f(j) > 0
@@ -46,7 +45,6 @@ class Test {
 		
 		next := new Test
 		assume forall j: int :: next == null ? true : f(j) > 0
-		//:: UnexpectedOutput(assert.failed:assertion.false, /silicon/issue/114/)
 		assert forall j: int :: next == null ? true : f(j) > 0
 		
 		next := new Test
