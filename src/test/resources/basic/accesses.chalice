@@ -10,6 +10,8 @@ class A
   }
 
   method n(other: seq<A>)
+      //:: ExpectedOutput(internal:feature.unsupported)
+      //:: ExpectedOutput(internal:feature.unsupported)
     requires acc(other[*].p)
 	requires acc(other[*].x)
 	ensures rd(other[*].*)
