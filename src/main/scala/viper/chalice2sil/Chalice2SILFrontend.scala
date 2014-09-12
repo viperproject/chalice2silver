@@ -10,7 +10,6 @@ import java.nio.file.Path
 import viper.silver.verifier._
 import viper.silver.frontend._
 import viper.silver.ast.{SourcePosition, NoPosition, Position}
-import chalice.Chalice
 import translation._
 import viper.chalice2sil.messages.ReportMessage
 
