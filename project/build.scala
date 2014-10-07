@@ -17,7 +17,7 @@ object Chalice2SilBuild extends Build {
           organization := "viper",
           version := "0.1-SNAPSHOT",
           // publishArtifact in packageDoc := false,
-          scalaVersion := "2.10.3",
+          scalaVersion := "2.10.4",
           // publishMavenStyle := false,
           // componentID := None,
           // crossPaths := false,
