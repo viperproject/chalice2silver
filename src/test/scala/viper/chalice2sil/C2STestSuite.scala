@@ -6,10 +6,6 @@
 
 package viper.chalice2sil
 
-/**
-Author: Yannis Kassios
-*/
-
 import java.nio.file.Path
 import viper.silver.testing._
 import viper.silver.verifier._
@@ -37,31 +33,14 @@ class AllTests extends SilSuite {
     fe
   }
 
-  override val verifiers = {
-    val silicon = new Silicon()
-    silicon.parseCommandLine(optionsFromScalaTestConfigMap())
-    silicon.config.initialize {
-      case _ =>
-        /* Ignore command-line errors, --help, --version and other non-positive
-         * results from Scallop.
-         * After initialized has been set to true, Silicon itself will not call
-         * config.initialize again.
-         */
-        silicon.config.initialized = true
-    }
-    Seq(silicon)
+  override val verifiers = createSiliconInstance() :: Nil
+
+  private def createSiliconInstance() = {
+    val args = Silicon.optionsFromScalaTestConfigMap(prefixSpecificConfigMap.getOrElse("silicon", Map()))
+    val silicon = Silicon.fromPartialCommandLineArguments(args)
+
+    silicon
   }
 
   override val defaultTestPattern: String = ".*\\.chalice"
-
-  private def optionsFromScalaTestConfigMap(): Seq[String] = {
-    val prefix = "silicon:"
-
-    prefixSpecificConfigMap.get(prefix) match {
-      case None => Seq()
-      case Some(optionMap) => optionMap.flatMap{
-        case (k, v) => Seq(s"--$k", v.toString)
-      }.toSeq
-    }
-  }
 }
