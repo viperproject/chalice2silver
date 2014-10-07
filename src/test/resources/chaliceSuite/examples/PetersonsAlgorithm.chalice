@@ -20,7 +20,7 @@ class Peterson {
 	p.cs1 := false
 	p.b0 := false
 	p.b1 := false
-    
+
 	share p;
     fork p.Process0();
     fork p.Process1();
@@ -47,7 +47,6 @@ class Peterson {
       var waiting := true;
       while (waiting)
         invariant rd(mu) && waitlevel << mu && acc(cs0,50);
-		//:: UnexpectedOutput(invariant.not.preserved:assertion.false, /silicon/issue/51/)
         invariant acc(x0,50) && acc(b0,50) && x0 && !b0;
         invariant !waiting ==> cs0;
       {
@@ -73,7 +72,6 @@ class Peterson {
       var waiting := true;
       while (waiting)
         invariant rd(mu) && waitlevel << mu && acc(cs1,50);
-		//:: UnexpectedOutput(invariant.not.preserved:assertion.false, /silicon/issue/51/)
         invariant acc(x1,50) && acc(b1,50) && x1 && !b1;
         invariant !waiting ==> cs1;
       {

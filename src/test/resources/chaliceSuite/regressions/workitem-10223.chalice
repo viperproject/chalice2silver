@@ -3,7 +3,6 @@ class Lala {
     var x: int;
     predicate inv {
         acc(next) && acc(x) &&
-		//:: ExpectedOutput(internal:feature.unsupported)
-        (next != null ==> (next.inv && unfolding next.inv in this.x > next.x))  // silicon does not support this
+        (next != null ==> (next.inv && unfolding next.inv in this.x > next.x))
     }
 }

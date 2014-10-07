@@ -2,7 +2,7 @@ class A
 {
   var x: A
   var y: int
-  
+
   method m(other:A)
     requires acc(x) && acc(mu) && acc(other.x) && acc(other.x.mu) && other.x == this.x
 	requires p && acc(other.p) && acc(this.p) && acc(p, 50)
@@ -10,14 +10,13 @@ class A
   }
 
   method n(other: seq<A>)
-      //:: ExpectedOutput(internal:feature.unsupported)
     requires acc(other[*].p)
 	requires acc(other[*].x)
 	ensures rd(other[*].*)
 	ensures rd(this.*)
   {
   }
-  
+
   method o()
     //:: ExpectedOutput(internal:feature.unsupported)
     requires acc(x, rd(10)) // Chalice2sil issue 22
@@ -28,6 +27,6 @@ class A
 	assert acc(t.joinable) && acc(this.mu)
 	assert acc(t.*)
   }
-	
+
   predicate p { true }
 }
