@@ -1,3 +1,5 @@
+//:: IgnoreFile(/Silicon/issue/84/)
+
 class A
 {
   var x: A
