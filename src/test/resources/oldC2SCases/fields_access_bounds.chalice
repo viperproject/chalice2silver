@@ -19,7 +19,6 @@ class Test {
 	
 	method ensSucceedLowerBound()
 		requires acc(x)
-		//:: ExpectedOutput(postcondition.violated:non.positive.permission)
 		ensures acc(x, 0)
 		ensures acc(x, 1)
 	{}
@@ -37,7 +36,6 @@ class Test {
 	method assSucceedLowerBound()
 		requires acc(x)
 	{
-	    //:: ExpectedOutput(assert.failed:non.positive.permission)
 		assert(acc(x, 0))
 	  assert(acc(x, 1))
 	}
@@ -54,13 +52,13 @@ class Test {
 	{}
 	
 	method ensFailLowerBound()
-	    //:: ExpectedOutput(postcondition.violated:non.positive.permission)
+	    //:: ExpectedOutput(postcondition.violated:negative.permission)
 		ensures acc(x, -1) /* @Error 130 */
 	{}
 	
 	method assFailLowerBound()
 		requires acc(x)
-		//:: ExpectedOutput(assert.failed:non.positive.permission)
+		//:: ExpectedOutput(assert.failed:negative.permission)
 	{ assert(acc(x, -1)) /* @Error 130 */ }
 	
 	/*
@@ -77,7 +75,6 @@ class Test {
 		requires acc(x)
 		requires a >= 0
 		requires a <= 100
-		//:: ExpectedOutput(postcondition.violated:non.positive.permission)
 		ensures acc(x, a)
 	{}
 	
@@ -85,7 +82,6 @@ class Test {
 		requires acc(x)
 		requires a >= 0
 		requires a <= 100
-		//:: ExpectedOutput(assert.failed:non.positive.permission)
 	{ assert(acc(x, a)) }
 	 
 	method reqVarFailLowerBound(a: int)
@@ -105,13 +101,13 @@ class Test {
 	
 	method ensVarFailUpperBound(a: int)
 		requires a >= 0
-		//:: ExpectedOutput(postcondition.violated:non.positive.permission)
+		//:: ExpectedOutput(postcondition.violated:insufficient.permission)
 		ensures acc(x, a) /* @Error 140 */
 	{}
 	
 	method assVarFailLowerBound(a: int)
 		requires a <= 100
 		requires acc(x)
-		//:: ExpectedOutput(assert.failed:non.positive.permission)
+		//:: ExpectedOutput(assert.failed:negative.permission)
 	{ assert(acc(x, a)) /* @Error 130 */ }
 }
