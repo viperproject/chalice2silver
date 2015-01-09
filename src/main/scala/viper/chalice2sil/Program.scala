@@ -82,7 +82,7 @@ object Program {
     val verifierOrNull = progOptions.backendClass match {
       case Some(className) =>
         val verifier = Class.forName(className).newInstance.asInstanceOf[Verifier]
-        verifier.parseCommandLine("src/test/resources/basic/accesses.chalice" :: Nil)
+        verifier.parseCommandLine(List("--ignoreFile", "please-the-cli-parser.chalice"))
           /* TODO: [2014-10-07 Malte] The file name is here because it is currently mandatory
            *       to provide one. It is not needed, though, since the verifier is later
            *       on executed on an AST.
