@@ -699,7 +699,7 @@ class ProgramTranslator(val name: String)
   // **
   protected def translateStm(cStm: chalice.Statement, myThis: LocalVarDecl,
                              pTrans: PermissionTranslator, silMethod: Method) : Stmt = {
-    val position = new SourcePosition(programName, cStm.pos.line, cStm.pos.column)
+    val position = SourcePosition(programName, cStm.pos.line, cStm.pos.column)
     cStm match {
       // assert and assume
       case chalice.Assert(e) => Assert(translateExp(e, myThis, pTrans))(position)

@@ -22,7 +22,7 @@ class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases {
   var messages = Seq[ReportMessage]()
   var verifierResult: VerificationResult = null
 
-  def TopAnnotationPosition = new SourcePosition(file, 2, 1)
+  def TopAnnotationPosition = SourcePosition(file, 2, 1)
     // position 2, 1 helps with the error annotations.  the annotation appears in the first line
 
   override def init(verifier: Verifier) {
@@ -113,7 +113,7 @@ class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases {
 case class TranslationError(message: String, position: Position) extends AbstractError {
   def fullId = "chalice2sil.error"
   def readableMessage = s"$message"
-  def pos = if (position == null) new SourcePosition(null, 2, 1) else position
+  def pos = if (position == null) SourcePosition(null, 2, 1) else position
 }
 
 case class VerifierThrowsException(message: String, pos: Position) extends AbstractError {
