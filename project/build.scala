@@ -91,9 +91,9 @@ object Chalice2SilBuild extends Build {
     lazy val chalice = "ychalice" %% "ychalice" % "1.0"
     lazy val silicon = "viper" %% "silicon-quantified-permissions" %  "0.1-SNAPSHOT"
 
-    lazy val silDir = RootProject(new java.io.File("../Silver"))
-    lazy val chaliceDir = RootProject(new java.io.File("../Chalice"))
-    lazy val siliconDir = RootProject(new java.io.File("../Silicon"))
+    lazy val silDir = RootProject(new java.io.File("../silver"))
+    lazy val chaliceDir = RootProject(new java.io.File("../chalice"))
+    lazy val siliconDir = RootProject(new java.io.File("../silicon"))
 
     lazy val scopt = "com.github.scopt" %% "scopt" % "3.2.0"
   }
