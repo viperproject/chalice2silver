@@ -37,7 +37,12 @@ class Functions {
 	
 	method useG1_1() {
 		assert(g1(3) == 3)
+		//:: ExpectedOutput(assert.failed:assertion.false)
 		assert(g1(-1) == 1)
+			/* g1 and g2 are mutually dependent, their definitional axioms use
+			 * limited functions, which prevents Z3 from showing that this
+			 * assertion holds.
+			 */
 	}	
 	
 	method useG1_2(a: int, b: int)
