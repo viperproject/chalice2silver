@@ -71,8 +71,8 @@ class Node {
     
     {
       fold this.next.q;
-	  assert this != this.next; // should fail
-    //:: ExpectedOutput(assert.failed:assertion.false)
+      //:: ExpectedOutput(assert.failed:assertion.false)
+	  assert this != this.next; // should fail    
       assert this.next != this.next.next; // should fail
       assert this != this.next.next; // should fail
     }
@@ -83,8 +83,8 @@ class Node {
     {
       fold this.next.q;
       fold this.p;
-	  assert this != this.next; // should succeed, since this == this.next ==> this == this.next.next
       //:: ExpectedOutput(assert.failed:assertion.false)
+	  assert this != this.next; // should succeed, since this == this.next ==> this == this.next.next
       assert this.next != this.next.next; // should fail - we haven't seen a cycle which would follow from this fact
       assert this != this.next.next; // should succeed
     }
