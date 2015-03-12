@@ -234,7 +234,7 @@ class ProgramTranslator(val name: String)
     })
 
     // populate the body of the invariant predicate
-    invariant.body = monitorInvariantBody
+    invariant.body = Some(monitorInvariantBody)
   }
 
   // **
@@ -262,7 +262,7 @@ class ProgramTranslator(val name: String)
 
     // populate the predicate body translating the corresponding Chalice body and using the given receiver and the
     // global unidentified read permission for predicates
-    sPredicate.body = translateExp(cPredicate.definition, sThis, PredicatePermissionTranslator(globalK))
+    sPredicate.body = Some(translateExp(cPredicate.definition, sThis, PredicatePermissionTranslator(globalK)))
   }
 
   // **
@@ -299,7 +299,7 @@ class ProgramTranslator(val name: String)
     // translate body into SIL and populate the body of the SIL function appropriately
       // all permissions in the body are rendered to a read permission
     cFunction.definition match {
-      case Some(body) => sFunction.body = translateExp(body, sThis, FunctionPermissionTranslator())
+      case Some(body) => sFunction.body = Some(translateExp(body, sThis, FunctionPermissionTranslator()))
       case None => messages += BodylessFunctions(SourcePosition(programName, cFunction.pos.line, cFunction.pos.column))
     }
   }
