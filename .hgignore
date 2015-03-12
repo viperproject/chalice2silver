@@ -1,6 +1,8 @@
 syntax: glob
 project/project/**
 project/target/**
+project/.ivy/**
+project/.boot/**
 target/**
 .cache
 bin/**
