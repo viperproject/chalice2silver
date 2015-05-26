@@ -1,3 +1,7 @@
+// !!!! Ignored because of /Chalice2Sil/issue/62/, but I [Malte] couldn't get
+// !!!! the annotation to work with "Chalice2Sil" (or "Chalice2Silver") instead of "Silicon".
+//:: IgnoreFile(/Silicon/issue/00/)
+
 class A
 {
   var x:int
