@@ -41,6 +41,10 @@ class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases {
 
     parser.parseFile(file.toFile) match {
       case parser.Success(p, _) => Left(p.asInstanceOf[ChaliceProgram])
+      case parser.Failure(msg, next) => {
+        val position =  SourcePosition(file, next.pos.line, next.pos.column)
+        Right(ParseError(msg.toString, position))
+      }
       case _ => Right(ParseError("Chalice program contained syntax errors.", TopAnnotationPosition))
     }
   }

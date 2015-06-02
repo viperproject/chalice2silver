@@ -1,7 +1,7 @@
-//:: ExpectedOutput(parser.error)
 class D
 {
   var x: int
-  
+
+  //:: ExpectedOutput(parser.error)
   predicate { acc(x.x) }
 }
