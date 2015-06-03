@@ -1,8 +1,8 @@
-//:: ExpectedOutput(typechecker.error)
 class Cell {
   
   var x: int;
   
+  //:: ExpectedOutput(typechecker.error)
   method problematic_method(c: Cell) returns (c: Cell)
     requires acc(c.x);
   {

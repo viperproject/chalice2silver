@@ -1,4 +1,3 @@
-//:: ExpectedOutput(typechecker.error)
 class A
 {
   tracked ghost var p: B
@@ -17,6 +16,7 @@ class D
 {
   tracked var p: int
   tracked var q: seq<A>
+  //:: ExpectedOutput(typechecker.error)
   tracked var r: seq<F>
   tracked var s: set<A>
   tracked var t: F

@@ -1,10 +1,9 @@
-//:: ExpectedOutput(typechecker.error)
-
 class Cell {
   var x: int;
   var y: Cell;
   
   method a1()
+    //:: ExpectedOutput(typechecker.error)
     requires acc(x,y); // ERROR: amount is not integer
   {
   }

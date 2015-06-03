@@ -1,9 +1,9 @@
-//:: ExpectedOutput(typechecker.error)
 class Test {
     var t: Test;
     
     // previously, mentioning "waitlevel" in a predicate did not cause an error
     predicate inv {
+        //:: ExpectedOutput(typechecker.error)
         acc(t) && acc(t.mu) && t.mu << waitlevel
     }
 }

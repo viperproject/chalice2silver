@@ -1,8 +1,8 @@
-//:: ExpectedOutput(typechecker.error)
 class C
 {
   var f: int
   method M ()
+    //:: ExpectedOutput(typechecker.error)
     requires acc(f, 100-rd(non_existing_field))
   {
   }

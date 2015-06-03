@@ -1,10 +1,10 @@
-//:: ExpectedOutput(typechecker.error)
 class C
 {
   var f: int;
   predicate valid { acc(f) }
   
   function foo1(): int
+  //:: ExpectedOutput(typechecker.error)
   ensures valid;
   { 1 }
   

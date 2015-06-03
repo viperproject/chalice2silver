@@ -2,6 +2,10 @@ class D
 {
   var x: int
 
-  //:: ExpectedOutput(parser.error)
-  predicate { acc(x.x) }
+  method foo()
+    requires acc(this.*);
+  {
+    //:: ExpectedOutput(typechecker.error)
+    y := 1;
+  }
 }

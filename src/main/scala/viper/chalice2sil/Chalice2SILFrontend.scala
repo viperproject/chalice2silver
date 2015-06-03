@@ -68,9 +68,25 @@ class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases {
 
   override def typecheck() = {
     try {
-      if(failed.isEmpty && ! chalice.Resolver.Resolve(chaliceAST).isInstanceOf[chalice.Resolver.Success]) {
-        val f = Seq(TypecheckerError("Chalice program contained resolution errors.", TopAnnotationPosition))
-        failed ++= f
+      if(failed.isEmpty) {
+        chalice.Resolver.Resolve(chaliceAST) match {
+          case chalice.Resolver.Success() => Success
+          case chalice.Resolver.Errors(ss) => {
+            val (position, message) = ss.head
+            val sourcePosition = if (position.line > 0) {
+              SourcePosition(file, position.line, position.column)
+            } else {
+              // Exact position unknown, return top.
+              TopAnnotationPosition
+            }
+            val f = Seq(TypecheckerError(message, sourcePosition))
+            failed ++= f
+          }
+          case _ => {
+            val f = Seq(TypecheckerError("Chalice program contained resolution errors.", TopAnnotationPosition))
+            failed ++= f
+          }
+        }
       }
       else Success
     } catch {
