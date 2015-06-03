@@ -5,7 +5,8 @@
 //-----------------------------------------------------------------------------
 
 /* This file is based on the sources of Microsoft's Chalice tool, which is
- * hosted on Codeplex: http://chalice.codeplex.com/
+ * hosted on Codeplex (http://chalice.codeplex.com/) and licensed under
+ * Microsoft Public License (see LICENSE_Ms-PL.txt in the root directory).
  * The file might have changed since it has been forked, in particular, existing
  * code might have been modified or removed, and new code might have been added.
  */
