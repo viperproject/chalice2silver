@@ -18,6 +18,7 @@ class Test {
     //:: ExpectedOutput(typechecker.error)
 		requires acc(n) || acc(m)
 		requires y == 0 ==> f(y) == m
+    //:: ExpectedOutput(typechecker.error)
 		requires y == 0 && acc(m) ==> f(y) == m
 		requires y == 0 ==> acc(m) && f(y) == m
 	{
@@ -29,6 +30,7 @@ class Test {
 	}
 	
 	method implTest1(y: int)
+    //:: ExpectedOutput(typechecker.error)
 		requires (y > 0 ==> acc(m)) ==> acc(n)
 	{}
 	
@@ -50,7 +52,9 @@ class Test {
 	
 	method equivTest1(b1: bool, b2: bool, b3: bool)
 		requires b1 <==> (b2 || b3)
+    //:: ExpectedOutput(typechecker.error)
 		requires b1 <==> acc(m)
+    //:: ExpectedOutput(typechecker.error)
 		requires acc(n) <==> acc(m)
 	{}
 }

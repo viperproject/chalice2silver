@@ -9,28 +9,35 @@ class Cell {
   }
   
   method a2()
+    //:: ExpectedOutput(typechecker.error)
     requires acc(x,n); // ERROR: unknown variable
   {
   }
   
   method a3()
+    //:: ExpectedOutput(typechecker.error)
     requires acc(x,rd(rd(1))); // ERROR: invalid permission expression
   {
   }
   
   method a4()
+    //:: ExpectedOutput(typechecker.error)
     requires acc(x,rd*(y)); // ERROR: invalid permission expression
   {
   }
   
   method a5()
+    //:: ExpectedOutput(typechecker.error)
     requires acc(x,rd(this.mu)); // ERROR: invalid type inside rd
+    //:: ExpectedOutput(typechecker.error)
     requires acc(x,rd(null)); // ERROR: invalid type inside rd
+    //:: ExpectedOutput(typechecker.error)
     requires acc(x,rd(true)); // ERROR: invalid type inside rd
   {
   }
   
   method a6()
+    //:: ExpectedOutput(typechecker.error)
     requires acc(x,rd(x)*rd(x)); // ERROR: permission multiplication not allowed
   {
   }

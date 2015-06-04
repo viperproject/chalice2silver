@@ -14,11 +14,16 @@ class C
 
 class D
 {
+  //:: ExpectedOutput(typechecker.error)
   tracked var p: int
+  //:: ExpectedOutput(typechecker.error)
   tracked var q: seq<A>
   //:: ExpectedOutput(typechecker.error)
   tracked var r: seq<F>
+  //:: ExpectedOutput(typechecker.error)
   tracked var s: set<A>
+  //:: ExpectedOutput(typechecker.error)
   tracked var t: F
+  //:: ExpectedOutput(typechecker.error)
   tracked var u: seq<int>
 }

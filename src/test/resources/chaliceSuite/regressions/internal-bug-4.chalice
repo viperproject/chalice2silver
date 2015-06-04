@@ -9,10 +9,12 @@ class C
   { 1 }
   
   function foo2(): int
+  //:: ExpectedOutput(typechecker.error)
   ensures acc(f);
   { 1 }
 
   function foo3(): int
+  //:: ExpectedOutput(typechecker.error)
   ensures rd(f);
   { 1 }
 }
