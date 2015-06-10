@@ -13,7 +13,7 @@ import viper.silver.ast.{SourcePosition, NoPosition, Position}
 import translation._
 import viper.chalice2sil.messages.ReportMessage
 
-class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases {
+class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases with SingleFileFrontend {
   type ChaliceProgram = List[chalice.TopLevelDecl]
   var file: Path = null
   var chaliceAST: List[chalice.TopLevelDecl] = null
@@ -29,10 +29,10 @@ class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases {
     verf = verifier
   }
 
-  override def reset(files: Seq[Path]) {
+  override def reset(filePath: Path) {
     chaliceAST = null
     silAST = null
-    file = files(0)
+    file = filePath
     failed = Seq()
   }
 

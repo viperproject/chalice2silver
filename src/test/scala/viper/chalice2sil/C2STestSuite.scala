@@ -27,9 +27,11 @@ class AllTests extends SilSuite {
   )
 
   override def frontend(verifier: Verifier, files: Seq[Path]): Frontend = {
+    require(files.length == 1, "tests should consist of exactly one file")
+
     val fe = new Chalice2SILFrontEnd()
     fe.init(verifier)
-    fe.reset(files)
+    fe.reset(files.head)
     fe
   }
 
