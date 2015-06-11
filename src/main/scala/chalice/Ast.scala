@@ -227,12 +227,14 @@ case class Method(id: String, ins: List[Variable], outs: List[Variable], spec: L
   override def Body = body
   override def Ins = ins
   override def Outs = outs
+  override def hashCode() = (scala.util.hashing.MurmurHash3.productHash(this), Parent.FullName).##
 }
 case class Predicate(id: String, private val rawDefinition: Expression) extends NamedMember(id) {
   lazy val definition: Expression = rawDefinition.transform {
     case Epsilon | MethodEpsilon => Some(PredicateEpsilon(None))
     case _ => None
   }
+  override def hashCode() = (scala.util.hashing.MurmurHash3.productHash(this), Parent.FullName).##
 }
 case class Function(id: String, ins: List[Variable], out: Type, spec: List[Specification], definition: Option[Expression]) extends NamedMember(id) {
   // list of predicates that this function possibly depends on (that is, predicates
@@ -344,6 +346,7 @@ case class Function(id: String, ins: List[Variable], out: Type, spec: List[Speci
   // condensation of the call graph; mutually recursive functions get the same
   // height.
   var height: Int = -1
+  override def hashCode() = (scala.util.hashing.MurmurHash3.productHash(this), Parent.FullName).##
 }
 case class Condition(id: String, where: Option[Expression]) extends NamedMember(id)
 sealed class Variable(val id: String, val t: Type, val isGhost: Boolean, val isImmutable: Boolean) extends ASTNode {

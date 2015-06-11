@@ -1,0 +1,47 @@
+class A {
+	var x: int
+
+  predicate valid
+  {
+    acc(x) && x >= 0
+  }
+	
+	function f(i: int): int
+		requires rd(x)
+	{
+    x * i
+  }
+
+	method m(i: int)
+		requires valid && i > 0
+		ensures valid
+	{
+    unfold valid
+    x := x * i
+    fold valid
+  }
+}
+
+class B {
+	var x: int
+
+  predicate valid
+  {
+    acc(x) && x >= 0
+  }
+	
+	function f(i: int): int
+		requires rd(x)
+	{
+    x * i
+  }
+
+	method m(i: int)
+		requires valid && i > 0
+		ensures valid
+	{
+    unfold valid
+    x := x * i
+    fold valid
+  }
+}
