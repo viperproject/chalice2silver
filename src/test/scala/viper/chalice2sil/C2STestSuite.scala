@@ -26,6 +26,8 @@ class AllTests extends SilSuite {
     // quantified permissions are not included in the test cases, until the feature is stable in Silicon
   )
 
+  override def projectInfo: ProjectInfo = super.projectInfo.update("Chalice2Silver")
+
   override def frontend(verifier: Verifier, files: Seq[Path]): Frontend = {
     require(files.length == 1, "tests should consist of exactly one file")
 
