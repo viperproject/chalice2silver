@@ -1,3 +1,4 @@
+//:: IgnoreFile(/Chalice2Silver/issue/62/)
 //:: IgnoreFile(/Silicon/issue/84/)
 
 class A
@@ -7,15 +8,15 @@ class A
 
   method m(other:A)
     requires acc(x) && acc(mu) && acc(other.x) && acc(other.x.mu) && other.x == this.x
-	requires p && acc(other.p) && acc(this.p) && acc(p, 50)
+    requires p && acc(other.p) && acc(this.p) && acc(p, 50)
   {
   }
 
   method n(other: seq<A>)
     requires acc(other[*].p)
-	requires acc(other[*].x)
-	ensures rd(other[*].*)
-	ensures rd(this.*)
+    requires acc(other[*].x)
+    ensures rd(other[*].*)
+    ensures rd(this.*)
   {
   }
 
@@ -26,8 +27,8 @@ class A
     ensures acc(x, rd(9)) // Chalice2sil issue 22
   {
     fork t:= n([this])
-	assert acc(t.joinable) && acc(this.mu)
-	assert acc(t.*)
+    assert acc(t.joinable) && acc(this.mu)
+    assert acc(t.*)
   }
 
   predicate p { true }

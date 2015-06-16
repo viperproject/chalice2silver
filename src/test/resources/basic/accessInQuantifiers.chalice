@@ -1,6 +1,4 @@
-// !!!! Ignored because of /Chalice2Sil/issue/62/, but I [Malte] couldn't get
-// !!!! the annotation to work with "Chalice2Sil" (or "Chalice2Silver") instead of "Silicon".
-//:: IgnoreFile(/Silicon/issue/00/)
+//:: IgnoreFile(/Chalice2Silver/issue/62/)
 
 class A
 {
@@ -10,15 +8,15 @@ class A
   
   method m()
     requires (forall o:seq<A> :: acc(x))
-	//:: UnexpectedOutput(chalice2sil.error, /silicon/issue/15/)
-	requires (sum o in nil<A> :: o.x) == 0
-	//:: UnexpectedOutput(chalice2sil.error, /silicon/issue/15/)
-	requires (max o : empty<A> :: o.x) == 0
-	ensures (forall o:A :: p)
+    //:: UnexpectedOutput(chalice2silver.error, /chalice2silver/issue/15/)
+    requires (sum o in nil<A> :: o.x) == 0
+    //:: UnexpectedOutput(chalice2silver.error, /chalice2silver/issue/15/)
+    requires (max o : empty<A> :: o.x) == 0
+    ensures (forall o:A :: p)
   {
     assert (forall a:int :: (forall b:A :: a>0 ==> acc(b.x)))
-	assert (forall a:int :: (forall b:A :: a>0 ==> b.p))
-	assume (forall o:A :: acc(x))
-	assume (forall a:int :: (forall b:A :: a>0 ==> b.p))
+    assert (forall a:int :: (forall b:A :: a>0 ==> b.p))
+    assume (forall o:A :: acc(x))
+    assume (forall a:int :: (forall b:A :: a>0 ==> b.p))
   }
 }
