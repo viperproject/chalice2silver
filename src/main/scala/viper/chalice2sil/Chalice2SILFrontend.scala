@@ -132,7 +132,7 @@ class Chalice2SILFrontEnd(var verf: Verifier  = null) extends DefaultPhases with
 }
 
 case class TranslationError(message: String, position: Position) extends AbstractError {
-  def fullId = "chalice2sil.error"
+  def fullId = "chalice2silver.error"
   def readableMessage = s"$message"
   def pos = if (position == null) SourcePosition(null, 2, 1) else position
 }

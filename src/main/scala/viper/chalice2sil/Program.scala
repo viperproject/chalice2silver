@@ -32,7 +32,7 @@ case class ProgramOptions(chaliceOptions: Map[String, String] = Map[String, Stri
 object Program {
   def main(args: Array[String]) {
     // Option parser
-    val cmdParser = new OptionParser[ProgramOptions]("chalice2sil") {
+    val cmdParser = new OptionParser[ProgramOptions]("chalice2silver") {
       // Chalice file
       arg[File]("<chalice-file>") optional() action {
         (source, c) => c.copy(chaliceFile = source)
@@ -99,8 +99,8 @@ object Program {
     chalice2SIL.run()
 
     if (chalice2SIL.failed.nonEmpty) {
-      chalice2SIL.failed.foreach(f => Console.err.println("[Chalice2SIL] " + f))
-      Console.err.println("Chalice2SIL produced %s.".format(pluralize("error", chalice2SIL.failed.length)))
+      chalice2SIL.failed.foreach(f => Console.err.println("[Chalice2Silver] " + f))
+      Console.err.println("Chalice2Silver produced %s.".format(pluralize("error", chalice2SIL.failed.length)))
       return
     }
 
@@ -109,8 +109,8 @@ object Program {
     val messages = chalice2SIL.messages
 
     if (messages.nonEmpty) {
-      messages.foreach(m => Console.err.println("[Chalice2SIL] " + m))
-      Console.err.println("Chalice2SIL produced %s.".format(pluralize("message", messages.length)))
+      messages.foreach(m => Console.err.println("[Chalice2Silver] " + m))
+      Console.err.println("Chalice2Silver produced %s.".format(pluralize("message", messages.length)))
     }
 
     /* Print generated SIL program */
