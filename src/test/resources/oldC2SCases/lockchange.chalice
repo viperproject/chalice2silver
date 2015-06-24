@@ -1,4 +1,4 @@
-//:: ExpectedOutput(chalice2sil.error)
+//:: ExpectedOutput(chalice2silver.error)
 /* There has been an incompleteness due to the previous handling of mu-fields
  * and waitlevel-assertions. This incompleteness has been removed by also 
  * versioning mu-fields.
@@ -11,12 +11,15 @@
 class Cell { var x: int}
 
 class ProblemA {
+
 	method acqThis()
 		requires rd(mu) && waitlevel << mu
-		//:: ExpectedOutput(chalice2sil.error)
+		//:: ExpectedOutput(chalice2silver.error)
 		ensures holds(this)
 		lockchange this
-	{ acquire this }
+	{
+    acquire this
+  }
 	
 	method test() /* Previously failed  */
 		requires rd(mu) && waitlevel << mu
@@ -27,6 +30,7 @@ class ProblemA {
 }
 
 class ProblemB {
+
   var c: Cell
   invariant rd(c) && c != null && rd(c.mu) && rd(this.mu) && this << c
   // invariant rd(c) // && c != null && rd(c.mu) && rd(this.mu) && this << c
@@ -46,7 +50,7 @@ class ProblemB {
     ensures rd(mu)
   {
     acquire this
-	//:: ExpectedOutput(chalice2sil.error)
+		//:: ExpectedOutput(chalice2silver.error)
 		assert !holds(c)
 		assert this.mu == waitlevel
     acquire c
@@ -58,5 +62,7 @@ class ProblemB {
 class SimpleTest {
 	method test() /* @Error 340 */
 		requires rd(mu) && waitlevel << this
-	{ acquire this }
+	{
+    acquire this
+  }
 }

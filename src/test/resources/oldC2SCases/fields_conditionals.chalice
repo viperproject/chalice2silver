@@ -32,6 +32,8 @@ class Test {
 		 * executed and the assignment to m will fail.
 		 */
 		if (!b) {
+      //:: ExpectedOutput(assignment.failed:insufficient.permission)
+      //:: MissingOutput(assignment.failed:insufficient.permission, /Silicon/issue/34/)
 			m := y  // @Error 630 // in Syxc, b==true seems to be assumed
 		}
 	}
@@ -40,5 +42,6 @@ class Test {
 		requires b ==> acc(m)
 		//:: ExpectedOutput(postcondition.violated:insufficient.permission)
 		ensures !b ==> acc(m) /* @Error 330 */
-	{}
+	{
+  }
 }

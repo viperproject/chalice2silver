@@ -1,4 +1,4 @@
-//:: ExpectedOutput(chalice2sil.error)
+//:: ExpectedOutput(chalice2silver.error)
 
 class Cell {
   var x: int;
@@ -31,7 +31,7 @@ class Cell {
     assert(rd*(c.x));
     
     acquire c;
-	//:: ExpectedOutput(chalice2sil.error)
+    //:: ExpectedOutput(chalice2silver.error)
     unshare c;
     assert(rd*(c.x));
   }
@@ -50,7 +50,7 @@ class Cell {
     
     share c;
     acquire c;
-	//:: ExpectedOutput(chalice2sil.error)
+    //:: ExpectedOutput(chalice2silver.error)
     unshare c;
     assert(rd(c.x)); /* @Error 430 */
   }
@@ -95,7 +95,7 @@ class Cell2 {
     assert(rd*(c.x));
     
     acquire c;
-	//:: ExpectedOutput(chalice2sil.error)
+    //:: ExpectedOutput(chalice2silver.error)
     unshare c;
     assert(rd*(c.x));
     
@@ -103,7 +103,7 @@ class Cell2 {
   }
   
   method a4(c: Cell2)
-    //:: ExpectedOutput(chalice2sil.error)
+    //:: ExpectedOutput(chalice2silver.error)
     requires c != null && acc(c.mu) && holds(c);
     requires rd(c.x);
     lockchange c
@@ -118,7 +118,7 @@ class Cell2 {
     share c;
     acquire c;
     assert(acc(c.x));
-    //:: ExpectedOutput(chalice2sil.error)
+    //:: ExpectedOutput(chalice2silver.error)
     unshare c;
     assert(acc(c.x));
   }
@@ -129,16 +129,16 @@ class Cell2 {
     var n: int;
     
     share c;
-	//:: ExpectedOutput(chalice2sil.error)
+    //:: ExpectedOutput(chalice2silver.error)
     rd acquire c;
     n := c.x
-	//:: ExpectedOutput(chalice2sil.error)
+    //:: ExpectedOutput(chalice2silver.error)
     rd release c;
     
     n := c.x /* @Error 530 */
     
     acquire c;
-	//:: ExpectedOutput(chalice2sil.error)
+    //:: ExpectedOutput(chalice2silver.error)
     unshare c;
   }
   

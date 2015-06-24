@@ -1,4 +1,4 @@
-//:: IgnoreFile(/silicon/issue/22/)
+//:: IgnoreFile(/chalice2silver/issue/22/)
 class Cell {
   var x: int;
   

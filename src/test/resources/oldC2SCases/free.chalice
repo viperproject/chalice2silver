@@ -12,7 +12,7 @@ class Test {
     requires acc(p.mu)
   {
     p.x := a
-	//:: ExpectedOutput(chalice2sil.error)
+    //:: ExpectedOutput(chalice2silver.error)
     free p
     assert p.x == a /* @Error 430 */
   }
@@ -21,7 +21,7 @@ class Test {
     requires acc(p) && p != null
     requires acc(p.x) && acc(p.y)
   {
-    //:: ExpectedOutput(chalice2sil.error)
+    //:: ExpectedOutput(chalice2silver.error)
     free p /* @Error 630 */
   }
 
@@ -30,7 +30,7 @@ class Test {
     requires acc(p.x) && acc(p.y)
     requires acc(p.mu)
   { 
-    //:: ExpectedOutput(chalice2sil.error)
+    //:: ExpectedOutput(chalice2silver.error)
     free p 
   }
 }

@@ -1,16 +1,17 @@
 class C {
-    var f : int;
+  var f : int;
 
-    invariant acc(f);
+  invariant acc(f);
 
-    method main(){
-        var c : C := new C;
-        c.f := 5;
-        share c;
-        acquire c; c.f := 7; release c;
-        acquire c; c.f := 6
-		//:: ExpectedOutput(chalice2sil.error)
-		unshare c;
-        assert c.f == 6;
-    }
+  method main()
+  {
+    var c : C := new C;
+    c.f := 5;
+    share c;
+    acquire c; c.f := 7; release c;
+    acquire c; c.f := 6
+    //:: ExpectedOutput(chalice2silver.error)
+    unshare c;
+    assert c.f == 6;
+  }
 }

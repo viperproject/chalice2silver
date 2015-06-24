@@ -246,9 +246,9 @@ class LifeCycleTests {
 		requires c1 != null && rd(c1.mu) && waitlevel << c1.mu
 		requires c2 != null && rd(c2.mu) && c1.mu << c2.mu
 	{
-	    //:: ExpectedOutput(chalice2sil.error)
+    //:: ExpectedOutput(chalice2silver.error)
 		assert !holds(c1)
-		//:: ExpectedOutput(chalice2sil.error)
+		//:: ExpectedOutput(chalice2silver.error)
 		assert !holds(c2)
 		acquire c1
 		acquire c2
@@ -321,7 +321,7 @@ class LifeCycleTests {
 	{
 		share c
 		acquire c
-		//:: ExpectedOutput(chalice2sil.error)
+		//:: ExpectedOutput(chalice2silver.error)
 		unshare c
 		assert c.mu == lockbottom
 	}
@@ -330,7 +330,7 @@ class LifeCycleTests {
 		requires acc(c) && c != null && acc(c.mu) && c.mu == lockbottom
 	{
 		share c
-		//:: ExpectedOutput(chalice2sil.error)
+		//:: ExpectedOutput(chalice2silver.error)
 		unshare c /* @Error 1546 */
 	}
 	
@@ -344,7 +344,7 @@ class LifeCycleTests {
 		share c
 		call consumeAccMu(c)
 		acquire c
-		//:: ExpectedOutput(chalice2sil.error)
+		//:: ExpectedOutput(chalice2silver.error)
 		unshare c /* @Error 1530 */
 	}
 	

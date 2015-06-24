@@ -1,19 +1,21 @@
 // taken from the Chalice test suite. /tests/permission-model/peculiar.chalice
-class Cell {
+class Cell
+{
+
   var x: int;
 
   invariant rd(x);
 
   method t1()
     requires acc(x);
-	//:: UnexpectedOutput(postcondition.violated:insufficient.permission, /silicon/issue/55/)
+	  //:: UnexpectedOutput(postcondition.violated:insufficient.permission, /chalice2silver/issue/55/)
     ensures rd(x) && rd(x);
   {
   }
 
   method t2()
     requires acc(x,1);
-	//:: UnexpectedOutput(postcondition.violated:insufficient.permission, /silicon/issue/55/)
+	  //:: UnexpectedOutput(postcondition.violated:insufficient.permission, /chalice2silver/issue/55/)
     ensures rd(x);
   {
     call void();
@@ -28,14 +30,15 @@ class Cell {
   method t3helper()
     requires rd(x) && rd(x);
     ensures rd(x) && rd(x);
-  {}
+  {
+  }
 
   method t4()
     requires rd(x);
   {
     call dispose();
     call void(); // call succeeds, even though the precondition is also rd(x), and the next assertion fails
-	//:: ExpectedOutput(assert.failed:insufficient.permission)
+	  //:: ExpectedOutput(assert.failed:insufficient.permission)
     assert(rd(x)); // @Error 410
   }
 
@@ -52,8 +55,20 @@ class Cell {
     }
   }
 
-  method dispose() requires rd(x); {}
-  method void() requires rd(x); ensures rd(x); {}
-  method req99() requires acc(x,99); {}
+  method dispose()
+    requires rd(x)
+  {
+  }
+
+  method void()
+    requires rd(x)
+    ensures rd(x)
+  {
+  }
+
+  method req99()
+    requires acc(x,99)
+  {
+  }
 
 }

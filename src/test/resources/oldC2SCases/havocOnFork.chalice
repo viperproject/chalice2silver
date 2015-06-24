@@ -1,4 +1,4 @@
-//:: ExpectedOutput(chalice2sil.error)
+//:: ExpectedOutput(chalice2silver.error)
 class C {
     var f : int;
 

@@ -1,26 +1,26 @@
 class Main{
-    var f : int;
-    method work()
-        requires acc(f)
-        ensures acc(f)
-    {
-    }
+  var f : int;
+  method work()
+    requires acc(f)
+    ensures acc(f)
+  {
+  }
 
-    method main()
-        requires acc(f)
-        ensures acc(f)
-    {
-        f := 3;
-        fork tk := work();
-        call client(tk);
-    }
+  method main()
+    requires acc(f)
+    ensures acc(f)
+  {
+    f := 3;
+    fork tk := work();
+    call client(tk);
+  }
 
-    method client(tk : token<Main.work>)
-        requires acc(tk.joinable) && tk.joinable
-		//:: ExpectedOutput(chalice2sil.error)
-        requires eval(tk.fork this.work(), true)
-        ensures acc(f)
-    {
-        join tk;
-    }
+  method client(tk : token<Main.work>)
+    requires acc(tk.joinable) && tk.joinable
+    //:: ExpectedOutput(chalice2silver.error)
+    requires eval(tk.fork this.work(), true)
+    ensures acc(f)
+  {
+    join tk;
+  }
 }

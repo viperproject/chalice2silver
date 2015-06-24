@@ -85,11 +85,16 @@ class Consumptions {
 	method greedyWriter(z: int)
 		requires acc(x)
 		//:: ExpectedOutput(not.wellformed:insufficient.permission)
+    //:: MissingOutput(not.wellformed:insufficient.permission, /Carbon/issue/52/)
 		ensures x == z /* @Error 330 */
-	{ x := z }
+	{
+    x := z
+  }
 	
 	method failCallGreedyWriter(z: int)
 		requires acc(x)
-		//:: ExpectedOutput(call.precondition:insufficient.permission)
-	{ call greedyWriter(0) /* @Error 230 */ }
+	{
+		//:: UnexpectedOutput(call.precondition:insufficient.permission, /Silicon/issue/152/)
+    call greedyWriter(0) /* @Error 230 */
+  }
 }

@@ -70,6 +70,7 @@ class List {
 		ensures /* N2 */ len() > 0
 		ensures /* N3 */ len() == old(len()) + 1
 		ensures /* N4 */ get(len() - 1) == newval
+    //:: UnexpectedOutput(postcondition.violated:assertion.false, /Carbon/issue/51/)
 		ensures /* N5 */ forall i in [0..old(len())] :: get(i) == old(get(i))
   {
     var n: List;

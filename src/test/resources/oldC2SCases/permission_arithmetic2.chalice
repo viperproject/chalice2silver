@@ -1,6 +1,4 @@
-// !!!! Ignored because of /Chalice2Sil/issue/56/, but I [Malte] couldn't get
-// !!!! the annotation to work with "Chalice2Sil" instead of "Silicon".
-//:: IgnoreFile(/Silicon/issue/00/)
+//:: IgnoreFile(/Chalice2Silver/issue/56/)
 
 class Test01 {
   var f: int
@@ -117,7 +115,7 @@ class Test02 {
     unfold acc(P01, 33)
     unfold acc(P01, 33)
     unfold acc(P01, 34)
-    //:: UnexpectedOutput(fold.failed:negative.permission, /Chalice2Sil/issue/56/)
+    //:: UnexpectedOutput(fold.failed:negative.permission, /Chalice2Silver/issue/56/)
     fold acc(P01, 40)
     fold acc(P01, 11)
     fold acc(P01, 49)

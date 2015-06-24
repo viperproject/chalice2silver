@@ -14,7 +14,7 @@ class CellHolder {
 		requires acc(ac.x, 10)
 		requires acc(c)
 		ensures V
-		//:: UnexpectedOutput(postcondition.violated:insufficient.permission, /silicon/issue/55/)
+		//:: UnexpectedOutput(postcondition.violated:insufficient.permission, /Chalice2Silver/issue/55/)
 		ensures rd(c) && c == ac
 	{
 		c := ac

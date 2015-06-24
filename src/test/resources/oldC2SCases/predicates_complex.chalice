@@ -39,8 +39,10 @@ class ComplexPredicates {
 		ensures Z
 		ensures unfolding Z in z == z
 		//:: ExpectedOutput(not.wellformed:insufficient.permission)	
- ensures unfolding Z in z == old(z)
-	{}	
+    //:: MissingOutput(not.wellformed:insufficient.permission, /Carbon/issue/49/)
+    ensures unfolding Z in z == old(z)
+	{
+  }	
 	
 	method useZZ1()
 		requires ZZ
@@ -48,10 +50,12 @@ class ComplexPredicates {
 		ensures unfolding ZZ in
 			unfolding Z in
 				z == z
-	    //:: ExpectedOutput(not.wellformed:insufficient.permission)	
+	  //:: ExpectedOutput(not.wellformed:insufficient.permission)	
+    //:: MissingOutput(not.wellformed:insufficient.permission, /Carbon/issue/49/)
 		ensures unfolding ZZ in
 			unfolding Z in z == old(z)
-	{}
+	{
+  }
 	
 	method useZZ2(a: int)
 		requires ZZ
@@ -70,7 +74,9 @@ class ComplexPredicates {
 	method unfoldingZZ()
 		requires ZZ
 		ensures ZZ
-	{ var b: bool := unfolding ZZ in unfolding Z in z == z }
+	{
+    var b: bool := unfolding ZZ in unfolding Z in z == z
+  }
 	
 	method failUseZZ()
 		requires ZZ
@@ -78,7 +84,8 @@ class ComplexPredicates {
 		ensures unfolding ZZ in
 			unfolding Z in
 				z == old(z)
-	{}	
+	{
+  }	
 	
 	method useV()
 		requires V
@@ -105,6 +112,7 @@ class ComplexPredicates {
 		requires V
 		ensures V
 		//:: ExpectedOutput(not.wellformed:insufficient.permission)	
+    //:: MissingOutput(not.wellformed:insufficient.permission, /Carbon/issue/49/)
 		ensures unfolding V in
 			unfolding XY in
 				x == 1 && y == 2 && z == 3
@@ -126,7 +134,8 @@ class ComplexPredicates {
 		ensures unfolding V in
 			unfolding XY in
 				x == 1
-//:: ExpectedOutput(not.wellformed:insufficient.permission)				
+    //:: ExpectedOutput(not.wellformed:insufficient.permission)				
+    //:: MissingOutput(not.wellformed:insufficient.permission, /Carbon/issue/49/)
 		ensures y == 2
 	{
 		unfold V

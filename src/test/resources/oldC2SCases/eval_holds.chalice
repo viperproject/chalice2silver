@@ -1,15 +1,20 @@
 // @Ignore support for monitors is insufficient, see issue 16 of chalice2sil
 class Test {
+
 	function myHolds(): bool
 	{
 		/* Testing evaluation of holds-expressions */
-		//:: UnexpectedOutput(chalice2sil.error, /Silicon/issue/21/)
+		//:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/21/)
 		holds(this)
 	}
 	
 	function myITE(): bool
-	{ true ? false : true }
+	{
+    true ? false : true
+  }
 	
 	method test()
-	{ assert myHolds() == myITE() /* @Error 410 */ }
+	{
+    assert myHolds() == myITE() /* @Error 410 */
+  }
 }

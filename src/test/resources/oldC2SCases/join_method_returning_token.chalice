@@ -1,0 +1,17 @@
+class Cell {
+	
+	method noop() {}
+	
+	method get() returns (res: token<Cell.noop>)
+	{
+		fork tk := noop()
+    res := tk
+  }
+	
+	method test(a: int)
+	{
+    //:: ExpectedOutput(typechecker.error)
+    join get()
+	}
+}
+

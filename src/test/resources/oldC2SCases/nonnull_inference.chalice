@@ -1,4 +1,4 @@
-//:: IgnoreFile(/silicon/issue/21/)
+//:: IgnoreFile(/Chalice2Silver/issue/21/)
   // chalice2silver issue 21 includes the fact that channels are not supported
 class Cell {
 	var c: Cell

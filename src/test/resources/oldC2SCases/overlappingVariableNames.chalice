@@ -1,3 +1,4 @@
+//:: IgnoreFile(/Chalice2Silver/issue/64/)
 class Main{
     method main(){
         var x : int := 5;

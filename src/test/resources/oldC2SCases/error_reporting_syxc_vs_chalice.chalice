@@ -4,9 +4,11 @@ class Test {
 	predicate P { true }
 	
 	method test()
-	    //:: ExpectedOutput(not.wellformed:insufficient.permission)
+	  //:: ExpectedOutput(not.wellformed:insufficient.permission)
 		ensures b
 	{
+    //:: ExpectedOutput(unfold.failed:insufficient.permission)
+    //:: MissingOutput(assignment.failed:insufficient.permission, /Silicon/issue/34/)
 		unfold P
 	}
 }

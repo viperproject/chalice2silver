@@ -21,7 +21,7 @@ class CellContainer {
 		requires acc(d1.x) && acc(d2.x)
 		ensures acc(c1) && acc(c2)
 		ensures acc(d1.x) && acc(d2.x)
-    //:: UnexpectedOutput(application.precondition:assertion.false, /Silicon/issue/153/)
+    ensures c1 == d1 && c2 == d2
 		ensures get(false) == d2.get()
 		ensures get(true) == d1.get()
 	{

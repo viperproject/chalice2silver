@@ -1,27 +1,36 @@
-class Cell { var x: int }
+class Cell
+{
+  var x: int
+}
 
-class Test {
+class Test
+{
+
 	var c: Cell
 	
 	method test1()
-	//:: ExpectedOutput(chalice2sil.error)
+    //:: ExpectedOutput(chalice2silver.error)
 		requires acc(c) && c != null && rd holds(c)
-		//:: ExpectedOutput(chalice2sil.error)
-	{ assert !holds(c) }
+	{
+		//:: ExpectedOutput(chalice2silver.error)
+    assert !holds(c)
+  }
 	
 	method test2()
-	//:: ExpectedOutput(chalice2sil.error)
+    //:: ExpectedOutput(chalice2silver.error)
 		requires acc(c) && c != null && holds(c)
-		//:: ExpectedOutput(chalice2sil.error)
-	{ assert ! rd holds(c) }
+	{
+		//:: ExpectedOutput(chalice2silver.error)
+    assert ! rd holds(c)
+  }
 	
 	method test3()
-	//:: ExpectedOutput(chalice2sil.error)
+    //:: ExpectedOutput(chalice2silver.error)
 		requires acc(c) && c != null && rd holds(c) && !holds(c)
 	{
-	//:: ExpectedOutput(chalice2sil.error)
+    //:: ExpectedOutput(chalice2silver.error)
 		assert !holds(c)
-		//:: ExpectedOutput(chalice2sil.error)
+		//:: ExpectedOutput(chalice2silver.error)
 		assert rd holds(c) /* @Fails */
 	}
 }

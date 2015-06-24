@@ -94,10 +94,12 @@ class Calls {
   
   method test03()
     requires acc(x)
+	  //:: ExpectedOutput(postcondition.violated:insufficient.permission)
+    //:: MissingOutput(postcondition.violated:insufficient.permission, /Silicon/issue/34/)
     ensures rd(x)
   {
     call disposex()
-	//:: ExpectedOutput(assert.failed:insufficient.permission)
+	  //:: ExpectedOutput(assert.failed:insufficient.permission)
     assert rd(x)
     call disposex()
   }
@@ -127,7 +129,9 @@ class Loops {
     var b: bool
 
     while (true)
-	  //:: ExpectedOutput(invariant.not.preserved:assertion.false)
+      //:: ExpectedOutput(invariant.not.preserved:assertion.false)
+      //:: ExpectedOutput(invariant.not.established:assertion.false)
+      //:: MissingOutput(invariant.not.established:assertion.false, /Silicon/issue/34/)
       invariant b == true
     { b := false }
   }

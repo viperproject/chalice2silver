@@ -59,7 +59,9 @@ class Test {
 		ensures P
 		//:: ExpectedOutput(not.wellformed:insufficient.permission)
 		ensures unfolding P in x == old(unfolding P in x) /* @Error 830 */
-	{ fold P }
+	{
+    fold P
+  }
 	
 	method fail2()
 		requires acc(x)

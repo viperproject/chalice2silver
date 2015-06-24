@@ -102,7 +102,7 @@ class Test02 {
     ensures acc(V)
   {
     unfold rd(V)
-	//:: UnexpectedOutput(unfold.failed:insufficient.permission, /silicon/issue/55/)
+    //:: UnexpectedOutput(unfold.failed:insufficient.permission, /Chalice2Silver/issue/55/)
     unfold rd(V)
     fold rd(V)
     fold rd(V)
@@ -111,7 +111,7 @@ class Test02 {
   method test04()
     requires acc(V)
     ensures acc(V)
-	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
+	  //:: ExpectedOutput(postcondition.violated:insufficient.permission)
     ensures rd*(f) /* @Error 330 */
   {
     unfold acc(V, 20)

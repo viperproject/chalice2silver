@@ -5,15 +5,19 @@ class Test {
 	
 	function get(a: int): Cell
 		requires rd(c)
-	{ c }
+	{
+    c
+  }
 	
 	method succeeds(a: int)
 		requires rd(c) && get(0) != null && acc(get(0).x)
 		ensures rd(c) && get(0) != null && acc(get(0).x)
 		ensures get(0).x == a
+		ensures c.x == a
 	{
+    //:: UnexpectedOutput(assignment.failed:insufficient.permission, /Carbon/issue/50/)
 		get(0).x := a
-		// c.x := a /* Fails in Syxc due to fapp & heap lookup incompleteness */
+		c.x := a
 	}
 	
 	method fails(a: int)

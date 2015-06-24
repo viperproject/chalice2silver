@@ -24,14 +24,17 @@ class Cell {
 		                   * this.tk
 											 */
 		this.tk := tk 
+    //:: UnexpectedOutput(assignment.failed:insufficient.permission, /Carbon/issue/50/)
 		join get1()
 		
 		fork tk := noop()
 		this.tk := tk 
+    //:: UnexpectedOutput(assignment.failed:insufficient.permission, /Carbon/issue/50/)
 		join get2(a > 0)
 		
 		fork tk := noop()
 		this.tk := tk 		
+    //:: UnexpectedOutput(assignment.failed:insufficient.permission, /Carbon/issue/50/)
 		join get3(a > 0)
 	}
 }

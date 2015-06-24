@@ -19,13 +19,13 @@ class List {
     acquire p
     release this
 
-	//:: ExpectedOutput(chalice2sil.error)
+    //:: ExpectedOutput(chalice2silver.error)
     while (p.next != null) 
       invariant p != null && acc(p.next) && acc(p.mu,50)
-	  //:: ExpectedOutput(chalice2sil.error)
+      //:: ExpectedOutput(chalice2silver.error)
       invariant holds(p)
       invariant waitlevel == p.mu
-	  //:: ExpectedOutput(chalice2sil.error)
+      //:: ExpectedOutput(chalice2silver.error)
       invariant !old(holds(p)) && !old(rd holds(p))
       invariant p.next != null ==> acc(p.next.mu,50) && p << p.next
 	  lockchange p //, this

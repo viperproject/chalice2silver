@@ -1,32 +1,34 @@
 class Cell {
-    var f : int;
-    invariant acc(f);
+  var f : int;
+  invariant acc(f);
 }
+
 class Unshare {
-    method work_a(c : Cell)
-        requires rd(c.mu) && waitlevel << c.mu
-    {
-        acquire c;
-		//:: ExpectedOutput(chalice2sil.error)
-        unshare c;
-    }
+  method work_a(c : Cell)
+    requires rd(c.mu) && waitlevel << c.mu
+  {
+    acquire c;
+    //:: ExpectedOutput(chalice2silver.error)
+    unshare c;
+  }
 
-    method work_b(c : Cell)
-        requires rd(c.mu) && waitlevel << c.mu
-    {
-        acquire c;
-        release c;
-    }
+  method work_b(c : Cell)
+    requires rd(c.mu) && waitlevel << c.mu
+  {
+    acquire c;
+    release c;
+  }
 
-    method main() {
-        var c : Cell := new Cell;
+  method main()
+  {
+    var c : Cell := new Cell;
 
-        share c;
+    share c;
 
-        fork tk_a := work_a(c);
-        fork tk_b := work_b(c);
+    fork tk_a := work_a(c);
+    fork tk_b := work_b(c);
 
-        join tk_a;
-        join tk_b;
-    }
+    join tk_a;
+    join tk_b;
+  }
 }

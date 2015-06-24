@@ -1,5 +1,5 @@
-//:: IgnoreFile(/Silicon/issue/3/)
-  // Channels are not supported yet.  When they are, the specific example should be rewritten in the new obligations model
+//:: IgnoreFile(/Chalice2Silver/issue/21/)
+// Channels are not supported yet.  When they are, the specific example should be rewritten in the new obligations model
   
 class C {
   var f: int;
@@ -10,18 +10,18 @@ class C {
     requires ch != null && rd(f);
     ensures true;
   {
-    //:: UnexpectedOutput(chalice2sil.error, /silicon/issue/3/)
+    //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/21/)
     send ch(this) /* @Error 2130 */
   }
   
   method t1a(ch: C1)
     requires ch != null && acc(f, 2 * rd(P));
   {
-    //:: UnexpectedOutput(chalice2sil.error, /silicon/issue/3/)
+    //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/21/)
     send ch(this)
-	//:: UnexpectedOutput(chalice2sil.error, /silicon/issue/3/)
+    //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/21/)
     send ch(this)
-	//:: UnexpectedOutput(chalice2sil.error, /silicon/issue/3/)
+    //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/21/)
     send ch(this) /* @Error 2130 */
   }
   
@@ -29,7 +29,7 @@ class C {
     requires ch != null && acc(f);
     ensures true;
   {
-    //:: UnexpectedOutput(chalice2sil.error, /silicon/issue/3/)
+    //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/21/)
     send ch(this)
   }
   
@@ -37,7 +37,7 @@ class C {
     requires ch != null && rd(f);
     ensures rd(f); /* @Error 330 */
   {
-    //:: UnexpectedOutput(chalice2sil.error, /silicon/issue/3/)
+    //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/21/)
     send ch(this)
   }
   
@@ -45,7 +45,7 @@ class C {
     requires ch != null && credit(ch, 1) && rd(ch.mu) && waitlevel << ch;
     ensures rd*(b.f);
   {
-    //:: UnexpectedOutput(chalice2sil.error, /silicon/issue/3/)
+    //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/21/)
     receive b := ch
   }
   
@@ -53,11 +53,11 @@ class C {
     requires ch != null && acc(f);
     ensures true;
   {
-    //:: UnexpectedOutput(chalice2sil.error, /silicon/issue/3/)
+    //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/21/)
     send ch(this)
-	//:: UnexpectedOutput(chalice2sil.error, /silicon/issue/3/)
+    //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/21/)
     send ch(this)
-	//:: UnexpectedOutput(chalice2sil.error, /silicon/issue/3/)
+    //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/21/)
     send ch(this)
   }
   

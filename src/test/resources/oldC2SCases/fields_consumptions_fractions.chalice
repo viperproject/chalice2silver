@@ -53,6 +53,7 @@ class Test {
 	{
 		call greedyXRd()
 		//:: ExpectedOutput(assert.failed:insufficient.permission)
+    //:: MissingOutput(assert.failed:insufficient.permission, /Carbon/issue/49/)
 		assert(acc(x, 100))
 		call reqX100()
 		// call greedyXRd()

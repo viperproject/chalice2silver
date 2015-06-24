@@ -1,12 +1,14 @@
 class Main {
-    method main(b: bool) {
-      var x: int
+  method main(b: bool) {
+    var x: int
 
-      if (!b) {
-	    //:: ExpectedOutput(assert.failed:assertion.false)
-        assert x == 1
-      } else {
-        assert x == 2
-      }
+    if (!b) {
+      //:: ExpectedOutput(assert.failed:assertion.false)
+      assert x == 1
+    } else {
+      //:: ExpectedOutput(assert.failed:assertion.false)
+      //:: MissingOutput(assert.failed:assertion.false, /Silicon/issue/34/)
+      assert x == 2
     }
+  }
 }

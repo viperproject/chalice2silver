@@ -5,14 +5,14 @@ class Cell {
   
   method t1()
     requires acc(x);
-	//:: UnexpectedOutput(postcondition.violated:insufficient.permission, /silicon/issue/55/)
+	  //:: UnexpectedOutput(postcondition.violated:insufficient.permission, /Chalice2Silver/issue/55/)
     ensures rd(x) && rd(x);
   {
   }
   
   method t2()
     requires acc(x,1);
-	//:: UnexpectedOutput(postcondition.violated:insufficient.permission, /silicon/issue/55/)
+	  //:: UnexpectedOutput(postcondition.violated:insufficient.permission, /Chalice2Silver/issue/55/)
     ensures rd(x);
   {
     call void();
@@ -34,7 +34,7 @@ class Cell {
   {
     call dispose();
     call void(); // call succeeds, even though the precondition is also rd(x), and the next assertion fails
-	//:: ExpectedOutput(assert.failed:insufficient.permission)
+	  //:: ExpectedOutput(assert.failed:insufficient.permission)
     assert(rd(x)); /* @Error 410, as this check is done exactly (as it would in a postcondition) */
   }
   

@@ -51,7 +51,7 @@ class Cell
 
   method skip()
     requires P;
-	ensures P;
+    ensures P;
   {}
 
   // is the bookkeeping correct when calculating the secondary mask?
@@ -61,10 +61,10 @@ class Cell
   method foo(z:Cell)
     requires acc(value,50) && value==2 && z!=null && acc(z.value,50);
   {	
-	fold z.P;
-	fold P;
-	call boom(this, z);
-	assert this==z ==> unfolding P in value==100;
+    fold z.P;
+    fold P;
+    call boom(this, z);
+    assert this==z ==> unfolding P in value==100;
   }
   
   // give away half the permission: you still know the value
@@ -73,9 +73,9 @@ class Cell
     requires acc(value);
   {
     fold P;
-	fold P;
-	fork t:=skip();
-	assert unfolding P in value==old(value);
+    fold P;
+    fork t:=skip();
+    assert unfolding P in value==old(value);
   }
   
   // must fail: give away all permission, even in pieces, and you lose all information about value
@@ -84,10 +84,11 @@ class Cell
     requires acc(value);
   {
     fold P;
-	fold P;
-	fork t:=skip();
-	call skip ();
-	//:: ExpectedOutput(assert.failed:assertion.false)
-	assert unfolding P in value==old(value); /* @Error 410 */
+    fold P;
+    fork t:=skip();
+    call skip ();
+    //:: ExpectedOutput(assert.failed:assertion.false)
+    //:: MissingOutput(assert.failed:assertion.false, /Carbon/issue/49/)
+    assert unfolding P in value==old(value); /* @Error 410 */
   }
 }

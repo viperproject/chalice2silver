@@ -1,29 +1,29 @@
 class C {
-    var f : int;
-    predicate valid { rd(f) }
+  var f : int;
+  predicate valid { rd(f) }
 
-    method main() returns (x : int)
-        requires valid;
-        ensures valid;
-    {
-        unfold valid;
-        x := f;
-        fold valid;
-    }
+  method main() returns (x : int)
+    requires valid;
+    ensures valid;
+  {
+    unfold valid;
+    x := f;
+    fold valid;
+  }
 
-    method mkC() returns (c : C)
-        ensures c != null && c.valid
-    {
-        c := new C;
-        c.f := 5;
-        fold c.valid;
-    }
+  method mkC() returns (c : C)
+    ensures c != null && c.valid
+  {
+    c := new C;
+    c.f := 5;
+    fold c.valid;
+  }
 
-    method packC(c : C)
-        requires acc(c.f,rd(c.valid))
-        ensures c.valid
-    {
-	    //:: UnexpectedOutput(fold.failed:insufficient.permission, /silicon/issue/56/)
-        fold c.valid;
-    }
+  method packC(c : C)
+    requires acc(c.f,rd(c.valid))
+    ensures c.valid
+  {
+    //:: UnexpectedOutput(fold.failed:insufficient.permission, /Chalice2Silver/issue/56/)
+    fold c.valid;
+  }
 }

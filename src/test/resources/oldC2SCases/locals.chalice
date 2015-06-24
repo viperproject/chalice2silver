@@ -1,78 +1,12 @@
 class Test01 {
-  method test02() returns (a: int, b: int, c: int, d: int, e: int, f: int)
-    ensures a == 0
-    ensures b != 0
-    ensures c > 1
-    ensures d >= 2
-    ensures e < 5
-	//:: ExpectedOutput(postcondition.violated:assertion.false)
-    ensures f <= 2 /* @Error 310 */
-  {
-    a := 0
-    b := -1
-    c := 2
-    d := c
-    e := 4
-    f := e
-  }
+  var x: int
 
-  method test01() {
-    var a: int
-    
-    a := 0
-    assert a == 0
-    
-    a := 1
-    assert a == 1
-    
-    a := 2
-	//:: ExpectedOutput(assert.failed:assertion.false)
-    assert a > 2 /* @Error 410 */
-  }
-  
-  method test03() returns (a: int, b: int, c: int, d: int, e: int, f: int)
-    ensures a == 3
-    ensures a == b
-    ensures c == 0 - b
-    ensures c == f
-    ensures d == a
-	//:: ExpectedOutput(postcondition.violated:assertion.false)
-    ensures e != 0 /* @Error 310 */
+  method mm()
+    requires acc(x)
+    //:: ExpectedOutput(not.wellformed:insufficient.permission)
+    //:: MissingOutput(not.wellformed:insufficient.permission, /Carbon/issue/52/)
+    ensures x == 1 /* @Error 330 */
   {
-    a := 1 + 2
-    b := 5 - 2
-    c := a * -1
-    d := a / 1
-    e := 3 % 3
-    f := -b
+    x := 1
   }
-  
-  method test04() returns (a: bool, b: bool)
-    ensures a != b
-    ensures a == !b
-    ensures b ==> a
-    ensures (a && b) <==> false
-    ensures (a || b) <==> true
-	//:: ExpectedOutput(postcondition.violated:assertion.false)
-    ensures a ==> b /* @Error 310 */
-  {
-    a := true
-    b := false
-  }
-
-	var x: int
-	
-	method mm()
-		requires acc(x)
-		//:: ExpectedOutput(not.wellformed:insufficient.permission)
-		ensures x == 1 /* @Error 330 */
-	{
-		x := 0
-		
-		if (1 == 1) {
-			x := 1
-		} else {
-			x := 2
-		}
-	}
 }
