@@ -1,23 +1,23 @@
 class Cell {
   var x: int;
-  
+
   // --- some predicates ---
-  
+
   predicate write1 { acc(x) } // full permission in a predicate
   predicate read1 { rd(x) } // abstract read permission
   predicate read2 { rd*(x) } // starred read permission
-  
+
   // --- permission scaling ---
-  
+
   method s1()
     requires rd(read1);
   {
     unfold rd(read1);
     assert(rd*(x));
-	//:: ExpectedOutput(assert.failed:insufficient.permission)
+    //:: ExpectedOutput(assert.failed:insufficient.permission)
     assert(rd(x)); /* @Error 430 */
   }
-  
+
   method s2()
     requires rd(read1);
     ensures rd(read1);
@@ -25,31 +25,31 @@ class Cell {
     unfold rd(read1);
     fold rd(read1);
   }
-  
+
   method s3()
     requires acc(x);
     ensures rd(read1);
   {
     fold rd(read1);
     assert(rd*(x));
-	//:: ExpectedOutput(assert.failed:insufficient.permission)
+    //:: ExpectedOutput(assert.failed:insufficient.permission)
     assert(acc(x)); /* @Error 430 */
   }
-  
+
   method s4()
     requires acc(x);
-	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
+    //:: ExpectedOutput(postcondition.violated:insufficient.permission)
     ensures read1; /* @Error 330 */
   {
     fold rd(read1);
   }
-  
+
   method s5()
     requires rd(read2);
   {
     unfold rd(read2);
     assert(rd*(x));
-	//:: ExpectedOutput(assert.failed:insufficient.permission)
+    //:: ExpectedOutput(assert.failed:insufficient.permission)
     assert(rd(x)); /* @Error 430 */
   }
 
@@ -59,44 +59,44 @@ class Cell {
   {
     fold rd(read2);
     assert(rd*(x));
-	//:: ExpectedOutput(assert.failed:insufficient.permission)
+    //:: ExpectedOutput(assert.failed:insufficient.permission)
     assert(acc(x)); /* @Error 430 */
   }
-  
+
   method s7()
     requires acc(x);
-	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
+    //:: ExpectedOutput(postcondition.violated:insufficient.permission)
     ensures read2; /* @Error 330 */
   {
     fold rd(read2);
   }
-  
+
   // --- helper functions ---
-  
+
   method void() requires rd(x); ensures rd(x); {}
-  method dispose() requires rd(x); {}  
+  method dispose() requires rd(x); {}
 }
 
 class Test02 {
   var f: int
-  
+
   predicate V { acc(f, 50) }
-  
+
   method test01()
     requires rd(V)
   {
     unfold rd(V)
-	//:: ExpectedOutput(assert.failed:insufficient.permission)
+    //:: ExpectedOutput(assert.failed:insufficient.permission)
     assert rd*(V) /* @Error 430 */
   }
-  
+
   method test02()
     requires rd(V) && rd(V)
   {
     unfold rd(V)
     assert rd*(V)
   }
-  
+
   method test03()
     requires acc(V)
     ensures acc(V)
@@ -107,11 +107,12 @@ class Test02 {
     fold rd(V)
     fold rd(V)
   }
-  
+
   method test04()
     requires acc(V)
     ensures acc(V)
-	  //:: ExpectedOutput(postcondition.violated:insufficient.permission)
+    //:: ExpectedOutput(postcondition.violated:insufficient.permission)
+    //:: MissingOutput(postcondition.violated:insufficient.permission, /Carbon/issue/54/)
     ensures rd*(f) /* @Error 330 */
   {
     unfold acc(V, 20)

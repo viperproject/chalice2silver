@@ -7,6 +7,7 @@ class Test {
 		requires P
 		ensures P
 		//:: ExpectedOutput(not.wellformed:insufficient.permission)
+    //:: MissingOutput(not.wellformed:insufficient.permission, /Carbon/issue/53/)
 		ensures unfolding P in x == old(x) /* @Error 830 */
 	{}
 	
@@ -28,6 +29,7 @@ class Test {
 		requires P
 		ensures P
 		//:: ExpectedOutput(not.wellformed:insufficient.permission)
+    //:: MissingOutput(not.wellformed:insufficient.permission, /Carbon/issue/53/)
 		ensures unfolding P in x == old(x) + 1 /* @Error 830 */
 	{
 		unfold P
@@ -58,6 +60,7 @@ class Test {
 		requires acc(x)
 		ensures P
 		//:: ExpectedOutput(not.wellformed:insufficient.permission)
+    //:: MissingOutput(not.wellformed:insufficient.permission, /Carbon/issue/53/)
 		ensures unfolding P in x == old(unfolding P in x) /* @Error 830 */
 	{
     fold P

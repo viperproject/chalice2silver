@@ -1,133 +1,133 @@
-// @Ignore MatchError for IfThenElseTerm, see issue 3
+//:: IgnoreFile(/Chalice2Silver/issue/55/)
 class Async {
-	var x: bool
-	
-	method negX() returns (y: bool)
-		requires acc(x)
-		ensures acc(x)
-		ensures x == !old(x)
-		ensures y == old(x)
-	{
-		y := x
-		x := !x
-	}
-	
-	method greedyNegX() returns (y: bool)
-		requires acc(x)
-		ensures rd(x)
-		ensures x == !old(x)
-		ensures y == old(x)
-	{
-		y := x
-		x := !x
-	}	
-	
-	method useNegX()
-		requires acc(x)
-		ensures acc(x)
-	{
-		var y: bool
-		x := true
-		fork tk := negX()
-		join y := tk
-		assert(x == false)
-		assert(y == true)
-	}
-	
-	method failUseNegX()
-		requires acc(x)
-	{
-		fork tk1 := negX()
-		//:: ExpectedOutput(assignment.failed:insufficient.permission)
-		fork tk2 := negX() /* @Error 230 */
-	}
+  var x: bool
 
-	method useGreedyNegX() returns (b: bool)
-		requires acc(x)
-		ensures rd(x) /* @Error 330 */
-		ensures x == !old(x)
-		ensures b == old(x)
-	{
-		fork tk := greedyNegX()
-		join b := tk
-	}
+  method negX() returns (y: bool)
+    requires acc(x)
+    ensures acc(x)
+    ensures x == !old(x)
+    ensures y == old(x)
+  {
+    y := x
+    x := !x
+  }
 
-	method failUseGreedyNegX()
-		requires acc(x)
-	{
-		fork tk1 := greedyNegX()
-		//:: ExpectedOutput(assignment.failed:insufficient.permission)
-		fork tk2 := greedyNegX() /* @Error 230 */
-	}
+  method greedyNegX() returns (y: bool)
+    requires acc(x)
+    ensures rd(x)
+    ensures x == !old(x)
+    ensures y == old(x)
+  {
+    y := x
+    x := !x
+  }
+
+  method useNegX()
+    requires acc(x)
+    ensures acc(x)
+  {
+    var y: bool
+    x := true
+    fork tk := negX()
+    join y := tk
+    assert(x == false)
+    assert(y == true)
+  }
+
+  method failUseNegX()
+    requires acc(x)
+  {
+    fork tk1 := negX()
+    //:: ExpectedOutput(assignment.failed:insufficient.permission)
+    fork tk2 := negX() /* @Error 230 */
+  }
+
+  method useGreedyNegX() returns (b: bool)
+    requires acc(x)
+    ensures rd(x) /* @Error 330 */
+    ensures x == !old(x)
+    ensures b == old(x)
+  {
+    fork tk := greedyNegX()
+    join b := tk
+  }
+
+  method failUseGreedyNegX()
+    requires acc(x)
+  {
+    fork tk1 := greedyNegX()
+    //:: ExpectedOutput(assignment.failed:insufficient.permission)
+    fork tk2 := greedyNegX() /* @Error 230 */
+  }
 }
 
 class Cell {
-	var x: int
-	
-	method set_(a: int)
-		requires acc(x)
-		ensures acc(x)
-		ensures x == a
-	{ x := a }
-	
-	method double()
-		requires acc(x)
-		ensures acc(x)
-		ensures x == 2 * old(x)
-	{ x := x + x }
-	
-	method inc()
-		requires acc(x)
-		ensures acc(x)
-		ensures x == old(x) + 1
-	{ x := x + 1}
+  var x: int
+
+  method set_(a: int)
+    requires acc(x)
+    ensures acc(x)
+    ensures x == a
+  { x := a }
+
+  method double()
+    requires acc(x)
+    ensures acc(x)
+    ensures x == 2 * old(x)
+  { x := x + x }
+
+  method inc()
+    requires acc(x)
+    ensures acc(x)
+    ensures x == old(x) + 1
+  { x := x + 1}
 }
 
 class CellFactory {
-	method make(a: int) returns (c: Cell)
-		ensures c != null
-		ensures acc(c.x)
-		ensures c.x == a
-	{
-		c := new Cell
-		c.x := a
-	}
-	
-	method useMake(a: int)
-	{
-		var c1: Cell
-		var c2: Cell
-		var c3: Cell
-		var c4: Cell
+  method make(a: int) returns (c: Cell)
+    ensures c != null
+    ensures acc(c.x)
+    ensures c.x == a
+  {
+    c := new Cell
+    c.x := a
+  }
 
-		fork tk1 := make(9)
-		fork tk2 := make(10)
-		fork tk3 := make(11)
-		join c2 := tk2
-		assert(c2.x == 10)
-		join c1 := tk1
-		assert(c1.x == 9)
-		join c3 := tk3
-		assert(c3.x == 11)
-		fork tk4 := make(c3.x + 1)
-		join c4 := tk4
-		assert(c4.x == 12)
-	}
+  method useMake(a: int)
+  {
+    var c1: Cell
+    var c2: Cell
+    var c3: Cell
+    var c4: Cell
+
+    fork tk1 := make(9)
+    fork tk2 := make(10)
+    fork tk3 := make(11)
+    join c2 := tk2
+    assert(c2.x == 10)
+    join c1 := tk1
+    assert(c1.x == 9)
+    join c3 := tk3
+    assert(c3.x == 11)
+    fork tk4 := make(c3.x + 1)
+    join c4 := tk4
+    assert(c4.x == 12)
+  }
 }
 
 
 
 
 class ReuseTokens {
-	method reuse() {
-		var c1: Cell := new Cell
-		var c2: Cell := new Cell
-		fork tk := c1.set_(5)
-		fork tk := c2.set_(7)
-		join tk
-		assert(c2.x == 7)
-		// assert(c1.x == 5) /* Fails - c1.x might not be readable */
-	}
+  method reuse() {
+    var c1: Cell := new Cell
+    var c2: Cell := new Cell
+    fork tk := c1.set_(5)
+    fork tk := c2.set_(7)
+    join tk
+    assert(c2.x == 7)
+    // assert(c1.x == 5) /* Fails - c1.x might not be readable */
+  }
 }
 
 
