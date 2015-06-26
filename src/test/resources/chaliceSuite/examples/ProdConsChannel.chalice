@@ -1,4 +1,4 @@
-//:: IgnoreFile(/Silicon/issue/3/)
+//:: IgnoreFile(/Chalice2Silver/issue/21/)
   // Channels are not supported yet.  When they are, the specific example should be rewritten in the new obligations model
 
 class Cell {

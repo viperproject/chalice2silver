@@ -3,6 +3,7 @@
 // if possible without mu reordering, which is not supported at all
 
 class Client {
+
   method Main(d: Data)
     requires d != null
   {
@@ -16,7 +17,9 @@ class Client {
 }
 
 class AssociationList {
+
   var head: Node  // sentinel
+
   invariant rd(head) && head != null
   invariant rd(mu) && rd(head.mu) && this << head
 
@@ -65,15 +68,15 @@ class AssociationList {
         d := p.next.value
       } else {
         var done := false
-		//:: UnexpectedOutput(chalice2sil.error, /silicon/issue/21/)
+        //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/21/)
         while (!done)  // unwanted output because of "lockchange"
           // invariant:  holds p and p.next
           invariant p != null && rd(p.key) && rd(p.value) && acc(p.next) && acc(p.mu,50) && p.next != null
           invariant acc(p.next.mu) && p << p.next
           invariant rd(p.next.key) && rd(p.next.value) && acc(p.next.next)
           invariant p.next.next != null ==>
-              acc(p.next.next.mu,50) && p.next << p.next.next
-	      //:: UnexpectedOutput(chalice2sil.error, /silicon/issue/21/)
+          acc(p.next.next.mu,50) && p.next << p.next.next
+          //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/21/)
           invariant holds(p) && holds(p.next) && waitlevel == p.next.mu
           invariant p.next.next != null ==> waitlevel << p.next.next
           lockchange p, p.next.next
@@ -91,7 +94,7 @@ class AssociationList {
               p.next := t.next
               t.next := p.next.next
               p.next.next := t
-			  //:: ExpectedOutput(chalice2sil.error)
+              //:: ExpectedOutput(chalice2silver.error)
               reorder t between p.next and t.next
               release t
             } else {
@@ -110,8 +113,7 @@ class AssociationList {
 
 class Data { }
 
-class Node
-{
+class Node {
   var key: int
   var value: Data
   var next: Node

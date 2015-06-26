@@ -1,9 +1,10 @@
-//:: IgnoreFile(/Silicon/issue/3/)
-  // Channels are not supported yet.  When they are, the specific example should be rewritten in the new obligations model
-  
+//:: IgnoreFile(/Chalice2Silver/issue/21/)
+// Channels are not supported yet.  When they are, the specific example should be rewritten in the new obligations model
+
 channel NumberStream(x: int) where 2 <= x ==> credit(this);
 
 class Sieve {
+
   method Counter(n: NumberStream, to: int)  // sends the plurals along n
     requires rd(n.mu) && credit(n,-1) && 0 <= to;
   {
@@ -34,7 +35,6 @@ class Sieve {
         send s(x);
       }
       receive x := r;
-      
     }
     send s(-1);
   }

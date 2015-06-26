@@ -1,17 +1,16 @@
-//:: IgnoreFile(/Silicon/issue/37/)
-  // Since the eval statement is not supported, this file should produce a fatal Chalice2Silver error
-  
+//:: IgnoreFile(/Chalice2Silver/issue/65/)
+
 class C {
-  
+
   var f: int;
-  
+
   method main(n: int)
     requires n > 0 && acc(this.f)
     ensures acc(this.f)
   {
     // fork all threads, and join them afterwards
     call work(n);
-    
+
     this.f := 100; // we want a full permission in the end
   }
 
@@ -20,7 +19,7 @@ class C {
     ensures rd(this.f,n)
   {
     var tks:seq<token<C.m>> := nil<token<C.m>>;
-    
+
     // first loop; fork all threads
     var i := 0;
     while (i < n)
@@ -35,7 +34,7 @@ class C {
       tks := tks ++ [tk];
       i := i+1;
     }
-    
+
     // second loop; join all threads
     i := n;
     while (i > 0)
@@ -53,7 +52,7 @@ class C {
       tks := tks[0..i];
     }
   }
-  
+
   method m()
     requires rd(this.f,1);
     ensures rd(this.f,1);

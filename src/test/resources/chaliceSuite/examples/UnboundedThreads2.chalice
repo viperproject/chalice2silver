@@ -1,0 +1,12 @@
+//:: IgnoreFile(/Chalice2Silver/issue/65/)
+class C {
+
+  method work(n: int)
+  {
+    var tks:seq<token<C.m>> := nil<token<C.m>>;
+    assert acc(tks[*].joinable);
+  }
+
+  method m() {}
+
+}

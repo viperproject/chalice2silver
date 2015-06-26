@@ -12,42 +12,42 @@ channel C(msg: bool, n: Node) where n!= null && acc(n.next) && acc(n.mu) && (msg
 
 class Node {
   var next: Node;
-  
+
   function length(): int
     requires this.list;
   {
     unfolding this.list in 1 + (next == null ? 0 : next.length())
   }
-  
+
   predicate list {
     acc(next) && acc(mu) && (next != null ==> next.list)
   }
 }
 
 class Program {
-  method Putter(e: C, x0: Node) 
+  method Putter(e: C, x0: Node)
     requires e!= null && acc(e.mu, 50) && (x0 != null ==> x0.list) && (x0 != null ==> credit(e, - 1));
   {
     var x: Node := x0;
     var t: Node;
-    
-    while(x != null) 
+
+    while(x != null)
       invariant (x != null ==> x.list) && (x!=null ==> acc(e.mu, 50)) && (x != null ==> credit(e, - 1));
     {
       unfold x.list;
       t := x.next;
       if(t != null) {
-	     //:: UnexpectedOutput(chalice2sil.error, /silicon/issue/3/)
+        //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/21/)
         send e(true, x);
       } else {
-	     //:: UnexpectedOutput(chalice2sil.error, /silicon/issue/3/)
+        //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/21/)
         send e(false, x);
       }
       x := t;
     }
-  }  
-  
-  method Getter(f: C) 
+  }
+
+  method Getter(f: C)
     requires f!= null && credit(f, 1) && acc(f.mu, 50) && waitlevel << f.mu;
   {
     var x: Node := null;
@@ -55,16 +55,16 @@ class Program {
     while(msg)
       invariant acc(f.mu, 50) && waitlevel << f.mu && (msg ==> credit(f, 1)) && (!msg ==> acc(f.mu, 50));
     {
-	  //:: UnexpectedOutput(chalice2sil.error, /silicon/issue/3/)
+      //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/21/)
       receive msg, x := f;
       if(msg) {
-	    //:: ExpectedOutput(chalice2sil.error)
+        //:: ExpectedOutput(chalice2silver.error)
         free x;
       }
     }
-	//:: ExpectedOutput(chalice2sil.error)
+    //:: ExpectedOutput(chalice2silver.error)
     free f; // close the channel
-  } 
+  }
 
   method Main(x: Node)
     requires x != null;
@@ -73,8 +73,5 @@ class Program {
     var e := new C;
     fork Putter(e, x);
     fork Getter(e);
-  }  
+  }
 }
-
-
-

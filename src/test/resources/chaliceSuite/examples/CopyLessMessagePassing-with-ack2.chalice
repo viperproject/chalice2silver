@@ -1,6 +1,6 @@
-//:: IgnoreFile(/Silicon/issue/3/)
-  // Channels are not supported yet.  When they are, the specific example should be rewritten in the new obligations model
-  
+//:: IgnoreFile(/Chalice2Silver/issue/21/)
+// Channels are not supported yet.  When they are, the specific example should be rewritten in the new obligations model
+
 // program inspired by "Proving Copyless Message Passing" (Villard, Lozes and Calcagno, APLAS 2009)
 
 // msg tag indicates what the type of the message
@@ -14,32 +14,32 @@
 
 channel AckChannel(ch: C) where ch != null && credit(ch, -1); // ack
 
-channel C(msg: bool, n: Node, ackC: AckChannel) where 
+channel C(msg: bool, n: Node, ackC: AckChannel) where
   (!msg ==> acc(this.mu, 50) && acc(ackC.mu, 50)) &&
-  (msg ==> n != null && acc(n.next) && acc(n.mu) && ackC != null && credit(ackC, -1)); // cell 
+  (msg ==> n != null && acc(n.next) && acc(n.mu) && ackC != null && credit(ackC, -1)); // cell
 
 class Node {
   var next: Node;
-  
+
   function length(): int
     requires this.list;
   {
     unfolding this.list in 1 + (next == null ? 0 : next.length())
   }
-  
+
   predicate list {
     acc(next) && acc(mu) && (next != null ==> next.list)
   }
 }
 
 class Program {
-  method Putter(e: C, x0: Node, ackC: AckChannel) 
+  method Putter(e: C, x0: Node, ackC: AckChannel)
     requires e!= null && acc(e.mu, 50) && e.mu == waitlevel && acc(ackC.mu, 50) && e.mu << ackC.mu && (x0 != null ==> x0.list) && (x0 != null ==> credit(e, - 1));
   {
     var x: Node := x0;
     var t: Node;
-    
-    while(x != null) 
+
+    while(x != null)
       invariant (x != null ==> x.list) && acc(e.mu, 50) && acc(ackC.mu, 50) && e.mu << ackC.mu && credit(e, - 1);
     {
       unfold x.list;
@@ -53,9 +53,9 @@ class Program {
       if(ctmp != e) { assume false; /* abort */ }
     }
     send e(false, null, ackC);
-  }  
-  
-  method Getter(f: C, ackC: AckChannel) 
+  }
+
+  method Getter(f: C, ackC: AckChannel)
     requires f!= null && credit(f, 1) && acc(f.mu, 50) && waitlevel << f.mu && ackC != null && acc(ackC.mu, 50) && f.mu << ackC.mu;
   {
     var x: Node := null;
@@ -72,7 +72,7 @@ class Program {
       }
     }
     free f; // close the channel
-  } 
+  }
 
   method Main(x: Node)
     requires x != null;
@@ -82,8 +82,5 @@ class Program {
     var ackC := new AckChannel above e;
     fork Putter(e, x, ackC);
     fork Getter(e, ackC);
-  }  
+  }
 }
-
-
-

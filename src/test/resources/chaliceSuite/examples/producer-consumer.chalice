@@ -1,5 +1,4 @@
-//:: IgnoreFile(/Silicon/issue/48/)
-  // real issue: Chalice2Sil 48
+//:: IgnoreFile(/Chalice2Silver/issue/48/)
   
 class Program {
   method main(){

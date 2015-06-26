@@ -86,6 +86,7 @@ class Program module Main {
     fork tk2 := kant.run();
 
     // everyone's done
+    //:: UnexpectedOutput(assert.failed:assertion.false, /Carbon/issue/56/)
     join tk0;
     join tk1;
     join tk2;

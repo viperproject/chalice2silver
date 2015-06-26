@@ -1,44 +1,48 @@
-//:: IgnoreFile(/Silicon/issue/3/)
-  // Channels are not supported yet.  When they are, the specific example should be rewritten in the new obligations model
+//:: IgnoreFile(/Chalice2Silver/issue/21/)
+// Channels are not supported yet.  When they are, the specific example should be rewritten in the new obligations model
 
 // program inspired by "Proving Copyless Message Passing" (Villard, Lozes and Calcagno, APLAS 2009)
 
 // msg tag indicates what the type of the message
 // channel is freed by Getter when it completes
-// ack works, but an assume is needed and negative credits are sent over channels! 
+// ack works, but an assume is needed and negative credits are sent over channels!
 
 // Conjecture: it is ok to send debit for yourself over yourself.
-// Why: Suppose a channel that allows self-debt is involved in a deadlock. The either that channel is empty, which means there's no difference between the situation with or with self-debt. Or the channel is non-empty. This means that we can make progress by receiving the message stored in the channel! Does this make any sense?
+// Why: Suppose a channel that allows self-debt is involved in a
+// deadlock. The either that channel is empty, which means there's no
+// difference between the situation with or with self-debt. Or the channel
+// is non-empty. This means that we can make progress by receiving the
+// message stored in the channel! Does this make any sense?
 
-channel C(msg: int, n: Node) where 
+channel C(msg: int, n: Node) where
   (msg == 0 || msg == 1 || msg == 2) &&
   (msg == 0 ==> credit(this, -1)) && // ack
   (msg == 1 ==> n != null && acc(n.next) && acc(n.mu) && credit(this, -1)) && // cell
   (msg == 2 ==> acc(this.mu, 50)); // done
-  
+
 
 class Node {
   var next: Node;
-  
+
   function length(): int
     requires this.list;
   {
     unfolding this.list in 1 + (next == null ? 0 : next.length())
   }
-  
+
   predicate list {
     acc(next) && acc(mu) && (next != null ==> next.list)
   }
 }
 
 class Program {
-  method Putter(e: C, x0: Node) 
+  method Putter(e: C, x0: Node)
     requires e!= null && acc(e.mu, 50) && e.mu == waitlevel && (x0 != null ==> x0.list) && (x0 != null ==> credit(e, - 1));
   {
     var x: Node := x0;
     var t: Node;
-    
-    while(x != null) 
+
+    while(x != null)
       invariant (x != null ==> x.list) && acc(e.mu, 50) && credit(e, - 1);
     {
       unfold x.list;
@@ -51,9 +55,9 @@ class Program {
       if(ack != 2) { assume false; /* abort */ }
     }
     send e(2, null);
-  }  
-  
-  method Getter(f: C) 
+  }
+
+  method Getter(f: C)
     requires f!= null && credit(f, 1) && acc(f.mu, 50) && waitlevel << f.mu;
   {
     var x: Node := null;
@@ -64,7 +68,7 @@ class Program {
     {
       assert msg == 1
       receive msg, x := f;
-      
+
       if(msg == 1) {
         free x;
       }
@@ -74,7 +78,7 @@ class Program {
     receive msg, x := f;
     if (msg != 2) { assume false; /* abort */ }
     free f; // close the channel
-  } 
+  }
 
   method Main(x: Node)
     requires x != null;
@@ -83,7 +87,7 @@ class Program {
     var e := new C;
     fork Putter(e, x);
     fork Getter(e);
-  }  
+  }
 }
 
 

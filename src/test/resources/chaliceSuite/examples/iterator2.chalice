@@ -1,4 +1,4 @@
-//:: IgnoreFile(/Silicon/issue/45/)
+//:: IgnoreFile(/Chalice2Silver/issue/45/)
 
 /* Iterator pattern in Chalice. */
 
@@ -10,10 +10,10 @@ class List module Collections {
     ensures valid && size()==0;
   {
     contents := nil<int>;
-    fold valid; 
+    fold valid;
   }
 
-  method add(x: int) 
+  method add(x: int)
     requires valid;
     ensures valid && size() == old(size()+1) && get(size()-1) == x; // I don't know why this happens.
     ensures forall i in [0..size()-1] :: get(i) == old(get(i));
@@ -23,13 +23,13 @@ class List module Collections {
     fold valid;
   }
 
-  function get(index: int): int 
+  function get(index: int): int
     requires rd(valid) && 0<=index && index<size();
   {
     unfolding rd(valid) in contents[index]
   }
 
-  function size(): int 
+  function size(): int
     requires rd(valid);
     ensures 0<=result;
   {
@@ -57,7 +57,7 @@ class Iterator module Collections {
     fold valid;
   }
 
-  method next() returns (rt: int) 
+  method next() returns (rt: int)
     requires valid && hasNext();
     ensures valid;
     ensures getList()==old(getList());
@@ -75,7 +75,7 @@ class Iterator module Collections {
     unfold valid;
   }
 
-  function hasNext(): bool 
+  function hasNext(): bool
     requires valid;
   {
     unfolding valid in index<list.size()
@@ -102,7 +102,7 @@ class Program module Main {
     call list.init();
     call list.add(5);
     call list.add(6);
- 
+
     // create a new iterator
     var iter1 := new Iterator;
     call iter1.init(list);
@@ -110,7 +110,7 @@ class Program module Main {
     // create a second iterator
     var iter2 := new Iterator;
     call iter2.init(list);
-    
+
     // iterate over the list
     while(iter1.hasNext())
       invariant iter1.valid && iter1.getList()==list;

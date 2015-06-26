@@ -1,6 +1,3 @@
-//:: IgnoreFile(/Silicon/issue/37/)
-  // Since the free statement is not supported, this file should produce a fatal Chalice2Silver error
-
 // chalice-parameter=-checkLeaks -defaults -autoFold
 // verify this program with -checkLeaks -defaults -autoFold
 
@@ -44,6 +41,7 @@ class RockBand module M {
   {
     call gt.Dispose()
     call b3.Dispose()
+    //:: ExpectedOutput(chalice2silver.error)
     free this
   }
 
@@ -67,6 +65,7 @@ class Guitar module Musicians {
   method Dispose()
     requires Valid && acc(mu)
   {
+    //:: ExpectedOutput(chalice2silver.error)
     free this
   }
   method Strum()
@@ -86,6 +85,7 @@ class Vocalist module Musicians {
   method Dispose()
     requires Valid && acc(mu)
   {
+    //:: ExpectedOutput(chalice2silver.error)
     free this
   }
   method Strum()
@@ -105,6 +105,7 @@ class Organ module Musicians {
   method Dispose()
     requires Valid && acc(mu)
   {
+    //:: ExpectedOutput(chalice2silver.error)
     free this
   }
   method Grind()

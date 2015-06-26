@@ -13,11 +13,12 @@ class Node {
     fold this.valid;
   }
 
-  method add(x: int) 
+  method add(x: int)
     requires valid;
     ensures valid;
     ensures size() == old(size())+1;
-	//:: UnexpectedOutput(postcondition.violated:assertion.false, /silicon/issue/113/)
+    //:: UnexpectedOutput(postcondition.violated:assertion.false, /Silicon/issue/113/)
+    //:: UnexpectedOutput(postcondition.violated:assertion.false, /Carbon/issue/55/)
     ensures (forall y:int :: contains(y)==(old(contains(y)) || x==y));  // Silicon issue 113
   {
     unfold this.valid;
@@ -31,28 +32,30 @@ class Node {
     }
     fold this.valid;
   }
-  
-    method addother(i:int)
-      requires valid
-      ensures valid && (forall x:int :: contains(x)==(old(contains(x)) || x==i))
+
+  method addother(i:int)
+    requires valid
+    ensures valid && (forall x:int :: contains(x)==(old(contains(x)) || x==i))
+  {
+    unfold valid
+    if(next!=null)
     {
-      unfold valid
-      if(next!=null)
-      { 
-	    assert acc(next) && next!=null && next.valid // lemma
-        call next.addother(i)
-		//:: UnexpectedOutput(assert.failed:insufficient.permission, /silicon/issue/113/)
-		assert acc(next) && next!=null && next.valid && (forall x:int :: next.contains(x)==(old(next.contains(x)) || x==i)) // Silicon issue 113
-      }
-      else
-      { 	  
-        next:=new Node
-        next.value:=i
-        next.next:=null
-        fold next.valid
-		assert (forall x:int :: next.contains(x)==(x==i))  // lemma
-      }
-	  fold valid
+      assert acc(next) && next!=null && next.valid // lemma
+      call next.addother(i)
+      //:: UnexpectedOutput(assert.failed:insufficient.permission, /Silicon/issue/113/)
+      //:: UnexpectedOutput(assert.failed:insufficient.permission, /Carbon/issue/55/)
+      //:: UnexpectedOutput(application.precondition:insufficient.permission, /Carbon/issue/55/)
+      assert acc(next) && next!=null && next.valid && (forall x:int :: next.contains(x)==(old(next.contains(x)) || x==i)) // Silicon issue 113
+    }
+    else
+    {
+      next:=new Node
+      next.value:=i
+      next.next:=null
+      fold next.valid
+      assert (forall x:int :: next.contains(x)==(x==i))  // lemma
+    }
+    fold valid
   }
 
   method addFirst(x: int) returns (rt: Node)
@@ -63,7 +66,7 @@ class Node {
     var n: Node;
     n := new Node;
     n.value := x;
-    n.next := this; 
+    n.next := this;
     fold n.valid;
     rt := n;
   }
@@ -80,13 +83,12 @@ class Node {
   {
     unfolding this.valid in (next!=null ? 1+ next.size() : 1)
   }
-  
+
   function contains(i:int):bool
     requires valid
   {
     unfolding valid in i==value || (next!=null && next.contains(i))
   }
-
 
   predicate valid {
     acc(next) && acc(value) && (next!=null ==> next.valid)
