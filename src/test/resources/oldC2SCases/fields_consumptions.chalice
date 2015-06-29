@@ -1,100 +1,100 @@
 class Consumptions {
-	var x: int
-	var y: int
+  var x: int
+  var y: int
 
-	method fairWriter(z: int)
-		requires acc(x)
-		ensures acc(x) && x == z
-	{ x := z }
-	
-	method unfairWriter(z: int)
-		requires acc(x)
-		ensures rd(x) && x == z
-	{ x := z }
-		
-	method cloakedWriter(z: int)
-		requires acc(x)
-		ensures true
-	{ x := z }
-	
-	
-	
-	method callFairWriter(a: int)
-		requires acc(x)
-		ensures acc(x) && x == a
-	{ call fairWriter(a) }
-	
-	method callFairWriterTwice(a: int)
-		requires acc(x)
-		ensures acc(x) && x == 2*a
-	{
-		call fairWriter(a)
-		call fairWriter(a + x)
-	}
-	
-	
-	
-	method callUnfairWriter(a: int)
-		requires acc(x)
-		//:: ExpectedOutput(postcondition.violated:insufficient.permission)
-		ensures rd(x) && x == a /* @Error 330*/
-	{ call unfairWriter(a) }
-	
-	method failCallUnfairWriter(a: int)
-		requires acc(x)
-		//:: ExpectedOutput(postcondition.violated:insufficient.permission)
-		ensures acc(x) && x == a /* @Error 330 */
-	{ call unfairWriter(a) }
-	
-	method failCallUnfairWriterTwice(a: int)
-		requires acc(x)
-	{
-		call unfairWriter(1)
-		//:: ExpectedOutput(call.precondition:insufficient.permission)
-		call unfairWriter(2) /* @Error 230 */
-	}
-	
-	
-	
-	method callCloakedWriter(a: int)
-		requires acc(x)
-	{ call cloakedWriter(a) }
-	
-	method failCallCloakedWriter1(a: int)
-		requires acc(x)
-		//:: ExpectedOutput(postcondition.violated:insufficient.permission)
-		ensures acc(x) /* @Error 330 */
-	{ call cloakedWriter(a) }
-	
-	method failCallCloakedWriter2(a: int)
-		requires acc(x)
-		//:: ExpectedOutput(postcondition.violated:insufficient.permission)
-		ensures rd(x) /* @Error 330 */
-	{ call cloakedWriter(a) }
-	
-	method failCallCloakedWriterTwice(a: int)
-		requires acc(x)
-	{
-		call cloakedWriter(1)
-		//:: ExpectedOutput(call.precondition:insufficient.permission)
-		call cloakedWriter(2) /* @Error 230 */
-	}
-	
-	
+  method fairWriter(z: int)
+    requires acc(x)
+    ensures acc(x) && x == z
+  { x := z }
 
-	method greedyWriter(z: int)
-		requires acc(x)
-		//:: ExpectedOutput(not.wellformed:insufficient.permission)
+  method unfairWriter(z: int)
+    requires acc(x)
+    ensures rd(x) && x == z
+  { x := z }
+
+  method cloakedWriter(z: int)
+    requires acc(x)
+    ensures true
+  { x := z }
+
+
+
+  method callFairWriter(a: int)
+    requires acc(x)
+    ensures acc(x) && x == a
+  { call fairWriter(a) }
+
+  method callFairWriterTwice(a: int)
+    requires acc(x)
+    ensures acc(x) && x == 2*a
+  {
+    call fairWriter(a)
+    call fairWriter(a + x)
+  }
+
+
+
+  method callUnfairWriter(a: int)
+    requires acc(x)
+    //:: ExpectedOutput(postcondition.violated:insufficient.permission)
+    ensures rd(x) && x == a /* @Error 330*/
+  { call unfairWriter(a) }
+
+  method failCallUnfairWriter(a: int)
+    requires acc(x)
+    //:: ExpectedOutput(postcondition.violated:insufficient.permission)
+    ensures acc(x) && x == a /* @Error 330 */
+  { call unfairWriter(a) }
+
+  method failCallUnfairWriterTwice(a: int)
+    requires acc(x)
+  {
+    call unfairWriter(1)
+    //:: ExpectedOutput(call.precondition:insufficient.permission)
+    call unfairWriter(2) /* @Error 230 */
+  }
+
+
+
+  method callCloakedWriter(a: int)
+    requires acc(x)
+  { call cloakedWriter(a) }
+
+  method failCallCloakedWriter1(a: int)
+    requires acc(x)
+    //:: ExpectedOutput(postcondition.violated:insufficient.permission)
+    ensures acc(x) /* @Error 330 */
+  { call cloakedWriter(a) }
+
+  method failCallCloakedWriter2(a: int)
+    requires acc(x)
+    //:: ExpectedOutput(postcondition.violated:insufficient.permission)
+    ensures rd(x) /* @Error 330 */
+  { call cloakedWriter(a) }
+
+  method failCallCloakedWriterTwice(a: int)
+    requires acc(x)
+  {
+    call cloakedWriter(1)
+    //:: ExpectedOutput(call.precondition:insufficient.permission)
+    call cloakedWriter(2) /* @Error 230 */
+  }
+
+
+
+  method greedyWriter(z: int)
+    requires acc(x)
+    //:: ExpectedOutput(not.wellformed:insufficient.permission)
     //:: MissingOutput(not.wellformed:insufficient.permission, /Carbon/issue/52/)
-		ensures x == z /* @Error 330 */
-	{
+    ensures x == z /* @Error 330 */
+  {
     x := z
   }
-	
-	method failCallGreedyWriter(z: int)
-		requires acc(x)
-	{
-		//:: UnexpectedOutput(call.precondition:insufficient.permission, /Silicon/issue/152/)
+
+  method failCallGreedyWriter(z: int)
+    requires acc(x)
+  {
+    //:: UnexpectedOutput(call.precondition:insufficient.permission, /Silicon/issue/152/)
     call greedyWriter(0) /* @Error 230 */
   }
 }
