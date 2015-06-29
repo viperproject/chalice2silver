@@ -1,5 +1,4 @@
-//:: IgnoreFile(/Silicon/issue/156/)
-//:: IgnoreFile(/Carbon/issue/58/)
+//:: IgnoreFile(/Chalice2Silver/issue/66/)
 // this program requires permissions under quantifiers
 // the main branch of silicon has no support for this feature
 
