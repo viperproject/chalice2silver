@@ -1,4 +1,4 @@
-//:: IgnoreFile(/silicon/issue/21/)
+//:: IgnoreFile(/Chalice2Silver/issue/21/)
 
 class LoopLockChange {
 
@@ -23,7 +23,7 @@ class LoopLockChange {
 
     var b := true;
     while(b)
-      lockchange this;  
+      lockchange this;
     {
       b := false;
     }
@@ -125,7 +125,7 @@ class LoopLockChange {
   }
 
 
-// The following test requires a better treatment of allocation, which we don't have yet 
+// The following test requires a better treatment of allocation, which we don't have yet
 /*  method Test8()
   {
     var tmp : LoopLockChange := this;

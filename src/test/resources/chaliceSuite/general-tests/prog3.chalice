@@ -1,4 +1,4 @@
-//:: IgnoreFile(/silicon/issue/21/)
+//:: IgnoreFile(/Chalice2Silver/issue/21/)
 
 // 4 errors expected
 
@@ -12,7 +12,7 @@ class Main {
     share t0 between waitlevel and d
     var t1: T := new T;  t1.d := d;
     share t1 between waitlevel and d
-    
+
     var t0Token: token<T.run>;
     fork t0Token := t0.run();
     var t1Token: token<T.run>;
@@ -49,7 +49,7 @@ class Main {
     release u;
     r := v;
   }
-  
+
   method C()
     ensures waitlevel == old(waitlevel);
   {
@@ -168,7 +168,7 @@ class X {
     y := x.k - x.l
   }
   method Client2(tk: token<X.run>, x: X) returns (z: int)
-    requires x!=null && tk!=null && acc(tk.joinable) && tk.joinable && eval(tk.fork x.run(), acc(x.k) && 0<=x.k); 
+    requires x!=null && tk!=null && acc(tk.joinable) && tk.joinable && eval(tk.fork x.run(), acc(x.k) && 0<=x.k);
     ensures 1 <= z
   {
     join tk

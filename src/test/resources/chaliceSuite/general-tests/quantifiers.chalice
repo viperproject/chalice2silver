@@ -1,14 +1,13 @@
-//:: IgnoreFile(/silicon/issue/116/)
-  //silicon issue 116
+//:: IgnoreFile(/Chalice2Silver/issue/62/)
 
 class A {
   var f: int;
 }
 
-class Quantifiers {  
+class Quantifiers {
   var bamboo: seq<A>;
 
-  method test1(a: seq<int>, b: int) 
+  method test1(a: seq<int>, b: int)
     requires b in a;
     requires b > 0;
   {
@@ -48,7 +47,7 @@ class Functions {
 
   function test2(): int
     requires acc(x) && acc(y);
-  { 
+  {
     x + y
   }
 

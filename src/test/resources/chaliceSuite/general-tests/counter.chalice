@@ -1,7 +1,7 @@
 class Counter {
   var value: int;
 
-  invariant acc(value) /*&& old(value)<=value*/;  // rely-guarantee is not supported in Chalice2Silver /issue/57
+  invariant acc(value) /*&& old(value)<=value*/;  // rely-guarantee is not supported in /Chalice2Silver/issue/57/
 }
 
 class Program {
@@ -14,12 +14,13 @@ class Program {
     acquire counter;
     var tmp1 := counter.value;
     release counter;
-    
+
     acquire counter;
     var tmp2 := counter.value;
     release counter;
 
-    // assert tmp1 <= tmp2;  // rely-guarantee is not supported in Chalice2Silver /issue/57
+    //:: UnexpectedOutput(assert.failed:assertion.false, /Chalice2Silver/issue/57/)
+    assert tmp1 <= tmp2;  // rely-guarantee is not supported in /Chalice2Silver/issue/57/
   }
 
   method main2(){
@@ -59,8 +60,8 @@ class Program {
       share t
       acquire t
     }
-	
-	//:: UnexpectedOutput(fold.failed:insufficient.permission, /silicon/issue/58/)
+  
+    //:: UnexpectedOutput(fold.failed:insufficient.permission, /Chalice2Silver/issue/58/)
     release t
   }
 
