@@ -1,20 +1,20 @@
-//:: IgnoreFile(/silicon/issue/22/)
-  // but since rd-folds are not possible in chalice2silver,
-  // we should consider removing this test case altogether
-  
+//:: IgnoreFile(/Chalice2Silver/issue/22/)
+// but since rd-folds are not possible in chalice2silver,
+// we should consider removing this test case altogether
+
 class Cell {
   var x: int;
-  
+
   // --- some predicates ---
-  
+
   predicate write1 { acc(x) } // full permission in a predicate
   predicate write2 { acc(x,10) } // 10%
   predicate read1 { rd(x) } // abstract read permission
   predicate read2 { rd*(x) } // starred read permission
   predicate read3 { rd(x,1) } // counting permission (1 epsilon)
-  
+
   // --- permission scaling ---
-  
+
   method s1()
     requires rd(read1);
   {
@@ -22,7 +22,7 @@ class Cell {
     assert(rd*(x));
     assert(rd(x)); // ERROR: should fail
   }
-  
+
   method s2() // INCOMPLETNESS: postcondition should hold, but fails at the moment
     requires rd(read1);
     ensures rd(read1);
@@ -30,7 +30,7 @@ class Cell {
     unfold rd(read1);
     fold rd(read1);
   }
-  
+
   method s3()
     requires acc(x);
     ensures rd(read1);
@@ -39,14 +39,14 @@ class Cell {
     assert(rd*(x));
     assert(acc(x)); // ERROR: should fail
   }
-  
+
   method s4() // ERROR: postcondition does not hold
     requires acc(x);
     ensures read1;
   {
     fold rd(read1);
   }
-  
+
   method s5()
     requires rd(read2);
   {
@@ -63,17 +63,17 @@ class Cell {
     assert(rd*(x));
     assert(acc(x)); // ERROR: should fail
   }
-  
+
   method s7() // ERROR: postcondition does not hold
     requires acc(x);
     ensures read2;
   {
     fold rd(read2);
   }
-  
+
   // --- helper functions ---
-  
+
   method void() requires rd(x); ensures rd(x); {}
   method dispose() requires rd(x); {}
-  
+
 }

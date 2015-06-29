@@ -1,24 +1,24 @@
-//:: IgnoreFile(/silicon/issue/22/)
-  // but since rd-folds are not possible in chalice2silver,
-  // we should consider removing this test case altogether
+//:: IgnoreFile(/Chalice2Silver/issue/22/)
+// but since rd-folds are not possible in chalice2silver,
+// we should consider removing this test case altogether
 
 class Cell {
   var x: int;
-  
+
   // --- some predicates ---
-  
+
   predicate write1 { acc(x) } // full permission in a predicate
   predicate write2 { acc(x,10) } // 10%
   predicate read1 { rd(x) } // fractional read permission
   predicate read2 { rd*(x) } // starred fractional read permission
   predicate read3 { rd(x,1) } // counting permission (1 epsilon)
-  
+
   // --- invalid permission scaling ---
-  
+
   method error()
     requires rd(read1,1);
   {
     unfold rd(read1,1); // ERROR: scaling epsilons is not possible
   }
-  
+
 }

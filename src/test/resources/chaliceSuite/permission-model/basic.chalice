@@ -1,20 +1,20 @@
 class Cell {
   var x: int;
-  
+
   // dispose a read permission to x
   method dispose_rd()
     requires rd(x);
     ensures true;
   {
   }
-  
+
   // return read permission
   method void()
     requires rd(x);
     ensures rd(x);
   {
   }
-  
+
   // multiple calls to method that destroys rd(x)
   method a1()
     requires rd(x);
@@ -23,17 +23,16 @@ class Cell {
     call dispose_rd();
     call dispose_rd();
   }
-  
+
   // call to method that destroys rd(x) really removes permission
   method a2()
     requires rd(x);
-	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
+    //:: ExpectedOutput(postcondition.violated:insufficient.permission)
     ensures rd(x);
   {
     call dispose_rd();
-    // ERROR: should fail to verify postcondition
   }
-  
+
   // forking and method calls of dispose_rd
   method a3()
     requires rd(x);
@@ -44,17 +43,16 @@ class Cell {
     fork dispose_rd();
     call dispose_rd();
   }
-  
+
   // forking and method calls of dispose_rd
   method a4()
     requires rd(x);
-	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
+    //:: ExpectedOutput(postcondition.violated:insufficient.permission)
     ensures rd(x);
   {
     fork dispose_rd();
-    // ERROR: should fail to verify postcondition
   }
-  
+
   // forking and method calls of dispose_rd  -- commented away because of chalice2silver/issue/22/
 /*  method a5()
     requires rd(x);
@@ -63,7 +61,7 @@ class Cell {
     fork dispose_rd();
     // OK: giving away an epsilon permission however should work
   } */
-  
+
   // forking and method calls of dispose_rd
   method a6()
     requires rd(x);
@@ -72,7 +70,7 @@ class Cell {
     fork dispose_rd();
     // OK: giving away a 'undefined' read permission however should work
   }
-  
+
   // multiple forks of dispose_rd
   method a7()
     requires rd(x);
@@ -85,7 +83,7 @@ class Cell {
     fork dispose_rd();
     fork dispose_rd();
   }
-  
+
   // joining to regain permission
   method a8(a: int)
     requires rd(x);
@@ -94,18 +92,17 @@ class Cell {
     fork tk := void();
     join tk;
   }
-  
+
   // joining to regain permission
   method a9(a: int)
     requires rd(x);
-	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
+    //:: ExpectedOutput(postcondition.violated:insufficient.permission)
     ensures rd(x)
   {
     fork tk := dispose_rd();
     join tk;
-    // ERROR: should fail to verify postcondition
   }
-  
+
   // joining to regain permission
   method a10(a: int)
     requires rd(x);
@@ -116,7 +113,7 @@ class Cell {
       join tk;
     }
   }
-  
+
   // finite loop of method calls, preserving rd(x)
   method a11()
     requires rd(x);
@@ -131,7 +128,7 @@ class Cell {
       i := i+1;
     }
   }
-  
+
   // forking dispose_rd in a loop (using rd(x,*) to denote unknown read permission)
   method a12(a: int)
     requires rd(x);
@@ -146,11 +143,11 @@ class Cell {
       i := i+1;
     }
   }
-  
+
   // forking dispose_rd in a loop (using rd(x,*) to denote unknown read permission)
   method a13(a: int)
     requires rd(x);
-	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
+    //:: ExpectedOutput(postcondition.violated:insufficient.permission)
     ensures rd(x);
   {
     var i: int;
@@ -161,19 +158,18 @@ class Cell {
       fork dispose_rd();
       i := i+1;
     }
-    // ERROR: should fail to verify postcondition
   }
-  
+
   // calling dispose_rd in a loop (using rd(x,*) to denote unknown read permission)
   method a14()
     requires rd(x);
     ensures true;
   {
     call dispose_rd();
-    
+
     var i: int;
     i := 0;
-	
+
     while (i < 1000)
       invariant rd*(x);
     {
@@ -181,7 +177,7 @@ class Cell {
       i := i+1;
     }
   }
-  
+
   // return unknown permission
   method a15()
     requires rd(x);
@@ -189,25 +185,25 @@ class Cell {
   {
     call dispose_rd();
   }
-  
+
   // rd in loop invariant
   method a16()
     requires rd(x);
     ensures rd*(x);
   {
     call dispose_rd();
-    
+
     var i: int;
     i := 0;
     while (i < 1000)
-	  //:: UnexpectedOutput(invariant.not.established:insufficient.permission, /silicon/issue/55/)
+      //:: UnexpectedOutput(invariant.not.established:insufficient.permission, /Chalice2Silver/issue/55/)
       invariant acc(x,rd);
     {
       call void();
       i := i+1;
     }
   }
-  
+
   // rd in method contracts
   method a17()
     requires acc(x,rd);
@@ -215,7 +211,7 @@ class Cell {
     call dispose_rd();
     call a17();
   }
-  
+
   // multiple rd in method contracts
   method a18()
     requires rd(x);
@@ -234,5 +230,5 @@ class Cell {
     ensures acc(x,rd*2);
   {
   }
-  
+
 }

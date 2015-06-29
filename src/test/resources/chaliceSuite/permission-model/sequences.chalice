@@ -1,10 +1,11 @@
-//:: IgnoreFile(/silicon/issue/00/)
-  // this program requires permissions under quantifiers
-  // the main branch of silicon has no support for this feature
+//:: IgnoreFile(/Silicon/issue/156/)
+//:: IgnoreFile(/Carbon/issue/58/)
+// this program requires permissions under quantifiers
+// the main branch of silicon has no support for this feature
 
 class Program {
   var x: int;
-  
+
   method a(a: seq<A>)
     requires |a| > 2;
     requires rd(a[*].f);
@@ -15,7 +16,7 @@ class Program {
     assert rd(a[*].f);
     call b(a);
   }
-  
+
   method b(a: seq<A>)
     requires |a| > 2;
     requires rd(a[*].f);
@@ -25,7 +26,7 @@ class Program {
   {
     assert rd(a[*].f);
   }
-  
+
   method c(a: seq<A>)
     requires |a| > 2;
     requires rd(a[*].f);
@@ -36,7 +37,7 @@ class Program {
     call void(a[1]);
     call void(a[0]);
   }
-  
+
   method c1(a: seq<A>) // ERROR: should fail to verify postcondition
     requires |a| > 2;
     requires rd(a[*].f);
@@ -46,7 +47,7 @@ class Program {
   {
     call dispose(a[1]);
   }
-  
+
   method d(a: seq<A>)
     requires |a| > 2;
     requires rd(a[*].f);
@@ -55,12 +56,12 @@ class Program {
     ensures rd*(a[*].f);
   {
     call dispose(a[1]); // we don't give away all the permission, thus verification succeeds
-    
+ 
     var x: int;
     call x := some_number();
     call dispose(a[x]); // slighly more interesting, but still clearly ok
   }
-  
+
   method e(a: seq<A>) // ERROR: should fail to verify postcondition
     requires |a| > 2;
     requires acc(a[*].f,10);
@@ -72,13 +73,13 @@ class Program {
     call x := some_number();
     call dispose2(a[x]);
   }
-  
+
   method some_number() returns (a: int)
     ensures 0 <= a && a < 3;
   {
     a := 1;
   }
-  
+
   method dispose(a: A) requires rd(a.f); {}
   method dispose2(a: A) requires acc(a.f,10); {}
   method void(a: A) requires rd(a.f); ensures rd(a.f); {}
