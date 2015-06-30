@@ -1,14 +1,14 @@
-//:: IgnoreFile(/silicon/issue/20/)
-  // without support for channels, this example makes no sense
-  
+//:: IgnoreFile(/Chalice2Silver/issue/20/)
+// without support for channels, this example makes no sense
+
 class C {
-  
+
   method main()
   {
     var x: Ch := new Ch
     call t(x)
   }
-  
+
   method t(x: Ch)
     requires x != null && acc(x.mu) && credit(x, -1) && waitlevel << x
   {

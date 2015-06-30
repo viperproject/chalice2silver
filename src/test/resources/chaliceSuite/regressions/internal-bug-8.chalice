@@ -1,8 +1,8 @@
-//:: IgnoreFile(/silicon/issue/20/)
-  // without deadlock avoidance, this example makes no sense
+//:: IgnoreFile(/Chalice2Silver/issue/20/)
+// without deadlock avoidance, this example makes no sense
 
 class C {
-  
+
   method main()
   {
     var c: C := new C

@@ -1,8 +1,7 @@
-//:: IgnoreFile(/silicon/issue/20/)
-  // without support for channels, this example makes no sense
+//:: IgnoreFile(/Chalice2Silver/issue/20/)
+// without support for channels, this example makes no sense
 
 channel C();
-
 
 class Level {
   method Foo(c: C)
@@ -17,6 +16,6 @@ class Level {
     requires rd(mu) && waitlevel << this;
   {
     var c: C := new C above this;
-    call Foo(c);    
+    call Foo(c);
   }
 }

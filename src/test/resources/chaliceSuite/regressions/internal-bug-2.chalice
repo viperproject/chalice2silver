@@ -1,13 +1,13 @@
 class Lala {
-    var x;
+  var x;
 
-    predicate inv { acc(x) }
+  predicate inv { acc(x) }
 
-    method koko()
-        requires inv
-    {
-        //x := x + 1;
-        assert (unfolding inv in x) == old(unfolding inv in x)
-    }
+  method koko()
+    requires inv
+  {
+    //x := x + 1;
+    //:: UnexpectedOutput(assert.failed:insufficient.permission, /Carbon/issue/59/)
+    assert (unfolding inv in x) == old(unfolding inv in x)
+  }
 }
-

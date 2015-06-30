@@ -1,0 +1,35 @@
+class Test {
+  var x: int
+  var tk: token<Test.foo>
+  
+  predicate V { acc(x) }
+  
+  method foo()
+    requires V
+    ensures V
+  {
+    unfold V
+    x := x + 1
+    fold V
+  }
+  
+  method joinTk()
+    requires acc(tk) && tk != null && acc(tk.joinable) && tk.joinable
+    ensures V
+  {
+    //:: ExpectedOutput(inhale.failed:insufficient.permission)
+    join tk
+    assert V
+  }
+
+  method test()
+    requires acc(x) && x == 0
+    requires acc(tk)
+  {
+    fold V
+    fork tklocal := foo()
+    tk := tklocal
+    call joinTk()
+  }
+}
+
