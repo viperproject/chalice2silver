@@ -88,7 +88,6 @@ class Cell
     fork t:=skip();
     call skip ();
     //:: ExpectedOutput(assert.failed:assertion.false)
-    //:: MissingOutput(assert.failed:assertion.false, /Carbon/issue/49/)
     assert unfolding P in value==old(value); /* @Error 410 */
   }
 }

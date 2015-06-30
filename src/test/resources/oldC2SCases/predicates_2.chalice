@@ -1,22 +1,22 @@
 class Cell {
   var x: int;
-  
+
   // --- some predicates ---
-  
+
   predicate write1 { acc(x) } // full permission in a predicate
   predicate write2 { acc(x,10) } // 10%
   predicate read1 { rd(x) } // fractional read permission
   predicate read2 { rd*(x) } // starred fractional read permission
   // predicate read3 { rd(x,1) } // counting permission (1 epsilon)
-  
+
   // --- basic tests ---
-  
+
   method b1()
     requires write1 && write2 && read1 && read2 // && read3;
     ensures write1 && write2 && read1 && read2 // && read3;
   {
   }
-  
+
   method b2()
     requires write1;
     ensures read1;
@@ -24,7 +24,7 @@ class Cell {
     unfold write1;
     fold read1;
   }
-  
+
   method b3()
     requires read1;
     // ensures read3;
@@ -34,11 +34,10 @@ class Cell {
     fold read2;
     // fold read3;
     fold read2;
-	  //:: ExpectedOutput(fold.failed:insufficient.permission)
-    //:: MissingOutput(fold.failed:insufficient.permission, /Carbon/issue/49/)
+    //:: ExpectedOutput(fold.failed:insufficient.permission)
     fold write1; /* @Error 730 */
   }
-  
+
   method b4()
     requires read2;
     ensures read2;
@@ -47,17 +46,17 @@ class Cell {
     call dispose();
     fold read2;
   }
-  
+
   method b5()
     requires read1;
     ensures read1;
   {
     unfold read1;
     call dispose();
-	  //:: ExpectedOutput(fold.failed:insufficient.permission)
+    //:: ExpectedOutput(fold.failed:insufficient.permission)
     fold read1; /* @Error 730 */
   }
-  
+
   method b6()
     requires acc(x);
     ensures acc(x);
@@ -65,16 +64,16 @@ class Cell {
     fold read1;
     unfold read1;
   }
-  
+
   method b7()
     requires acc(x);
-	  //:: ExpectedOutput(postcondition.violated:insufficient.permission)
+    //:: ExpectedOutput(postcondition.violated:insufficient.permission)
     ensures acc(x); /* @Error 330 */
   {
     fold read2;
     unfold read2;
   }
-  
+
   // method b8()
     // requires acc(x);
     // ensures acc(x);
@@ -82,7 +81,7 @@ class Cell {
     // fold read3;
     // unfold read3;
   // }
-  
+
   method b9()
     requires acc(x);
     ensures acc(x);
@@ -90,7 +89,7 @@ class Cell {
     fold write1;
     unfold write1;
   }
-  
+
   method b10()
     requires acc(x);
     ensures acc(x);
@@ -98,30 +97,30 @@ class Cell {
     fold write2;
     unfold write2;
   }
-  
+
   // --- helper functions ---
-  
+
   method void() requires rd(x); ensures rd(x); {}
   method dispose() requires rd(x); {}
-  
+
 }
 
 
 class Test2 {
   var f: int
-  
+
   predicate R { rd(f) }
-  
+
   method test01()
     requires rd(f)
   {
     //:: ExpectedOutput(fold.failed:insufficient.permission)
     fold R /* @Error 730 */
   }
-  
+
   method test02()
     requires R
-	  //:: ExpectedOutput(postcondition.violated:insufficient.permission)
+    //:: ExpectedOutput(postcondition.violated:insufficient.permission)
     ensures rd(f) /* @Error 330 */
   {
     unfold R

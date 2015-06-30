@@ -10,12 +10,12 @@ class Test01 {
   predicate P { rd(f) }
   predicate Q { rd(g) }
   predicate C { rd(m) }
-  
+
   method inttimes01()
     requires acc(k, 2 * rd(C))
     ensures acc(k, rd(C) * 2)
   {}
-  
+
   method dispose1()
     requires acc(f, 100 - rd(P))
     requires acc(f, rd(P))
@@ -29,7 +29,7 @@ class Test01 {
   {
     assert acc(g)
   }
-  
+
   method dispose2k()
     requires acc(k, 100 - rd)
     requires acc(k, rd)
@@ -43,28 +43,28 @@ class Test01 {
     {
       assert acc(g)
     }
-  
+
   method dispose2b()
     requires acc(f, rd)
     requires acc(f, 100 - rd)
   {
     assert acc(f)
   }
-  
+
   method dispose2bh()
       requires acc(h, rd)
       requires acc(h, 100 - rd)
     {
       assert acc(h)
     }
-  
+
   method test01()
     requires acc(g)
     ensures rd*(g) /* @Error 330 */
   {
     call dispose1g()
   }
-  
+
   method test02()
     requires acc(k)
     ensures rd*(k) /* @Holds */
@@ -75,10 +75,10 @@ class Test01 {
   {
     call dispose2k()
   }
-  
+
   method test03()
     requires acc(h)
-	//:: ExpectedOutput(postcondition.violated:insufficient.permission)
+    //:: ExpectedOutput(postcondition.violated:insufficient.permission)
     ensures rd*(h) /* @Error 330 */
   {
     call dispose2bh()
@@ -87,18 +87,18 @@ class Test01 {
 
 class Test02 {
   var f: int
-  
+
   predicate P01 {
     rd(f) && acc(f, 25 - 2 * (0 - rd(P01) + 3 * rd(P01))) && acc(f, 70 + 2 + 3) && acc(f, (8 - 5) * rd(P01))
   }
-  
+
   method test01()
     requires P01
     ensures acc(f)
   {
     unfold P01
   }
-  
+
   method test02()
     requires P01
     ensures acc(f)
@@ -120,7 +120,7 @@ class Test02 {
     fold acc(P01, 11)
     fold acc(P01, 49)
   }
-  
+
   /* Still kills the prover (Z3 3.2) ... how unfortunate. */
   // method test04()
     // requires P01
