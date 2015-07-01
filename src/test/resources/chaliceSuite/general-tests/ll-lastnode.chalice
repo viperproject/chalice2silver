@@ -1,5 +1,3 @@
-//:: IgnoreFile(/silicon/issue/59/)
-
 // This test case showed a triggering problem (and potentially a matching loop).
 // The quantified assertion and postcondition that did not verify are highlighted below.
 class Node
