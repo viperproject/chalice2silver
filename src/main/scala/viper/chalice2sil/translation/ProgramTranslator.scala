@@ -12,6 +12,7 @@ package viper.chalice2sil.translation
 
 import viper.silver.ast._
 import scala.collection._
+import scala.collection.JavaConverters._
 import mutable.Map
 import viper.chalice2sil.messages._
 import scala.Some
@@ -37,7 +38,7 @@ class ProgramTranslator(val name: String)
   val silTranslatedInvariants = new scala.collection.mutable.LinkedHashMap[chalice.Class, Predicate]()
 
   // maps Chalice members (fields, methods, function, predicates) to corresponding SIL members
-  val symbolMap = new scala.collection.mutable.HashMap[chalice.ASTNode, Node]()
+  val symbolMap = (new java.util.IdentityHashMap[chalice.ASTNode, Node]()).asScala
     // note: symbolMap does not make the collections in silEnvironment obsolete!  The SIL program has extra symbols
     // silEnvironment does not make symbolMap obsolete either.  symbolMap maps Chalice entities to SIL entities directly
       // the name of the SIL entity cannot be inferred from the name of the Chalice entity
@@ -144,6 +145,7 @@ class ProgramTranslator(val name: String)
           )
           // a predicate has a single reference parameter that refers to the receiver
           // the body is to be filled later
+        assert(!symbolMap.contains(p), p.toString)
         symbolMap(p) = newPredicate
         silEnvironment.silPredicates += (newPredicate.name -> newPredicate)
 
@@ -171,6 +173,7 @@ class ProgramTranslator(val name: String)
           // a method in SIL has a reference parameter that refers to the receiver and a permission parameter that
           // refers to all unspecified read permissions in its precondition
           // the body and the specs are to be filled in later
+        assert(!symbolMap.contains(m), m.toString)
         symbolMap(m) = newMethod
         silEnvironment.silMethods += (newMethod.name -> newMethod)
 
@@ -183,6 +186,7 @@ class ProgramTranslator(val name: String)
           null, null, null)(SourcePosition(programName, f.pos.line, f.pos.column))
           // a function has a reference parameter that refers to the receiver
           // the body and the precondition are to be filled later
+        assert(!symbolMap.contains(f), f.toString)
         symbolMap(f) = newFunction
         silEnvironment.silFunctions += (newFunction.name -> newFunction)
 
