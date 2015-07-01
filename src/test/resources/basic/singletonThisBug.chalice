@@ -1,4 +1,3 @@
-//:: UnexpectedOutput(typechecker.error, /Chalice2SIL/issue/19/)
 class C {
   method m()
     requires {this} == {this}
