@@ -1,7 +1,8 @@
 class C {
   var sq: seq<D>
-  
+
   method tricky()
+    //:: ExpectedOutput(parser.error)
     requires (forall i: int :: i>=0 && i<|sq| ==> sq[i]!=null && acc(sq[i].f))
     ensures (forall i: int :: i>=0 && i<|sq| ==> rd*(sq[i].f))
     ensures (forall i, j: int :: 0<=i && i<j && j<|sq| ==> sq[i]!=sq[j])

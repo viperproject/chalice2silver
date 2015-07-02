@@ -1,15 +1,18 @@
+//:: IgnoreFile(/Chalice2Silver/issue/62/)
 class Composite
 {
   var all: set<Node>
-  
+
   predicate inv
   {
-       acc(all) && !(null in all)
-    && (forall n: (all) ::  acc(n.value)
-	                   && rd*(n.parent) && (n.parent!=null ==> n.parent in all) && rd*(n.parentStruct) && n.parentStruct==this
-	                   && acc(n.left, 50) && (n.left!=null ? n.left in all && n.left.parent==n : acc(n.left, 50))
-	                   && acc(n.right, 50) && (n.right!=null ? n.right in all && n.right.parent==n : acc(n.right, 50))
-                       && n.value == (n.left==null ? 0 : n.left.value) + (n.right==null ? 0 : n.right.value) + 1)
+    acc(all) &&
+    !(null in all) &&
+    (forall n: (all) ::
+      acc(n.value) &&
+      rd*(n.parent) && (n.parent!=null ==> n.parent in all) && rd*(n.parentStruct) && n.parentStruct==this &&
+      acc(n.left, 50) && (n.left!=null ? n.left in all && n.left.parent==n : acc(n.left, 50)) &&
+      acc(n.right, 50) && (n.right!=null ? n.right in all && n.right.parent==n : acc(n.right, 50)) &&
+      n.value == (n.left==null ? 0 : n.left.value) + (n.right==null ? 0 : n.right.value) + 1)
   }
 }
 
@@ -20,52 +23,52 @@ class Node
   var right: Node
   var parent: Node
   var parentStruct: Composite
-  
+
   function valid() : bool
     requires rd*(parentStruct) && parentStruct!=null && parentStruct.inv
   {
     unfolding parentStruct.inv in (this in parentStruct.all)
   }
-  
+
   function getLeft() : Node
     requires rd*(parentStruct) && parentStruct!=null && parentStruct.inv && valid()
   {
     unfolding parentStruct.inv in left
   }
-  
+
   function getRight() : Node
     requires rd*(parentStruct) && parentStruct!=null && parentStruct.inv && valid()
   {
     unfolding parentStruct.inv in right
   }
-  
+
   function getValue() : int
     requires rd*(parentStruct) && parentStruct!=null && parentStruct.inv && valid()
   {
     unfolding parentStruct.inv in value
   }
-  
+
   function getAllNodes() : set<Node>
     requires rd*(parentStruct) && parentStruct!=null && parentStruct.inv && valid()
   {
     unfolding parentStruct.inv in parentStruct.all
   }
-  
+
   // ****
   // makes a new one-node structure
   // ****
   method initSingle()
     requires acc(value) && acc(left) && acc(right) && acc(parent) && acc(parentStruct)
     requires left==null && right==null && parent==null && parentStruct==null
-	ensures rd*(parentStruct) && parentStruct!=null && parentStruct.inv
-	ensures valid() && getAllNodes()=={this}
+    ensures rd*(parentStruct) && parentStruct!=null && parentStruct.inv
+    ensures valid() && getAllNodes()=={this}
   {
     value := 1
-	parentStruct := new Composite
-	parentStruct.all := {this}
-	fold parentStruct.inv
+    parentStruct := new Composite
+    parentStruct.all := {this}
+    fold parentStruct.inv
   }
-  
+
   // ****
   // inserts the node into a structure
   // the node is added as a child of newParent
@@ -73,67 +76,70 @@ class Node
   // ****
   method init(newParent: Node, putLeft: bool)
     requires acc(value) && acc(left) && acc(right) && acc(parent) && acc(parentStruct)
-	requires left==null && right==null && parent==null && parentStruct==null
-	requires newParent!=null && rd*(newParent.parentStruct)
-	requires newParent.parentStruct!=null && newParent.parentStruct.inv && newParent.valid()
-	requires putLeft ? newParent.getLeft()==null : newParent.getRight()==null
+    requires left==null && right==null && parent==null && parentStruct==null
+    requires newParent!=null && rd*(newParent.parentStruct)
+    requires newParent.parentStruct!=null && newParent.parentStruct.inv && newParent.valid()
+    requires putLeft ? newParent.getLeft()==null : newParent.getRight()==null
     ensures rd*(parentStruct) && parentStruct==newParent.parentStruct && parentStruct.inv && valid()
-	ensures putLeft ? newParent.getLeft()==this : newParent.getRight()==this
-	ensures getAllNodes() == old(newParent.getAllNodes())+{this}
+    ensures putLeft ? newParent.getLeft()==this : newParent.getRight()==this
+    ensures getAllNodes() == old(newParent.getAllNodes())+{this}
   {
     value := 1
-	parentStruct := newParent.parentStruct
-	parent := newParent
+    parentStruct := newParent.parentStruct
+    parent := newParent
     unfold newParent.parentStruct.inv
-	if(putLeft) { newParent.left := this }
-	else { newParent.right := this }
-	parentStruct.all := parentStruct.all+{this}
-	call newParent.fixInvariant()
-	fold parentStruct.inv
+    if(putLeft) { newParent.left := this }
+    else { newParent.right := this }
+    parentStruct.all := parentStruct.all+{this}
+    call newParent.fixInvariant()
+    fold parentStruct.inv
   }
-  
+
   // ****
   // fixes the invariant at the current node, after an insertion
   // ****
   method fixInvariant()
     requires rd(parentStruct.all) && !(null in parentStruct.all)
     requires (forall n: parentStruct.all ::
-	            acc(n.value)
-	         && rd*(n.parent) && (n.parent!=null ==> n.parent in parentStruct.all) && rd*(n.parentStruct) && n.parentStruct==parentStruct
-	         && acc(n.left, 50) && (n.left!=null ? n.left in parentStruct.all && n.left.parent==n : acc(n.left, 50))
-	         && acc(n.right, 50) && (n.right!=null ? n.right in parentStruct.all && n.right.parent==n : acc(n.right, 50))
-             && (n!=this ==> n.value == (n.left==null ? 0 : n.left.value) + (n.right==null ? 0 : n.right.value) + 1))
-	requires value == (left==null ? 0 : left.value) + (right==null ? 0 : right.value)
-	ensures rd(parentStruct.all) && !(null in parentStruct.all)
-	ensures (forall n: parentStruct.all ::
-	            acc(n.value)
-	         && rd*(n.parent) && (n.parent!=null ==> n.parent in parentStruct.all) && rd*(parentStruct) && n.parentStruct==parentStruct
-	         && acc(n.left, 50) && (n.left!=null ? n.left in parentStruct.all && left.parent==this : acc(n.left, 50))
-	         && acc(n.right, 50) && (n.right!=null ? n.right in parentStruct.all && right.parent==this : acc(n.right, 50)))
-	ensures (forall n: parentStruct.all :: n.value == (n.left==null ? 0 : n.left.value) + (n.right==null ? 0 : n.right.value) + 1)
+                acc(n.value) &&
+                rd*(n.parent) && (n.parent!=null ==> n.parent in parentStruct.all) &&
+                rd*(n.parentStruct) && n.parentStruct==parentStruct &&
+                acc(n.left, 50) && (n.left!=null ? n.left in parentStruct.all && n.left.parent==n : acc(n.left, 50)) &&
+                acc(n.right, 50) && (n.right!=null ? n.right in parentStruct.all && n.right.parent==n : acc(n.right, 50)) &&
+                (n!=this ==> n.value == (n.left==null ? 0 : n.left.value) + (n.right==null ? 0 : n.right.value) + 1))
+    requires value == (left==null ? 0 : left.value) + (right==null ? 0 : right.value)
+    ensures rd(parentStruct.all) && !(null in parentStruct.all)
+    ensures (forall n: parentStruct.all ::
+              acc(n.value) &&
+              rd*(n.parent) && (n.parent!=null ==> n.parent in parentStruct.all) &&
+              rd*(parentStruct) && n.parentStruct==parentStruct &&
+              acc(n.left, 50) && (n.left!=null ? n.left in parentStruct.all && left.parent==this : acc(n.left, 50)) &&
+              acc(n.right, 50) && (n.right!=null ? n.right in parentStruct.all && right.parent==this : acc(n.right, 50)))
+    ensures (forall n: parentStruct.all :: n.value == (n.left==null ? 0 : n.left.value) + (n.right==null ? 0 : n.right.value) + 1)
   {
     value := value+1
-	if(parent!=null) { call parent.fixInvariant() }
+    if(parent!=null) {
+      call parent.fixInvariant()
+    }
   }
 }
-
 
 class Client
 {
   method main()
   {
-	var a: Node
-	var b: Node
-	var c: Node
-	
-	a := new Node
-	call a.initSingle()
-	b := new Node
-	call b.init(a, true)
-	b := new Node
-	call b.init(a, false)
-	c := new Node
-	call c.init(b, true)
-	assert a.getValue() == 4
+    var a: Node
+    var b: Node
+    var c: Node
+
+    a := new Node
+    call a.initSingle()
+    b := new Node
+    call b.init(a, true)
+    b := new Node
+    call b.init(a, false)
+    c := new Node
+    call c.init(b, true)
+    assert a.getValue() == 4
   }
 }

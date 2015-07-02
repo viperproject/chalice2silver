@@ -1,3 +1,4 @@
+//:: IgnoreFile(/Chalice2Silver/issue/62/)
 class Cell { var value: int }
 
 class ArrayOfInt { var array: seq<Cell> }
@@ -6,97 +7,100 @@ class ParMethods
 {
   function contains(a: ArrayOfInt, start: int, end: int, item: int) : bool
     requires a != null && rd*(a.array) && 0 <= start && start <= end && end < |a.array|
-	requires (forall i: int :: start <= i && i < end ==> rd((a.array[i]).value))
-	ensures result == (exists i: int :: start <= i && i < end && a.array[i].value == item)
+    requires (forall i: int :: start <= i && i < end ==> rd((a.array[i]).value))
+    ensures result == (exists i: int :: start <= i && i < end && a.array[i].value == item)
   {
     start != end && (a.array[start].value == item || contains(a, start+1, end, item))
   }
 
   method parallel_mergesort(a: ArrayOfInt, b: ArrayOfInt, start: int, end: int)
     requires a != null && rd*(a.array) && (forall i, j: int :: 0 <= i && i<j && j < |a.array| ==> a.array[i] != a.array[j])
-	requires b != null && rd*(b.array) && (forall i, j: int :: 0 <= i && i<j && j < |b.array| ==> b.array[i] != b.array[j])
-	requires (forall i, j: int :: 0 <= i && i < |a.array| && 0 <= j && j < |b.array| ==> a.array[i] != b.array[j])
-	requires 0 <= start && start <= end && end <= |a.array| && |a.array| == |b.array|
-	requires (forall i: int :: start <= i && i < end ==> rd((a.array[i]).value)) && (forall i, j: int :: start <= i && i<j && j < end ==> (a.array[i]).value != (a.array[j]).value)
-	requires (forall i: int :: start <= i && i < end ==> acc((b.array[i]).value))
-	ensures (forall i: int :: start <= i && i < end ==> rd((a.array[i]).value)) && (forall i: int :: start <= i && i < end ==> acc((b.array[i]).value))
-	ensures (forall i, j: int :: start <= i && i<j && j < end ==> (b.array[i]).value < (b.array[j]).value)
-	ensures (forall x: int :: contains(a, start, end, x) == contains(b, start, end, x))
+    requires b != null && rd*(b.array) && (forall i, j: int :: 0 <= i && i<j && j < |b.array| ==> b.array[i] != b.array[j])
+    requires (forall i, j: int :: 0 <= i && i < |a.array| && 0 <= j && j < |b.array| ==> a.array[i] != b.array[j])
+    requires 0 <= start && start <= end && end <= |a.array| && |a.array| == |b.array|
+    requires (forall i: int :: start <= i && i < end ==> rd((a.array[i]).value)) && (forall i, j: int :: start <= i && i<j && j < end ==> (a.array[i]).value != (a.array[j]).value)
+    requires (forall i: int :: start <= i && i < end ==> acc((b.array[i]).value))
+    ensures (forall i: int :: start <= i && i < end ==> rd((a.array[i]).value)) && (forall i: int :: start <= i && i < end ==> acc((b.array[i]).value))
+    ensures (forall i, j: int :: start <= i && i<j && j < end ==> (b.array[i]).value < (b.array[j]).value)
+    ensures (forall x: int :: contains(a, start, end, x) == contains(b, start, end, x))
   {
     var middle: int
-	if(end-start > 1)
-	{
-	  middle := start + (end-start)/2
-	  fork tLeft := parallel_mergesort(a, b, start, middle) // check whether these forks/joins get translated correctly; then the other 2 methods
-	  fork tRight := parallel_mergesort(a, b, middle, end)
-	  join tLeft
-	  join tRight
-	  call merge(a, b, start, middle, end)
-	}
+    if(end-start > 1)
+    {
+      middle := start + (end-start)/2
+      fork tLeft := parallel_mergesort(a, b, start, middle) // check whether these forks/joins get translated correctly; then the other 2 methods
+      fork tRight := parallel_mergesort(a, b, middle, end)
+      join tLeft
+      join tRight
+      call merge(a, b, start, middle, end)
+    }
   }
-  
+
   method merge(a: ArrayOfInt, b: ArrayOfInt, start, middle, end)
     requires a != null && rd*(a.array) && (forall i, j: int :: 0 <= i && i<j && j < |a.array| ==> a.array[i] != a.array[j])
-	requires b != null && rd*(b.array) && (forall i, j: int :: 0 <= i && i<j && j < |b.array| ==> b.array[i] != b.array[j])
-	requires (forall i, j: int :: 0 <= i && i < |a.array| && 0 <= j && j < |b.array| ==> a.array[i] != b.array[j])
-	requires 0 <= start && start <= end && end <= |a.array| && |a.array| == |b.array|
-	requires (forall i: int :: start <= i && i < end ==> rd((a.array[i]).value)) && (forall i, j: int :: start <= i && i<j && j < end ==> (a.array[i]).value != (a.array[j]).value)
-	requires (forall i: int :: start <= i && i < end ==> acc((b.array[i]).value))
-	requires (forall i, j: int :: start <= i && i<j && j < middle ==> (a.array[i]).value < (a.array[i]).value)
-	requires (forall i, j: int :: middle <= i && i<j && j < end ==> (a.array[i]).value < (a.array[i]).value)
-	ensures (forall i, j: int :: start <= i && i<j && j < end ==> (b.array[i]).value < (b.array[i]).value)
-	ensures (forall x: int :: contains(a, start, end, x) == contains(b, start, end, x))
+    requires b != null && rd*(b.array) && (forall i, j: int :: 0 <= i && i<j && j < |b.array| ==> b.array[i] != b.array[j])
+    requires (forall i, j: int :: 0 <= i && i < |a.array| && 0 <= j && j < |b.array| ==> a.array[i] != b.array[j])
+    requires 0 <= start && start <= end && end <= |a.array| && |a.array| == |b.array|
+    requires (forall i: int :: start <= i && i < end ==> rd((a.array[i]).value)) && (forall i, j: int :: start <= i && i<j && j < end ==> (a.array[i]).value != (a.array[j]).value)
+    requires (forall i: int :: start <= i && i < end ==> acc((b.array[i]).value))
+    requires (forall i, j: int :: start <= i && i<j && j < middle ==> (a.array[i]).value < (a.array[i]).value)
+    requires (forall i, j: int :: middle <= i && i<j && j < end ==> (a.array[i]).value < (a.array[i]).value)
+    ensures (forall i, j: int :: start <= i && i<j && j < end ==> (b.array[i]).value < (b.array[i]).value)
+    ensures (forall x: int :: contains(a, start, end, x) == contains(b, start, end, x))
   {
     var I := start
-	var J := middle
-	var N := start
-	
-	while(N < end)
-	  invariant a != null && rd*(a.array) && (forall i, j: int :: 0 <= i && i<j && j < |a.array| ==> a.array[i] != a.array[j])
-	  invariant b != null && rd*(b.array) && (forall i, j: int :: 0 <= i && i<j && j < |b.array| ==> b.array[i] != b.array[j])
-	  invariant (forall i, j: int :: 0 <= i && i < |a.array| && 0 <= j && j < |b.array| ==> a.array[i] != b.array[j])
-	  invariant start <= I && I <= middle && middle <= J && J <= end && end <= |a.array| && |a.array| == |b.array| && start <= N && N <= end && N == I+J-middle
-	  invariant (forall i: int :: start <= i && i < end ==> rd((a.array[i]).value)) && (forall i, j: int :: start <= i && i<j && j < end ==> (a.array[i]).value != (a.array[j]).value)
-	  invariant (forall i: int :: start <= i && i < end ==> acc((b.array[i]).value))
-	  invariant (forall i, j: int :: start <= i && i < j && i < N ==> (b.array[i]).value < (b.array[j]).value && (b.array[j]).value < (a.array[I]).value && (b.array[j]).value < (a.array[J]).value)
-	  invariant (forall i: int :: start <= i && i < N ==> contains(a, start, end, (b.array[i]).value))
-	{
-	  if(J == end || (a.array[I]).value < (a.array[J]).value)
-	  {
-	    (b.array[N]).value := (a.array[I]).value
-	    I:=I+1
-	  }
-	  else
-	  {
-		(b.array[N]).value := (a.array[J]).value
-		J:=J+1
-	  }
-	  N := N+1
-	}
+    var J := middle
+    var N := start
+
+    while(N < end)
+      invariant a != null && rd*(a.array) && (forall i, j: int :: 0 <= i && i<j && j < |a.array| ==> a.array[i] != a.array[j])
+      invariant b != null && rd*(b.array) && (forall i, j: int :: 0 <= i && i<j && j < |b.array| ==> b.array[i] != b.array[j])
+      invariant (forall i, j: int :: 0 <= i && i < |a.array| && 0 <= j && j < |b.array| ==> a.array[i] != b.array[j])
+      invariant start <= I && I <= middle && middle <= J && J <= end && end <= |a.array| && |a.array| == |b.array| && start <= N && N <= end && N == I+J-middle
+      invariant (forall i: int :: start <= i && i < end ==> rd((a.array[i]).value)) && (forall i, j: int :: start <= i && i<j && j < end ==> (a.array[i]).value != (a.array[j]).value)
+      invariant (forall i: int :: start <= i && i < end ==> acc((b.array[i]).value))
+      invariant (forall i, j: int :: start <= i && i < j && i < N ==> (b.array[i]).value < (b.array[j]).value && (b.array[j]).value < (a.array[I]).value && (b.array[j]).value < (a.array[J]).value)
+      invariant (forall i: int :: start <= i && i < N ==> contains(a, start, end, (b.array[i]).value))
+    {
+      if(J == end || (a.array[I]).value < (a.array[J]).value)
+      {
+        (b.array[N]).value := (a.array[I]).value
+        I:=I+1
+      }
+      else
+      {
+      (b.array[N]).value := (a.array[J]).value
+      J:=J+1
+      }
+      N := N+1
+    }
   }
-  
+
   method parallel_max(a: ArrayOfInt, start: int, end: int) returns(mx: int)
     requires a != null && rd*(a.array) && (forall i, j: int :: 0 <= i && i<j && j < |a.array| ==> a.array[i] != a.array[j])
-	requires 0 <= start && start <= end && end < |a.array|
-	requires (forall i: int :: start <= i && i < end ==> rd((a.array[i]).value))
-	requires |a.array| >= 1
-	ensures rd*(a.array) && (forall i: int :: start <= i && i < end ==> rd((a.array[i]).value))
-	ensures contains(a, start, end, mx)
-	ensures (forall i: int :: start<=i && i<end ==> (a.array[i]).value<=mx)
+    requires 0 <= start && start <= end && end < |a.array|
+    requires (forall i: int :: start <= i && i < end ==> rd((a.array[i]).value))
+    requires |a.array| >= 1
+    ensures rd*(a.array) && (forall i: int :: start <= i && i < end ==> rd((a.array[i]).value))
+    ensures contains(a, start, end, mx)
+    ensures (forall i: int :: start<=i && i<end ==> (a.array[i]).value<=mx)
   {
     var middle: int
-	var ml: int
-	var mr: int
-	
-	if(end-start > 1)
-	{
-	  middle := start + (end-start)/2
-	  fork tLeft := parallel_max(a, start, middle)
-	  fork tRight := parallel_max(a, middle, end)
-	  join ml := tLeft
-	  join mr := tRight
-	  mx := ml>mr ? ml : mr
-	}
-	else mx := (a.array[start]).value
+    var ml: int
+    var mr: int
+
+    if(end-start > 1)
+    {
+      middle := start + (end-start)/2
+      fork tLeft := parallel_max(a, start, middle)
+      fork tRight := parallel_max(a, middle, end)
+      join ml := tLeft
+      join mr := tRight
+      mx := ml>mr ? ml : mr
+    }
+    else
+    {
+      mx := (a.array[start]).value
+    }
   }
 }

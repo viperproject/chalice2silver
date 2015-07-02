@@ -7,61 +7,81 @@ class Node
   var initValue: int
   var value: int
   tracked var parent: Node
-  
+
   function mx(a:int, b:int) : int
   {
     a>b ? a : b
   }
-  
-  invariant   rd*(initValue) && rd*(parent) && acc(value, 50) && acc(~(Node.parent)) && (forall n:~(Node.parent) :: acc(n.value, 50))
-           && (parent==null ==> acc(value, 50)) && value == mx(initValue, (max n:~(Node.parent) :: n.value))
-  
+
+  invariant rd*(initValue)
+  invariant rd*(parent)
+  invariant acc(value, 50)
+  invariant acc(~(Node.parent))
+  invariant (forall n:~(Node.parent) :: acc(n.value, 50))
+  invariant (parent==null ==> acc(value, 50))
+  //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/15/)
+  invariant value == mx(initValue, (max n:~(Node.parent) :: n.value))
+
   method initSingle(newInitValue: int)
-    requires acc(initValue) && acc(parent) && parent==null && acc(value) && acc(~(Node.parent)) && ~(Node.parent)==empty<Node>
+    requires acc(initValue)
+    requires acc(parent) && parent==null
+    requires acc(value) && acc(~(Node.parent)) && ~(Node.parent)==empty<Node>
+    //:: ExpectedOutput(chalice2silver.error)
     requires holds(this)
-	ensures rd*(initValue) && rd*(parent) && initValue==newInitValue && parent==null
+    ensures rd*(initValue) && rd*(parent) && initValue==newInitValue && parent==null
   {
     initValue := newInitValue
-	value := newInitValue
-	parent := null
-	release this
+    value := newInitValue
+    parent := null
+    release this
   }
-  
+
   method init(newInitValue:int, newParent:Node)
-    requires acc(initValue) && acc(parent) && parent==null && acc(value) && acc(~(Node.parent)) && ~(Node.parent)==empty<Node> && newParent!=null
+    requires acc(initValue)
+    requires acc(parent) && parent==null
+    requires acc(value)
+    requires acc(~(Node.parent)) && ~(Node.parent)==empty<Node> && newParent!=null
+    //:: ExpectedOutput(chalice2silver.error)
     requires holds(this)
-	ensures rd*(initValue) && rd*(parent) && initValue==newInitValue && parent==newParent
+    ensures rd*(initValue) && rd*(parent) && initValue==newInitValue && parent==newParent
   {
     acquire newParent
     initValue := newInitValue
-	value := newInitValue
-	parent := newParent
-	release this
-	call parent.update(value)
+    value := newInitValue
+    parent := newParent
+    release this
+    call parent.update(value)
   }
-  
+
   method update(newValue: int)
-    requires holds(this) && newValue == (max n:~(Node.parent) :: n.value)
-	requires rd*(initValue) && rd*(parent) && acc(value, 50) && acc(~(Node.parent)) && (forall n:~(Node.parent) :: acc(n.value, 50))
-	requires (parent==null ==> acc(value, 50)) && value>=initValue
+    //:: ExpectedOutput(chalice2silver.error)
+    requires holds(this)
+    //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/15/)
+    requires newValue == (max n:~(Node.parent) :: n.value)
+    requires rd*(initValue)
+    requires rd*(parent)
+    requires acc(value, 50)
+    requires acc(~(Node.parent))
+    requires (forall n:~(Node.parent) :: acc(n.value, 50))
+    requires (parent==null ==> acc(value, 50)) && value>=initValue
   {
     if(value < newValue)
-	{
-	  if(parent!=null) { acquire parent }
-	  value := newValue
-	  if(parent!=null) { call parent.update(value) }
-	}
-	release this
+    {
+      if(parent!=null) { acquire parent }
+      value := newValue
+      if(parent!=null) { call parent.update(value) }
+    }
+    release this
   }
 }
 
 class Client
 {
   method main() {
-    Node n0 = new Node  // starts off as "held" in the no-deadlock-avoidance mode
-    n0.initSingle(10)
-    Node n1 = new Node
-    n1.init(20, n0)
+    var n0 := new Node  // starts off as "held" in the no-deadlock-avoidance mode
+    call n0.initSingle(10)
+    var n1 := new Node
+    call n1.init(20, n0)
     assert n0.value == 20
   }
 }

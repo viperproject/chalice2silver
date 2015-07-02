@@ -1,16 +1,20 @@
+//:: ExpectedOutput(chalice2silver.error)
 class List
 {
   tracked var head: Node
 
   predicate inv
   {
-       acc(head) && rd*(mu)
-    && (head != null ==> head.inv && rd*(head.mu) && mu << head.mu)
+    acc(head) &&
+    rd*(mu) &&
+    (head != null ==> head.inv && rd*(head.mu) && mu << head.mu)
   }
 
-  function toSeq():seq<int>
+  function toSeq(): seq<int>
     requires inv
-  { unfolding inv in head==null ? nil<int> : head.toSeq() }
+  {
+    unfolding inv in head==null ? nil<int> : head.toSeq()
+  }
 
   method initEmpty()
     requires acc(head) && acc(mu) && mu==lockbottom && head==null
@@ -93,8 +97,6 @@ class List
   }
 }
 
-
-
 class Node
 {
   var value:int
@@ -107,6 +109,7 @@ class Node
   invariant /*F*/ acc(this.~(Node.next)) && acc(this.~(List.head))
   invariant /*B*/ refCount == |~(Node.next)| + |~(List.head)|
   invariant /*E*/ (forall n: ~(Node.next) :: acc(n.transRefCount, 50))
+  //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/15/)
   invariant /*C*/ transRefCount == (sum n: ~(Node.next) :: n.transRefCount) + |~(List.head)|
 
   predicate inv
@@ -117,26 +120,31 @@ class Node
 
   function toSeq():seq<int>
     requires inv
-  { unfolding inv in [value] ++ (next==null ? nil<int> : next.toSeq()) }
+  {
+    unfolding inv in [value] ++ (next==null ? nil<int> : next.toSeq())
+  }
 
   method set_(index: int, newValue:int)
     requires inv && rd*(mu)
+    //:: ExpectedOutput(chalice2silver.error)
     requires holds(this)
     requires /*A*/ acc(refCount) && acc(transRefCount, 50) && acc(value, 100-rd(transRefCount)) && acc(next, 100-rd(transRefCount))
     requires /*D*/ next==null ==> acc(transRefCount, 50)
     requires /*F*/ acc(~(Node.next)) && acc(~(List.head))
     requires /*B*/ refCount == |~(Node.next)| + |~(List.head)|
     requires /*E*/ (forall n: ~(Node.next) :: acc(n.transRefCount, 50))
+    //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/15/)
     requires /*C*/ transRefCount == (sum n: ~(Node.next) :: n.transRefCount) + |~(List.head)|
-	requires waitlevel==mu
+    requires waitlevel==mu
     requires transRefCount == 1 && refCount == 1
     requires 0<=index && index<|toSeq()|
     lockchange this
     ensures inv && toSeq()==old(toSeq())[0..index]++[value]++old(toSeq()[index+1..])
+    //:: ExpectedOutput(chalice2silver.error)
     ensures !holds(this)
   {
     var h: Node
-	unfold inv
+    unfold inv
     if (index == 0)
     {
       value := newValue
@@ -157,45 +165,54 @@ class Node
         next:=new Node
         call h.copySet_(index-1, newValue, next)
         assert refCount == |~(Node.next)| + |~(List.head)|
+        //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/15/)
         assert transRefCount == (sum n: ~(Node.next) :: n.transRefCount) + |~(List.head)|
         release this
       }
     }
     fold inv
   }
-  
+
   method copySet_(index:int, newValue:int, newNode:Node)
     requires inv && rd*(mu)
-    requires newNode!=null && acc(newNode.value) && acc(newNode.next) && newNode.next==null && acc(newNode.refCount) && acc(newNode.transRefCount) && acc(newNode.mu) && newNode.mu==lockbottom
+    requires newNode!=null &&
+             acc(newNode.value) && acc(newNode.next) &&
+             newNode.next==null && acc(newNode.refCount) && acc(newNode.transRefCount) &&
+             acc(newNode.mu) && newNode.mu==lockbottom
     requires acc(newNode.~(Node.next)) && acc(newNode.~(List.head)) && |newNode.~(Node.next)|+|newNode.~(List.head)|==1
-  	requires (forall n: newNode.~(Node.next) :: acc(n.transRefCount,50)) && (sum m : newNode.~(Node.next) :: m.transRefCount) + |newNode.~(List.head)| == 1
+    requires (forall n: newNode.~(Node.next) :: acc(n.transRefCount,50)) &&
+    //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/15/)
+             (sum m : newNode.~(Node.next) :: m.transRefCount) + |newNode.~(List.head)| == 1
+    //:: ExpectedOutput(chalice2silver.error)
     requires waitlevel==mu && holds(this)
     requires /*A*/ acc(refCount) && acc(transRefCount, 50) && acc(value, 100-rd(transRefCount)) && acc(next, 100-rd(transRefCount))
     requires /*D*/ next==null ==> acc(transRefCount, 50)
     requires /*F*/ acc(~(Node.next)) && acc(~(List.head))
     requires /*B*/ refCount == |~(Node.next)| + |~(List.head)|
     requires /*E*/ (forall n: ~(Node.next) :: acc(n.transRefCount, 50))
+    //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/15/)
     requires transRefCount == (sum m: ~(Node.next) :: m.transRefCount) + |~(List.head)| + 1
     requires 0<=index && index<|toSeq()|
     lockchange this
     ensures newNode.inv && newNode.toSeq()==old(toSeq())[0..index]++[value]++old(toSeq()[index+1..])
     ensures rd*(newNode.mu) && rd*(mu) && mu<<newNode.mu
+    //:: ExpectedOutput(chalice2silver.error)
     ensures !holds(this) && !holds(newNode)
   {
     unfold inv
     newNode.refCount:=1
     newNode.transRefCount:=1
     if(next!=null)
-	{
-	  acquire next
-	}
+    {
+      acquire next
+    }
     transRefCount:=transRefCount-1
     if(index==0)
     {
       newNode.value:=newValue
       newNode.next:=next
       if(next!=null)
-	  {
+      {
         next.refCount:=next.refCount+1
         release next
       }
@@ -218,6 +235,7 @@ class Node
   }
 
   method addOneToTransRefCount()
+    //:: ExpectedOutput(chalice2silver.error)
     requires inv && holds(this)
     requires /*A*/ acc(refCount) && acc(transRefCount, 50) && acc(value, 100-rd(transRefCount)) && acc(next, 100-rd(transRefCount))
     requires /*D*/ next==null ==> acc(transRefCount, 50)
@@ -225,16 +243,19 @@ class Node
     requires /*B*/ refCount == |~(Node.next)| + |~(List.head)|
     requires /*E*/ (forall n: ~(Node.next) :: acc(n.transRefCount, 50))
     requires unfolding inv in waitlevel==mu
+    //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/15/)
     requires transRefCount == (sum n: ~(Node.next) :: n.transRefCount) + |~(List.head)| - 1
     ensures inv && inv
+    //:: ExpectedOutput(chalice2silver.error)
     ensures holds(this)
     ensures /*A*/ acc(refCount) && acc(transRefCount, 50) && acc(value, 100-rd(transRefCount)) && acc(next, 100-rd(transRefCount))
     ensures /*D*/ next==null ==> acc(transRefCount, 50)
     ensures /*F*/ acc(~(Node.next)) && acc(~(List.head))
     ensures /*B*/ refCount == |~(Node.next)| + |~(List.head)|
     ensures /*E*/ (forall n: ~(Node.next) :: acc(n.transRefCount, 50))
+    //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/15/)
     ensures /*C*/ transRefCount == (sum n: ~(Node.next) :: n.transRefCount) + |~(List.head)|
-	ensures unfolding inv in waitlevel==mu
+    ensures unfolding inv in waitlevel==mu
     ensures toSeq() == old(toSeq())
     ensures ~(Node.next)==old(~(Node.next)) && ~(List.head)==old(~(List.head))
   {
@@ -254,15 +275,13 @@ class Node
   }
 }
 
-
-
 class Main
 {
   method main()
   {
     var l1:List
     var l2:List
-    
+
     l1 := new List
     call l1.initEmpty()
     assert l1.toSeq() == []
