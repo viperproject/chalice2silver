@@ -10,6 +10,7 @@ import java.nio.file.Path
 import viper.silver.testing._
 import viper.silver.verifier._
 import viper.silicon.Silicon
+import viper.carbon.CarbonVerifier
 import viper.silver.frontend._
 
 class AllTests extends SilSuite {
@@ -37,13 +38,18 @@ class AllTests extends SilSuite {
     fe
   }
 
-  override val verifiers = createSiliconInstance() :: Nil
+  override val verifiers = createSiliconInstance() :: createCarbonInstance() :: Nil
 
   private def createSiliconInstance() = {
     val args = Silicon.optionsFromScalaTestConfigMap(prefixSpecificConfigMap.getOrElse("silicon", Map()))
     val silicon = Silicon.fromPartialCommandLineArguments(args)
 
     silicon
+  }
+
+  private def createCarbonInstance() = {
+    val carbon = CarbonVerifier()
+    carbon
   }
 
   override val defaultTestPattern: String = ".*\\.chalice"
