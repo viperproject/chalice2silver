@@ -1,0 +1,19 @@
+class Static
+{
+
+  method test1(collection: seq<int>)
+    requires |collection| >= 1
+    requires (forall c in collection :: c == 0)
+    //:: UnexpectedOutput(postcondition.violated:assertion.false, /Chalice2Silver/issue/68/)
+    ensures collection[0] == 0
+  {
+  }
+
+  method test(collection: seq<int>)
+    requires |collection| >= 1
+    requires (forall i: int :: 0 <= i && i < |collection| ==> collection[i] == 0)
+    ensures collection[0] == 0
+  {
+  }
+
+}
