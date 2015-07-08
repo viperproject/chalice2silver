@@ -1,0 +1,12 @@
+//:: IgnoreFile(/Chalice2Silver/issue/57/)
+class Counter1 {
+  var x: int;
+  // Should be rejected because invariant is not reflexive.
+  invariant acc(x) && old(x) < x;
+}
+
+class Counter2 {
+  var x: int;
+  // Should work.
+  invariant acc(x) && old(x) <= x;
+}
