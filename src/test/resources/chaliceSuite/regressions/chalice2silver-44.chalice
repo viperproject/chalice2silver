@@ -1,0 +1,6 @@
+//:: IgnoreFile(/Chalice2Silver/issue/44/)
+class Test {
+  method test() {
+    var field := 1
+  }
+}
