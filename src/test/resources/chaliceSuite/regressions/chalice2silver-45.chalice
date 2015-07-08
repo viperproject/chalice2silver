@@ -1,0 +1,25 @@
+class List module Collections {
+  predicate valid {
+    true
+  }
+}
+
+class Iterator module Collections {
+  var list: List;
+
+  method init(l: List)
+    requires acc(list)
+    requires l!=null;
+    requires rd(l.valid)
+    ensures valid;
+  {
+    list := l;
+    //:: UnexpectedOutput(fold.failed:insufficient.permission, /Chalice2Silver/issue/45/)
+    fold valid;
+  }
+
+  predicate valid
+  {
+    acc(list) && list!=null && rd(list.valid)
+  }
+}
