@@ -14,14 +14,14 @@ class Peterson {
 
   method Main() {
     var p := new Peterson
-	p.x0 := false
-	p.x1 := false
-	p.cs0 := false
-	p.cs1 := false
-	p.b0 := false
-	p.b1 := false
+    p.x0 := false
+    p.x1 := false
+    p.cs0 := false
+    p.cs1 := false
+    p.b0 := false
+    p.b1 := false
 
-	share p;
+    share p;
     fork p.Process0();
     fork p.Process1();
     // The purpose of the following loop is simply to prove mutual exclusion, that is,
