@@ -1,0 +1,9 @@
+class Test {
+  var x: int
+  method t1()
+    requires acc(x);
+    //:: UnexpectedOutput(postcondition.violated:insufficient.permission, /Chalice2Silver/issue/55/)
+    ensures rd(x) && rd(x);
+  {
+  }
+}
