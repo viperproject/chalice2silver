@@ -10,14 +10,13 @@
 
 package viper.chalice2sil.translation
 
-import viper.silver.ast._
-import scala.collection._
-import scala.collection.JavaConverters._
-import mutable.Map
 import viper.chalice2sil.messages._
-import scala.Some
-import chalice.{NewRhs, BlockStmt, BackPointerMemberAccess}
-import util.parsing.input
+import viper.silver.ast._
+
+import scala.collection.JavaConverters._
+import scala.collection._
+import scala.collection.mutable.Map
+import scala.util.parsing.input
 
 // **
 // This is were the magic happens
@@ -68,6 +67,11 @@ class ProgramTranslator(val name: String)
   // this variable holds the silver object which is being currently created
     // currently used only for function postconditions
   var workingOn: Node = null
+
+  // Maps Silver methods to their variable registries.
+  val methodVariableRegistries = (new java.util.IdentityHashMap[Method, MethodVariableRegistry]()).asScala
+  // Variable registry of the method that is currently being translated.
+  var methodVariableRegistry: MethodVariableRegistry = null
 
   // **
   // takes a Chalice program as a sequence of Chalice top level declarations
@@ -314,6 +318,8 @@ class ProgramTranslator(val name: String)
   protected def translateMethodEarly(cMethod: chalice.Method) = {
     // obtain the corresponding SIL method
     val sMethod = symbolMap(cMethod).asInstanceOf[Method]
+    methodVariableRegistry = new MethodVariableRegistry(sMethod)
+    methodVariableRegistries(sMethod) = methodVariableRegistry
 
     // obtain receiver, unidentified read permission argument and create a method permission translator
     val sThis = sMethod.formalArgs(0)
@@ -341,6 +347,7 @@ class ProgramTranslator(val name: String)
 
     // add information to be stored by forks in this method
     joinableInfo += sMethod -> new JoinableInfo(sMethod, silEnvironment.silFields)
+    methodVariableRegistry = null
   }
 
   // **
@@ -659,7 +666,23 @@ class ProgramTranslator(val name: String)
       case chalice.ExplicitThisExpr() => myThis.localVar
 
       // local variable
-      case chalice.VariableExpr(v) => LocalVar(v)(Util.translateType(cExp.typ))
+      case chalice.VariableExpr(v) => {
+        if (methodVariableRegistry != null) {
+          // Translating method.
+          methodVariableRegistry.getVariable(v, Util.translateType(cExp.typ)) match {
+            case Some(variable) =>
+              // Translating normal statement.
+              variable
+            case _ =>
+              // Translating quantifier.
+              LocalVar(v)(Util.translateType(cExp.typ))
+          }
+        }
+        else {
+          // Translating predicate or function.
+          LocalVar(v)(Util.translateType(cExp.typ))
+        }
+      }
 
       // result
       case chalice.Result() => Result()(workingOn.asInstanceOf[Function].typ)
@@ -688,11 +711,13 @@ class ProgramTranslator(val name: String)
   // translate the body of a Chalice method and then assign it to the corresponding SIL method
   // **
   protected def translateBody(cMethod: chalice.Method, sMethod: Method) {
+    methodVariableRegistry = methodVariableRegistries(sMethod)
     val sThis = sMethod.formalArgs(0)
     val pTrans = new MethodPermissionTranslator(sMethod.formalArgs(1))
 
     // translate all statements in the Chalice body and assign the result to the SIL method body
     sMethod.body = Seqn(cMethod.body.map(translateStm(_, sThis, pTrans, sMethod)))()
+    methodVariableRegistry = null
   }
 
   // **
@@ -789,22 +814,20 @@ class ProgramTranslator(val name: String)
         })
           =>
         val silType = Util.translateType(v.t)
-        val localVar = LocalVarDecl(v.id, silType)(position)
+        methodVariableRegistry.addLocalVarDecl(v, position)
+        val localVar = methodVariableRegistry.getVariable(v)
 
         // if this is a token, provide access to special field joinable
         val specialAccess =
           if (v.t.id == "token")
-            Util.newObject(localVar.localVar, silEnvironment.silFields.values.toSeq, position)
+            Util.newObject(localVar, silEnvironment.silFields.values.toSeq, position)
           else Seqn(Seq())(position)
-
-        // declare the variable only if it is not declared
-        if(!silMethod.locals.contains(localVar)) silMethod.locals = silMethod.locals :+ localVar
 
         rhs match {
           case None => specialAccess
           case Some(e) =>
             LocalVarAssign(
-              localVar.localVar, translateExp(e.asInstanceOf[chalice.Expression], myThis, pTrans)
+              localVar, translateExp(e.asInstanceOf[chalice.Expression], myThis, pTrans)
             )(position)
         }
 
@@ -847,13 +870,11 @@ class ProgramTranslator(val name: String)
 
       // creation of new objects: variable declaration
       case chalice.LocalVar(v, n) =>
-        val localVar = LocalVarDecl(v.id, Ref)(position)
-
-        // declare the variable only if it is not declared
-        if(!silMethod.locals.contains(localVar)) silMethod.locals = silMethod.locals :+ localVar
+        methodVariableRegistry.addReferenceLocalVarDecl(v.id, position)
+        val localVar = methodVariableRegistry.getRefVariable(v.id)
 
         // create new object
-        val newStatement = Util.newObject(localVar.localVar, silEnvironment.silFields.values.toSeq, position)
+        val newStatement = Util.newObject(localVar, silEnvironment.silFields.values.toSeq, position)
 
         // initialize fields
         val initialization = n match {
@@ -883,7 +904,7 @@ class ProgramTranslator(val name: String)
         // implicit local declarations
         for (i <- 0 until implicitLocals.size) {
           if (implicitLocals(i)) {
-            silMethod.locals = silMethod.locals :+ LocalVarDecl(lhs(i).id, Util.translateType(lhs(i).typ))(position)
+            methodVariableRegistry.addLocalVarDecl(lhs(i).v, position)
           }
         }
 
@@ -896,7 +917,7 @@ class ProgramTranslator(val name: String)
                 translateExp(target, myThis, pTrans) /*this*/
                   :: newK.localVar /*permission*/
                   :: args.map(translateExp(_, myThis, pTrans)) /*arguments*/,
-                lhs.map(x => LocalVar(x.id)(Util.translateType(x.typ)))/*targets*/
+                lhs.map(x => methodVariableRegistry.getVariable(x.v))/*targets*/
               )(position)
             )(position)
           )
@@ -1057,34 +1078,29 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
 
         val joinTokenAssignments =
           if(lhs != null) {
-            // the following command generates a new token, if needed
-            var newTokenCommand : Stmt = Seqn(Seq())(position)
 
             // find or create local variable that corresponds to the join token
-            val tokenVar =
-              silMethod.locals.find((lvd) => lvd.name == lhs.id).getOrElse {
-              val newTokenVar = LocalVarDecl(lhs.id, Ref)(position)
-              silMethod.locals = silMethod.locals ++ Seq(newTokenVar)
-              newTokenCommand =  Util.newObject(newTokenVar.localVar, silEnvironment.silFields.values.toSeq, position)
-              newTokenVar
-            }
+            val tokenVar = methodVariableRegistry.getOrCreateTokenVariable(lhs.id, position)
+
+            // the following command generates a new token
+            val newTokenCommand = Util.newObject(tokenVar, silEnvironment.silFields.values.toSeq, position)
 
             // assign to token the fresh local permission
             val assignPermission =
               FieldAssign(
-                FieldAccess(tokenVar.localVar, Field("old$methodPermission", Perm)())(position), newK.localVar
+                FieldAccess(tokenVar, Field("old$methodPermission", Perm)())(position), newK.localVar
               )(position)
 
             // make token joinable
             val makeJoinable =
               FieldAssign(
-                FieldAccess(tokenVar.localVar, Field("joinable$", Bool)())(position), TrueLit()(position)
+                FieldAccess(tokenVar, Field("joinable$", Bool)())(position), TrueLit()(position)
               )(position)
 
             // calculate all old expressions and assign them to the fields of the token
             val oldAssignments = for(i <- 0 until thisJoinableInfo.oldExpressions.length)
             yield FieldAssign(
-                FieldAccess(tokenVar.localVar, thisJoinableInfo.oldFields(i))(position),
+                FieldAccess(tokenVar, thisJoinableInfo.oldFields(i))(position),
                 thisJoinableInfo.oldExpressions(i).
                   transform()(post = { case n@LocalVar(id) => actualParameters.getOrElse(id, n) })
               )(position)
@@ -1092,7 +1108,7 @@ override def Targets = (outs :\ Set[Variable]()) { (ve, vars) => if (ve.v != nul
             // assign to parameter fields the current values of the input parameters
             val parAssignments = for(i <- 0 until thisJoinableInfo.parameterFields.length) yield
               FieldAssign(
-                FieldAccess(tokenVar.localVar, thisJoinableInfo.parameterFields(i))(position),
+                FieldAccess(tokenVar, thisJoinableInfo.parameterFields(i))(position),
                 actualParameters(forkedSilMethod.formalArgs(i).name)
               )(position)
 

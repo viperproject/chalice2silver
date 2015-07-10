@@ -1,0 +1,62 @@
+class Cell {
+  var x: bool
+}
+class Test {
+  method test()
+  {
+    var x: int := 4
+    while (x > 0) {
+      var y: int := 3
+      x := x - y
+    }
+    while (x < 4) {
+      var z: int := 4
+      var y: int := 3
+      x := x + y
+    }
+    while (x < 10) {
+      var z: int := 1
+      var y: int := 1
+      x := x + y
+    }
+  }
+
+  method foo() returns (res: bool)
+  {
+    res := true
+  }
+
+  method test2()
+  {
+    var x : int := 5;
+    while(x > 0){
+      var y : int := 3;
+      x := x - y;
+    }
+
+    while(x < 5){
+      call y := foo()
+      if(y){
+        x := x + 4;
+      }
+    }
+  }
+
+  method test3()
+  {
+    var x : int := 5;
+    while(x > 0){
+      var y : int := 3;
+      x := x - y;
+    }
+
+    while(x < 5){
+      var y := new Cell {
+        x := true
+      }
+      if(y.x){
+        x := x + 4;
+      }
+    }
+  }
+}

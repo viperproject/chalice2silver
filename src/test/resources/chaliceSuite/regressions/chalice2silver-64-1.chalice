@@ -1,0 +1,14 @@
+class Test {
+
+  method bar ()
+  {
+  }
+
+  method foo() returns (tk: token<Test.bar>)
+  {
+    fork tk := bar()
+    fork tk := bar()
+    join tk
+  }
+
+}
