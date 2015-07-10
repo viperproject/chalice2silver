@@ -1,0 +1,31 @@
+class Test {
+  method bar()
+  {
+  }
+  method foo() returns (x: int)
+  {
+    x := 1
+  }
+  method test1(tk: token<Test.bar>)
+  {
+    //:: ExpectedOutput(typechecker.error)
+    //:: MissingOutput(typechecker.error, /Chalice2Silver/issue/70/)
+    fork tk := bar()
+  }
+  method test2(x: int)
+  {
+    //:: ExpectedOutput(typechecker.error)
+    x := 3
+  }
+  method test3(x: int)
+  {
+    //:: ExpectedOutput(typechecker.error)
+    call x := foo()
+  }
+  method test4(x: int, tk: token<Test.foo>)
+    requires acc(tk.joinable) && tk.joinable
+  {
+    //:: ExpectedOutput(typechecker.error)
+    join x := tk
+  }
+}
