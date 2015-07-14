@@ -47,11 +47,48 @@ class Test {
     var x : int := 5;
     while(x > 0){
       var y : int := 3;
+      y := 4
       x := x - y;
     }
 
     while(x < 5){
       var y := new Cell {
+        x := true
+      }
+      if(y.x){
+        x := x + 4;
+      }
+    }
+  }
+
+  method test4()
+  {
+    var x : int := 1;
+    while(x < 5){
+      var y := true
+      if(y){
+        x := x + 4;
+      }
+    }
+    while(x > 0){
+      var y : int := 3;
+      y := 4
+      x := x - y;
+    }
+  }
+
+  method test5()
+  {
+    var x : int := 5;
+    while(x > 0){
+      var y : int := 3;
+      y := 4
+      x := x - y;
+    }
+
+    while(x < 5){
+      var y: Cell
+      y := new Cell {
         x := true
       }
       if(y.x){

@@ -1,6 +1,75 @@
-//:: IgnoreFile(/Chalice2Silver/issue/44/)
+class Cell {
+  var field: int
+}
 class Test {
-  method test() {
+  var field: int
+
+  function valid(field: int): int
+  {
+    field + 5
+  }
+
+  method test1()
+  {
     var field := 1
+    assert field + 2 == 3
+  }
+  method test2(field: int)
+  {
+    var x: int
+    x := field + 1
+  }
+  method test3() returns (field: int)
+    ensures field == 1
+  {
+    field := 1
+  }
+  method test4()
+  {
+    call field := test3()
+  }
+  method test5()
+  {
+    var field: int
+    call field := test3()
+  }
+  method test6()
+  {
+    var field := new Cell
+  }
+  method test7(field: Cell)
+    requires acc(field.field)
+    ensures acc(field.field)
+  {
+    var x: int
+    x := field.field + 1
+  }
+  method test8() returns (field: Cell)
+    ensures acc(field.field)
+  {
+    field := new Cell
+    field.field := 1
+  }
+  method test9()
+  {
+    call field := test8()
+  }
+  method test10()
+  {
+    var field: Cell
+    call field := test8()
+  }
+  method test11()
+  {
+    var field := new Cell {
+      field := 1
+    }
+    assert field.field == 1
+  }
+  method test12()
+  {
+    assert forall field: int :: field * field >= 0
+    assert forall field in [1, 2, 3] :: field * field >= 0
+    assert forall field: {1, 2, 3} :: field * field >= 0
   }
 }

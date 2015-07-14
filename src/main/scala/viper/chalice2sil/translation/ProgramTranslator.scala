@@ -12,6 +12,7 @@ package viper.chalice2sil.translation
 
 import viper.chalice2sil.messages._
 import viper.silver.ast._
+import viper.silver.ast.utility.Consistency
 
 import scala.collection.JavaConverters._
 import scala.collection._
@@ -251,8 +252,10 @@ class ProgramTranslator(val name: String)
   // **
   protected def translateVars(cVars: Seq[chalice.Variable]) = {
     val result = scala.collection.mutable.ListBuffer[LocalVarDecl]()
-    cVars.foreach((x: chalice.Variable) =>
-      result += LocalVarDecl(x.id, Util.translateType(x.t))(SourcePosition(programName, x.pos.line, x.pos.column))
+    cVars.foreach((x: chalice.Variable) => {
+        var silverName = Util.toValidSilverIdentifier(x.id)
+        result += LocalVarDecl(silverName, Util.translateType(x.t))(SourcePosition(programName, x.pos.line, x.pos.column))
+      }
     )
     result.toList
   }
@@ -617,24 +620,30 @@ class ProgramTranslator(val name: String)
         // CONVENTION: like other local Chalice variables, the bounded variables retain their name in SIL!
         if (e.isInstanceOf[chalice.TypeQuantification])
           boundedVars = e.Is map {
-            i => LocalVarDecl(i, Util.translateType(e.asInstanceOf[chalice.TypeQuantification].t))()
+            i => {
+              val variableName = Util.toValidSilverIdentifier(i)
+              val variableType = Util.translateType(e.asInstanceOf[chalice.TypeQuantification].t)
+              LocalVarDecl(variableName, variableType)()
+            }
           }
         else if (e.isInstanceOf[chalice.SeqQuantification]) {
           val seq = e.asInstanceOf[chalice.SeqQuantification].seq
           val silseq = translateExp(seq, myThis, pTrans)
-          val tp = Util.translateType(seq.typ.asInstanceOf[chalice.SeqClass].parameter)
+          val variableType = Util.translateType(seq.typ.asInstanceOf[chalice.SeqClass].parameter)
           boundedVars = e.Is map { i =>
-            domainExpression = And(domainExpression, SeqContains(LocalVar(i)(tp), silseq)())()
-            LocalVarDecl(i, tp)()
+            val variableName = Util.toValidSilverIdentifier(i)
+            domainExpression = And(domainExpression, SeqContains(LocalVar(variableName)(variableType), silseq)())()
+            LocalVarDecl(variableName, variableType)()
           }
         }
         else {  // set quantification
           val set =  e.asInstanceOf[chalice.SetQuantification].dom
-          val tp = Util.translateType(set.typ.asInstanceOf[chalice.SetClass].parameter)
+          val variableType = Util.translateType(set.typ.asInstanceOf[chalice.SetClass].parameter)
           val silset = translateExp(set, myThis, pTrans)
           boundedVars = e.Is map { i =>
-            domainExpression = And(domainExpression, AnySetContains(LocalVar(i)(tp), silset)())()
-            LocalVarDecl(i, tp)()
+            val variableName = Util.toValidSilverIdentifier(i)
+            domainExpression = And(domainExpression, AnySetContains(LocalVar(variableName)(variableType), silset)())()
+            LocalVarDecl(variableName, variableType)()
           }
         }
 
@@ -675,12 +684,14 @@ class ProgramTranslator(val name: String)
               variable
             case _ =>
               // Translating quantifier.
-              LocalVar(v)(Util.translateType(cExp.typ))
+              val variableName = Util.toValidSilverIdentifier(v)
+              LocalVar(variableName)(Util.translateType(cExp.typ))
           }
         }
         else {
           // Translating predicate or function.
-          LocalVar(v)(Util.translateType(cExp.typ))
+          val variableName = Util.toValidSilverIdentifier(v)
+          LocalVar(variableName)(Util.translateType(cExp.typ))
         }
       }
 
@@ -752,7 +763,8 @@ class ProgramTranslator(val name: String)
 
       // local variable assignment
       case chalice.Assign(v@chalice.VariableExpr(name), rhs) if rhs.isInstanceOf[chalice.Expression] =>
-        LocalVarAssign(LocalVar(name)(Util.translateType(rhs.typ)),
+        val variable = methodVariableRegistry.getVariableOrThrow(name, Util.translateType(rhs.typ))
+        LocalVarAssign(variable,
           translateExp(rhs.asInstanceOf[chalice.Expression], myThis, pTrans))(position)
 
       // field update
@@ -835,10 +847,13 @@ class ProgramTranslator(val name: String)
       case chalice.Assign(v@chalice.VariableExpr(name), n) =>
         val newVariable = silMethod.locals(0)
 
+        // get target variable
+        val targetVariable = methodVariableRegistry.getRefVariable(name)
+
         // create new object
         val newStatement = Seq(
           Util.newObject(newVariable.localVar, silEnvironment.silFields.values.toSeq, position),
-          LocalVarAssign(LocalVar(name)(Ref), newVariable.localVar)(position)
+          LocalVarAssign(targetVariable, newVariable.localVar)(position)
         )
 
         // initialize fields
@@ -1342,6 +1357,24 @@ object Util {
       case Perm => NoPerm()()
       case Ref => NullLit()()
       case DomainType(_, _) | MultisetType(_) | Pred | TypeVar(_) => NullLit()() // should never happen
+    }
+  }
+
+  /**
+   * Converts Chalice identifier to a valid Silver identifier.
+   * Note: The client can safely assume that this function for
+   * the same input value will return the same output.
+   * @param identifier Chalice identifier.
+   * @return Silver identifier.
+   */
+  def toValidSilverIdentifier(identifier: String): String = {
+    if (Consistency.validUserDefinedIdentifier(identifier)) {
+      identifier
+    }
+    else {
+      val validIdentifier = identifier + "$_$"
+      assert(Consistency.validUserDefinedIdentifier(validIdentifier))
+      validIdentifier
     }
   }
 

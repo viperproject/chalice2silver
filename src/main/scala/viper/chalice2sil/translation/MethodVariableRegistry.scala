@@ -7,6 +7,8 @@
 package viper.chalice2sil.translation
 
 import viper.silver.ast._
+import viper.silver.ast.utility.Consistency
+
 
 /**
  * A helper class for managing Silver method's local variables.
@@ -91,7 +93,8 @@ class MethodVariableRegistry(val silMethod: Method) {
   /**
    * Returns variable object for use in expressions.
    */
-  def getVariable(variableName: String, variableType: Type): Option[LocalVar] = {
+  def getVariable(chaliceVariableName: String, variableType: Type): Option[LocalVar] = {
+    val variableName = Util.toValidSilverIdentifier(chaliceVariableName)
     getFormalArgument(variableName, variableType) match {
       case Some(variable) =>
         Some(variable)
@@ -121,12 +124,21 @@ class MethodVariableRegistry(val silMethod: Method) {
     }
   }
 
-  def getRefVariable(variableName: String) = {
+  def getRefVariable(variableName: String): LocalVar = {
     getVariable(variableName, Ref) match {
       case Some(variable) =>
         variable
       case _ =>
         throw new NoSuchElementException(s"Variable ${variableName}:${Ref} was not found.")
+    }
+  }
+
+  def getVariableOrThrow(variableName: String, variableType: Type): LocalVar = {
+    getVariable(variableName, variableType) match {
+      case Some(variable) =>
+        variable
+      case _ =>
+        throw new NoSuchElementException(s"Variable ${variableName}:${variableType} was not found.")
     }
   }
 
@@ -161,7 +173,9 @@ class MethodVariableRegistry(val silMethod: Method) {
     }
   }
 
-  private def addLocalVarDecl(variableName: String, variableType: Type, position: SourcePosition): Unit = {
+  private def addLocalVarDecl(chaliceVariableName: String, variableType: Type, position: SourcePosition): Unit = {
+    val variableName = Util.toValidSilverIdentifier(chaliceVariableName)
+
     val fullVariableName = constructVariableFullName(variableName, variableType)
     assert(!isFormalArgument(variableName),
       s"Local variable name ${variableName} collides with formal argument name.")
