@@ -89,7 +89,7 @@ object Chalice2SilBuild extends Build {
   object libs {
     lazy val silver = "viper" %% "silver" %  "0.1-SNAPSHOT"
     lazy val silicon = "viper" %% "silicon-quantified-permissions" %  "0.1-SNAPSHOT"
-    lazy val carbon = "viper" %% "carbon" %  "0.1-SNAPSHOT"
+    lazy val carbon = "viper" %% "carbon" %  "1.0-SNAPSHOT"
 
     lazy val silDir = RootProject(new java.io.File("../silver"))
     lazy val siliconDir = RootProject(new java.io.File("../silicon"))
