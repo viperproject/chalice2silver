@@ -7,7 +7,6 @@ class Lala {
     requires inv
   {
     //x := x + 1;
-    //:: UnexpectedOutput(assert.failed:insufficient.permission, /Carbon/issue/59/)
     assert (unfolding inv in x) == old(unfolding inv in x)
   }
 }

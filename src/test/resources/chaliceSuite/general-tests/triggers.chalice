@@ -78,7 +78,6 @@ class Triggers
     requires valid
     requires (forall x : int :: i(x, (c > d))) // check that logical operators are suitably avoided in triggers
     ensures valid
-    //:: UnexpectedOutput(postcondition.violated:assertion.false, /Silicon/issue/155/)
     ensures i(4,true)
     { }
 
