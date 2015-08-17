@@ -21,8 +21,14 @@ class CellContainer {
 		requires acc(d1.x) && acc(d2.x)
 		ensures acc(c1) && acc(c2)
 		ensures acc(d1.x) && acc(d2.x)
-    //:: UnexpectedOutput(application.precondition:assertion.false, /Silicon/issue/153/)
+    //:: ExpectedOutput(application.precondition:assertion.false)
+    //:: ExpectedOutput(application.precondition:insufficient.permission)
+    //:: MissingOutput(application.precondition:insufficient.permission, /Silicon/issue/34/)
 		ensures get(false) == d2.get()
+    //:: ExpectedOutput(application.precondition:assertion.false)
+    //:: MissingOutput(application.precondition:assertion.false, /Silicon/issue/34/)
+    //:: ExpectedOutput(application.precondition:insufficient.permission)
+    //:: MissingOutput(application.precondition:insufficient.permission, /Silicon/issue/34/)
 		ensures get(true) == d1.get()
 	{
 		c1 := d1
