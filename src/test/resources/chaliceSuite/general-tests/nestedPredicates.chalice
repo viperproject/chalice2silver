@@ -143,6 +143,7 @@ class Node {
 
   method testNestingUnfoldingPostcondition(x: Node)
     requires acc(this.valid);
+    //:: UnexpectedOutput(postcondition.violated:assertion.false, /Silicon/issue/154/)
     ensures acc(this.valid) && (unfolding this.valid in true) && this != this.getNext()
   {
     // nothing
