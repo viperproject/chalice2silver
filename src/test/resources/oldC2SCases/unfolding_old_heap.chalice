@@ -14,7 +14,6 @@ class Test {
 	method success10()
 		requires P
 		ensures P
-		//:: UnexpectedOutput(postcondition.violated:assertion.false, /Carbon/issue/59/)
 		ensures unfolding P in x == old(unfolding P in x)
 	{}
 	
@@ -41,7 +40,6 @@ class Test {
 	method success5()
 		requires P
 		ensures P
-		//:: UnexpectedOutput(postcondition.violated:assertion.false, /Carbon/issue/59/)
 		ensures unfolding P in x == old(unfolding P in x) + 1
 	{
 		unfold P
@@ -63,7 +61,6 @@ class Test {
 		ensures P
 		//:: ExpectedOutput(not.wellformed:insufficient.permission)
     //:: MissingOutput(not.wellformed:insufficient.permission, /Carbon/issue/53/)
-		//:: UnexpectedOutput(postcondition.violated:assertion.false, /Carbon/issue/59/)
 		ensures unfolding P in x == old(unfolding P in x) /* @Error 830 */
 	{
     fold P
