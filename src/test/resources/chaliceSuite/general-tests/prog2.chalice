@@ -28,7 +28,6 @@ class C {
   method P(n: int)
     requires acc(F);
     //:: ExpectedOutput(not.wellformed:insufficient.permission)
-    //:: MissingOutput(not.wellformed:insufficient.permission, /Carbon/issue/52/)
     ensures F == old(F) + n;  // error
   {
     F := F + n;

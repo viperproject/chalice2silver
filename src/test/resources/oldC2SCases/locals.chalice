@@ -4,7 +4,6 @@ class Test01 {
   method mm()
     requires acc(x)
     //:: ExpectedOutput(not.wellformed:insufficient.permission)
-    //:: MissingOutput(not.wellformed:insufficient.permission, /Carbon/issue/52/)
     ensures x == 1 /* @Error 330 */
   {
     x := 1

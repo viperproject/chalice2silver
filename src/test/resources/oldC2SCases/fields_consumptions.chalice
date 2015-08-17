@@ -85,7 +85,6 @@ class Consumptions {
   method greedyWriter(z: int)
     requires acc(x)
     //:: ExpectedOutput(not.wellformed:insufficient.permission)
-    //:: MissingOutput(not.wellformed:insufficient.permission, /Carbon/issue/52/)
     ensures x == z /* @Error 330 */
   {
     x := z
