@@ -310,8 +310,11 @@ class ProgramTranslator(val name: String)
     // translate body into SIL and populate the body of the SIL function appropriately
       // all permissions in the body are rendered to a read permission
     cFunction.definition match {
-      case Some(body) => sFunction.body = Some(translateExp(body, sThis, FunctionPermissionTranslator()))
-      case None => messages += BodylessFunctions(SourcePosition(programName, cFunction.pos.line, cFunction.pos.column))
+      case Some(body) =>
+        sFunction.body = Some(translateExp(body, sThis, FunctionPermissionTranslator()))
+      case None =>
+        sFunction.body = None
+        messages += BodylessFunctions(SourcePosition(programName, cFunction.pos.line, cFunction.pos.column))
     }
   }
 
