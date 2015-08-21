@@ -1,0 +1,4 @@
+class Test {
+  //:: UnexpectedOutput(chalice2silver.error, /Chalice2Silver/issue/71/)
+  function abstractFunction(): int
+}
