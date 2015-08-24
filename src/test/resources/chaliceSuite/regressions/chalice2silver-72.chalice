@@ -1,0 +1,19 @@
+//:: UnexpectedOutput(typechecker.error, /Chalice2Silver/issue/72/)
+class Cell {
+  var val: int
+}
+
+class Cell2 {
+  var cell: Cell
+}
+
+class Test {
+  var cells: seq<Cell2>
+
+  method test()
+    requires acc(cells[*].cell)
+    //:: UnexpectedOutput(typechecker.error, /Chalice2Silver/issue/72/)
+    requires acc(cells[*].cell.val)
+  {
+  }
+}
