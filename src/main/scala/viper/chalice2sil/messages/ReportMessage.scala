@@ -31,9 +31,6 @@ case class TokenPermissions(p: Position)
 case class Aggregates(p: Position)
   extends UnsupportedFeature("Aggregates. The code may be translated incorrectly.", p, true)
 
-case class BodylessFunctions(p:Position)
-  extends UnsupportedFeature("Functions without body. The code may be translated incorrectly.", p, true)
-
 case class Signals(p: Position)
   extends UnsupportedFeature("Signals. The code may be translated incorrectly.", p, true)
 

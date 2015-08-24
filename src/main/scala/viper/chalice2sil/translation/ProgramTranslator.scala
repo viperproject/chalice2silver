@@ -314,7 +314,6 @@ class ProgramTranslator(val name: String)
         sFunction.body = Some(translateExp(body, sThis, FunctionPermissionTranslator()))
       case None =>
         sFunction.body = None
-        messages += BodylessFunctions(SourcePosition(programName, cFunction.pos.line, cFunction.pos.column))
     }
   }
 
